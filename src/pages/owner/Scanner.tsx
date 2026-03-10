@@ -14,7 +14,7 @@ export default function OwnerScanner() {
 
     const initScanner = async () => {
       try {
-        let html5QrCode = new Html5Qrcode("reader");
+        const html5QrCode = new Html5Qrcode("reader");
         scannerRef.current = html5QrCode;
 
         const config = { fps: 10, qrbox: { width: 250, height: 250 } };
@@ -38,12 +38,20 @@ export default function OwnerScanner() {
         };
 
         try {
-          await html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess, onScanFailure);
+          const devices = await Html5Qrcode.getCameras();
+          if (devices && devices.length > 0) {
+            // Try to find a back camera
+            const backCamera = devices.find(d => d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('environment'));
+            const cameraId = backCamera ? backCamera.id : devices[0].id;
+            
+            await html5QrCode.start(cameraId, config, onScanSuccess, onScanFailure);
+          } else {
+            // Fallback to facingMode if getCameras returns empty but no error
+            await html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess, onScanFailure);
+          }
         } catch (e) {
-          console.log("Environment camera failed, trying user camera");
-          try { await html5QrCode.clear(); } catch (clearErr) {}
-          html5QrCode = new Html5Qrcode("reader");
-          scannerRef.current = html5QrCode;
+          console.log("Camera access failed, trying fallback", e);
+          // Ultimate fallback
           await html5QrCode.start({ facingMode: "user" }, config, onScanSuccess, onScanFailure);
         }
       } catch (err) {

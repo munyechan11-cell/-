@@ -10,6 +10,7 @@ import OwnerDashboard from './pages/owner/Dashboard';
 import OwnerCustomers from './pages/owner/Customers';
 import OwnerScanner from './pages/owner/Scanner';
 import Home from './pages/Home';
+import Master from './pages/Master';
 
 function PrivateRoute({ children, role }: { children: React.ReactNode, role: 'customer' | 'owner' }) {
   const { currentUser } = useStore();
@@ -27,6 +28,7 @@ export default function App() {
           <div className="flex-1 overflow-y-auto no-scrollbar w-full h-full relative pt-safe pb-safe">
             <Routes>
               <Route path="/" element={<Home />} />
+              <Route path="/master" element={<Master />} />
               
               {/* Customer Routes */}
               <Route path="/scan" element={<CustomerScanner />} />

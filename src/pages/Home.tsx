@@ -44,6 +44,12 @@ export default function Home() {
           </div>
         </Link>
       </div>
+
+      <div className="mt-auto pt-8 pb-4">
+        <Link to="/master" className="text-xs text-[#A1887F] hover:text-[#795548] transition-colors">
+          마스터 관리자
+        </Link>
+      </div>
     </div>
   );
 }

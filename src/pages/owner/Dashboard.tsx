@@ -119,6 +119,42 @@ export default function OwnerDashboard() {
         )}
       </div>
 
+      {/* Recent Coupon Usage History */}
+      <div className="px-6 pb-24">
+        <h2 className="text-lg font-bold text-[#2D1B15] mb-4 flex items-center">
+          <span className="bg-[#FFF3E0] text-[#D84315] w-8 h-8 rounded-full flex items-center justify-center mr-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+          </span>
+          최근 서비스 사용 내역
+        </h2>
+        <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-4 shadow-sm border border-[#E7E0D7]">
+          {coupons.filter(c => c.storeId === currentUser.id && c.status === 'used').length === 0 ? (
+            <p className="text-center text-[#795548] py-6">아직 사용된 서비스 쿠폰이 없습니다.</p>
+          ) : (
+            <div className="space-y-3">
+              {coupons
+                .filter(c => c.storeId === currentUser.id && c.status === 'used')
+                .sort((a, b) => new Date(b.usedAt!).getTime() - new Date(a.usedAt!).getTime())
+                .slice(0, 5)
+                .map(coupon => {
+                  const customer = users.find(u => u.id === coupon.customerId);
+                  return (
+                    <div key={coupon.id} className="flex justify-between items-center border-b border-[#E7E0D7]/50 last:border-0 pb-3 last:pb-0">
+                      <div>
+                        <p className="font-bold text-[#2D1B15]">{customer?.name || '알 수 없는 고객'} <span className="text-xs font-normal text-[#795548] ml-1">(테이블 {coupon.usedAtTable || '?'})</span></p>
+                        <p className="text-sm text-[#D84315] font-medium">{coupon.description}</p>
+                      </div>
+                      <span className="text-xs text-[#A1887F]">
+                        {new Date(coupon.usedAt!).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                  );
+                })}
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Bottom Navigation */}
       <div className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-sm border-t border-[#E7E0D7] flex justify-around p-4 pb-safe z-40">
         <Link to="/owner" className="flex flex-col items-center text-[#2D1B15]">

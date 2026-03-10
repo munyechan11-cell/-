@@ -15,7 +15,7 @@ export default function CustomerScanner() {
 
     const initScanner = async () => {
       try {
-        let html5QrCode = new Html5Qrcode("reader");
+        const html5QrCode = new Html5Qrcode("reader");
         scannerRef.current = html5QrCode;
 
         const config = { fps: 10, qrbox: { width: 250, height: 250 } };
@@ -26,10 +26,10 @@ export default function CustomerScanner() {
             if (text.includes('/customer/store/')) {
               try {
                 const url = new URL(text);
-                window.location.href = url.pathname + url.search;
+                navigate(url.pathname + url.search);
               } catch (urlError) {
                 // If it's not a valid URL but just a path
-                window.location.href = text;
+                navigate(text);
               }
               return;
             }
@@ -39,7 +39,7 @@ export default function CustomerScanner() {
             if (data.storeId && data.tableNumber) {
               const store = users.find(u => u.id === data.storeId && u.role === 'owner');
               if (store) {
-                window.location.href = `${window.location.origin}/customer/store/${data.storeId}/table/${data.tableNumber}`;
+                navigate(`/customer/store/${data.storeId}/table/${data.tableNumber}`);
               } else {
                 setError('유효하지 않은 가게 QR입니다.');
               }
@@ -56,12 +56,20 @@ export default function CustomerScanner() {
         };
 
         try {
-          await html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess, onScanFailure);
+          const devices = await Html5Qrcode.getCameras();
+          if (devices && devices.length > 0) {
+            // Try to find a back camera
+            const backCamera = devices.find(d => d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('environment'));
+            const cameraId = backCamera ? backCamera.id : devices[0].id;
+            
+            await html5QrCode.start(cameraId, config, onScanSuccess, onScanFailure);
+          } else {
+            // Fallback to facingMode if getCameras returns empty but no error
+            await html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess, onScanFailure);
+          }
         } catch (e) {
-          console.log("Environment camera failed, trying user camera");
-          try { await html5QrCode.clear(); } catch (clearErr) {}
-          html5QrCode = new Html5Qrcode("reader");
-          scannerRef.current = html5QrCode;
+          console.log("Camera access failed, trying fallback", e);
+          // Ultimate fallback
           await html5QrCode.start({ facingMode: "user" }, config, onScanSuccess, onScanFailure);
         }
       } catch (err) {
@@ -97,7 +105,7 @@ export default function CustomerScanner() {
   const handleTestScan = () => {
     const owner = users.find(u => u.role === 'owner');
     if (owner) {
-      window.location.href = `${window.location.origin}/customer/store/${owner.id}/table/1`;
+      navigate(`/customer/store/${owner.id}/table/1`);
     } else {
       setError('등록된 가게가 없습니다.');
     }
