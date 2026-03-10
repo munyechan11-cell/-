@@ -12,35 +12,44 @@ export default function OwnerScanner() {
   useEffect(() => {
     if (scannerRef.current) return;
 
-    // Initialize scanner
-    const html5QrCode = new Html5Qrcode("reader");
-    scannerRef.current = html5QrCode;
+    const initScanner = async () => {
+      try {
+        const html5QrCode = new Html5Qrcode("reader");
+        scannerRef.current = html5QrCode;
 
-    html5QrCode.start(
-      { facingMode: "environment" },
-      { fps: 10, qrbox: { width: 250, height: 250 } },
-      (decodedText) => {
-        try {
-          const data = JSON.parse(decodedText);
-          if (data.couponId && data.customerId) {
-            handleScan(data.couponId, data.customerId);
-            html5QrCode.pause(true); // Pause after successful scan
-          } else {
-            setScanResult({ success: false, message: '유효하지 않은 QR 코드입니다.' });
+        await html5QrCode.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 250, height: 250 } },
+          (decodedText) => {
+            try {
+              const data = JSON.parse(decodedText);
+              if (data.couponId && data.customerId) {
+                handleScan(data.couponId, data.customerId);
+                html5QrCode.pause(true); // Pause after successful scan
+              } else {
+                setScanResult({ success: false, message: '유효하지 않은 QR 코드입니다.' });
+              }
+            } catch (e) {
+              setScanResult({ success: false, message: 'QR 코드 형식이 잘못되었습니다.' });
+            }
+          },
+          (error) => {
+            // Ignore continuous scanning errors
           }
-        } catch (e) {
-          setScanResult({ success: false, message: 'QR 코드 형식이 잘못되었습니다.' });
-        }
-      },
-      (error) => {
-        // Ignore continuous scanning errors
+        );
+      } catch (err) {
+        console.error("Error starting scanner", err);
+        setScanResult({ success: false, message: '카메라를 시작할 수 없습니다. 권한을 확인해주세요.' });
       }
-    ).catch((err) => {
-      console.error("Error starting scanner", err);
-      setScanResult({ success: false, message: '카메라 권한을 허용해주세요.' });
-    });
+    };
+
+    // Small delay to ensure DOM element is ready
+    const timer = setTimeout(() => {
+      initScanner();
+    }, 100);
 
     return () => {
+      clearTimeout(timer);
       if (scannerRef.current) {
         scannerRef.current.stop().then(() => {
           scannerRef.current?.clear();

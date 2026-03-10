@@ -13,51 +13,61 @@ export default function CustomerScanner() {
   useEffect(() => {
     if (scannerRef.current) return;
 
-    const html5QrCode = new Html5Qrcode("reader");
-    scannerRef.current = html5QrCode;
+    const initScanner = async () => {
+      try {
+        const html5QrCode = new Html5Qrcode("reader");
+        scannerRef.current = html5QrCode;
 
-    html5QrCode.start(
-      { facingMode: "environment" },
-      { fps: 10, qrbox: { width: 250, height: 250 } },
-      (decodedText) => {
-        try {
-          const text = decodedText;
-          if (text.includes('/customer/store/')) {
+        await html5QrCode.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 250, height: 250 } },
+          (decodedText) => {
             try {
-              const url = new URL(text);
-              window.location.href = url.pathname + url.search;
-            } catch (urlError) {
-              // If it's not a valid URL but just a path
-              window.location.href = text;
+              const text = decodedText;
+              if (text.includes('/customer/store/')) {
+                try {
+                  const url = new URL(text);
+                  window.location.href = url.pathname + url.search;
+                } catch (urlError) {
+                  // If it's not a valid URL but just a path
+                  window.location.href = text;
+                }
+                return;
+              }
+              
+              // Fallback for old JSON format
+              const data = JSON.parse(text);
+              if (data.storeId && data.tableNumber) {
+                const store = users.find(u => u.id === data.storeId && u.role === 'owner');
+                if (store) {
+                  window.location.href = `${window.location.origin}/customer/store/${data.storeId}/table/${data.tableNumber}`;
+                } else {
+                  setError('유효하지 않은 가게 QR입니다.');
+                }
+              } else {
+                setError('잘못된 QR 형식입니다.');
+              }
+            } catch (e) {
+              setError('QR 코드를 읽을 수 없습니다.');
             }
-            return;
+          },
+          (error) => {
+            // Ignore continuous scanning errors
           }
-          
-          // Fallback for old JSON format
-          const data = JSON.parse(text);
-          if (data.storeId && data.tableNumber) {
-            const store = users.find(u => u.id === data.storeId && u.role === 'owner');
-            if (store) {
-              window.location.href = `${window.location.origin}/customer/store/${data.storeId}/table/${data.tableNumber}`;
-            } else {
-              setError('유효하지 않은 가게 QR입니다.');
-            }
-          } else {
-            setError('잘못된 QR 형식입니다.');
-          }
-        } catch (e) {
-          setError('QR 코드를 읽을 수 없습니다.');
-        }
-      },
-      (error) => {
-        // Ignore continuous scanning errors
+        );
+      } catch (err) {
+        console.error("Error starting scanner", err);
+        setError('카메라를 시작할 수 없습니다. 권한을 확인해주세요.');
       }
-    ).catch((err) => {
-      console.error("Error starting scanner", err);
-      setError('카메라 권한을 허용해주세요.');
-    });
+    };
+
+    // Small delay to ensure DOM element is ready
+    const timer = setTimeout(() => {
+      initScanner();
+    }, 100);
 
     return () => {
+      clearTimeout(timer);
       if (scannerRef.current) {
         scannerRef.current.stop().then(() => {
           scannerRef.current?.clear();
