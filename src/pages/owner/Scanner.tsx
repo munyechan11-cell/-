@@ -8,6 +8,11 @@ export default function OwnerScanner() {
   const { useCoupon, coupons, users, tables, currentUser } = useStore();
   const [scanResult, setScanResult] = useState<{ success: boolean; message: string; data?: any } | null>(null);
   const scannerRef = useRef<Html5Qrcode | null>(null);
+  
+  const storeDataRef = useRef({ coupons, users, tables, currentUser });
+  useEffect(() => {
+    storeDataRef.current = { coupons, users, tables, currentUser };
+  }, [coupons, users, tables, currentUser]);
 
   useEffect(() => {
     if (scannerRef.current) return;
@@ -77,6 +82,8 @@ export default function OwnerScanner() {
   }, []);
 
   const handleScan = (couponId: string, customerId: string) => {
+    const { currentUser, coupons, users, tables } = storeDataRef.current;
+    
     if (!currentUser) return;
     
     const coupon = coupons.find(c => c.id === couponId);

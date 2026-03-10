@@ -1,10 +1,81 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useStore } from '../store';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Store, Users, Ticket, Calendar } from 'lucide-react';
+import { ArrowLeft, Store, Users, Ticket, Calendar, Lock, KeyRound } from 'lucide-react';
 
 export default function Master() {
-  const { users, visits, coupons } = useStore();
+  const { users, visits, coupons, masterPassword, setMasterPassword } = useStore();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [passwordInput, setPasswordInput] = useState('');
+  const [error, setError] = useState('');
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passwordInput === masterPassword) {
+      setIsAuthenticated(true);
+      setError('');
+    } else {
+      setError('비밀번호가 일치하지 않습니다.');
+    }
+  };
+
+  const handleChangePassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword.length < 3) {
+      setError('새 비밀번호는 3자리 이상이어야 합니다.');
+      return;
+    }
+    setMasterPassword(newPassword);
+    setIsChangingPassword(false);
+    setNewPassword('');
+    setError('');
+    alert('비밀번호가 성공적으로 변경되었습니다.');
+  };
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-full bg-transparent flex flex-col items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white/90 backdrop-blur-sm rounded-3xl shadow-[0_4px_20px_rgba(78,52,46,0.08)] border border-[#E7E0D7] overflow-hidden p-8 text-center relative">
+          <Link 
+            to="/" 
+            className="absolute top-4 left-4 p-2 bg-transparent hover:bg-[#EFEBE9] rounded-full text-[#5D4037] transition-colors z-10"
+          >
+            <ArrowLeft className="w-6 h-6" />
+          </Link>
+          <div className="w-20 h-20 rounded-full bg-[#FFF3E0] flex items-center justify-center mx-auto mb-4 mt-4 shadow-sm border border-[#FFE0B2]">
+            <Lock className="w-10 h-10 text-[#D84315]" />
+          </div>
+          <h2 className="text-2xl font-black mb-2 tracking-tight text-[#2D1B15]">마스터 인증</h2>
+          <p className="text-[#795548] mb-8 font-medium">관리자 페이지에 접근하려면<br/>비밀번호를 입력해주세요.</p>
+
+          <form onSubmit={handleLogin} className="space-y-6">
+            <div>
+              <input
+                type="password"
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
+                placeholder="비밀번호 입력"
+                className="w-full bg-[#F5F2EB] border-2 border-[#E7E0D7] rounded-2xl px-5 py-4 text-center text-lg font-bold text-[#2D1B15] placeholder:text-[#A1887F] focus:outline-none focus:border-[#D84315] focus:bg-white transition-all"
+              />
+            </div>
+
+            {error && (
+              <p className="text-[#D84315] text-sm font-bold bg-[#FFF3E0] py-2 rounded-xl">{error}</p>
+            )}
+
+            <button
+              type="submit"
+              className="w-full bg-[#D84315] hover:bg-[#BF360C] text-white font-bold py-4 rounded-2xl transition-colors text-lg shadow-sm"
+            >
+              인증하기
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   const owners = users.filter(u => u.role === 'owner');
 
@@ -27,17 +98,66 @@ export default function Master() {
   return (
     <div className="min-h-full bg-transparent pb-20">
       {/* Header */}
-      <div className="bg-transparent text-[#2D1B15] p-6 pt-8 border-b border-[#E7E0D7] flex items-center">
-        <Link to="/" className="p-2 bg-white/80 rounded-full hover:bg-white shadow-sm border border-[#E7E0D7] transition-colors mr-4">
-          <ArrowLeft className="w-5 h-5 text-[#D84315]" />
-        </Link>
-        <div>
-          <h1 className="text-2xl font-black tracking-tight">마스터 관리자</h1>
-          <p className="text-[#795548] text-sm mt-1 font-medium">등록된 전체 사장님 현황</p>
+      <div className="bg-transparent text-[#2D1B15] p-6 pt-8 border-b border-[#E7E0D7] flex items-center justify-between">
+        <div className="flex items-center">
+          <Link to="/" className="p-2 bg-white/80 rounded-full hover:bg-white shadow-sm border border-[#E7E0D7] transition-colors mr-4">
+            <ArrowLeft className="w-5 h-5 text-[#D84315]" />
+          </Link>
+          <div>
+            <h1 className="text-2xl font-black tracking-tight">마스터 관리자</h1>
+            <p className="text-[#795548] text-sm mt-1 font-medium">등록된 전체 사장님 현황</p>
+          </div>
         </div>
+        <button 
+          onClick={() => setIsChangingPassword(!isChangingPassword)}
+          className="p-2 bg-white/80 rounded-full hover:bg-white shadow-sm border border-[#E7E0D7] transition-colors"
+          title="비밀번호 변경"
+        >
+          <KeyRound className="w-5 h-5 text-[#4E342E]" />
+        </button>
       </div>
 
       <div className="p-6">
+        {isChangingPassword && (
+          <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-5 shadow-sm border border-[#D84315] mb-8 animate-in fade-in slide-in-from-top-4">
+            <h3 className="font-bold text-[#2D1B15] mb-4 flex items-center">
+              <KeyRound className="w-5 h-5 mr-2 text-[#D84315]" />
+              비밀번호 변경
+            </h3>
+            <form onSubmit={handleChangePassword} className="space-y-4">
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="새 비밀번호 입력"
+                className="w-full bg-[#F5F2EB] border-2 border-[#E7E0D7] rounded-xl px-4 py-3 text-[#2D1B15] placeholder:text-[#A1887F] focus:outline-none focus:border-[#D84315] focus:bg-white transition-all"
+              />
+              {error && (
+                <p className="text-[#D84315] text-sm font-bold">{error}</p>
+              )}
+              <div className="flex space-x-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsChangingPassword(false);
+                    setError('');
+                    setNewPassword('');
+                  }}
+                  className="flex-1 bg-[#EFEBE9] hover:bg-stone-300 text-[#2D1B15] font-bold py-3 rounded-xl transition-colors"
+                >
+                  취소
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 bg-[#D84315] hover:bg-[#BF360C] text-white font-bold py-3 rounded-xl transition-colors"
+                >
+                  변경하기
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-4 mb-8">
           <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-5 shadow-sm border border-[#E7E0D7]">
             <div className="flex items-center text-[#795548] mb-2">

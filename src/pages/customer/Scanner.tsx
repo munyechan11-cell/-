@@ -9,6 +9,11 @@ export default function CustomerScanner() {
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
   const scannerRef = useRef<Html5Qrcode | null>(null);
+  const usersRef = useRef(users);
+
+  useEffect(() => {
+    usersRef.current = users;
+  }, [users]);
 
   useEffect(() => {
     if (scannerRef.current) return;
@@ -37,7 +42,7 @@ export default function CustomerScanner() {
             // Fallback for old JSON format
             const data = JSON.parse(text);
             if (data.storeId && data.tableNumber) {
-              const store = users.find(u => u.id === data.storeId && u.role === 'owner');
+              const store = usersRef.current.find(u => u.id === data.storeId && u.role === 'owner');
               if (store) {
                 navigate(`/customer/store/${data.storeId}/table/${data.tableNumber}`);
               } else {
@@ -92,7 +97,7 @@ export default function CustomerScanner() {
         }).catch(console.error);
       }
     };
-  }, [users]);
+  }, []);
 
   const handleLogout = () => {
     if (currentUser) {

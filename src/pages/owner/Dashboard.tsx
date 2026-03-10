@@ -17,7 +17,8 @@ export default function OwnerDashboard() {
         initTables(currentUser.id);
       }
     }
-  }, [currentUser, tables, initTables]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser]);
 
   if (!currentUser) return null;
 
