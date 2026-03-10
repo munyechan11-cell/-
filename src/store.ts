@@ -185,11 +185,24 @@ export const useStore = () => {
     setStorage('visits', newVisits);
     setVisits(newVisits);
 
-    const newTables = tables.map(t => 
-      (t.number === tableNumber && t.storeId === storeId)
-        ? { ...t, currentCustomerId: customerId, sessionStartTime: new Date().toISOString() }
-        : t
-    );
+    let tableFound = false;
+    const newTables = tables.map(t => {
+      if (t.number === tableNumber && t.storeId === storeId) {
+        tableFound = true;
+        return { ...t, currentCustomerId: customerId, sessionStartTime: new Date().toISOString() };
+      }
+      return t;
+    });
+
+    if (!tableFound) {
+      newTables.push({
+        number: tableNumber,
+        storeId,
+        currentCustomerId: customerId,
+        sessionStartTime: new Date().toISOString(),
+      });
+    }
+    
     setStorage('tables', newTables);
     setTables(newTables);
 

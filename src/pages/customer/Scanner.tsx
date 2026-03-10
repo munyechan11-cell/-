@@ -25,7 +25,13 @@ export default function CustomerScanner() {
         try {
           const text = decodedText;
           if (text.includes('/customer/store/')) {
-            window.location.href = text;
+            try {
+              const url = new URL(text);
+              window.location.href = url.pathname + url.search;
+            } catch (urlError) {
+              // If it's not a valid URL but just a path
+              window.location.href = text;
+            }
             return;
           }
           

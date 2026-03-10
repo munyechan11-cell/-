@@ -46,7 +46,13 @@ export const syncToFirebase = async (key: string, value: any[]) => {
     // Note: In a real production app, you would want to only update changed documents
     // rather than rewriting the whole collection, but this works for the prototype.
     for (const item of value) {
-      const docId = item.id || (item.number ? `${item.storeId}_${item.number}` : null);
+      let docId = item.id || (item.number ? `${item.storeId}_${item.number}` : null);
+      
+      // Handle TierOverride which has customerId and storeId but no id
+      if (!docId && item.customerId && item.storeId && item.tier) {
+        docId = `${item.storeId}_${item.customerId}`;
+      }
+      
       if (docId) {
         await setDoc(doc(db, key, docId.toString()), item, { merge: true });
       }
