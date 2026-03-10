@@ -1,0 +1,45 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;600;700;900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Noto Serif KR", serif;
+  --font-serif: "Noto Serif KR", serif;
+}
+
+body {
+  font-family: "Noto Serif KR", serif;
+  background-color: #F5F2EB;
+  color: #2D1B15;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  user-select: none;
+  margin: 0;
+  padding: 0;
+}
+
+.hanji-bg {
+  background-color: #F5F2EB;
+  background-image: url('https://www.transparenttextures.com/patterns/rice-paper-2.png');
+  background-repeat: repeat;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+@utility pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+
+@utility px-safe {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}

@@ -1,0 +1,267 @@
+import { useState } from 'react';
+import { useStore, getCustomerTier, getEffectiveTier, getTierColor } from '../../store';
+import { QRCodeSVG } from 'qrcode.react';
+import { LogOut, Ticket, Award, Calendar, X, ArrowLeft, LogOut as LeaveIcon, MessageSquare, Bell } from 'lucide-react';
+import { useNavigate, useParams, Link } from 'react-router-dom';
+
+export default function CustomerDashboard() {
+  const { currentUser, visits, coupons, users, tables, logout, leaveTable, communications, tierOverrides } = useStore();
+  const navigate = useNavigate();
+  const { storeId } = useParams<{ storeId: string }>();
+  const [selectedCoupon, setSelectedCoupon] = useState<string | null>(null);
+
+  if (!currentUser) return null;
+
+  if (currentUser.storeId !== storeId) {
+    return (
+      <div className="min-h-full bg-transparent flex items-center justify-center p-4">
+        <div className="bg-white/90 backdrop-blur-sm p-8 rounded-3xl shadow-sm text-center">
+          <p className="text-[#795548] mb-4">잘못된 접근입니다. 가게 QR을 다시 스캔해주세요.</p>
+          <Link to="/scan" className="text-[#D84315] font-bold">스캐너로 돌아가기</Link>
+        </div>
+      </div>
+    );
+  }
+
+  const owner = users.find(u => u.id === storeId && u.role === 'owner');
+  if (!owner) {
+    return (
+      <div className="min-h-full bg-transparent flex items-center justify-center p-4">
+        <div className="bg-white/90 backdrop-blur-sm p-8 rounded-3xl shadow-sm text-center">
+          <p className="text-[#795548] mb-4">가게 정보를 찾을 수 없습니다.</p>
+          <Link to="/scan" className="text-[#D84315] font-bold">스캐너로 돌아가기</Link>
+        </div>
+      </div>
+    );
+  }
+
+  const restaurantName = owner.restaurantName || '단골 매장';
+
+  const myVisits = visits.filter(v => v.customerId === currentUser.id && v.storeId === storeId);
+  const myCoupons = coupons.filter(c => c.customerId === currentUser.id && c.storeId === storeId && c.status === 'available');
+  const myCommunications = communications.filter(c => c.customerId === currentUser.id && c.storeId === storeId).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  
+  const currentTable = tables.find(t => t.currentCustomerId === currentUser.id && t.storeId === storeId);
+  
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const recentVisits = myVisits.filter(v => new Date(v.date) >= thirtyDaysAgo);
+  const uniqueVisitDays = new Set(recentVisits.map(v => new Date(v.date).toDateString())).size;
+  const recentVisitsCount = uniqueVisitDays;
+  
+  const override = tierOverrides.find(t => t.customerId === currentUser.id && t.storeId === storeId);
+  const currentTier = getEffectiveTier(recentVisitsCount, override?.tier);
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
+
+  const handleLeaveStore = () => {
+    if (currentTable && storeId) {
+      leaveTable(currentTable.number, storeId);
+      alert('가게에서 퇴장하셨습니다.');
+      navigate('/scan');
+    }
+  };
+
+  const activeCoupon = myCoupons.find(c => c.id === selectedCoupon);
+
+  return (
+    <div className="min-h-full bg-transparent pb-20">
+      {/* Header */}
+      <div className="bg-transparent text-[#2D1B15] p-6 pt-8 border-b border-[#E7E0D7]">
+        <div className="flex justify-between items-center mb-6 relative">
+          <Link to="/scan" className="p-2 bg-white/80 rounded-full hover:bg-white shadow-sm border border-[#E7E0D7] transition-colors">
+            <ArrowLeft className="w-5 h-5 text-[#D84315]" />
+          </Link>
+          <h1 className="text-xl font-black tracking-tight flex-1 text-center">{restaurantName}</h1>
+          <button onClick={handleLogout} className="p-2 bg-white/80 rounded-full hover:bg-white shadow-sm border border-[#E7E0D7] transition-colors">
+            <LogOut className="w-5 h-5 text-[#D84315]" />
+          </button>
+        </div>
+        
+        <div className="flex items-center space-x-4">
+          <div className="w-16 h-16 bg-[#FFF3E0] border border-[#FFE0B2] rounded-full flex items-center justify-center text-[#D84315] font-bold text-xl shadow-sm">
+            {currentUser.name.charAt(0)}
+          </div>
+          <div className="flex-1">
+            <p className="text-[#795548] text-sm font-medium">환영합니다,</p>
+            <h2 className="text-2xl font-bold text-[#2D1B15]">{currentUser.name}님</h2>
+            {currentTable && (
+              <div className="flex items-center justify-between mt-2">
+                <p className="text-[#D84315] text-sm font-bold bg-[#FFF3E0] inline-block px-3 py-1 rounded-full">
+                  현재 테이블: {currentTable.number}번
+                </p>
+                <button 
+                  onClick={handleLeaveStore}
+                  className="flex items-center text-xs font-bold bg-white/90 backdrop-blur-sm text-[#795548] border border-[#E7E0D7] px-3 py-1.5 rounded-full hover:bg-[#F5F2EB] transition-colors shadow-sm"
+                >
+                  <LeaveIcon className="w-3 h-3 mr-1" />
+                  가게 퇴장
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="p-4 space-y-6 relative z-10">
+        {/* Notifications / Messages */}
+        {myCommunications.length > 0 && (
+          <div>
+            <h3 className="font-bold text-[#2D1B15] mb-4 px-2 flex items-center">
+              <Bell className="w-5 h-5 mr-2 text-[#D84315]" />
+              알림 및 메시지
+            </h3>
+            <div className="space-y-3">
+              {myCommunications.slice(0, 3).map(comm => (
+                <div key={comm.id} className="bg-white/90 backdrop-blur-sm rounded-2xl p-4 shadow-sm border border-[#E7E0D7]">
+                  <div className="flex justify-between items-start mb-2">
+                    <span className={`px-2 py-1 rounded-md text-xs font-bold flex items-center ${comm.type === 'coupon' ? 'bg-[#FFF3E0] text-[#D84315]' : 'bg-blue-100 text-blue-800'}`}>
+                      {comm.type === 'coupon' ? <Ticket className="w-3 h-3 mr-1" /> : <MessageSquare className="w-3 h-3 mr-1" />}
+                      {comm.type === 'coupon' ? '서비스 알림' : '가게 메시지'}
+                    </span>
+                    <span className="text-xs text-[#A1887F]">
+                      {new Date(comm.date).toLocaleDateString('ko-KR')}
+                    </span>
+                  </div>
+                  <p className="text-[#4E342E] text-sm font-medium">{comm.content}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Tier Card */}
+        <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-6 shadow-sm border border-[#E7E0D7]">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="font-bold text-[#2D1B15] flex items-center">
+              <Award className="w-5 h-5 mr-2 text-[#D84315]" />
+              나의 등급
+            </h3>
+            <span className={`px-3 py-1 rounded-full text-sm font-bold border ${getTierColor(currentTier)}`}>
+              {currentTier}
+            </span>
+          </div>
+          
+          <div className="bg-[#F5F2EB]/50 rounded-2xl p-4">
+            <div className="flex justify-between text-sm text-[#795548] mb-2">
+              <span>최근 30일 방문</span>
+              <span className="font-bold text-[#2D1B15]">{recentVisitsCount}회</span>
+            </div>
+            <div className="w-full bg-[#EFEBE9] rounded-full h-2.5">
+              <div 
+                className="bg-[#D84315] h-2.5 rounded-full" 
+                style={{ width: `${Math.min((recentVisitsCount / 12) * 100, 100)}%` }}
+              ></div>
+            </div>
+            <p className="text-xs text-[#A1887F] mt-2 text-right">
+              다음 등급까지 {currentTier === 'VIP' ? '0' : 2 - (recentVisitsCount % 2)}회 남았습니다.
+            </p>
+          </div>
+        </div>
+
+        {/* Coupons */}
+        <div>
+          <h3 className="font-bold text-[#2D1B15] mb-4 px-2 flex items-center">
+            <Ticket className="w-5 h-5 mr-2 text-[#D84315]" />
+            나의 쿠폰 (My Coupons)
+          </h3>
+          
+          {myCoupons.length === 0 ? (
+            <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-8 text-center shadow-sm border border-[#E7E0D7]">
+              <p className="text-[#795548]">현재 사용 가능한 쿠폰이 없습니다.</p>
+              <p className="text-sm text-[#A1887F] mt-2">방문 횟수를 늘려 등급 혜택을 받아보세요!</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {myCoupons.map(coupon => (
+                <button
+                  key={coupon.id}
+                  onClick={() => setSelectedCoupon(coupon.id)}
+                  className="w-full bg-white/90 backdrop-blur-sm rounded-2xl p-5 shadow-sm border border-[#D84315]/20 flex justify-between items-center hover:bg-[#FFF3E0]/50 transition-colors text-left"
+                >
+                  <div>
+                    <span className="text-xs font-bold text-[#D84315] bg-[#FFF3E0] px-2 py-1 rounded-md mb-2 inline-block">
+                      {coupon.type}
+                    </span>
+                    <h4 className="font-bold text-[#2D1B15]">{coupon.description}</h4>
+                  </div>
+                  <div className="bg-[#D84315] text-white px-4 py-2 rounded-xl text-sm font-bold">
+                    사용하기
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* History */}
+        <div>
+          <h3 className="font-bold text-[#2D1B15] mb-4 px-2 flex items-center">
+            <Calendar className="w-5 h-5 mr-2 text-[#795548]" />
+            최근 방문 내역
+          </h3>
+          <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-4 shadow-sm border border-[#E7E0D7]">
+            {myVisits.length === 0 ? (
+              <p className="text-center text-[#795548] py-4">방문 내역이 없습니다.</p>
+            ) : (
+              <div className="space-y-4">
+                {myVisits.slice().reverse().slice(0, 5).map(visit => (
+                  <div key={visit.id} className="flex justify-between items-center border-b border-[#E7E0D7]/50 last:border-0 pb-4 last:pb-0">
+                    <div>
+                      <p className="font-medium text-[#2D1B15]">
+                        {new Date(visit.date).toLocaleDateString('ko-KR')}
+                      </p>
+                      <p className="text-sm text-[#795548]">테이블 {visit.tableNumber}번</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* QR Modal */}
+      {selectedCoupon && activeCoupon && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-8 max-w-sm w-full text-center relative">
+            <button 
+              onClick={() => setSelectedCoupon(null)}
+              className="absolute top-4 right-4 p-2 bg-transparent rounded-full hover:bg-[#EFEBE9]"
+            >
+              <X className="w-5 h-5 text-[#5D4037]" />
+            </button>
+            
+            <h3 className="text-xl font-bold text-[#2D1B15] mb-2">서비스 쿠폰 사용</h3>
+            <p className="text-[#795548] mb-6">{activeCoupon.description}</p>
+            
+            <div className="bg-white/90 backdrop-blur-sm p-4 rounded-2xl border-4 border-[#FFF3E0] inline-block mb-6 relative group">
+              <QRCodeSVG 
+                value={JSON.stringify({ couponId: activeCoupon.id, customerId: currentUser.id, storeId })} 
+                size={200}
+                level="H"
+                includeMargin={true}
+              />
+              <button 
+                onClick={() => {
+                  navigator.clipboard.writeText(JSON.stringify({ couponId: activeCoupon.id, customerId: currentUser.id, storeId }));
+                  alert('QR 데이터가 복사되었습니다. (테스트용)');
+                }}
+                className="absolute inset-0 bg-black/50 text-white font-bold flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-xl"
+              >
+                데이터 복사
+              </button>
+            </div>
+            
+            <p className="text-sm font-bold text-[#D84315] bg-[#FFF3E0]/50 p-3 rounded-xl">
+              직원에게 이 화면을 보여주세요.
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
