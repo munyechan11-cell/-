@@ -320,6 +320,24 @@ export const useStore = () => {
       const allTables = [...tables, ...newStoreTables];
       setStorage('tables', allTables);
       setTables(allTables);
+    } else if (existingTables.length < 12) {
+      const existingNumbers = new Set(existingTables.map(t => t.number));
+      const newStoreTables: Table[] = [];
+      for (let i = 1; i <= 12; i++) {
+        if (!existingNumbers.has(i)) {
+          newStoreTables.push({
+            number: i,
+            storeId,
+            currentCustomerId: null,
+            sessionStartTime: null,
+          });
+        }
+      }
+      if (newStoreTables.length > 0) {
+        const allTables = [...tables, ...newStoreTables];
+        setStorage('tables', allTables);
+        setTables(allTables);
+      }
     }
   };
 

@@ -14,29 +14,38 @@ export default function OwnerScanner() {
 
     const initScanner = async () => {
       try {
-        const html5QrCode = new Html5Qrcode("reader");
+        let html5QrCode = new Html5Qrcode("reader");
         scannerRef.current = html5QrCode;
 
-        await html5QrCode.start(
-          { facingMode: "environment" },
-          { fps: 10, qrbox: { width: 250, height: 250 } },
-          (decodedText) => {
-            try {
-              const data = JSON.parse(decodedText);
-              if (data.couponId && data.customerId) {
-                handleScan(data.couponId, data.customerId);
-                html5QrCode.pause(true); // Pause after successful scan
-              } else {
-                setScanResult({ success: false, message: '유효하지 않은 QR 코드입니다.' });
-              }
-            } catch (e) {
-              setScanResult({ success: false, message: 'QR 코드 형식이 잘못되었습니다.' });
+        const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+        
+        const onScanSuccess = (decodedText: string) => {
+          try {
+            const data = JSON.parse(decodedText);
+            if (data.couponId && data.customerId) {
+              handleScan(data.couponId, data.customerId);
+              html5QrCode.pause(true); // Pause after successful scan
+            } else {
+              setScanResult({ success: false, message: '유효하지 않은 QR 코드입니다.' });
             }
-          },
-          (error) => {
-            // Ignore continuous scanning errors
+          } catch (e) {
+            setScanResult({ success: false, message: 'QR 코드 형식이 잘못되었습니다.' });
           }
-        );
+        };
+
+        const onScanFailure = (error: any) => {
+          // Ignore continuous scanning errors
+        };
+
+        try {
+          await html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess, onScanFailure);
+        } catch (e) {
+          console.log("Environment camera failed, trying user camera");
+          try { await html5QrCode.clear(); } catch (clearErr) {}
+          html5QrCode = new Html5Qrcode("reader");
+          scannerRef.current = html5QrCode;
+          await html5QrCode.start({ facingMode: "user" }, config, onScanSuccess, onScanFailure);
+        }
       } catch (err) {
         console.error("Error starting scanner", err);
         setScanResult({ success: false, message: '카메라를 시작할 수 없습니다. 권한을 확인해주세요.' });

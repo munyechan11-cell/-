@@ -15,46 +15,55 @@ export default function CustomerScanner() {
 
     const initScanner = async () => {
       try {
-        const html5QrCode = new Html5Qrcode("reader");
+        let html5QrCode = new Html5Qrcode("reader");
         scannerRef.current = html5QrCode;
 
-        await html5QrCode.start(
-          { facingMode: "environment" },
-          { fps: 10, qrbox: { width: 250, height: 250 } },
-          (decodedText) => {
-            try {
-              const text = decodedText;
-              if (text.includes('/customer/store/')) {
-                try {
-                  const url = new URL(text);
-                  window.location.href = url.pathname + url.search;
-                } catch (urlError) {
-                  // If it's not a valid URL but just a path
-                  window.location.href = text;
-                }
-                return;
+        const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+        
+        const onScanSuccess = (decodedText: string) => {
+          try {
+            const text = decodedText;
+            if (text.includes('/customer/store/')) {
+              try {
+                const url = new URL(text);
+                window.location.href = url.pathname + url.search;
+              } catch (urlError) {
+                // If it's not a valid URL but just a path
+                window.location.href = text;
               }
-              
-              // Fallback for old JSON format
-              const data = JSON.parse(text);
-              if (data.storeId && data.tableNumber) {
-                const store = users.find(u => u.id === data.storeId && u.role === 'owner');
-                if (store) {
-                  window.location.href = `${window.location.origin}/customer/store/${data.storeId}/table/${data.tableNumber}`;
-                } else {
-                  setError('유효하지 않은 가게 QR입니다.');
-                }
-              } else {
-                setError('잘못된 QR 형식입니다.');
-              }
-            } catch (e) {
-              setError('QR 코드를 읽을 수 없습니다.');
+              return;
             }
-          },
-          (error) => {
-            // Ignore continuous scanning errors
+            
+            // Fallback for old JSON format
+            const data = JSON.parse(text);
+            if (data.storeId && data.tableNumber) {
+              const store = users.find(u => u.id === data.storeId && u.role === 'owner');
+              if (store) {
+                window.location.href = `${window.location.origin}/customer/store/${data.storeId}/table/${data.tableNumber}`;
+              } else {
+                setError('유효하지 않은 가게 QR입니다.');
+              }
+            } else {
+              setError('잘못된 QR 형식입니다.');
+            }
+          } catch (e) {
+            setError('QR 코드를 읽을 수 없습니다.');
           }
-        );
+        };
+
+        const onScanFailure = (error: any) => {
+          // Ignore continuous scanning errors
+        };
+
+        try {
+          await html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess, onScanFailure);
+        } catch (e) {
+          console.log("Environment camera failed, trying user camera");
+          try { await html5QrCode.clear(); } catch (clearErr) {}
+          html5QrCode = new Html5Qrcode("reader");
+          scannerRef.current = html5QrCode;
+          await html5QrCode.start({ facingMode: "user" }, config, onScanSuccess, onScanFailure);
+        }
       } catch (err) {
         console.error("Error starting scanner", err);
         setError('카메라를 시작할 수 없습니다. 권한을 확인해주세요.');

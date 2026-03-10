@@ -13,7 +13,7 @@ export default function OwnerDashboard() {
   useEffect(() => {
     if (currentUser && currentUser.role === 'owner') {
       const myTables = tables.filter(t => t.storeId === currentUser.id);
-      if (myTables.length === 0) {
+      if (myTables.length < 12) {
         initTables(currentUser.id);
       }
     }
