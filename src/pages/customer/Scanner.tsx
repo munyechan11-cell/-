@@ -1,26 +1,24 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useStore } from '../../store';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { Html5Qrcode } from 'html5-qrcode';
 import { ScanLine, LogOut, Store, ArrowLeft } from 'lucide-react';
 
 export default function CustomerScanner() {
   const { currentUser, logout, recordVisit, users } = useStore();
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
-  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+  const scannerRef = useRef<Html5Qrcode | null>(null);
 
   useEffect(() => {
     if (scannerRef.current) return;
 
-    const scanner = new Html5QrcodeScanner(
-      "reader",
-      { fps: 10, qrbox: { width: 250, height: 250 } },
-      false
-    );
-    scannerRef.current = scanner;
+    const html5QrCode = new Html5Qrcode("reader");
+    scannerRef.current = html5QrCode;
 
-    scanner.render(
+    html5QrCode.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: { width: 250, height: 250 } },
       (decodedText) => {
         try {
           const text = decodedText;
@@ -54,12 +52,17 @@ export default function CustomerScanner() {
       (error) => {
         // Ignore continuous scanning errors
       }
-    );
+    ).catch((err) => {
+      console.error("Error starting scanner", err);
+      setError('카메라 권한을 허용해주세요.');
+    });
 
     return () => {
       if (scannerRef.current) {
-        scannerRef.current.clear().catch(console.error);
-        scannerRef.current = null;
+        scannerRef.current.stop().then(() => {
+          scannerRef.current?.clear();
+          scannerRef.current = null;
+        }).catch(console.error);
       }
     };
   }, [users]);

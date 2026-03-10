@@ -2,31 +2,29 @@ import { useState, useEffect, useRef } from 'react';
 import { useStore } from '../../store';
 import { Users, LayoutGrid, ScanLine, CheckCircle2, XCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { Html5Qrcode } from 'html5-qrcode';
 
 export default function OwnerScanner() {
   const { useCoupon, coupons, users, tables, currentUser } = useStore();
   const [scanResult, setScanResult] = useState<{ success: boolean; message: string; data?: any } | null>(null);
-  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+  const scannerRef = useRef<Html5Qrcode | null>(null);
 
   useEffect(() => {
     if (scannerRef.current) return;
 
     // Initialize scanner
-    const scanner = new Html5QrcodeScanner(
-      "reader",
-      { fps: 10, qrbox: { width: 250, height: 250 } },
-      false
-    );
-    scannerRef.current = scanner;
+    const html5QrCode = new Html5Qrcode("reader");
+    scannerRef.current = html5QrCode;
 
-    scanner.render(
+    html5QrCode.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: { width: 250, height: 250 } },
       (decodedText) => {
         try {
           const data = JSON.parse(decodedText);
           if (data.couponId && data.customerId) {
             handleScan(data.couponId, data.customerId);
-            scanner.pause(true); // Pause after successful scan
+            html5QrCode.pause(true); // Pause after successful scan
           } else {
             setScanResult({ success: false, message: '유효하지 않은 QR 코드입니다.' });
           }
@@ -37,12 +35,17 @@ export default function OwnerScanner() {
       (error) => {
         // Ignore continuous scanning errors
       }
-    );
+    ).catch((err) => {
+      console.error("Error starting scanner", err);
+      setScanResult({ success: false, message: '카메라 권한을 허용해주세요.' });
+    });
 
     return () => {
       if (scannerRef.current) {
-        scannerRef.current.clear().catch(console.error);
-        scannerRef.current = null;
+        scannerRef.current.stop().then(() => {
+          scannerRef.current?.clear();
+          scannerRef.current = null;
+        }).catch(console.error);
       }
     };
   }, []);

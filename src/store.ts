@@ -137,6 +137,7 @@ export const useStore = () => {
   const login = (phone: string, name: string, role: Role, restaurantName?: string, storeId?: string) => {
     const cleanPhone = phone.replace(/[^0-9]/g, '');
     let user = users.find(u => u.phone.replace(/[^0-9]/g, '') === cleanPhone && u.role === role && (role === 'owner' || u.storeId === storeId));
+    
     if (!user) {
       user = {
         id: Math.random().toString(36).substring(2, 9),
@@ -149,20 +150,43 @@ export const useStore = () => {
       const newUsers = [...users, user];
       setStorage('users', newUsers);
       setUsers(newUsers);
+    }
 
-      if (role === 'owner') {
-        // Initialize tables for the new store
+    if (role === 'owner') {
+      // Ensure the owner has tables initialized
+      const ownerTables = tables.filter(t => t.storeId === user!.id);
+      if (ownerTables.length === 0) {
         const newStoreTables: Table[] = Array.from({ length: 12 }, (_, i) => ({
           number: i + 1,
-          storeId: user.id,
+          storeId: user!.id,
           currentCustomerId: null,
           sessionStartTime: null,
         }));
-        const allTables = [...getStorage('tables', initialTables), ...newStoreTables];
+        const allTables = [...tables, ...newStoreTables];
         setStorage('tables', allTables);
         setTables(allTables);
+      } else if (ownerTables.length < 12) {
+        // If they have some tables but less than 12, fill the rest up to 12
+        const existingNumbers = new Set(ownerTables.map(t => t.number));
+        const newStoreTables: Table[] = [];
+        for (let i = 1; i <= 12; i++) {
+          if (!existingNumbers.has(i)) {
+            newStoreTables.push({
+              number: i,
+              storeId: user!.id,
+              currentCustomerId: null,
+              sessionStartTime: null,
+            });
+          }
+        }
+        if (newStoreTables.length > 0) {
+          const allTables = [...tables, ...newStoreTables];
+          setStorage('tables', allTables);
+          setTables(allTables);
+        }
       }
     }
+
     setStorage('currentUser', user);
     setCurrentUser(user);
     return user;
