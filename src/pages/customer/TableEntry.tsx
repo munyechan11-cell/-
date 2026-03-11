@@ -5,7 +5,7 @@ import { useStore } from '../../store';
 export default function TableEntry() {
   const { storeId, tableNumber } = useParams<{ storeId: string, tableNumber: string }>();
   const navigate = useNavigate();
-  const { currentUser, recordVisit, logout } = useStore();
+  const { currentUser, users, recordVisit, logout } = useStore();
   const processedRef = useRef(false);
 
   useEffect(() => {
@@ -17,8 +17,9 @@ export default function TableEntry() {
     }
 
     processedRef.current = true;
+    const userExists = currentUser && users.some(u => u.id === currentUser.id);
 
-    if (currentUser?.role === 'customer') {
+    if (currentUser?.role === 'customer' && userExists) {
       if (currentUser.storeId === storeId) {
         // Already logged in to this store
         recordVisit(currentUser.id, parseInt(tableNumber), storeId);
@@ -28,15 +29,15 @@ export default function TableEntry() {
         logout();
         navigate(`/customer/store/${storeId}/login?table=${tableNumber}`);
       }
-    } else if (currentUser?.role === 'owner') {
-      // Owner shouldn't be scanning customer QR codes
+    } else if (currentUser?.role === 'owner' || (currentUser && !userExists)) {
+      // Owner shouldn't be scanning customer QR codes, or user was deleted
       logout();
       navigate(`/customer/store/${storeId}/login?table=${tableNumber}`);
     } else {
       // Not logged in
       navigate(`/customer/store/${storeId}/login?table=${tableNumber}`);
     }
-  }, [currentUser, navigate, storeId, tableNumber, recordVisit, logout]);
+  }, [currentUser, users, navigate, storeId, tableNumber, recordVisit, logout]);
 
   return (
     <div className="min-h-full bg-transparent flex items-center justify-center">

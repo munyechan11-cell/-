@@ -13,8 +13,17 @@ import Home from './pages/Home';
 import Master from './pages/Master';
 
 function PrivateRoute({ children, role }: { children: React.ReactNode, role: 'customer' | 'owner' }) {
-  const { currentUser } = useStore();
-  if (!currentUser || currentUser.role !== role) {
+  const { currentUser, users, logout } = useStore();
+  
+  const userExists = currentUser && users.some(u => u.id === currentUser.id);
+
+  React.useEffect(() => {
+    if (currentUser && !userExists) {
+      logout();
+    }
+  }, [currentUser, userExists, logout]);
+
+  if (!currentUser || currentUser.role !== role || !userExists) {
     return <Navigate to={`/${role}/login`} replace />;
   }
   return <>{children}</>;

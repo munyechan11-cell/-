@@ -141,7 +141,8 @@ export const useStore = () => {
 
   const login = (phone: string, name: string, role: Role, restaurantName?: string, storeId?: string) => {
     const cleanPhone = phone.replace(/[^0-9]/g, '');
-    let user = users.find(u => u.phone.replace(/[^0-9]/g, '') === cleanPhone && u.role === role && (role === 'owner' || u.storeId === storeId));
+    const currentUsers = getStorage<User[]>('users', []);
+    let user = currentUsers.find(u => u.phone.replace(/[^0-9]/g, '') === cleanPhone && u.role === role && (role === 'owner' || u.storeId === storeId));
     
     if (!user) {
       user = {
@@ -152,14 +153,15 @@ export const useStore = () => {
         restaurantName,
         storeId,
       };
-      const newUsers = [...users, user];
+      const newUsers = [...currentUsers, user];
       setStorage('users', newUsers);
       setUsers(newUsers);
     }
 
     if (role === 'owner') {
       // Ensure the owner has tables initialized
-      const ownerTables = tables.filter(t => t.storeId === user!.id);
+      const currentTables = getStorage<Table[]>('tables', initialTables);
+      const ownerTables = currentTables.filter(t => t.storeId === user!.id);
       if (ownerTables.length === 0) {
         const newStoreTables: Table[] = Array.from({ length: 12 }, (_, i) => ({
           number: i + 1,
@@ -167,7 +169,7 @@ export const useStore = () => {
           currentCustomerId: null,
           sessionStartTime: null,
         }));
-        const allTables = [...tables, ...newStoreTables];
+        const allTables = [...currentTables, ...newStoreTables];
         setStorage('tables', allTables);
         setTables(allTables);
       } else if (ownerTables.length < 12) {
@@ -185,7 +187,7 @@ export const useStore = () => {
           }
         }
         if (newStoreTables.length > 0) {
-          const allTables = [...tables, ...newStoreTables];
+          const allTables = [...currentTables, ...newStoreTables];
           setStorage('tables', allTables);
           setTables(allTables);
         }
@@ -205,63 +207,65 @@ export const useStore = () => {
   const recordVisit = (customerId: string, tableNumber: number, storeId: string) => {
     const today = new Date().toDateString();
     
-    setVisits(prevVisits => {
-      const hasVisitedToday = prevVisits.some(
-        v => v.customerId === customerId && v.storeId === storeId && new Date(v.date).toDateString() === today
-      );
+    const currentVisits = getStorage<Visit[]>('visits', []);
+    const hasVisitedToday = currentVisits.some(
+      v => v.customerId === customerId && v.storeId === storeId && new Date(v.date).toDateString() === today
+    );
 
-      if (!hasVisitedToday) {
-        const newVisit: Visit = {
-          id: Math.random().toString(36).substring(2, 9),
-          customerId,
-          storeId,
-          date: new Date().toISOString(),
-          tableNumber,
-        };
-        const newVisits = [...prevVisits, newVisit];
-        setStorage('visits', newVisits);
-        
-        // Trigger coupon check asynchronously to avoid state update loops
-        setTimeout(() => checkAndIssueTierCoupons(customerId, storeId, newVisits), 0);
-        return newVisits;
-      }
-      return prevVisits;
-    });
-
-    setTables(prevTables => {
-      let tableFound = false;
-      const newTables = prevTables.map(t => {
-        if (t.number === tableNumber && t.storeId === storeId) {
-          tableFound = true;
-          return { ...t, currentCustomerId: customerId, sessionStartTime: new Date().toISOString() };
-        }
-        return t;
-      });
-
-      if (!tableFound) {
-        newTables.push({
-          number: tableNumber,
-          storeId,
-          currentCustomerId: customerId,
-          sessionStartTime: new Date().toISOString(),
-        });
-      }
+    let newVisits = [...currentVisits];
+    if (!hasVisitedToday) {
+      const newVisit: Visit = {
+        id: Math.random().toString(36).substring(2, 9),
+        customerId,
+        storeId,
+        date: new Date().toISOString(),
+        tableNumber,
+      };
+      newVisits = [...currentVisits, newVisit];
+      setStorage('visits', newVisits);
+      setVisits(newVisits);
       
-      setStorage('tables', newTables);
-      return newTables;
+      // Trigger coupon check asynchronously to avoid state update loops
+      setTimeout(() => checkAndIssueTierCoupons(customerId, storeId, newVisits), 0);
+    }
+
+    const currentTables = getStorage<Table[]>('tables', initialTables);
+    let tableFound = false;
+    const newTables = currentTables.map(t => {
+      // Clear the customer from any other table in this store
+      if (t.storeId === storeId && t.currentCustomerId === customerId && t.number !== tableNumber) {
+        return { ...t, currentCustomerId: null, sessionStartTime: null };
+      }
+      // Set the customer at the new table
+      if (t.number === tableNumber && t.storeId === storeId) {
+        tableFound = true;
+        return { ...t, currentCustomerId: customerId, sessionStartTime: new Date().toISOString() };
+      }
+      return t;
     });
+
+    if (!tableFound) {
+      newTables.push({
+        number: tableNumber,
+        storeId,
+        currentCustomerId: customerId,
+        sessionStartTime: new Date().toISOString(),
+      });
+    }
+    
+    setStorage('tables', newTables);
+    setTables(newTables);
   };
 
   const leaveTable = (tableNumber: number, storeId: string) => {
-    setTables(prevTables => {
-      const newTables = prevTables.map(t => 
-        (t.number === tableNumber && t.storeId === storeId)
-          ? { ...t, currentCustomerId: null, sessionStartTime: null }
-          : t
-      );
-      setStorage('tables', newTables);
-      return newTables;
-    });
+    const currentTables = getStorage<Table[]>('tables', initialTables);
+    const newTables = currentTables.map(t => 
+      (t.number === tableNumber && t.storeId === storeId)
+        ? { ...t, currentCustomerId: null, sessionStartTime: null }
+        : t
+    );
+    setStorage('tables', newTables);
+    setTables(newTables);
   };
 
   const checkAndIssueTierCoupons = (customerId: string, storeId: string, allVisits: Visit[]) => {
@@ -291,100 +295,141 @@ export const useStore = () => {
   };
 
   const issueCoupon = (customerId: string, storeId: string, type: string, description: string) => {
-    setCoupons(prevCoupons => {
-      const newCoupon: Coupon = {
-        id: Math.random().toString(36).substring(2, 9),
-        customerId,
-        storeId,
-        type,
-        description,
-        status: 'available',
-        issuedAt: new Date().toISOString(),
-      };
-      const newCoupons = [...prevCoupons, newCoupon];
-      setStorage('coupons', newCoupons);
-      return newCoupons;
-    });
+    const currentCoupons = getStorage<Coupon[]>('coupons', []);
+    const newCoupon: Coupon = {
+      id: Math.random().toString(36).substring(2, 9),
+      customerId,
+      storeId,
+      type,
+      description,
+      status: 'available',
+      issuedAt: new Date().toISOString(),
+    };
+    const newCoupons = [...currentCoupons, newCoupon];
+    setStorage('coupons', newCoupons);
+    setCoupons(newCoupons);
   };
 
   const recordCommunication = (customerId: string, storeId: string, type: 'coupon' | 'message', content: string) => {
-    setCommunications(prevComms => {
-      const newComm: Communication = {
-        id: Math.random().toString(36).substring(2, 9),
-        customerId,
-        storeId,
-        type,
-        content,
-        date: new Date().toISOString(),
-      };
-      const newComms = [...prevComms, newComm];
-      setStorage('communications', newComms);
-      return newComms;
-    });
+    const currentComms = getStorage<Communication[]>('communications', []);
+    const newComm: Communication = {
+      id: Math.random().toString(36).substring(2, 9),
+      customerId,
+      storeId,
+      type,
+      content,
+      date: new Date().toISOString(),
+    };
+    const newComms = [...currentComms, newComm];
+    setStorage('communications', newComms);
+    setCommunications(newComms);
   };
 
   const useCoupon = (couponId: string, tableNumber?: number) => {
-    setCoupons(prevCoupons => {
-      const newCoupons = prevCoupons.map(c => 
-        c.id === couponId 
-          ? { ...c, status: 'used' as const, usedAt: new Date().toISOString(), usedAtTable: tableNumber }
-          : c
-      );
-      setStorage('coupons', newCoupons);
-      return newCoupons;
-    });
+    const currentCoupons = getStorage<Coupon[]>('coupons', []);
+    const newCoupons = currentCoupons.map(c => 
+      c.id === couponId 
+        ? { ...c, status: 'used' as const, usedAt: new Date().toISOString(), usedAtTable: tableNumber }
+        : c
+    );
+    setStorage('coupons', newCoupons);
+    setCoupons(newCoupons);
   };
 
   const initTables = (storeId: string) => {
-    setTables(prevTables => {
-      const existingTables = prevTables.filter(t => t.storeId === storeId);
-      if (existingTables.length === 0) {
-        const newStoreTables: Table[] = Array.from({ length: 12 }, (_, i) => ({
-          number: i + 1,
-          storeId,
-          currentCustomerId: null,
-          sessionStartTime: null,
-        }));
-        const allTables = [...prevTables, ...newStoreTables];
-        setStorage('tables', allTables);
-        return allTables;
-      } else if (existingTables.length < 12) {
-        const existingNumbers = new Set(existingTables.map(t => t.number));
-        const newStoreTables: Table[] = [];
-        for (let i = 1; i <= 12; i++) {
-          if (!existingNumbers.has(i)) {
-            newStoreTables.push({
-              number: i,
-              storeId,
-              currentCustomerId: null,
-              sessionStartTime: null,
-            });
-          }
-        }
-        if (newStoreTables.length > 0) {
-          const allTables = [...prevTables, ...newStoreTables];
-          setStorage('tables', allTables);
-          return allTables;
+    const currentTables = getStorage<Table[]>('tables', initialTables);
+    const existingTables = currentTables.filter(t => t.storeId === storeId);
+    if (existingTables.length === 0) {
+      const newStoreTables: Table[] = Array.from({ length: 12 }, (_, i) => ({
+        number: i + 1,
+        storeId,
+        currentCustomerId: null,
+        sessionStartTime: null,
+      }));
+      const allTables = [...currentTables, ...newStoreTables];
+      setStorage('tables', allTables);
+      setTables(allTables);
+    } else if (existingTables.length < 12) {
+      const existingNumbers = new Set(existingTables.map(t => t.number));
+      const newStoreTables: Table[] = [];
+      for (let i = 1; i <= 12; i++) {
+        if (!existingNumbers.has(i)) {
+          newStoreTables.push({
+            number: i,
+            storeId,
+            currentCustomerId: null,
+            sessionStartTime: null,
+          });
         }
       }
-      return prevTables;
-    });
+      if (newStoreTables.length > 0) {
+        const allTables = [...currentTables, ...newStoreTables];
+        setStorage('tables', allTables);
+        setTables(allTables);
+      }
+    }
   };
 
   const setCustomerTier = (customerId: string, storeId: string, tier: string) => {
-    setTierOverrides(prevOverrides => {
-      const newOverrides = prevOverrides.filter(t => !(t.customerId === customerId && t.storeId === storeId));
-      if (tier !== 'auto') {
-        newOverrides.push({ customerId, storeId, tier });
-      }
-      setStorage('tierOverrides', newOverrides);
-      return newOverrides;
-    });
+    const currentOverrides = getStorage<TierOverride[]>('tierOverrides', []);
+    const newOverrides = currentOverrides.filter(t => !(t.customerId === customerId && t.storeId === storeId));
+    if (tier !== 'auto') {
+      newOverrides.push({ customerId, storeId, tier });
+    }
+    setStorage('tierOverrides', newOverrides);
+    setTierOverrides(newOverrides);
   };
 
   const setMasterPassword = (newPassword: string) => {
     setStorage('masterPassword', newPassword);
     setMasterPasswordState(newPassword);
+  };
+
+  const deleteUser = (userId: string, role: Role) => {
+    if (role === 'owner') {
+      const newUsers = getStorage<User[]>('users', []).filter(u => u.id !== userId && u.storeId !== userId);
+      const newVisits = getStorage<Visit[]>('visits', []).filter(v => v.storeId !== userId);
+      const newCoupons = getStorage<Coupon[]>('coupons', []).filter(c => c.storeId !== userId);
+      const newTables = getStorage<Table[]>('tables', []).filter(t => t.storeId !== userId);
+      const newComms = getStorage<Communication[]>('communications', []).filter(c => c.storeId !== userId);
+      const newTiers = getStorage<TierOverride[]>('tierOverrides', []).filter(t => t.storeId !== userId);
+
+      setStorage('users', newUsers);
+      setUsers(newUsers);
+      setStorage('visits', newVisits);
+      setVisits(newVisits);
+      setStorage('coupons', newCoupons);
+      setCoupons(newCoupons);
+      setStorage('tables', newTables);
+      setTables(newTables);
+      setStorage('communications', newComms);
+      setCommunications(newComms);
+      setStorage('tierOverrides', newTiers);
+      setTierOverrides(newTiers);
+    } else {
+      const newUsers = getStorage<User[]>('users', []).filter(u => u.id !== userId);
+      const newVisits = getStorage<Visit[]>('visits', []).filter(v => v.customerId !== userId);
+      const newCoupons = getStorage<Coupon[]>('coupons', []).filter(c => c.customerId !== userId);
+      const newComms = getStorage<Communication[]>('communications', []).filter(c => c.customerId !== userId);
+      const newTiers = getStorage<TierOverride[]>('tierOverrides', []).filter(t => t.customerId !== userId);
+      
+      const newTables = getStorage<Table[]>('tables', []).map(t => 
+        t.currentCustomerId === userId ? { ...t, currentCustomerId: null, sessionStartTime: null } : t
+      );
+
+      setStorage('users', newUsers);
+      setUsers(newUsers);
+      setStorage('visits', newVisits);
+      setVisits(newVisits);
+      setStorage('coupons', newCoupons);
+      setCoupons(newCoupons);
+      setStorage('communications', newComms);
+      setCommunications(newComms);
+      setStorage('tierOverrides', newTiers);
+      setTierOverrides(newTiers);
+      setStorage('tables', newTables);
+      setTables(newTables);
+    }
   };
 
   return {
@@ -406,6 +451,7 @@ export const useStore = () => {
     initTables,
     setCustomerTier,
     setMasterPassword,
+    deleteUser,
   };
 };
 
@@ -421,6 +467,15 @@ export const getCustomerTier = (visitCount: number) => {
 export const getEffectiveTier = (visitCount: number, overrideTier?: string) => {
   if (overrideTier && overrideTier !== 'auto') return overrideTier;
   return getCustomerTier(visitCount);
+};
+
+export const getNextTierVisits = (visitCount: number) => {
+  if (visitCount >= 12) return 0;
+  if (visitCount >= 8) return 12 - visitCount;
+  if (visitCount >= 6) return 8 - visitCount;
+  if (visitCount >= 4) return 6 - visitCount;
+  if (visitCount >= 2) return 4 - visitCount;
+  return 2 - visitCount;
 };
 
 export const getTierColor = (tier: string) => {

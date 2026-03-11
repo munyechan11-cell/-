@@ -44,19 +44,28 @@ export default function CustomerScanner() {
         await scannerRef.current.stop();
       }
       await scannerRef.current.start({ facingMode: mode }, config, onScanSuccess, () => {});
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setError('카메라를 시작할 수 없습니다.');
+      const errorMessage = String(err);
+      if (errorMessage.includes('NotAllowedError') || errorMessage.includes('Permission denied')) {
+        setError('카메라 접근 권한이 거부되었습니다. 브라우저 설정에서 카메라 권한을 허용해주세요.');
+      } else {
+        setError('카메라를 시작할 수 없습니다. 기기의 카메라 상태를 확인해주세요.');
+      }
     }
   };
 
   // 초기 실행 및 방향 변경 시 실행
   useEffect(() => {
+    let isMounted = true;
     const timer = setTimeout(() => {
-      startScanner(facingMode);
+      if (isMounted) {
+        startScanner(facingMode);
+      }
     }, 100);
 
     return () => {
+      isMounted = false;
       clearTimeout(timer);
       if (scannerRef.current?.isScanning) {
         scannerRef.current.stop().catch(console.error);
@@ -69,7 +78,22 @@ export default function CustomerScanner() {
     setFacingMode(prev => prev === "environment" ? "user" : "environment");
   };
 
-  // ... 나머지 handleLogout, handleTestScan 동일 ...
+  const handleLogout = () => {
+    if (currentUser) {
+      logout();
+    }
+    navigate('/');
+  };
+
+  // For testing without a real camera
+  const handleTestScan = () => {
+    const owner = users.find(u => u.role === 'owner');
+    if (owner) {
+      navigate(`/customer/store/${owner.id}/table/1`);
+    } else {
+      setError('등록된 가게가 없습니다.');
+    }
+  };
 
   return (
     <div className="min-h-full bg-transparent pb-20 flex flex-col">
@@ -87,18 +111,40 @@ export default function CustomerScanner() {
           <RefreshCw className="w-5 h-5 text-[#D84315]" />
         </button>
 
-        {currentUser && (
+        {currentUser ? (
           <button onClick={handleLogout} className="p-2 bg-white/80 rounded-full hover:bg-white shadow-sm border border-[#E7E0D7]">
             <LogOut className="w-5 h-5 text-[#D84315]" />
           </button>
+        ) : (
+          <div className="w-9"></div> /* Spacer for alignment */
         )}
       </div>
 
       <div className="flex-1 p-6 flex flex-col items-center justify-center">
         <div className="bg-white/90 backdrop-blur-sm p-4 rounded-3xl shadow-sm border border-[#E7E0D7] w-full max-w-sm relative overflow-hidden">
           <div id="reader" className="w-full"></div>
-          {/* ... 이하 에러 메시지 및 푸터 동일 ... */}
+          
+          {error && (
+            <div className="mt-4 p-3 bg-red-50 text-red-600 text-sm font-bold rounded-xl text-center">
+              {error}
+            </div>
+          )}
+          
+          <div className="mt-6 text-center">
+            <ScanLine className="w-8 h-8 text-[#D84315] mx-auto mb-2" />
+            <p className="text-[#795548] font-medium">
+              카메라를 QR 코드에 향하게 해주세요
+            </p>
+          </div>
         </div>
+
+        <button 
+          onClick={handleTestScan}
+          className="mt-8 bg-[#EFEBE9] hover:bg-stone-300 text-[#4E342E] font-bold py-3 px-6 rounded-xl transition-colors flex items-center"
+        >
+          <Store className="w-5 h-5 mr-2" />
+          테스트용: 첫번째 가게로 입장
+        </button>
       </div>
     </div>
   );

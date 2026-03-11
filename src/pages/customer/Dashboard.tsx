@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useStore, getCustomerTier, getEffectiveTier, getTierColor } from '../../store';
+import { useStore, getCustomerTier, getEffectiveTier, getTierColor, getNextTierVisits } from '../../store';
 import { QRCodeSVG } from 'qrcode.react';
 import { LogOut, Ticket, Award, Calendar, X, ArrowLeft, LogOut as LeaveIcon, MessageSquare, Bell } from 'lucide-react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
@@ -157,7 +157,7 @@ export default function CustomerDashboard() {
               ></div>
             </div>
             <p className="text-xs text-[#A1887F] mt-2 text-right">
-              다음 등급까지 {currentTier === 'VIP' ? '0' : 2 - (recentVisitsCount % 2)}회 남았습니다.
+              다음 등급까지 {getNextTierVisits(recentVisitsCount)}회 남았습니다.
             </p>
           </div>
         </div>

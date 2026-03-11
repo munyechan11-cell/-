@@ -13,10 +13,11 @@ export default function OwnerLogin() {
   const { login, users, currentUser } = useStore();
 
   useEffect(() => {
-    if (currentUser?.role === 'owner') {
+    const userExists = currentUser && users.some(u => u.id === currentUser.id);
+    if (currentUser?.role === 'owner' && userExists) {
       navigate('/owner');
     }
-  }, [currentUser, navigate]);
+  }, [currentUser, users, navigate]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

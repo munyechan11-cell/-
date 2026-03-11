@@ -21,7 +21,9 @@ export default function CustomerLogin() {
   useEffect(() => {
     if (processedRef.current) return;
 
-    if (currentUser?.role === 'customer') {
+    const userExists = currentUser && users.some(u => u.id === currentUser.id);
+
+    if (currentUser?.role === 'customer' && userExists) {
       if (storeId && currentUser.storeId === storeId) {
         processedRef.current = true;
         if (tableNumber) {
@@ -33,7 +35,7 @@ export default function CustomerLogin() {
         navigate('/customer');
       }
     }
-  }, [currentUser, navigate, storeId, tableNumber, recordVisit]);
+  }, [currentUser, users, navigate, storeId, tableNumber, recordVisit]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

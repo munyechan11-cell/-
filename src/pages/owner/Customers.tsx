@@ -25,7 +25,7 @@ export default function OwnerCustomers() {
 
   if (!currentUser) return null;
 
-  const customers = users.filter(u => u.role === 'customer');
+  const customers = users.filter(u => u.role === 'customer' && u.storeId === currentUser.id);
 
   const getCustomerStats = (customerId: string) => {
     const customerVisits = visits.filter(v => v.customerId === customerId && v.storeId === currentUser.id);

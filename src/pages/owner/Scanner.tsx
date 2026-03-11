@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { useStore } from '../../store';
-import { Users, LayoutGrid, ScanLine, CheckCircle2, XCircle } from 'lucide-react';
+import { Users, LayoutGrid, ScanLine, CheckCircle2, XCircle, RefreshCw } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Html5Qrcode } from 'html5-qrcode';
 
 export default function OwnerScanner() {
   const { useCoupon, coupons, users, tables, currentUser } = useStore();
   const [scanResult, setScanResult] = useState<{ success: boolean; message: string; data?: any } | null>(null);
+  const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
   const scannerRef = useRef<Html5Qrcode | null>(null);
   
   const storeDataRef = useRef({ coupons, users, tables, currentUser });
@@ -14,78 +15,74 @@ export default function OwnerScanner() {
     storeDataRef.current = { coupons, users, tables, currentUser };
   }, [coupons, users, tables, currentUser]);
 
-  useEffect(() => {
-    if (scannerRef.current) return;
+  const startScanner = async (mode: "environment" | "user") => {
+    if (!scannerRef.current) {
+      scannerRef.current = new Html5Qrcode("reader");
+    }
 
-    const initScanner = async () => {
-      try {
-        const html5QrCode = new Html5Qrcode("reader");
-        scannerRef.current = html5QrCode;
-
-        const config = { fps: 10, qrbox: { width: 250, height: 250 } };
-        
+    const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+    
         const onScanSuccess = (decodedText: string) => {
-          try {
-            const data = JSON.parse(decodedText);
-            if (data.couponId && data.customerId) {
-              handleScan(data.couponId, data.customerId);
-              html5QrCode.pause(true); // Pause after successful scan
-            } else {
-              setScanResult({ success: false, message: '유효하지 않은 QR 코드입니다.' });
-            }
-          } catch (e) {
-            setScanResult({ success: false, message: 'QR 코드 형식이 잘못되었습니다.' });
-          }
-        };
-
-        const onScanFailure = (error: any) => {
-          // Ignore continuous scanning errors
-        };
-
-        try {
-          const devices = await Html5Qrcode.getCameras();
-          if (devices && devices.length > 0) {
-            // Try to find a back camera
-            const backCamera = devices.find(d => d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('environment'));
-            const cameraId = backCamera ? backCamera.id : devices[0].id;
-            
-            await html5QrCode.start(cameraId, config, onScanSuccess, onScanFailure);
-          } else {
-            // Fallback to facingMode if getCameras returns empty but no error
-            await html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess, onScanFailure);
-          }
-        } catch (e) {
-          console.log("Camera access failed, trying fallback", e);
-          // Ultimate fallback
-          await html5QrCode.start({ facingMode: "user" }, config, onScanSuccess, onScanFailure);
+      try {
+        const data = JSON.parse(decodedText);
+        if (data.couponId && data.customerId && data.storeId) {
+          handleScan(data.couponId, data.customerId, data.storeId);
+          scannerRef.current?.pause(true); // Pause after successful scan
+        } else {
+          setScanResult({ success: false, message: '유효하지 않은 QR 코드입니다.' });
         }
-      } catch (err) {
-        console.error("Error starting scanner", err);
-        setScanResult({ success: false, message: '카메라를 시작할 수 없습니다. 권한을 확인해주세요.' });
+      } catch (e) {
+        setScanResult({ success: false, message: 'QR 코드 형식이 잘못되었습니다.' });
       }
     };
 
-    // Small delay to ensure DOM element is ready
+    try {
+      if (scannerRef.current.isScanning) {
+        await scannerRef.current.stop();
+      }
+      await scannerRef.current.start({ facingMode: mode }, config, onScanSuccess, () => {});
+    } catch (err: any) {
+      console.error(err);
+      const errorMessage = String(err);
+      if (errorMessage.includes('NotAllowedError') || errorMessage.includes('Permission denied')) {
+        setScanResult({ success: false, message: '카메라 접근 권한이 거부되었습니다. 브라우저 설정에서 카메라 권한을 허용해주세요.' });
+      } else {
+        setScanResult({ success: false, message: '카메라를 시작할 수 없습니다. 기기의 카메라 상태를 확인해주세요.' });
+      }
+    }
+  };
+
+  useEffect(() => {
+    let isMounted = true;
     const timer = setTimeout(() => {
-      initScanner();
+      if (isMounted) {
+        startScanner(facingMode);
+      }
     }, 100);
 
     return () => {
+      isMounted = false;
       clearTimeout(timer);
-      if (scannerRef.current) {
-        scannerRef.current.stop().then(() => {
-          scannerRef.current?.clear();
-          scannerRef.current = null;
-        }).catch(console.error);
+      if (scannerRef.current?.isScanning) {
+        scannerRef.current.stop().catch(console.error);
       }
     };
-  }, []);
+  }, [facingMode]);
 
-  const handleScan = (couponId: string, customerId: string) => {
+  const toggleCamera = () => {
+    setFacingMode(prev => prev === "environment" ? "user" : "environment");
+  };
+
+  const handleScan = (couponId: string, customerId: string, storeId: string) => {
     const { currentUser, coupons, users, tables } = storeDataRef.current;
     
     if (!currentUser) return;
     
+    if (storeId !== currentUser.id) {
+      setScanResult({ success: false, message: '이 매장의 쿠폰이 아닙니다.' });
+      return;
+    }
+
     const coupon = coupons.find(c => c.id === couponId);
     const customer = users.find(u => u.id === customerId);
     
@@ -94,6 +91,11 @@ export default function OwnerScanner() {
 
     if (!coupon) {
       setScanResult({ success: false, message: '존재하지 않는 쿠폰입니다.' });
+      return;
+    }
+
+    if (coupon.storeId !== currentUser.id) {
+      setScanResult({ success: false, message: '이 매장의 쿠폰이 아닙니다.' });
       return;
     }
 
@@ -123,9 +125,7 @@ export default function OwnerScanner() {
 
   const resetScanner = () => {
     setScanResult(null);
-    // Note: To fully resume, we'd need to re-initialize or call resume() on the scanner instance.
-    // For simplicity in this demo, reloading the component or just clearing the result works for UI.
-    window.location.reload(); // Simple way to reset scanner state
+    startScanner(facingMode);
   };
 
   if (!currentUser) return null;
@@ -133,9 +133,14 @@ export default function OwnerScanner() {
   return (
     <div className="min-h-full bg-transparent pb-20">
       {/* Header */}
-      <div className="bg-transparent text-[#2D1B15] p-6 pt-8 border-b border-[#E7E0D7]">
-        <h1 className="text-2xl font-black tracking-tight">서비스 QR 스캐너</h1>
-        <p className="text-[#795548] text-sm mt-1 font-medium">고객의 쿠폰 QR을 스캔하세요.</p>
+      <div className="bg-transparent text-[#2D1B15] p-6 pt-8 border-b border-[#E7E0D7] flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-black tracking-tight">서비스 QR 스캐너</h1>
+          <p className="text-[#795548] text-sm mt-1 font-medium">고객의 쿠폰 QR을 스캔하세요.</p>
+        </div>
+        <button onClick={toggleCamera} className="p-2 bg-white/80 rounded-full hover:bg-white shadow-sm border border-[#E7E0D7]">
+          <RefreshCw className="w-5 h-5 text-[#D84315]" />
+        </button>
       </div>
 
       {/* Scanner Area */}
@@ -193,7 +198,7 @@ export default function OwnerScanner() {
               <textarea 
                 className="w-full text-xs p-2 border border-[#E7E0D7] rounded-lg mb-2"
                 rows={3}
-                placeholder='{"couponId":"...","customerId":"..."}'
+                placeholder='{"couponId":"...","customerId":"...", "storeId":"..."}'
                 id="manual-qr-input"
               ></textarea>
               <button 
@@ -201,8 +206,10 @@ export default function OwnerScanner() {
                   const val = (document.getElementById('manual-qr-input') as HTMLTextAreaElement).value;
                   try {
                     const data = JSON.parse(val);
-                    if (data.couponId && data.customerId) {
-                      handleScan(data.couponId, data.customerId);
+                    if (data.couponId && data.customerId && data.storeId) {
+                      handleScan(data.couponId, data.customerId, data.storeId);
+                    } else {
+                      alert('couponId, customerId, storeId가 모두 필요합니다.');
                     }
                   } catch (e) {
                     alert('잘못된 JSON 형식입니다.');

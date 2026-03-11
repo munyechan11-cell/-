@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, onSnapshot, doc, setDoc } from 'firebase/firestore';
+import { getFirestore, onSnapshot, doc, setDoc } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -25,13 +25,15 @@ export const initFirebaseSync = () => {
   const collections = ['users', 'visits', 'coupons', 'tables', 'communications', 'tierOverrides'];
 
   collections.forEach(colName => {
-    onSnapshot(collection(db, colName), (snapshot) => {
-      const data = snapshot.docs.map(doc => doc.data());
-      
-      isSyncingFromFirebase = true;
-      localStorage.setItem(colName, JSON.stringify(data));
-      window.dispatchEvent(new Event('storage-update'));
-      isSyncingFromFirebase = false;
+    onSnapshot(doc(db, 'appData', colName), (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data().items || [];
+        
+        isSyncingFromFirebase = true;
+        localStorage.setItem(colName, JSON.stringify(data));
+        window.dispatchEvent(new Event('storage-update'));
+        isSyncingFromFirebase = false;
+      }
     });
   });
 };
@@ -39,24 +41,10 @@ export const initFirebaseSync = () => {
 export const syncToFirebase = async (key: string, value: any[]) => {
   if (!db || isSyncingFromFirebase) return;
   
-  // We only sync arrays of objects with 'id' or 'number' (for tables)
   if (!Array.isArray(value)) return;
 
   try {
-    // Note: In a real production app, you would want to only update changed documents
-    // rather than rewriting the whole collection, but this works for the prototype.
-    for (const item of value) {
-      let docId = item.id || (item.number ? `${item.storeId}_${item.number}` : null);
-      
-      // Handle TierOverride which has customerId and storeId but no id
-      if (!docId && item.customerId && item.storeId && item.tier) {
-        docId = `${item.storeId}_${item.customerId}`;
-      }
-      
-      if (docId) {
-        await setDoc(doc(db, key, docId.toString()), item, { merge: true });
-      }
-    }
+    await setDoc(doc(db, 'appData', key), { items: value });
   } catch (error) {
     console.error('Error syncing to Firebase:', error);
   }

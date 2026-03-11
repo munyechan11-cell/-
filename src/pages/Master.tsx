@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
 import { useStore } from '../store';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Store, Users, Ticket, Calendar, Lock, KeyRound } from 'lucide-react';
+import { ArrowLeft, Store, Users, Ticket, Calendar, Lock, KeyRound, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 
 export default function Master() {
-  const { users, visits, coupons, masterPassword, setMasterPassword } = useStore();
+  const { users, visits, coupons, masterPassword, setMasterPassword, deleteUser } = useStore();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const [error, setError] = useState('');
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [newPassword, setNewPassword] = useState('');
+  const [expandedOwner, setExpandedOwner] = useState<string | null>(null);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,6 +33,13 @@ export default function Master() {
     setNewPassword('');
     setError('');
     alert('비밀번호가 성공적으로 변경되었습니다.');
+  };
+
+  const handleDeleteUser = (userId: string, role: 'owner' | 'customer', name: string) => {
+    if (window.confirm(`${name} ${role === 'owner' ? '사장님' : '고객님'}을(를) 정말 삭제하시겠습니까? 관련된 모든 데이터가 삭제됩니다.`)) {
+      deleteUser(userId, role);
+      alert('삭제되었습니다.');
+    }
   };
 
   if (!isAuthenticated) {
@@ -185,6 +193,9 @@ export default function Master() {
           <div className="space-y-4">
             {owners.map(owner => {
               const stats = getOwnerStats(owner.id);
+              const isExpanded = expandedOwner === owner.id;
+              const ownerCustomers = users.filter(u => u.role === 'customer' && u.storeId === owner.id);
+
               return (
                 <div key={owner.id} className="bg-white/90 backdrop-blur-sm rounded-3xl p-5 shadow-sm border border-[#E7E0D7]">
                   <div className="flex justify-between items-start mb-4 border-b border-[#E7E0D7]/50 pb-4">
@@ -192,12 +203,21 @@ export default function Master() {
                       <h3 className="text-xl font-bold text-[#2D1B15]">{owner.restaurantName || '이름 없는 가게'}</h3>
                       <p className="text-[#795548] text-sm mt-1">{owner.name} 사장님 • {owner.phone}</p>
                     </div>
-                    <span className="bg-[#FFF3E0] text-[#D84315] text-xs font-bold px-3 py-1 rounded-full">
-                      ID: {owner.id}
-                    </span>
+                    <div className="flex flex-col items-end space-y-2">
+                      <span className="bg-[#FFF3E0] text-[#D84315] text-xs font-bold px-3 py-1 rounded-full">
+                        ID: {owner.id}
+                      </span>
+                      <button 
+                        onClick={() => handleDeleteUser(owner.id, 'owner', owner.name)}
+                        className="text-red-500 hover:text-red-700 p-1 transition-colors"
+                        title="사장님 삭제"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                   
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-3 gap-2 mb-4">
                     <div className="bg-[#F5F2EB]/50 rounded-2xl p-3 text-center">
                       <Users className="w-4 h-4 mx-auto mb-1 text-[#795548]" />
                       <p className="text-xs text-[#795548] mb-1">등록 고객</p>
@@ -214,6 +234,41 @@ export default function Master() {
                       <p className="font-bold text-[#2D1B15]">{stats.usedCoupons}/{stats.totalCoupons}</p>
                     </div>
                   </div>
+
+                  <button 
+                    onClick={() => setExpandedOwner(isExpanded ? null : owner.id)}
+                    className="w-full py-2 flex items-center justify-center text-sm font-bold text-[#795548] hover:text-[#4E342E] transition-colors bg-[#F5F2EB]/50 rounded-xl"
+                  >
+                    {isExpanded ? (
+                      <><ChevronUp className="w-4 h-4 mr-1" /> 고객 목록 닫기</>
+                    ) : (
+                      <><ChevronDown className="w-4 h-4 mr-1" /> 고객 목록 보기</>
+                    )}
+                  </button>
+
+                  {isExpanded && (
+                    <div className="mt-4 space-y-2 border-t border-[#E7E0D7]/50 pt-4">
+                      {ownerCustomers.length === 0 ? (
+                        <p className="text-center text-sm text-[#A1887F] py-2">등록된 고객이 없습니다.</p>
+                      ) : (
+                        ownerCustomers.map(customer => (
+                          <div key={customer.id} className="flex justify-between items-center bg-white p-3 rounded-xl border border-[#E7E0D7]">
+                            <div>
+                              <p className="font-bold text-[#2D1B15] text-sm">{customer.name}</p>
+                              <p className="text-xs text-[#795548]">{customer.phone}</p>
+                            </div>
+                            <button 
+                              onClick={() => handleDeleteUser(customer.id, 'customer', customer.name)}
+                              className="text-red-400 hover:text-red-600 p-2 transition-colors"
+                              title="고객 삭제"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}

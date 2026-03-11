@@ -216,20 +216,31 @@ export default function OwnerDashboard() {
                 <div>
                   <h4 className="font-bold text-[#2D1B15] mb-3">사용된 서비스 (이번 방문)</h4>
                   <div className="space-y-2">
-                    {coupons.filter(c => c.customerId === activeCustomer.id && c.storeId === currentUser.id && c.status === 'used' && c.usedAtTable === selectedTable).length === 0 ? (
-                      <p className="text-[#795548] text-sm p-4 bg-[#F5F2EB]/50 rounded-xl text-center border border-[#E7E0D7]/50">
-                        아직 사용된 서비스가 없습니다.
-                      </p>
-                    ) : (
-                      coupons
-                        .filter(c => c.customerId === activeCustomer.id && c.storeId === currentUser.id && c.status === 'used' && c.usedAtTable === selectedTable)
-                        .map(coupon => (
-                          <div key={coupon.id} className="bg-[#FFF3E0]/50 text-[#D84315] p-3 rounded-xl text-sm font-medium border border-[#FFF3E0] flex justify-between">
-                            <span>{coupon.description}</span>
-                            <span className="text-[#D84315] text-xs">{new Date(coupon.usedAt!).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</span>
-                          </div>
-                        ))
-                    )}
+                    {(() => {
+                      const sessionStart = activeTable.sessionStartTime ? new Date(activeTable.sessionStartTime).getTime() : 0;
+                      const usedCouponsThisSession = coupons.filter(c => 
+                        c.customerId === activeCustomer.id && 
+                        c.storeId === currentUser.id && 
+                        c.status === 'used' && 
+                        c.usedAtTable === selectedTable &&
+                        c.usedAt && new Date(c.usedAt).getTime() >= sessionStart
+                      );
+                      
+                      if (usedCouponsThisSession.length === 0) {
+                        return (
+                          <p className="text-[#795548] text-sm p-4 bg-[#F5F2EB]/50 rounded-xl text-center border border-[#E7E0D7]/50">
+                            아직 사용된 서비스가 없습니다.
+                          </p>
+                        );
+                      }
+                      
+                      return usedCouponsThisSession.map(coupon => (
+                        <div key={coupon.id} className="bg-[#FFF3E0]/50 text-[#D84315] p-3 rounded-xl text-sm font-medium border border-[#FFF3E0] flex justify-between">
+                          <span>{coupon.description}</span>
+                          <span className="text-[#D84315] text-xs">{new Date(coupon.usedAt!).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                      ));
+                    })()}
                   </div>
                 </div>
 
