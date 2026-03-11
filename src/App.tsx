@@ -30,6 +30,16 @@ function PrivateRoute({ children, role }: { children: React.ReactNode, role: 'cu
 }
 
 export default function App() {
+  const { isReady } = useStore();
+
+  if (!isReady) {
+    return (
+      <div className="min-h-screen hanji-bg flex items-center justify-center">
+        <p className="text-[#795548] font-bold">서버와 연결 중...</p>
+      </div>
+    );
+  }
+
   return (
     <Router>
       <div className="min-h-screen hanji-bg flex justify-center">

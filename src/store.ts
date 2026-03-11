@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { isFirebaseConfigured, initFirebaseSync, syncToFirebase } from './firebase';
+import { io } from 'socket.io-client';
 
 export type Role = 'customer' | 'owner';
 
@@ -55,9 +55,13 @@ export interface TierOverride {
 }
 
 // Initial mock data
-const initialTables: Table[] = []; // We will generate tables dynamically per store
+const initialTables: Table[] = [];
 
-export const getStorage = <T>(key: string, initialValue: T): T => {
+// Socket.io connection
+const socket = io();
+
+// Device-local storage (for currentUser)
+export const getLocalStorage = <T>(key: string, initialValue: T): T => {
   const item = localStorage.getItem(key);
   if (item) {
     try {
@@ -69,79 +73,92 @@ export const getStorage = <T>(key: string, initialValue: T): T => {
   return initialValue;
 };
 
-export const setStorage = <T>(key: string, value: T) => {
+export const setLocalStorage = <T>(key: string, value: T) => {
   localStorage.setItem(key, JSON.stringify(value));
-  // Dispatch a custom event to notify other tabs/components
-  window.dispatchEvent(new Event('storage-update'));
-  
-  if (isFirebaseConfigured && key !== 'currentUser') {
-    syncToFirebase(key, value as any[]);
-  }
+  window.dispatchEvent(new Event('local-storage-update'));
 };
 
-// Initialize Firebase sync once
-if (isFirebaseConfigured) {
-  initFirebaseSync();
-}
+// Global in-memory state synced via WebSockets
+const globalState: Record<string, any> = {
+  users: [],
+  visits: [],
+  coupons: [],
+  tables: initialTables,
+  communications: [],
+  tierOverrides: [],
+  masterPassword: 'IMC'
+};
+
+let isInitialized = false;
+
+socket.on('init_state', (serverDb) => {
+  Object.assign(globalState, serverDb);
+  isInitialized = true;
+  window.dispatchEvent(new Event('global-storage-update'));
+});
+
+socket.on('state_updated', ({ key, value }) => {
+  globalState[key] = value;
+  window.dispatchEvent(new Event('global-storage-update'));
+});
+
+export const getGlobalStorage = <T>(key: string, initialValue: T): T => {
+  return globalState[key] !== undefined ? globalState[key] : initialValue;
+};
+
+export const setGlobalStorage = <T>(key: string, value: T) => {
+  globalState[key] = value;
+  socket.emit('update_state', { key, value });
+  window.dispatchEvent(new Event('global-storage-update'));
+};
 
 export const useStore = () => {
-  const [users, setUsers] = useState<User[]>(getStorage('users', []));
-  const [visits, setVisits] = useState<Visit[]>(getStorage('visits', []));
-  const [coupons, setCoupons] = useState<Coupon[]>(getStorage('coupons', []));
-  const [tables, setTables] = useState<Table[]>(getStorage('tables', initialTables));
-  const [communications, setCommunications] = useState<Communication[]>(getStorage('communications', []));
-  const [tierOverrides, setTierOverrides] = useState<TierOverride[]>(getStorage('tierOverrides', []));
-  const [currentUser, setCurrentUser] = useState<User | null>(getStorage('currentUser', null));
-  const [masterPassword, setMasterPasswordState] = useState<string>(getStorage('masterPassword', 'IMC'));
+  const [isReady, setIsReady] = useState(isInitialized);
+  const [users, setUsers] = useState<User[]>(getGlobalStorage('users', []));
+  const [visits, setVisits] = useState<Visit[]>(getGlobalStorage('visits', []));
+  const [coupons, setCoupons] = useState<Coupon[]>(getGlobalStorage('coupons', []));
+  const [tables, setTables] = useState<Table[]>(getGlobalStorage('tables', initialTables));
+  const [communications, setCommunications] = useState<Communication[]>(getGlobalStorage('communications', []));
+  const [tierOverrides, setTierOverrides] = useState<TierOverride[]>(getGlobalStorage('tierOverrides', []));
+  const [masterPassword, setMasterPasswordState] = useState<string>(getGlobalStorage('masterPassword', 'IMC'));
+  
+  const [currentUser, setCurrentUser] = useState<User | null>(getLocalStorage('currentUser', null));
 
   useEffect(() => {
-    const handleStorageUpdate = () => {
-      setUsers(prev => {
-        const next = getStorage('users', []);
-        return JSON.stringify(prev) === JSON.stringify(next) ? prev : next;
-      });
-      setVisits(prev => {
-        const next = getStorage('visits', []);
-        return JSON.stringify(prev) === JSON.stringify(next) ? prev : next;
-      });
-      setCoupons(prev => {
-        const next = getStorage('coupons', []);
-        return JSON.stringify(prev) === JSON.stringify(next) ? prev : next;
-      });
-      setTables(prev => {
-        const next = getStorage('tables', initialTables);
-        return JSON.stringify(prev) === JSON.stringify(next) ? prev : next;
-      });
-      setCommunications(prev => {
-        const next = getStorage('communications', []);
-        return JSON.stringify(prev) === JSON.stringify(next) ? prev : next;
-      });
-      setTierOverrides(prev => {
-        const next = getStorage('tierOverrides', []);
-        return JSON.stringify(prev) === JSON.stringify(next) ? prev : next;
-      });
-      setCurrentUser(prev => {
-        const next = getStorage('currentUser', null);
-        return JSON.stringify(prev) === JSON.stringify(next) ? prev : next;
-      });
-      setMasterPasswordState(prev => {
-        const next = getStorage('masterPassword', 'IMC');
-        return prev === next ? prev : next;
-      });
+    const handleGlobalUpdate = () => {
+      setIsReady(true);
+      setUsers(getGlobalStorage('users', []));
+      setVisits(getGlobalStorage('visits', []));
+      setCoupons(getGlobalStorage('coupons', []));
+      setTables(getGlobalStorage('tables', initialTables));
+      setCommunications(getGlobalStorage('communications', []));
+      setTierOverrides(getGlobalStorage('tierOverrides', []));
+      setMasterPasswordState(getGlobalStorage('masterPassword', 'IMC'));
     };
 
-    window.addEventListener('storage-update', handleStorageUpdate);
-    window.addEventListener('storage', handleStorageUpdate); // For cross-tab
+    const handleLocalUpdate = () => {
+      setCurrentUser(getLocalStorage('currentUser', null));
+    };
+
+    window.addEventListener('global-storage-update', handleGlobalUpdate);
+    window.addEventListener('local-storage-update', handleLocalUpdate);
+    window.addEventListener('storage', handleLocalUpdate); // For cross-tab local storage
+
+    // If already initialized before component mounted, trigger update
+    if (isInitialized && !isReady) {
+      handleGlobalUpdate();
+    }
 
     return () => {
-      window.removeEventListener('storage-update', handleStorageUpdate);
-      window.removeEventListener('storage', handleStorageUpdate);
+      window.removeEventListener('global-storage-update', handleGlobalUpdate);
+      window.removeEventListener('local-storage-update', handleLocalUpdate);
+      window.removeEventListener('storage', handleLocalUpdate);
     };
-  }, []);
+  }, [isReady]);
 
   const login = (phone: string, name: string, role: Role, restaurantName?: string, storeId?: string) => {
     const cleanPhone = phone.replace(/[^0-9]/g, '');
-    const currentUsers = getStorage<User[]>('users', []);
+    const currentUsers = getGlobalStorage<User[]>('users', []);
     let user = currentUsers.find(u => u.phone.replace(/[^0-9]/g, '') === cleanPhone && u.role === role && (role === 'owner' || u.storeId === storeId));
     
     if (!user) {
@@ -154,13 +171,12 @@ export const useStore = () => {
         storeId,
       };
       const newUsers = [...currentUsers, user];
-      setStorage('users', newUsers);
+      setGlobalStorage('users', newUsers);
       setUsers(newUsers);
     }
 
     if (role === 'owner') {
-      // Ensure the owner has tables initialized
-      const currentTables = getStorage<Table[]>('tables', initialTables);
+      const currentTables = getGlobalStorage<Table[]>('tables', initialTables);
       const ownerTables = currentTables.filter(t => t.storeId === user!.id);
       if (ownerTables.length === 0) {
         const newStoreTables: Table[] = Array.from({ length: 12 }, (_, i) => ({
@@ -170,10 +186,9 @@ export const useStore = () => {
           sessionStartTime: null,
         }));
         const allTables = [...currentTables, ...newStoreTables];
-        setStorage('tables', allTables);
+        setGlobalStorage('tables', allTables);
         setTables(allTables);
       } else if (ownerTables.length < 12) {
-        // If they have some tables but less than 12, fill the rest up to 12
         const existingNumbers = new Set(ownerTables.map(t => t.number));
         const newStoreTables: Table[] = [];
         for (let i = 1; i <= 12; i++) {
@@ -188,26 +203,26 @@ export const useStore = () => {
         }
         if (newStoreTables.length > 0) {
           const allTables = [...currentTables, ...newStoreTables];
-          setStorage('tables', allTables);
+          setGlobalStorage('tables', allTables);
           setTables(allTables);
         }
       }
     }
 
-    setStorage('currentUser', user);
+    setLocalStorage('currentUser', user);
     setCurrentUser(user);
     return user;
   };
 
   const logout = () => {
-    setStorage('currentUser', null);
+    setLocalStorage('currentUser', null);
     setCurrentUser(null);
   };
 
   const recordVisit = (customerId: string, tableNumber: number, storeId: string) => {
     const today = new Date().toDateString();
     
-    const currentVisits = getStorage<Visit[]>('visits', []);
+    const currentVisits = getGlobalStorage<Visit[]>('visits', []);
     const hasVisitedToday = currentVisits.some(
       v => v.customerId === customerId && v.storeId === storeId && new Date(v.date).toDateString() === today
     );
@@ -222,21 +237,18 @@ export const useStore = () => {
         tableNumber,
       };
       newVisits = [...currentVisits, newVisit];
-      setStorage('visits', newVisits);
+      setGlobalStorage('visits', newVisits);
       setVisits(newVisits);
       
-      // Trigger coupon check asynchronously to avoid state update loops
       setTimeout(() => checkAndIssueTierCoupons(customerId, storeId, newVisits), 0);
     }
 
-    const currentTables = getStorage<Table[]>('tables', initialTables);
+    const currentTables = getGlobalStorage<Table[]>('tables', initialTables);
     let tableFound = false;
     const newTables = currentTables.map(t => {
-      // Clear the customer from any other table in this store
       if (t.storeId === storeId && t.currentCustomerId === customerId && t.number !== tableNumber) {
         return { ...t, currentCustomerId: null, sessionStartTime: null };
       }
-      // Set the customer at the new table
       if (t.number === tableNumber && t.storeId === storeId) {
         tableFound = true;
         return { ...t, currentCustomerId: customerId, sessionStartTime: new Date().toISOString() };
@@ -253,23 +265,22 @@ export const useStore = () => {
       });
     }
     
-    setStorage('tables', newTables);
+    setGlobalStorage('tables', newTables);
     setTables(newTables);
   };
 
   const leaveTable = (tableNumber: number, storeId: string) => {
-    const currentTables = getStorage<Table[]>('tables', initialTables);
+    const currentTables = getGlobalStorage<Table[]>('tables', initialTables);
     const newTables = currentTables.map(t => 
       (t.number === tableNumber && t.storeId === storeId)
         ? { ...t, currentCustomerId: null, sessionStartTime: null }
         : t
     );
-    setStorage('tables', newTables);
+    setGlobalStorage('tables', newTables);
     setTables(newTables);
   };
 
   const checkAndIssueTierCoupons = (customerId: string, storeId: string, allVisits: Visit[]) => {
-    // Calculate visits in the last 30 days for this specific store
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     
@@ -295,7 +306,7 @@ export const useStore = () => {
   };
 
   const issueCoupon = (customerId: string, storeId: string, type: string, description: string) => {
-    const currentCoupons = getStorage<Coupon[]>('coupons', []);
+    const currentCoupons = getGlobalStorage<Coupon[]>('coupons', []);
     const newCoupon: Coupon = {
       id: Math.random().toString(36).substring(2, 9),
       customerId,
@@ -306,12 +317,12 @@ export const useStore = () => {
       issuedAt: new Date().toISOString(),
     };
     const newCoupons = [...currentCoupons, newCoupon];
-    setStorage('coupons', newCoupons);
+    setGlobalStorage('coupons', newCoupons);
     setCoupons(newCoupons);
   };
 
   const recordCommunication = (customerId: string, storeId: string, type: 'coupon' | 'message', content: string) => {
-    const currentComms = getStorage<Communication[]>('communications', []);
+    const currentComms = getGlobalStorage<Communication[]>('communications', []);
     const newComm: Communication = {
       id: Math.random().toString(36).substring(2, 9),
       customerId,
@@ -321,23 +332,23 @@ export const useStore = () => {
       date: new Date().toISOString(),
     };
     const newComms = [...currentComms, newComm];
-    setStorage('communications', newComms);
+    setGlobalStorage('communications', newComms);
     setCommunications(newComms);
   };
 
   const useCoupon = (couponId: string, tableNumber?: number) => {
-    const currentCoupons = getStorage<Coupon[]>('coupons', []);
+    const currentCoupons = getGlobalStorage<Coupon[]>('coupons', []);
     const newCoupons = currentCoupons.map(c => 
       c.id === couponId 
         ? { ...c, status: 'used' as const, usedAt: new Date().toISOString(), usedAtTable: tableNumber }
         : c
     );
-    setStorage('coupons', newCoupons);
+    setGlobalStorage('coupons', newCoupons);
     setCoupons(newCoupons);
   };
 
   const initTables = (storeId: string) => {
-    const currentTables = getStorage<Table[]>('tables', initialTables);
+    const currentTables = getGlobalStorage<Table[]>('tables', initialTables);
     const existingTables = currentTables.filter(t => t.storeId === storeId);
     if (existingTables.length === 0) {
       const newStoreTables: Table[] = Array.from({ length: 12 }, (_, i) => ({
@@ -347,7 +358,7 @@ export const useStore = () => {
         sessionStartTime: null,
       }));
       const allTables = [...currentTables, ...newStoreTables];
-      setStorage('tables', allTables);
+      setGlobalStorage('tables', allTables);
       setTables(allTables);
     } else if (existingTables.length < 12) {
       const existingNumbers = new Set(existingTables.map(t => t.number));
@@ -364,75 +375,76 @@ export const useStore = () => {
       }
       if (newStoreTables.length > 0) {
         const allTables = [...currentTables, ...newStoreTables];
-        setStorage('tables', allTables);
+        setGlobalStorage('tables', allTables);
         setTables(allTables);
       }
     }
   };
 
   const setCustomerTier = (customerId: string, storeId: string, tier: string) => {
-    const currentOverrides = getStorage<TierOverride[]>('tierOverrides', []);
+    const currentOverrides = getGlobalStorage<TierOverride[]>('tierOverrides', []);
     const newOverrides = currentOverrides.filter(t => !(t.customerId === customerId && t.storeId === storeId));
     if (tier !== 'auto') {
       newOverrides.push({ customerId, storeId, tier });
     }
-    setStorage('tierOverrides', newOverrides);
+    setGlobalStorage('tierOverrides', newOverrides);
     setTierOverrides(newOverrides);
   };
 
   const setMasterPassword = (newPassword: string) => {
-    setStorage('masterPassword', newPassword);
+    setGlobalStorage('masterPassword', newPassword);
     setMasterPasswordState(newPassword);
   };
 
   const deleteUser = (userId: string, role: Role) => {
     if (role === 'owner') {
-      const newUsers = getStorage<User[]>('users', []).filter(u => u.id !== userId && u.storeId !== userId);
-      const newVisits = getStorage<Visit[]>('visits', []).filter(v => v.storeId !== userId);
-      const newCoupons = getStorage<Coupon[]>('coupons', []).filter(c => c.storeId !== userId);
-      const newTables = getStorage<Table[]>('tables', []).filter(t => t.storeId !== userId);
-      const newComms = getStorage<Communication[]>('communications', []).filter(c => c.storeId !== userId);
-      const newTiers = getStorage<TierOverride[]>('tierOverrides', []).filter(t => t.storeId !== userId);
+      const newUsers = getGlobalStorage<User[]>('users', []).filter(u => u.id !== userId && u.storeId !== userId);
+      const newVisits = getGlobalStorage<Visit[]>('visits', []).filter(v => v.storeId !== userId);
+      const newCoupons = getGlobalStorage<Coupon[]>('coupons', []).filter(c => c.storeId !== userId);
+      const newTables = getGlobalStorage<Table[]>('tables', []).filter(t => t.storeId !== userId);
+      const newComms = getGlobalStorage<Communication[]>('communications', []).filter(c => c.storeId !== userId);
+      const newTiers = getGlobalStorage<TierOverride[]>('tierOverrides', []).filter(t => t.storeId !== userId);
 
-      setStorage('users', newUsers);
+      setGlobalStorage('users', newUsers);
       setUsers(newUsers);
-      setStorage('visits', newVisits);
+      setGlobalStorage('visits', newVisits);
       setVisits(newVisits);
-      setStorage('coupons', newCoupons);
+      setGlobalStorage('coupons', newCoupons);
       setCoupons(newCoupons);
-      setStorage('tables', newTables);
+      setGlobalStorage('tables', newTables);
       setTables(newTables);
-      setStorage('communications', newComms);
+      setGlobalStorage('communications', newComms);
       setCommunications(newComms);
-      setStorage('tierOverrides', newTiers);
+      setGlobalStorage('tierOverrides', newTiers);
       setTierOverrides(newTiers);
     } else {
-      const newUsers = getStorage<User[]>('users', []).filter(u => u.id !== userId);
-      const newVisits = getStorage<Visit[]>('visits', []).filter(v => v.customerId !== userId);
-      const newCoupons = getStorage<Coupon[]>('coupons', []).filter(c => c.customerId !== userId);
-      const newComms = getStorage<Communication[]>('communications', []).filter(c => c.customerId !== userId);
-      const newTiers = getStorage<TierOverride[]>('tierOverrides', []).filter(t => t.customerId !== userId);
+      const newUsers = getGlobalStorage<User[]>('users', []).filter(u => u.id !== userId);
+      const newVisits = getGlobalStorage<Visit[]>('visits', []).filter(v => v.customerId !== userId);
+      const newCoupons = getGlobalStorage<Coupon[]>('coupons', []).filter(c => c.customerId !== userId);
+      const newComms = getGlobalStorage<Communication[]>('communications', []).filter(c => c.customerId !== userId);
+      const newTiers = getGlobalStorage<TierOverride[]>('tierOverrides', []).filter(t => t.customerId !== userId);
       
-      const newTables = getStorage<Table[]>('tables', []).map(t => 
+      const newTables = getGlobalStorage<Table[]>('tables', []).map(t => 
         t.currentCustomerId === userId ? { ...t, currentCustomerId: null, sessionStartTime: null } : t
       );
 
-      setStorage('users', newUsers);
+      setGlobalStorage('users', newUsers);
       setUsers(newUsers);
-      setStorage('visits', newVisits);
+      setGlobalStorage('visits', newVisits);
       setVisits(newVisits);
-      setStorage('coupons', newCoupons);
+      setGlobalStorage('coupons', newCoupons);
       setCoupons(newCoupons);
-      setStorage('communications', newComms);
+      setGlobalStorage('communications', newComms);
       setCommunications(newComms);
-      setStorage('tierOverrides', newTiers);
+      setGlobalStorage('tierOverrides', newTiers);
       setTierOverrides(newTiers);
-      setStorage('tables', newTables);
+      setGlobalStorage('tables', newTables);
       setTables(newTables);
     }
   };
 
   return {
+    isReady,
     users,
     visits,
     coupons,
@@ -488,3 +500,4 @@ export const getTierColor = (tier: string) => {
     default: return 'bg-[#FFF3E0] text-[#D84315] border-[#FFE0B2]'; // 일반
   }
 };
+
