@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { db, isFirebaseConfigured } from './lib/firebase';
-import { doc, onSnapshot, setDoc } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc, runTransaction } from 'firebase/firestore';
 
 export type Role = 'customer' | 'owner';
 
@@ -104,19 +104,42 @@ export const getGlobalStorage = <T>(key: string, initialValue: T): T => {
   return globalState[key] !== undefined ? globalState[key] : initialValue;
 };
 
-export const setGlobalStorage = <T>(key: string, value: T) => {
-  globalState[key] = value;
-  
+export const runGlobalTransaction = (updater: (currentState: typeof globalState) => Partial<typeof globalState>) => {
+  // 1. Optimistic local update
+  const localUpdates = updater(globalState);
+  Object.assign(globalState, localUpdates);
+  window.dispatchEvent(new Event('global-storage-update'));
+
+  // 2. Async server update with transaction
   if (isFirebaseConfigured && db) {
     const docRef = doc(db, 'appState', 'global');
-    // Remove undefined values before saving to Firestore
-    const sanitizedValue = JSON.parse(JSON.stringify(value));
-    setDoc(docRef, { [key]: sanitizedValue }, { merge: true }).catch(console.error);
+    runTransaction(db, async (transaction) => {
+      const docSnap = await transaction.get(docRef);
+      const serverData = docSnap.exists() ? docSnap.data() as typeof globalState : globalState;
+      
+      // Re-run the updater with the LATEST server data
+      const serverUpdates = updater(serverData);
+      
+      const sanitizedUpdates = JSON.parse(JSON.stringify(serverUpdates));
+      transaction.set(docRef, sanitizedUpdates, { merge: true });
+      
+      return serverUpdates;
+    }).then((finalUpdates) => {
+      // 3. Apply the final server-calculated updates locally to ensure consistency
+      if (finalUpdates) {
+        Object.assign(globalState, finalUpdates);
+        window.dispatchEvent(new Event('global-storage-update'));
+      }
+    }).catch(e => {
+      console.error("Transaction failed: ", e);
+    });
   } else {
     localStorage.setItem('offline_global_state', JSON.stringify(globalState));
   }
-  
-  window.dispatchEvent(new Event('global-storage-update'));
+};
+
+export const setGlobalStorage = <T>(key: string, value: T) => {
+  runGlobalTransaction(() => ({ [key]: value }));
 };
 
 export const useStore = () => {
@@ -209,60 +232,67 @@ export const useStore = () => {
 
   const login = (phone: string, name: string, role: Role, restaurantName?: string, storeId?: string) => {
     const cleanPhone = phone.replace(/[^0-9]/g, '');
-    const currentUsers = getGlobalStorage<User[]>('users', []);
-    let user = currentUsers.find(u => u.phone.replace(/[^0-9]/g, '') === cleanPhone && u.role === role && (role === 'owner' || u.storeId === storeId));
-    
-    if (!user) {
-      user = {
-        id: Math.random().toString(36).substring(2, 9),
-        role,
-        name,
-        phone: cleanPhone,
-        restaurantName,
-        storeId,
-      };
-      const newUsers = [...currentUsers, user];
-      setGlobalStorage('users', newUsers);
-      setUsers(newUsers);
-    }
+    const newUserId = Math.random().toString(36).substring(2, 9);
+    let loggedInUser: User | null = null;
 
-    if (role === 'owner') {
-      const currentTables = getGlobalStorage<Table[]>('tables', initialTables);
-      const ownerTables = currentTables.filter(t => t.storeId === user!.id);
-      if (ownerTables.length === 0) {
-        const newStoreTables: Table[] = Array.from({ length: 12 }, (_, i) => ({
-          number: i + 1,
-          storeId: user!.id,
-          currentCustomerId: null,
-          sessionStartTime: null,
-        }));
-        const allTables = [...currentTables, ...newStoreTables];
-        setGlobalStorage('tables', allTables);
-        setTables(allTables);
-      } else if (ownerTables.length < 12) {
-        const existingNumbers = new Set(ownerTables.map(t => t.number));
-        const newStoreTables: Table[] = [];
-        for (let i = 1; i <= 12; i++) {
-          if (!existingNumbers.has(i)) {
-            newStoreTables.push({
-              number: i,
-              storeId: user!.id,
-              currentCustomerId: null,
-              sessionStartTime: null,
-            });
+    runGlobalTransaction((currentState) => {
+      const currentUsers = currentState.users || [];
+      let user = currentUsers.find(u => u.phone.replace(/[^0-9]/g, '') === cleanPhone && u.role === role && (role === 'owner' || u.storeId === storeId));
+      
+      const updates: Partial<typeof globalState> = {};
+      
+      if (!user) {
+        user = {
+          id: newUserId,
+          role,
+          name,
+          phone: cleanPhone,
+          restaurantName,
+          storeId,
+        };
+        updates.users = [...currentUsers, user];
+      }
+      
+      loggedInUser = user;
+
+      if (role === 'owner') {
+        const currentTables = currentState.tables || initialTables;
+        const ownerTables = currentTables.filter(t => t.storeId === user!.id);
+        if (ownerTables.length === 0) {
+          const newStoreTables: Table[] = Array.from({ length: 12 }, (_, i) => ({
+            number: i + 1,
+            storeId: user!.id,
+            currentCustomerId: null,
+            sessionStartTime: null,
+          }));
+          updates.tables = [...currentTables, ...newStoreTables];
+        } else if (ownerTables.length < 12) {
+          const existingNumbers = new Set(ownerTables.map(t => t.number));
+          const newStoreTables: Table[] = [];
+          for (let i = 1; i <= 12; i++) {
+            if (!existingNumbers.has(i)) {
+              newStoreTables.push({
+                number: i,
+                storeId: user!.id,
+                currentCustomerId: null,
+                sessionStartTime: null,
+              });
+            }
+          }
+          if (newStoreTables.length > 0) {
+            updates.tables = [...currentTables, ...newStoreTables];
           }
         }
-        if (newStoreTables.length > 0) {
-          const allTables = [...currentTables, ...newStoreTables];
-          setGlobalStorage('tables', allTables);
-          setTables(allTables);
-        }
       }
-    }
+      
+      return updates;
+    });
 
-    setLocalStorage('currentUser', user);
-    setCurrentUser(user);
-    return user;
+    if (loggedInUser) {
+      setLocalStorage('currentUser', loggedInUser);
+      setCurrentUser(loggedInUser);
+    }
+    return loggedInUser!;
   };
 
   const logout = () => {
@@ -272,63 +302,75 @@ export const useStore = () => {
 
   const recordVisit = (customerId: string, tableNumber: number, storeId: string) => {
     const today = new Date().toDateString();
-    
-    const currentVisits = getGlobalStorage<Visit[]>('visits', []);
-    const hasVisitedToday = currentVisits.some(
-      v => v.customerId === customerId && v.storeId === storeId && new Date(v.date).toDateString() === today
-    );
+    const newVisitId = Math.random().toString(36).substring(2, 9);
+    const now = new Date().toISOString();
+    let shouldCheckCoupons = false;
+    let finalVisits: Visit[] = [];
 
-    let newVisits = [...currentVisits];
-    if (!hasVisitedToday) {
-      const newVisit: Visit = {
-        id: Math.random().toString(36).substring(2, 9),
-        customerId,
-        storeId,
-        date: new Date().toISOString(),
-        tableNumber,
-      };
-      newVisits = [...currentVisits, newVisit];
-      setGlobalStorage('visits', newVisits);
-      setVisits(newVisits);
+    runGlobalTransaction((currentState) => {
+      const updates: Partial<typeof globalState> = {};
+      const currentVisits = currentState.visits || [];
       
-      setTimeout(() => checkAndIssueTierCoupons(customerId, storeId, newVisits), 0);
-    }
+      const hasVisitedToday = currentVisits.some(
+        (v: Visit) => v.customerId === customerId && v.storeId === storeId && new Date(v.date).toDateString() === today
+      );
 
-    const currentTables = getGlobalStorage<Table[]>('tables', initialTables);
-    let tableFound = false;
-    const newTables = currentTables.map(t => {
-      if (t.storeId === storeId && t.currentCustomerId === customerId && t.number !== tableNumber) {
-        return { ...t, currentCustomerId: null, sessionStartTime: null };
+      if (!hasVisitedToday) {
+        const newVisit: Visit = {
+          id: newVisitId,
+          customerId,
+          storeId,
+          date: now,
+          tableNumber,
+        };
+        updates.visits = [...currentVisits, newVisit];
+        shouldCheckCoupons = true;
+        finalVisits = updates.visits;
+      } else {
+        finalVisits = currentVisits;
       }
-      if (t.number === tableNumber && t.storeId === storeId) {
-        tableFound = true;
-        return { ...t, currentCustomerId: customerId, sessionStartTime: new Date().toISOString() };
+
+      const currentTables = currentState.tables || initialTables;
+      let tableFound = false;
+      const newTables = currentTables.map((t: Table) => {
+        if (t.storeId === storeId && t.currentCustomerId === customerId && t.number !== tableNumber) {
+          return { ...t, currentCustomerId: null, sessionStartTime: null };
+        }
+        if (t.number === tableNumber && t.storeId === storeId) {
+          tableFound = true;
+          return { ...t, currentCustomerId: customerId, sessionStartTime: now };
+        }
+        return t;
+      });
+
+      if (!tableFound) {
+        newTables.push({
+          number: tableNumber,
+          storeId,
+          currentCustomerId: customerId,
+          sessionStartTime: now,
+        });
       }
-      return t;
+      
+      updates.tables = newTables;
+      return updates;
     });
 
-    if (!tableFound) {
-      newTables.push({
-        number: tableNumber,
-        storeId,
-        currentCustomerId: customerId,
-        sessionStartTime: new Date().toISOString(),
-      });
+    if (shouldCheckCoupons) {
+      setTimeout(() => checkAndIssueTierCoupons(customerId, storeId, finalVisits), 0);
     }
-    
-    setGlobalStorage('tables', newTables);
-    setTables(newTables);
   };
 
   const leaveTable = (tableNumber: number, storeId: string) => {
-    const currentTables = getGlobalStorage<Table[]>('tables', initialTables);
-    const newTables = currentTables.map(t => 
-      (t.number === tableNumber && t.storeId === storeId)
-        ? { ...t, currentCustomerId: null, sessionStartTime: null }
-        : t
-    );
-    setGlobalStorage('tables', newTables);
-    setTables(newTables);
+    runGlobalTransaction((currentState) => {
+      const currentTables = currentState.tables || initialTables;
+      const newTables = currentTables.map((t: Table) => 
+        (t.number === tableNumber && t.storeId === storeId)
+          ? { ...t, currentCustomerId: null, sessionStartTime: null }
+          : t
+      );
+      return { tables: newTables };
+    });
   };
 
   const checkAndIssueTierCoupons = (customerId: string, storeId: string, allVisits: Visit[]) => {
@@ -357,141 +399,128 @@ export const useStore = () => {
   };
 
   const issueCoupon = (customerId: string, storeId: string, type: string, description: string) => {
-    const currentCoupons = getGlobalStorage<Coupon[]>('coupons', []);
-    const newCoupon: Coupon = {
-      id: Math.random().toString(36).substring(2, 9),
-      customerId,
-      storeId,
-      type,
-      description,
-      status: 'available',
-      issuedAt: new Date().toISOString(),
-    };
-    const newCoupons = [...currentCoupons, newCoupon];
-    setGlobalStorage('coupons', newCoupons);
-    setCoupons(newCoupons);
+    const newCouponId = Math.random().toString(36).substring(2, 9);
+    const now = new Date().toISOString();
+    
+    runGlobalTransaction((currentState) => {
+      const currentCoupons = currentState.coupons || [];
+      const newCoupon: Coupon = {
+        id: newCouponId,
+        customerId,
+        storeId,
+        type,
+        description,
+        status: 'available',
+        issuedAt: now,
+      };
+      return { coupons: [...currentCoupons, newCoupon] };
+    });
   };
 
   const recordCommunication = (customerId: string, storeId: string, type: 'coupon' | 'message', content: string) => {
-    const currentComms = getGlobalStorage<Communication[]>('communications', []);
-    const newComm: Communication = {
-      id: Math.random().toString(36).substring(2, 9),
-      customerId,
-      storeId,
-      type,
-      content,
-      date: new Date().toISOString(),
-    };
-    const newComms = [...currentComms, newComm];
-    setGlobalStorage('communications', newComms);
-    setCommunications(newComms);
+    const newCommId = Math.random().toString(36).substring(2, 9);
+    const now = new Date().toISOString();
+    
+    runGlobalTransaction((currentState) => {
+      const currentComms = currentState.communications || [];
+      const newComm: Communication = {
+        id: newCommId,
+        customerId,
+        storeId,
+        type,
+        content,
+        date: now,
+      };
+      return { communications: [...currentComms, newComm] };
+    });
   };
 
   const useCoupon = (couponId: string, tableNumber?: number) => {
-    const currentCoupons = getGlobalStorage<Coupon[]>('coupons', []);
-    const newCoupons = currentCoupons.map(c => 
-      c.id === couponId 
-        ? { ...c, status: 'used' as const, usedAt: new Date().toISOString(), usedAtTable: tableNumber }
-        : c
-    );
-    setGlobalStorage('coupons', newCoupons);
-    setCoupons(newCoupons);
+    const now = new Date().toISOString();
+    runGlobalTransaction((currentState) => {
+      const currentCoupons = currentState.coupons || [];
+      const newCoupons = currentCoupons.map((c: Coupon) => 
+        c.id === couponId 
+          ? { ...c, status: 'used' as const, usedAt: now, usedAtTable: tableNumber }
+          : c
+      );
+      return { coupons: newCoupons };
+    });
   };
 
   const initTables = (storeId: string) => {
-    const currentTables = getGlobalStorage<Table[]>('tables', initialTables);
-    const existingTables = currentTables.filter(t => t.storeId === storeId);
-    if (existingTables.length === 0) {
-      const newStoreTables: Table[] = Array.from({ length: 12 }, (_, i) => ({
-        number: i + 1,
-        storeId,
-        currentCustomerId: null,
-        sessionStartTime: null,
-      }));
-      const allTables = [...currentTables, ...newStoreTables];
-      setGlobalStorage('tables', allTables);
-      setTables(allTables);
-    } else if (existingTables.length < 12) {
-      const existingNumbers = new Set(existingTables.map(t => t.number));
-      const newStoreTables: Table[] = [];
-      for (let i = 1; i <= 12; i++) {
-        if (!existingNumbers.has(i)) {
-          newStoreTables.push({
-            number: i,
-            storeId,
-            currentCustomerId: null,
-            sessionStartTime: null,
-          });
+    runGlobalTransaction((currentState) => {
+      const currentTables = currentState.tables || initialTables;
+      const existingTables = currentTables.filter((t: Table) => t.storeId === storeId);
+      if (existingTables.length === 0) {
+        const newStoreTables: Table[] = Array.from({ length: 12 }, (_, i) => ({
+          number: i + 1,
+          storeId,
+          currentCustomerId: null,
+          sessionStartTime: null,
+        }));
+        return { tables: [...currentTables, ...newStoreTables] };
+      } else if (existingTables.length < 12) {
+        const existingNumbers = new Set(existingTables.map((t: Table) => t.number));
+        const newStoreTables: Table[] = [];
+        for (let i = 1; i <= 12; i++) {
+          if (!existingNumbers.has(i)) {
+            newStoreTables.push({
+              number: i,
+              storeId,
+              currentCustomerId: null,
+              sessionStartTime: null,
+            });
+          }
+        }
+        if (newStoreTables.length > 0) {
+          return { tables: [...currentTables, ...newStoreTables] };
         }
       }
-      if (newStoreTables.length > 0) {
-        const allTables = [...currentTables, ...newStoreTables];
-        setGlobalStorage('tables', allTables);
-        setTables(allTables);
-      }
-    }
+      return {};
+    });
   };
 
   const setCustomerTier = (customerId: string, storeId: string, tier: string) => {
-    const currentOverrides = getGlobalStorage<TierOverride[]>('tierOverrides', []);
-    const newOverrides = currentOverrides.filter(t => !(t.customerId === customerId && t.storeId === storeId));
-    if (tier !== 'auto') {
-      newOverrides.push({ customerId, storeId, tier });
-    }
-    setGlobalStorage('tierOverrides', newOverrides);
-    setTierOverrides(newOverrides);
+    runGlobalTransaction((currentState) => {
+      const currentOverrides = currentState.tierOverrides || [];
+      const newOverrides = currentOverrides.filter((t: TierOverride) => !(t.customerId === customerId && t.storeId === storeId));
+      if (tier !== 'auto') {
+        newOverrides.push({ customerId, storeId, tier });
+      }
+      return { tierOverrides: newOverrides };
+    });
   };
 
   const setMasterPassword = (newPassword: string) => {
-    setGlobalStorage('masterPassword', newPassword);
-    setMasterPasswordState(newPassword);
+    runGlobalTransaction(() => ({ masterPassword: newPassword }));
   };
 
   const deleteUser = (userId: string, role: Role) => {
-    if (role === 'owner') {
-      const newUsers = getGlobalStorage<User[]>('users', []).filter(u => u.id !== userId && u.storeId !== userId);
-      const newVisits = getGlobalStorage<Visit[]>('visits', []).filter(v => v.storeId !== userId);
-      const newCoupons = getGlobalStorage<Coupon[]>('coupons', []).filter(c => c.storeId !== userId);
-      const newTables = getGlobalStorage<Table[]>('tables', []).filter(t => t.storeId !== userId);
-      const newComms = getGlobalStorage<Communication[]>('communications', []).filter(c => c.storeId !== userId);
-      const newTiers = getGlobalStorage<TierOverride[]>('tierOverrides', []).filter(t => t.storeId !== userId);
-
-      setGlobalStorage('users', newUsers);
-      setUsers(newUsers);
-      setGlobalStorage('visits', newVisits);
-      setVisits(newVisits);
-      setGlobalStorage('coupons', newCoupons);
-      setCoupons(newCoupons);
-      setGlobalStorage('tables', newTables);
-      setTables(newTables);
-      setGlobalStorage('communications', newComms);
-      setCommunications(newComms);
-      setGlobalStorage('tierOverrides', newTiers);
-      setTierOverrides(newTiers);
-    } else {
-      const newUsers = getGlobalStorage<User[]>('users', []).filter(u => u.id !== userId);
-      const newVisits = getGlobalStorage<Visit[]>('visits', []).filter(v => v.customerId !== userId);
-      const newCoupons = getGlobalStorage<Coupon[]>('coupons', []).filter(c => c.customerId !== userId);
-      const newComms = getGlobalStorage<Communication[]>('communications', []).filter(c => c.customerId !== userId);
-      const newTiers = getGlobalStorage<TierOverride[]>('tierOverrides', []).filter(t => t.customerId !== userId);
+    runGlobalTransaction((currentState) => {
+      const updates: Partial<typeof globalState> = {};
       
-      const newTables = getGlobalStorage<Table[]>('tables', []).map(t => 
-        t.currentCustomerId === userId ? { ...t, currentCustomerId: null, sessionStartTime: null } : t
-      );
-
-      setGlobalStorage('users', newUsers);
-      setUsers(newUsers);
-      setGlobalStorage('visits', newVisits);
-      setVisits(newVisits);
-      setGlobalStorage('coupons', newCoupons);
-      setCoupons(newCoupons);
-      setGlobalStorage('communications', newComms);
-      setCommunications(newComms);
-      setGlobalStorage('tierOverrides', newTiers);
-      setTierOverrides(newTiers);
-      setGlobalStorage('tables', newTables);
-      setTables(newTables);
-    }
+      if (role === 'owner') {
+        updates.users = (currentState.users || []).filter((u: User) => u.id !== userId && u.storeId !== userId);
+        updates.visits = (currentState.visits || []).filter((v: Visit) => v.storeId !== userId);
+        updates.coupons = (currentState.coupons || []).filter((c: Coupon) => c.storeId !== userId);
+        updates.tables = (currentState.tables || []).filter((t: Table) => t.storeId !== userId);
+        updates.communications = (currentState.communications || []).filter((c: Communication) => c.storeId !== userId);
+        updates.tierOverrides = (currentState.tierOverrides || []).filter((t: TierOverride) => t.storeId !== userId);
+      } else {
+        updates.users = (currentState.users || []).filter((u: User) => u.id !== userId);
+        updates.visits = (currentState.visits || []).filter((v: Visit) => v.customerId !== userId);
+        updates.coupons = (currentState.coupons || []).filter((c: Coupon) => c.customerId !== userId);
+        updates.communications = (currentState.communications || []).filter((c: Communication) => c.customerId !== userId);
+        updates.tierOverrides = (currentState.tierOverrides || []).filter((t: TierOverride) => t.customerId !== userId);
+        
+        updates.tables = (currentState.tables || []).map((t: Table) => 
+          t.currentCustomerId === userId ? { ...t, currentCustomerId: null, sessionStartTime: null } : t
+        );
+      }
+      
+      return updates;
+    });
   };
 
   return {
