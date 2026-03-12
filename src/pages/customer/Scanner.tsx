@@ -16,8 +16,10 @@ export default function CustomerScanner() {
     usersRef.current = users;
   }, [users]);
 
+  const retryCountRef = useRef(0);
+
   // 카메라 시작 함수 분리
-  const startScanner = async (mode: "environment" | "user", retryCount = 0) => {
+  const startScanner = async (mode: "environment" | "user") => {
     if (!scannerRef.current) {
       scannerRef.current = new Html5Qrcode("reader");
     }
@@ -44,13 +46,15 @@ export default function CustomerScanner() {
         await scannerRef.current.stop();
       }
       await scannerRef.current.start({ facingMode: mode }, config, onScanSuccess, () => {});
+      retryCountRef.current = 0; // Reset on success
     } catch (err: any) {
       console.error("Scanner start error:", err);
       const errorMessage = String(err);
       
       // If NotReadableError occurs (often when camera is in use or environment camera doesn't exist), try the other camera
       if (errorMessage.includes('NotReadableError') || errorMessage.includes('OverconstrainedError')) {
-        if (retryCount === 0) {
+        if (retryCountRef.current < 1) {
+          retryCountRef.current += 1;
           console.log("Retrying with different camera mode...");
           const fallbackMode = mode === "environment" ? "user" : "environment";
           setFacingMode(fallbackMode); // This will trigger the useEffect again

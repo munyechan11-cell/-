@@ -110,8 +110,8 @@ export const setGlobalStorage = <T>(key: string, value: T) => {
   if (isFirebaseConfigured && db) {
     const docRef = doc(db, 'appState', 'global');
     // Remove undefined values before saving to Firestore
-    const sanitizedState = JSON.parse(JSON.stringify(globalState));
-    setDoc(docRef, sanitizedState).catch(console.error);
+    const sanitizedValue = JSON.parse(JSON.stringify(value));
+    setDoc(docRef, { [key]: sanitizedValue }, { merge: true }).catch(console.error);
   } else {
     localStorage.setItem('offline_global_state', JSON.stringify(globalState));
   }
