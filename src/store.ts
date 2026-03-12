@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { db, isFirebaseConfigured } from './lib/firebase';
-import { doc, onSnapshot, setDoc, getDoc } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 
 export type Role = 'customer' | 'owner';
 
@@ -135,21 +135,27 @@ export const useStore = () => {
     if (isFirebaseConfigured && db && !isInitialized) {
       const docRef = doc(db, 'appState', 'global');
       
-      getDoc(docRef).then((snapshot) => {
-        if (!snapshot.exists()) {
-          setDoc(docRef, globalState);
-        }
-        
-        unsubscribe = onSnapshot(docRef, (docSnap) => {
+      unsubscribe = onSnapshot(
+        docRef,
+        (docSnap) => {
           if (docSnap.exists()) {
             const data = docSnap.data();
             Object.assign(globalState, data);
+          } else {
+            setDoc(docRef, globalState).catch(console.error);
           }
           isInitialized = true;
           setIsReady(true);
           window.dispatchEvent(new Event('global-storage-update'));
-        });
-      });
+        },
+        (error) => {
+          console.error("Firebase sync error:", error);
+          // Fallback to offline state
+          isInitialized = true;
+          setIsReady(true);
+          window.dispatchEvent(new Event('global-storage-update'));
+        }
+      );
     } else if (!isFirebaseConfigured && !isReady) {
       setIsReady(true);
     }
