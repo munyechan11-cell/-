@@ -30,7 +30,7 @@ function PrivateRoute({ children, role }: { children: React.ReactNode, role: 'cu
 }
 
 export default function App() {
-  const { isReady, firebaseStatus } = useStore();
+  const { isReady, firebaseStatus, firebaseError } = useStore();
 
   if (!isReady) {
     return (
@@ -50,6 +50,14 @@ export default function App() {
             현재 오프라인 모드(기기 내부 저장소)로 작동하려고 합니다.<br/>
             온라인 연동이 되지 않는 상태입니다.
           </p>
+          
+          {firebaseError && (
+            <div className="bg-red-100 border border-red-300 text-red-800 p-3 rounded-xl text-sm mb-6 text-left break-all font-mono">
+              <strong>에러 메시지:</strong><br/>
+              {firebaseError}
+            </div>
+          )}
+
           <div className="text-left bg-red-50 p-4 rounded-xl text-sm text-red-800 mb-6">
             <p className="font-bold mb-2">원인 확인 체크리스트:</p>
             <ol className="list-decimal pl-5 space-y-2">

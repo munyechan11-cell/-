@@ -145,6 +145,7 @@ export const setGlobalStorage = <T>(key: string, value: T) => {
 export const useStore = () => {
   const [isReady, setIsReady] = useState(isInitialized);
   const [firebaseStatus, setFirebaseStatus] = useState<'connecting' | 'connected' | 'error' | 'offline'>(isFirebaseConfigured ? 'connecting' : 'offline');
+  const [firebaseError, setFirebaseError] = useState<string | null>(null);
   const [users, setUsers] = useState<User[]>(getGlobalStorage('users', []));
   const [visits, setVisits] = useState<Visit[]>(getGlobalStorage('visits', []));
   const [coupons, setCoupons] = useState<Coupon[]>(getGlobalStorage('coupons', []));
@@ -168,6 +169,7 @@ export const useStore = () => {
           isInitialized = true;
           setIsReady(true);
           setFirebaseStatus('error');
+          setFirebaseError('연결 시간 초과 (3초). 데이터베이스가 생성되지 않았거나 네트워크 문제일 수 있습니다.');
           window.dispatchEvent(new Event('global-storage-update'));
         }
       }, 3000);
@@ -186,6 +188,7 @@ export const useStore = () => {
           isInitialized = true;
           setIsReady(true);
           setFirebaseStatus('connected');
+          setFirebaseError(null);
           window.dispatchEvent(new Event('global-storage-update'));
         },
         (error) => {
@@ -195,12 +198,14 @@ export const useStore = () => {
           isInitialized = true;
           setIsReady(true);
           setFirebaseStatus('error');
+          setFirebaseError(error.message || String(error));
           window.dispatchEvent(new Event('global-storage-update'));
         }
       );
     } else if (!isFirebaseConfigured && !isReady) {
       setIsReady(true);
       setFirebaseStatus('offline');
+      setFirebaseError('환경변수(VITE_FIREBASE_API_KEY 등)가 설정되지 않았습니다.');
     }
 
     const handleGlobalUpdate = () => {
@@ -531,6 +536,7 @@ export const useStore = () => {
   return {
     isReady,
     firebaseStatus,
+    firebaseError,
     users,
     visits,
     coupons,
