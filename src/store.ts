@@ -144,6 +144,7 @@ export const setGlobalStorage = <T>(key: string, value: T) => {
 
 export const useStore = () => {
   const [isReady, setIsReady] = useState(isInitialized);
+  const [firebaseStatus, setFirebaseStatus] = useState<'connecting' | 'connected' | 'error' | 'offline'>(isFirebaseConfigured ? 'connecting' : 'offline');
   const [users, setUsers] = useState<User[]>(getGlobalStorage('users', []));
   const [visits, setVisits] = useState<Visit[]>(getGlobalStorage('visits', []));
   const [coupons, setCoupons] = useState<Coupon[]>(getGlobalStorage('coupons', []));
@@ -166,6 +167,7 @@ export const useStore = () => {
           console.warn("Firebase sync timeout. Falling back to offline state.");
           isInitialized = true;
           setIsReady(true);
+          setFirebaseStatus('error');
           window.dispatchEvent(new Event('global-storage-update'));
         }
       }, 3000);
@@ -183,6 +185,7 @@ export const useStore = () => {
           }
           isInitialized = true;
           setIsReady(true);
+          setFirebaseStatus('connected');
           window.dispatchEvent(new Event('global-storage-update'));
         },
         (error) => {
@@ -191,11 +194,13 @@ export const useStore = () => {
           // Fallback to offline state
           isInitialized = true;
           setIsReady(true);
+          setFirebaseStatus('error');
           window.dispatchEvent(new Event('global-storage-update'));
         }
       );
     } else if (!isFirebaseConfigured && !isReady) {
       setIsReady(true);
+      setFirebaseStatus('offline');
     }
 
     const handleGlobalUpdate = () => {
@@ -525,6 +530,7 @@ export const useStore = () => {
 
   return {
     isReady,
+    firebaseStatus,
     users,
     visits,
     coupons,
