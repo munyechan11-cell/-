@@ -109,7 +109,9 @@ export const setGlobalStorage = <T>(key: string, value: T) => {
   
   if (isFirebaseConfigured && db) {
     const docRef = doc(db, 'appState', 'global');
-    setDoc(docRef, globalState).catch(console.error);
+    // Remove undefined values before saving to Firestore
+    const sanitizedState = JSON.parse(JSON.stringify(globalState));
+    setDoc(docRef, sanitizedState).catch(console.error);
   } else {
     localStorage.setItem('offline_global_state', JSON.stringify(globalState));
   }
@@ -135,20 +137,33 @@ export const useStore = () => {
     if (isFirebaseConfigured && db && !isInitialized) {
       const docRef = doc(db, 'appState', 'global');
       
+      // Force ready after 3 seconds if Firebase is hanging or database is not created
+      const timeoutId = setTimeout(() => {
+        if (!isInitialized) {
+          console.warn("Firebase sync timeout. Falling back to offline state.");
+          isInitialized = true;
+          setIsReady(true);
+          window.dispatchEvent(new Event('global-storage-update'));
+        }
+      }, 3000);
+
       unsubscribe = onSnapshot(
         docRef,
         (docSnap) => {
+          clearTimeout(timeoutId);
           if (docSnap.exists()) {
             const data = docSnap.data();
             Object.assign(globalState, data);
           } else {
-            setDoc(docRef, globalState).catch(console.error);
+            const sanitizedState = JSON.parse(JSON.stringify(globalState));
+            setDoc(docRef, sanitizedState).catch(console.error);
           }
           isInitialized = true;
           setIsReady(true);
           window.dispatchEvent(new Event('global-storage-update'));
         },
         (error) => {
+          clearTimeout(timeoutId);
           console.error("Firebase sync error:", error);
           // Fallback to offline state
           isInitialized = true;

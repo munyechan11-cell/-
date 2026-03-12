@@ -15,14 +15,14 @@ export default function OwnerScanner() {
     storeDataRef.current = { coupons, users, tables, currentUser };
   }, [coupons, users, tables, currentUser]);
 
-  const startScanner = async (mode: "environment" | "user") => {
+  const startScanner = async (mode: "environment" | "user", retryCount = 0) => {
     if (!scannerRef.current) {
       scannerRef.current = new Html5Qrcode("reader");
     }
 
     const config = { fps: 10, qrbox: { width: 250, height: 250 } };
     
-        const onScanSuccess = (decodedText: string) => {
+    const onScanSuccess = (decodedText: string) => {
       try {
         const data = JSON.parse(decodedText);
         if (data.couponId && data.customerId && data.storeId) {
@@ -42,12 +42,23 @@ export default function OwnerScanner() {
       }
       await scannerRef.current.start({ facingMode: mode }, config, onScanSuccess, () => {});
     } catch (err: any) {
-      console.error(err);
+      console.error("Scanner start error:", err);
       const errorMessage = String(err);
+      
+      // If NotReadableError occurs (often when camera is in use or environment camera doesn't exist), try the other camera
+      if (errorMessage.includes('NotReadableError') || errorMessage.includes('OverconstrainedError')) {
+        if (retryCount === 0) {
+          console.log("Retrying with different camera mode...");
+          const fallbackMode = mode === "environment" ? "user" : "environment";
+          setFacingMode(fallbackMode); // This will trigger the useEffect again
+          return;
+        }
+      }
+
       if (errorMessage.includes('NotAllowedError') || errorMessage.includes('Permission denied')) {
         setScanResult({ success: false, message: '카메라 접근 권한이 거부되었습니다. 브라우저 설정에서 카메라 권한을 허용해주세요.' });
       } else {
-        setScanResult({ success: false, message: '카메라를 시작할 수 없습니다. 기기의 카메라 상태를 확인해주세요.' });
+        setScanResult({ success: false, message: `카메라를 시작할 수 없습니다 (${errorMessage}). 기기의 카메라 상태를 확인해주세요.` });
       }
     }
   };
