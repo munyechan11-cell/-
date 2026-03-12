@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { io } from 'socket.io-client';
+import { db, isFirebaseConfigured } from './lib/firebase';
+import { doc, onSnapshot, setDoc, getDoc } from 'firebase/firestore';
 
 export type Role = 'customer' | 'owner';
 
@@ -57,9 +58,6 @@ export interface TierOverride {
 // Initial mock data
 const initialTables: Table[] = [];
 
-// Socket.io connection
-const socket = io();
-
 // Device-local storage (for currentUser)
 export const getLocalStorage = <T>(key: string, initialValue: T): T => {
   const item = localStorage.getItem(key);
@@ -78,7 +76,7 @@ export const setLocalStorage = <T>(key: string, value: T) => {
   window.dispatchEvent(new Event('local-storage-update'));
 };
 
-// Global in-memory state synced via WebSockets
+// Global in-memory state synced via Firebase
 const globalState: Record<string, any> = {
   users: [],
   visits: [],
@@ -91,16 +89,16 @@ const globalState: Record<string, any> = {
 
 let isInitialized = false;
 
-socket.on('init_state', (serverDb) => {
-  Object.assign(globalState, serverDb);
+// Fallback to local storage if Firebase is not configured
+if (!isFirebaseConfigured) {
+  const savedState = localStorage.getItem('offline_global_state');
+  if (savedState) {
+    try {
+      Object.assign(globalState, JSON.parse(savedState));
+    } catch (e) {}
+  }
   isInitialized = true;
-  window.dispatchEvent(new Event('global-storage-update'));
-});
-
-socket.on('state_updated', ({ key, value }) => {
-  globalState[key] = value;
-  window.dispatchEvent(new Event('global-storage-update'));
-});
+}
 
 export const getGlobalStorage = <T>(key: string, initialValue: T): T => {
   return globalState[key] !== undefined ? globalState[key] : initialValue;
@@ -108,7 +106,14 @@ export const getGlobalStorage = <T>(key: string, initialValue: T): T => {
 
 export const setGlobalStorage = <T>(key: string, value: T) => {
   globalState[key] = value;
-  socket.emit('update_state', { key, value });
+  
+  if (isFirebaseConfigured && db) {
+    const docRef = doc(db, 'appState', 'global');
+    setDoc(docRef, globalState).catch(console.error);
+  } else {
+    localStorage.setItem('offline_global_state', JSON.stringify(globalState));
+  }
+  
   window.dispatchEvent(new Event('global-storage-update'));
 };
 
@@ -125,6 +130,30 @@ export const useStore = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(getLocalStorage('currentUser', null));
 
   useEffect(() => {
+    let unsubscribe: (() => void) | undefined;
+
+    if (isFirebaseConfigured && db && !isInitialized) {
+      const docRef = doc(db, 'appState', 'global');
+      
+      getDoc(docRef).then((snapshot) => {
+        if (!snapshot.exists()) {
+          setDoc(docRef, globalState);
+        }
+        
+        unsubscribe = onSnapshot(docRef, (docSnap) => {
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            Object.assign(globalState, data);
+          }
+          isInitialized = true;
+          setIsReady(true);
+          window.dispatchEvent(new Event('global-storage-update'));
+        });
+      });
+    } else if (!isFirebaseConfigured && !isReady) {
+      setIsReady(true);
+    }
+
     const handleGlobalUpdate = () => {
       setIsReady(true);
       setUsers(getGlobalStorage('users', []));
@@ -150,6 +179,7 @@ export const useStore = () => {
     }
 
     return () => {
+      if (unsubscribe) unsubscribe();
       window.removeEventListener('global-storage-update', handleGlobalUpdate);
       window.removeEventListener('local-storage-update', handleLocalUpdate);
       window.removeEventListener('storage', handleLocalUpdate);
