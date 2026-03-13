@@ -14,4 +14,7 @@ const firebaseConfig = {
 export const isFirebaseConfigured = !!firebaseConfig.apiKey && firebaseConfig.apiKey !== "YOUR_API_KEY" && firebaseConfig.apiKey !== "undefined";
 
 export const app = isFirebaseConfigured ? initializeApp(firebaseConfig) : null;
-export const db = isFirebaseConfigured ? getFirestore(app) : null;
+
+// Use the default database if no specific database ID is provided in env
+const databaseId = import.meta.env.VITE_FIREBASE_DATABASE_ID;
+export const db = isFirebaseConfigured ? (databaseId ? getFirestore(app, databaseId) : getFirestore(app)) : null;

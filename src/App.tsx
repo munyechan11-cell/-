@@ -58,6 +58,18 @@ export default function App() {
             </div>
           )}
 
+          <div className="bg-gray-100 border border-gray-300 text-gray-800 p-3 rounded-xl text-xs mb-6 text-left break-all font-mono">
+            <strong className="text-gray-900">🔍 현재 앱에 주입된 설정값 확인:</strong><br/>
+            <ul className="list-disc pl-4 mt-1 space-y-1">
+              <li>Project ID: <span className="font-bold text-blue-600">{import.meta.env.VITE_FIREBASE_PROJECT_ID || '없음'}</span></li>
+              <li>Database ID: <span className="font-bold text-blue-600">{import.meta.env.VITE_FIREBASE_DATABASE_ID || '없음 (default)'}</span></li>
+              <li>API Key: <span className="font-bold text-blue-600">{import.meta.env.VITE_FIREBASE_API_KEY ? '설정됨(정상)' : '없음'}</span></li>
+            </ul>
+            <p className="mt-2 text-red-600 font-bold">
+              ※ 만약 위 Database ID가 'geoyl'이 아니라 '없음'으로 뜬다면, Vercel 재배포가 아직 안 된 것이거나 핸드폰에 옛날 화면이 저장(캐시)되어 있는 것입니다!
+            </p>
+          </div>
+
           <div className="text-left bg-red-50 p-4 rounded-xl text-sm text-red-800 mb-6">
             <p className="font-bold mb-2">원인 확인 체크리스트:</p>
             <ol className="list-decimal pl-5 space-y-2">
