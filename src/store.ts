@@ -162,17 +162,17 @@ export const useStore = () => {
     if (isFirebaseConfigured && db && !isInitialized) {
       const docRef = doc(db, 'appState', 'global');
       
-      // Force ready after 3 seconds if Firebase is hanging or database is not created
+      // Force ready after 10 seconds if Firebase is hanging or database is not created
       const timeoutId = setTimeout(() => {
         if (!isInitialized) {
           console.warn("Firebase sync timeout. Falling back to offline state.");
           isInitialized = true;
           setIsReady(true);
           setFirebaseStatus('error');
-          setFirebaseError('연결 시간 초과 (3초). 데이터베이스가 생성되지 않았거나 네트워크 문제일 수 있습니다.');
+          setFirebaseError('연결 시간 초과 (10초). 파이어베이스 서버가 응답하지 않습니다. 데이터베이스 위치(Region) 문제이거나 일시적인 네트워크 오류일 수 있습니다.');
           window.dispatchEvent(new Event('global-storage-update'));
         }
-      }, 3000);
+      }, 10000);
 
       unsubscribe = onSnapshot(
         docRef,
@@ -198,7 +198,7 @@ export const useStore = () => {
           isInitialized = true;
           setIsReady(true);
           setFirebaseStatus('error');
-          setFirebaseError(error.message || String(error));
+          setFirebaseError(`[${error.code || '알 수 없는 에러'}] ${error.message || String(error)}`);
           window.dispatchEvent(new Event('global-storage-update'));
         }
       );
