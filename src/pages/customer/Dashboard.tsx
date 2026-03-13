@@ -60,7 +60,6 @@ export default function CustomerDashboard() {
   const handleLeaveStore = () => {
     if (currentTable && storeId) {
       leaveTable(currentTable.number, storeId);
-      alert('가게에서 퇴장하셨습니다.');
       navigate('/scan');
     }
   };
@@ -248,7 +247,7 @@ export default function CustomerDashboard() {
               <button 
                 onClick={() => {
                   navigator.clipboard.writeText(JSON.stringify({ couponId: activeCoupon.id, customerId: currentUser.id, storeId }));
-                  alert('QR 데이터가 복사되었습니다. (테스트용)');
+                  import('../../store').then(({ showToast }) => showToast('QR 데이터가 복사되었습니다. (테스트용)', 'info'));
                 }}
                 className="absolute inset-0 bg-black/50 text-white font-bold flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-xl"
               >

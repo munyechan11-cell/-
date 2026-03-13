@@ -33,13 +33,13 @@ export default function Master() {
     setIsChangingPassword(false);
     setNewPassword('');
     setError('');
-    alert('비밀번호가 성공적으로 변경되었습니다.');
+    import('../store').then(({ showToast }) => showToast('비밀번호가 성공적으로 변경되었습니다.', 'success'));
   };
 
   const handleDeleteUser = (userId: string, role: 'owner' | 'customer', name: string) => {
     if (window.confirm(`${name} ${role === 'owner' ? '사장님' : '고객님'}을(를) 정말 삭제하시겠습니까? 관련된 모든 데이터가 삭제됩니다.`)) {
       deleteUser(userId, role);
-      alert('삭제되었습니다.');
+      import('../store').then(({ showToast }) => showToast('삭제되었습니다.', 'info'));
     }
   };
 

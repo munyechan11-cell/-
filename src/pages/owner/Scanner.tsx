@@ -224,10 +224,10 @@ export default function OwnerScanner() {
                     if (data.couponId && data.customerId && data.storeId) {
                       handleScan(data.couponId, data.customerId, data.storeId);
                     } else {
-                      alert('couponId, customerId, storeId가 모두 필요합니다.');
+                      import('../../store').then(({ showToast }) => showToast('couponId, customerId, storeId가 모두 필요합니다.', 'error'));
                     }
                   } catch (e) {
-                    alert('잘못된 JSON 형식입니다.');
+                    import('../../store').then(({ showToast }) => showToast('잘못된 JSON 형식입니다.', 'error'));
                   }
                 }}
                 className="w-full bg-[#EFEBE9] text-[#4E342E] py-2 rounded-lg text-sm font-bold hover:bg-stone-300"

@@ -266,7 +266,7 @@ export default function OwnerDashboard() {
                   <button 
                     onClick={() => {
                       navigator.clipboard.writeText(`${window.location.origin}/customer/store/${currentUser.id}/table/${selectedTable}`);
-                      alert('QR 링크가 복사되었습니다. (테스트용)');
+                      import('../../store').then(({ showToast }) => showToast('QR 링크가 복사되었습니다. (테스트용)', 'info'));
                     }}
                     className="absolute inset-0 bg-black/50 text-white font-bold flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-xl"
                   >

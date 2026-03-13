@@ -153,38 +153,51 @@ export const getGlobalStorage = <T>(key: string, initialValue: T): T => {
   return globalState[key] !== undefined ? globalState[key] : initialValue;
 };
 
-export const runGlobalTransaction = (updater: (currentState: typeof globalState) => Partial<typeof globalState>) => {
-  // 1. Optimistic local update
-  const localUpdates = updater(globalState);
-  Object.assign(globalState, localUpdates);
-  window.dispatchEvent(new Event('global-storage-update'));
-
-  // 2. Async server update with transaction
-  if (isFirebaseConfigured && db) {
-    const docRef = doc(db, 'appState', 'global');
-    runTransaction(db, async (transaction) => {
-      const docSnap = await transaction.get(docRef);
-      const serverData = docSnap.exists() ? docSnap.data() as typeof globalState : globalState;
-      
-      // Re-run the updater with the LATEST server data
-      const serverUpdates = updater(serverData);
-      
-      const sanitizedUpdates = JSON.parse(JSON.stringify(serverUpdates));
-      transaction.set(docRef, sanitizedUpdates, { merge: true });
-      
-      return serverUpdates;
-    }).then((finalUpdates) => {
-      // 3. Apply the final server-calculated updates locally to ensure consistency
-      if (finalUpdates) {
-        Object.assign(globalState, finalUpdates);
-        window.dispatchEvent(new Event('global-storage-update'));
-      }
-    }).catch(e => {
-      console.error("Transaction failed: ", e);
-    });
-  } else {
-    localStorage.setItem('offline_global_state', JSON.stringify(globalState));
+export const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+  window.dispatchEvent(new CustomEvent('show-toast', { detail: { message, type } }));
+  if (navigator.vibrate) {
+    if (type === 'success') navigator.vibrate([100]);
+    else if (type === 'error') navigator.vibrate([50, 50, 50]);
   }
+};
+
+export const runGlobalTransaction = (updater: (currentState: typeof globalState) => Partial<typeof globalState>): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    // 1. Optimistic local update
+    const localUpdates = updater(globalState);
+    Object.assign(globalState, localUpdates);
+    window.dispatchEvent(new Event('global-storage-update'));
+
+    // 2. Async server update with transaction
+    if (isFirebaseConfigured && db) {
+      const docRef = doc(db, 'appState', 'global');
+      runTransaction(db, async (transaction) => {
+        const docSnap = await transaction.get(docRef);
+        const serverData = docSnap.exists() ? docSnap.data() as typeof globalState : globalState;
+        
+        // Re-run the updater with the LATEST server data
+        const serverUpdates = updater(serverData);
+        
+        const sanitizedUpdates = JSON.parse(JSON.stringify(serverUpdates));
+        transaction.set(docRef, sanitizedUpdates, { merge: true });
+        
+        return serverUpdates;
+      }).then((finalUpdates) => {
+        // 3. Apply the final server-calculated updates locally to ensure consistency
+        if (finalUpdates) {
+          Object.assign(globalState, finalUpdates);
+          window.dispatchEvent(new Event('global-storage-update'));
+        }
+        resolve();
+      }).catch(e => {
+        console.error("Transaction failed: ", e);
+        reject(e);
+      });
+    } else {
+      localStorage.setItem('offline_global_state', JSON.stringify(globalState));
+      resolve();
+    }
+  });
 };
 
 export const setGlobalStorage = <T>(key: string, value: T) => {
@@ -298,6 +311,7 @@ export const useStore = () => {
     if (loggedInUser) {
       setLocalStorage('currentUser', loggedInUser);
       setCurrentUser(loggedInUser);
+      showToast(`${name}님 환영합니다!`, 'success');
     }
     return loggedInUser!;
   };
@@ -305,6 +319,7 @@ export const useStore = () => {
   const logout = () => {
     setLocalStorage('currentUser', null);
     setCurrentUser(null);
+    showToast('로그아웃 되었습니다.', 'info');
   };
 
   const recordVisit = (customerId: string, tableNumber: number, storeId: string) => {
@@ -361,6 +376,8 @@ export const useStore = () => {
       
       updates.tables = newTables;
       return updates;
+    }).then(() => {
+      showToast('방문이 기록되었습니다.', 'success');
     });
 
     if (shouldCheckCoupons) {
@@ -377,6 +394,8 @@ export const useStore = () => {
           : t
       );
       return { tables: newTables };
+    }).then(() => {
+      showToast('테이블에서 퇴장했습니다.', 'info');
     });
   };
 
@@ -421,6 +440,8 @@ export const useStore = () => {
         issuedAt: now,
       };
       return { coupons: [...currentCoupons, newCoupon] };
+    }).then(() => {
+      showToast(`쿠폰 발급: ${description}`, 'success');
     });
   };
 
@@ -452,6 +473,8 @@ export const useStore = () => {
           : c
       );
       return { coupons: newCoupons };
+    }).then(() => {
+      showToast('쿠폰이 사용되었습니다.', 'success');
     });
   };
 

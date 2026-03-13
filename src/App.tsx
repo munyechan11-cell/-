@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useStore } from './store';
 import CustomerLogin from './pages/customer/Login';
@@ -11,6 +11,49 @@ import OwnerCustomers from './pages/owner/Customers';
 import OwnerScanner from './pages/owner/Scanner';
 import Home from './pages/Home';
 import Master from './pages/Master';
+import { CheckCircle2, AlertCircle, Info } from 'lucide-react';
+
+function Toast() {
+  const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' | 'info', id: number } | null>(null);
+
+  useEffect(() => {
+    const handleToast = (e: CustomEvent) => {
+      setToast({ ...e.detail, id: Date.now() });
+    };
+    window.addEventListener('show-toast', handleToast as EventListener);
+    return () => window.removeEventListener('show-toast', handleToast as EventListener);
+  }, []);
+
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
+
+  if (!toast) return null;
+
+  const icons = {
+    success: <CheckCircle2 className="w-5 h-5 text-green-500" />,
+    error: <AlertCircle className="w-5 h-5 text-red-500" />,
+    info: <Info className="w-5 h-5 text-blue-500" />
+  };
+
+  const bgs = {
+    success: 'bg-green-50 border-green-200 text-green-800',
+    error: 'bg-red-50 border-red-200 text-red-800',
+    info: 'bg-blue-50 border-blue-200 text-blue-800'
+  };
+
+  return (
+    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-4 duration-300">
+      <div className={`flex items-center gap-2 px-4 py-3 rounded-2xl shadow-lg border ${bgs[toast.type]}`}>
+        {icons[toast.type]}
+        <span className="font-bold text-sm">{toast.message}</span>
+      </div>
+    </div>
+  );
+}
 
 function PrivateRoute({ children, role }: { children: React.ReactNode, role: 'customer' | 'owner' }) {
   const { currentUser, users, logout } = useStore();
@@ -91,6 +134,7 @@ export default function App() {
   return (
     <Router>
       <div className="min-h-screen hanji-bg flex justify-center">
+        <Toast />
         <div className="w-full max-w-md min-h-screen overflow-hidden relative flex flex-col">
           <div className="flex-1 overflow-y-auto no-scrollbar w-full h-full relative pt-safe pb-safe">
             <Routes>

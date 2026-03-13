@@ -75,11 +75,12 @@ export default function OwnerCustomers() {
       if (sendType === 'coupon') {
         issueCoupon(selectedCustomer, currentUser.id, '사장님 특별 서비스', content);
         recordCommunication(selectedCustomer, currentUser.id, 'coupon', content);
-        alert('서비스 쿠폰이 전송되었습니다.');
       } else {
         // Simulate sending SMS
         recordCommunication(selectedCustomer, currentUser.id, 'message', content);
-        alert(`[문자 발송 시뮬레이션]\n수신: ${activeCustomer?.phone}\n내용: ${content}`);
+        import('../../store').then(({ showToast }) => {
+          showToast(`[문자 발송 시뮬레이션]\n수신: ${activeCustomer?.phone}\n내용: ${content}`, 'info');
+        });
       }
       setSelectedCustomer(null);
       setContent('');
