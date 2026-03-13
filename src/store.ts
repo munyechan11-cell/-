@@ -88,6 +88,9 @@ const globalState: Record<string, any> = {
 };
 
 let isInitialized = false;
+let globalIsReady = false;
+let globalFirebaseStatus: 'connecting' | 'connected' | 'error' | 'offline' = isFirebaseConfigured ? 'connecting' : 'offline';
+let globalFirebaseError: string | null = null;
 
 // Fallback to local storage if Firebase is not configured
 if (!isFirebaseConfigured) {
@@ -98,6 +101,52 @@ if (!isFirebaseConfigured) {
     } catch (e) {}
   }
   isInitialized = true;
+  globalIsReady = true;
+} else if (db) {
+  const docRef = doc(db, 'appState', 'global');
+  
+  const timeoutId = setTimeout(() => {
+    if (!isInitialized) {
+      console.warn("Firebase sync timeout. Falling back to offline state.");
+      isInitialized = true;
+      globalIsReady = true;
+      globalFirebaseStatus = 'error';
+      globalFirebaseError = '연결 시간 초과 (10초). 파이어베이스 서버가 응답하지 않습니다. 데이터베이스 위치(Region) 문제이거나 일시적인 네트워크 오류일 수 있습니다.';
+      window.dispatchEvent(new Event('global-storage-update'));
+    }
+  }, 10000);
+
+  onSnapshot(
+    docRef,
+    (docSnap) => {
+      clearTimeout(timeoutId);
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        Object.assign(globalState, data);
+      } else {
+        const sanitizedState = JSON.parse(JSON.stringify(globalState));
+        setDoc(docRef, sanitizedState).catch(console.error);
+      }
+      isInitialized = true;
+      globalIsReady = true;
+      globalFirebaseStatus = 'connected';
+      globalFirebaseError = null;
+      window.dispatchEvent(new Event('global-storage-update'));
+    },
+    (error) => {
+      clearTimeout(timeoutId);
+      console.error("Firebase sync error:", error);
+      isInitialized = true;
+      globalIsReady = true;
+      globalFirebaseStatus = 'error';
+      globalFirebaseError = `[${error.code || '알 수 없는 에러'}] ${error.message || String(error)}`;
+      window.dispatchEvent(new Event('global-storage-update'));
+    }
+  );
+} else {
+  globalIsReady = true;
+  globalFirebaseStatus = 'offline';
+  globalFirebaseError = '환경변수(VITE_FIREBASE_API_KEY 등)가 설정되지 않았습니다.';
 }
 
 export const getGlobalStorage = <T>(key: string, initialValue: T): T => {
@@ -143,9 +192,9 @@ export const setGlobalStorage = <T>(key: string, value: T) => {
 };
 
 export const useStore = () => {
-  const [isReady, setIsReady] = useState(isInitialized);
-  const [firebaseStatus, setFirebaseStatus] = useState<'connecting' | 'connected' | 'error' | 'offline'>(isFirebaseConfigured ? 'connecting' : 'offline');
-  const [firebaseError, setFirebaseError] = useState<string | null>(null);
+  const [isReady, setIsReady] = useState(globalIsReady);
+  const [firebaseStatus, setFirebaseStatus] = useState(globalFirebaseStatus);
+  const [firebaseError, setFirebaseError] = useState(globalFirebaseError);
   const [users, setUsers] = useState<User[]>(getGlobalStorage('users', []));
   const [visits, setVisits] = useState<Visit[]>(getGlobalStorage('visits', []));
   const [coupons, setCoupons] = useState<Coupon[]>(getGlobalStorage('coupons', []));
@@ -157,59 +206,10 @@ export const useStore = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(getLocalStorage('currentUser', null));
 
   useEffect(() => {
-    let unsubscribe: (() => void) | undefined;
-
-    if (isFirebaseConfigured && db && !isInitialized) {
-      const docRef = doc(db, 'appState', 'global');
-      
-      // Force ready after 10 seconds if Firebase is hanging or database is not created
-      const timeoutId = setTimeout(() => {
-        if (!isInitialized) {
-          console.warn("Firebase sync timeout. Falling back to offline state.");
-          isInitialized = true;
-          setIsReady(true);
-          setFirebaseStatus('error');
-          setFirebaseError('연결 시간 초과 (10초). 파이어베이스 서버가 응답하지 않습니다. 데이터베이스 위치(Region) 문제이거나 일시적인 네트워크 오류일 수 있습니다.');
-          window.dispatchEvent(new Event('global-storage-update'));
-        }
-      }, 10000);
-
-      unsubscribe = onSnapshot(
-        docRef,
-        (docSnap) => {
-          clearTimeout(timeoutId);
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            Object.assign(globalState, data);
-          } else {
-            const sanitizedState = JSON.parse(JSON.stringify(globalState));
-            setDoc(docRef, sanitizedState).catch(console.error);
-          }
-          isInitialized = true;
-          setIsReady(true);
-          setFirebaseStatus('connected');
-          setFirebaseError(null);
-          window.dispatchEvent(new Event('global-storage-update'));
-        },
-        (error) => {
-          clearTimeout(timeoutId);
-          console.error("Firebase sync error:", error);
-          // Fallback to offline state
-          isInitialized = true;
-          setIsReady(true);
-          setFirebaseStatus('error');
-          setFirebaseError(`[${error.code || '알 수 없는 에러'}] ${error.message || String(error)}`);
-          window.dispatchEvent(new Event('global-storage-update'));
-        }
-      );
-    } else if (!isFirebaseConfigured && !isReady) {
-      setIsReady(true);
-      setFirebaseStatus('offline');
-      setFirebaseError('환경변수(VITE_FIREBASE_API_KEY 등)가 설정되지 않았습니다.');
-    }
-
     const handleGlobalUpdate = () => {
-      setIsReady(true);
+      setIsReady(globalIsReady);
+      setFirebaseStatus(globalFirebaseStatus);
+      setFirebaseError(globalFirebaseError);
       setUsers(getGlobalStorage('users', []));
       setVisits(getGlobalStorage('visits', []));
       setCoupons(getGlobalStorage('coupons', []));
@@ -227,18 +227,15 @@ export const useStore = () => {
     window.addEventListener('local-storage-update', handleLocalUpdate);
     window.addEventListener('storage', handleLocalUpdate); // For cross-tab local storage
 
-    // If already initialized before component mounted, trigger update
-    if (isInitialized && !isReady) {
-      handleGlobalUpdate();
-    }
+    // Initial sync
+    handleGlobalUpdate();
 
     return () => {
-      if (unsubscribe) unsubscribe();
       window.removeEventListener('global-storage-update', handleGlobalUpdate);
       window.removeEventListener('local-storage-update', handleLocalUpdate);
       window.removeEventListener('storage', handleLocalUpdate);
     };
-  }, [isReady]);
+  }, []);
 
   const login = (phone: string, name: string, role: Role, restaurantName?: string, storeId?: string) => {
     const cleanPhone = phone.replace(/[^0-9]/g, '');
