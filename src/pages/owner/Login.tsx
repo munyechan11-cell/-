@@ -128,7 +128,7 @@ export default function OwnerLogin() {
     e.preventDefault();
     if (isLoading) return;
     if (!isVerified) {
-      setError('먼저 전화번호 인증을 완료해주세요.');
+      setError('전화번호 입력 후 [인증받기] 버튼을 눌러주세요.');
       return;
     }
     setError('');
@@ -232,7 +232,13 @@ export default function OwnerLogin() {
                 type="button"
                 onClick={handleSendCode}
                 disabled={isLoading || isVerified || phone.length < 12}
-                className="px-4 py-3 bg-[#EFEBE9] hover:bg-[#E7E0D7] text-[#4E342E] disabled:opacity-50 disabled:hover:bg-[#EFEBE9] rounded-xl font-bold whitespace-nowrap transition-colors"
+                className={`px-4 py-3 rounded-xl font-bold whitespace-nowrap transition-colors ${
+                  isVerified 
+                    ? 'bg-[#EFEBE9] text-[#A1887F]' 
+                    : phone.length >= 12 
+                      ? 'bg-[#4E342E] text-white hover:bg-[#3E2723] shadow-sm' 
+                      : 'bg-[#EFEBE9] text-[#A1887F] opacity-70'
+                }`}
               >
                 {isVerified ? '인증완료' : (isCodeSent ? '재전송' : '인증받기')}
               </button>
