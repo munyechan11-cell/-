@@ -108,14 +108,14 @@ export default function CustomerDashboard() {
       <div className="p-4 space-y-6 relative z-10">
         {/* Notifications / Messages */}
         {myCommunications.length > 0 && (
-          <div>
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 delay-100 fill-mode-both">
             <h3 className="font-bold text-[#2D1B15] mb-4 px-2 flex items-center">
               <Bell className="w-5 h-5 mr-2 text-[#D84315]" />
               알림 및 메시지
             </h3>
             <div className="space-y-3">
-              {myCommunications.slice(0, 3).map(comm => (
-                <div key={comm.id} className="bg-white/90 backdrop-blur-sm rounded-2xl p-4 shadow-sm border border-[#E7E0D7]">
+              {myCommunications.slice(0, 3).map((comm, index) => (
+                <div key={comm.id} className="bg-white/90 backdrop-blur-sm rounded-2xl p-4 shadow-sm border border-[#E7E0D7] animate-in fade-in slide-in-from-bottom-4" style={{ animationDelay: `${(index + 2) * 100}ms`, animationFillMode: 'both' }}>
                   <div className="flex justify-between items-start mb-2">
                     <span className={`px-2 py-1 rounded-md text-xs font-bold flex items-center ${comm.type === 'coupon' ? 'bg-[#FFF3E0] text-[#D84315]' : 'bg-blue-100 text-blue-800'}`}>
                       {comm.type === 'coupon' ? <Ticket className="w-3 h-3 mr-1" /> : <MessageSquare className="w-3 h-3 mr-1" />}
@@ -133,7 +133,7 @@ export default function CustomerDashboard() {
         )}
 
         {/* Tier Card */}
-        <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-6 shadow-sm border border-[#E7E0D7]">
+        <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-6 shadow-sm border border-[#E7E0D7] animate-in fade-in slide-in-from-bottom-4 duration-500 delay-200 fill-mode-both">
           <div className="flex justify-between items-center mb-4">
             <h3 className="font-bold text-[#2D1B15] flex items-center">
               <Award className="w-5 h-5 mr-2 text-[#D84315]" />
@@ -149,9 +149,9 @@ export default function CustomerDashboard() {
               <span>최근 30일 방문</span>
               <span className="font-bold text-[#2D1B15]">{recentVisitsCount}회</span>
             </div>
-            <div className="w-full bg-[#EFEBE9] rounded-full h-2.5">
+            <div className="w-full bg-[#EFEBE9] rounded-full h-2.5 overflow-hidden">
               <div 
-                className="bg-[#D84315] h-2.5 rounded-full" 
+                className="bg-[#D84315] h-full rounded-full transition-all duration-1000 ease-out" 
                 style={{ width: `${Math.min((recentVisitsCount / 12) * 100, 100)}%` }}
               ></div>
             </div>
@@ -162,7 +162,7 @@ export default function CustomerDashboard() {
         </div>
 
         {/* Coupons */}
-        <div>
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 delay-300 fill-mode-both">
           <h3 className="font-bold text-[#2D1B15] mb-4 px-2 flex items-center">
             <Ticket className="w-5 h-5 mr-2 text-[#D84315]" />
             나의 쿠폰 (My Coupons)
@@ -175,11 +175,12 @@ export default function CustomerDashboard() {
             </div>
           ) : (
             <div className="space-y-3">
-              {myCoupons.map(coupon => (
+              {myCoupons.map((coupon, index) => (
                 <button
                   key={coupon.id}
                   onClick={() => setSelectedCoupon(coupon.id)}
-                  className="w-full bg-white/90 backdrop-blur-sm rounded-2xl p-5 shadow-sm border border-[#D84315]/20 flex justify-between items-center hover:bg-[#FFF3E0]/50 transition-colors text-left"
+                  className="w-full bg-white/90 backdrop-blur-sm rounded-2xl p-5 shadow-sm border border-[#D84315]/20 flex justify-between items-center hover:bg-[#FFF3E0]/50 transition-colors text-left animate-in fade-in slide-in-from-bottom-4"
+                  style={{ animationDelay: `${(index + 4) * 100}ms`, animationFillMode: 'both' }}
                 >
                   <div>
                     <span className="text-xs font-bold text-[#D84315] bg-[#FFF3E0] px-2 py-1 rounded-md mb-2 inline-block">
@@ -187,7 +188,7 @@ export default function CustomerDashboard() {
                     </span>
                     <h4 className="font-bold text-[#2D1B15]">{coupon.description}</h4>
                   </div>
-                  <div className="bg-[#D84315] text-white px-4 py-2 rounded-xl text-sm font-bold">
+                  <div className="bg-[#D84315] text-white px-4 py-2 rounded-xl text-sm font-bold shadow-sm hover:shadow-md transition-shadow">
                     사용하기
                   </div>
                 </button>
@@ -197,7 +198,7 @@ export default function CustomerDashboard() {
         </div>
 
         {/* History */}
-        <div>
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 delay-500 fill-mode-both">
           <h3 className="font-bold text-[#2D1B15] mb-4 px-2 flex items-center">
             <Calendar className="w-5 h-5 mr-2 text-[#795548]" />
             최근 방문 내역

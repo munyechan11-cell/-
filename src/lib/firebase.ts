@@ -1,6 +1,7 @@
 // src/lib/firebase.ts
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "YOUR_API_KEY",
@@ -18,3 +19,4 @@ export const app = isFirebaseConfigured ? initializeApp(firebaseConfig) : null;
 // Use the default database if no specific database ID is provided in env
 const databaseId = import.meta.env.VITE_FIREBASE_DATABASE_ID;
 export const db = isFirebaseConfigured ? (databaseId ? getFirestore(app, databaseId) : getFirestore(app)) : null;
+export const auth = isFirebaseConfigured ? getAuth(app) : null;

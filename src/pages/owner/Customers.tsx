@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useStore, getCustomerTier, getEffectiveTier, getTierColor } from '../../store';
-import { Users, LayoutGrid, ScanLine, Search, Send, X, MessageSquare, Ticket, History } from 'lucide-react';
+import { Users, LayoutGrid, ScanLine, Search, Send, X, MessageSquare, Ticket, History, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export default function OwnerCustomers() {
@@ -69,22 +69,34 @@ export default function OwnerCustomers() {
     c.name.includes(searchTerm) || c.phone.includes(searchTerm)
   );
 
-  const handleSend = (e: React.FormEvent) => {
+  const [isSending, setIsSending] = useState(false);
+
+  const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSending) return;
+    
     if (selectedCustomer && content) {
-      if (sendType === 'coupon') {
-        issueCoupon(selectedCustomer, currentUser.id, '사장님 특별 서비스', content);
-        recordCommunication(selectedCustomer, currentUser.id, 'coupon', content);
-      } else {
-        // Simulate sending SMS
-        recordCommunication(selectedCustomer, currentUser.id, 'message', content);
-        import('../../store').then(({ showToast }) => {
-          showToast(`[문자 발송 시뮬레이션]\n수신: ${activeCustomer?.phone}\n내용: ${content}`, 'info');
-        });
+      setIsSending(true);
+      try {
+        if (sendType === 'coupon') {
+          await issueCoupon(selectedCustomer, currentUser.id, '사장님 특별 서비스', content);
+          await recordCommunication(selectedCustomer, currentUser.id, 'coupon', content);
+        } else {
+          // Simulate sending SMS
+          await recordCommunication(selectedCustomer, currentUser.id, 'message', content);
+          import('../../store').then(({ showToast }) => {
+            showToast(`[문자 발송 시뮬레이션]\n수신: ${activeCustomer?.phone}\n내용: ${content}`, 'info');
+          });
+        }
+        setSelectedCustomer(null);
+        setContent('');
+        setSelectedPredefinedCoupon('');
+      } catch (err) {
+        console.error(err);
+        import('../../store').then(({ showToast }) => showToast('발송 중 오류가 발생했습니다.', 'error'));
+      } finally {
+        setIsSending(false);
       }
-      setSelectedCustomer(null);
-      setContent('');
-      setSelectedPredefinedCoupon('');
     }
   };
 
@@ -278,10 +290,11 @@ export default function OwnerCustomers() {
 
               <button 
                 type="submit"
-                className="w-full bg-[#D84315] hover:bg-[#BF360C] text-white font-bold py-4 rounded-xl transition-colors flex items-center justify-center"
+                disabled={isSending}
+                className="w-full bg-[#D84315] hover:bg-[#BF360C] disabled:bg-[#D84315]/70 text-white font-bold py-4 rounded-xl transition-colors flex items-center justify-center"
               >
-                <Send className="w-5 h-5 mr-2" />
-                전송하기
+                {isSending ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Send className="w-5 h-5 mr-2" />}
+                {isSending ? '전송 중...' : '전송하기'}
               </button>
             </form>
           </div>

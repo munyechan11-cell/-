@@ -85,13 +85,13 @@ export default function OwnerDashboard() {
       {/* Table Grid */}
       <div className="p-6">
         {myTables.length === 0 ? (
-          <div className="text-center py-12 bg-white/90 backdrop-blur-sm rounded-3xl shadow-sm border border-[#E7E0D7]">
+          <div className="text-center py-12 bg-white/90 backdrop-blur-sm rounded-3xl shadow-sm border border-[#E7E0D7] animate-in fade-in slide-in-from-bottom-4 duration-500">
             <p className="text-[#795548] mb-2">테이블 정보가 없습니다.</p>
             <p className="text-sm text-[#A1887F]">새로고침하거나 다시 로그인해주세요.</p>
           </div>
         ) : (
           <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
-            {myTables.map(table => {
+            {myTables.map((table, index) => {
               const isOccupied = table.currentCustomerId !== null;
               const customer = isOccupied ? users.find(u => u.id === table.currentCustomerId) : null;
               
@@ -99,11 +99,12 @@ export default function OwnerDashboard() {
                 <button
                   key={table.number}
                   onClick={() => setSelectedTable(table.number)}
-                  className={`aspect-square rounded-2xl flex flex-col items-center justify-center p-2 shadow-sm border-2 transition-all ${
+                  className={`aspect-square rounded-2xl flex flex-col items-center justify-center p-2 shadow-sm border-2 transition-all animate-in fade-in zoom-in-95 ${
                     isOccupied 
                       ? 'bg-[#FFF3E0]/50 border-[#D84315] hover:bg-[#FFF3E0]' 
                       : 'bg-white/90 backdrop-blur-sm border-[#E7E0D7] hover:border-stone-300'
                   }`}
+                  style={{ animationDelay: `${index * 50}ms`, animationFillMode: 'both' }}
                 >
                   <span className={`text-lg font-bold ${isOccupied ? 'text-[#BF360C]' : 'text-[#A1887F]'}`}>
                     {table.number}
@@ -121,7 +122,7 @@ export default function OwnerDashboard() {
       </div>
 
       {/* Recent Coupon Usage History */}
-      <div className="px-6 pb-24">
+      <div className="px-6 pb-24 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-300 fill-mode-both">
         <h2 className="text-lg font-bold text-[#2D1B15] mb-4 flex items-center">
           <span className="bg-[#FFF3E0] text-[#D84315] w-8 h-8 rounded-full flex items-center justify-center mr-2">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
@@ -137,10 +138,10 @@ export default function OwnerDashboard() {
                 .filter(c => c.storeId === currentUser.id && c.status === 'used')
                 .sort((a, b) => new Date(b.usedAt!).getTime() - new Date(a.usedAt!).getTime())
                 .slice(0, 5)
-                .map(coupon => {
+                .map((coupon, index) => {
                   const customer = users.find(u => u.id === coupon.customerId);
                   return (
-                    <div key={coupon.id} className="flex justify-between items-center border-b border-[#E7E0D7]/50 last:border-0 pb-3 last:pb-0">
+                    <div key={coupon.id} className="flex justify-between items-center border-b border-[#E7E0D7]/50 last:border-0 pb-3 last:pb-0 animate-in fade-in slide-in-from-right-4" style={{ animationDelay: `${(index + 4) * 100}ms`, animationFillMode: 'both' }}>
                       <div>
                         <p className="font-bold text-[#2D1B15]">{customer?.name || '알 수 없는 고객'} <span className="text-xs font-normal text-[#795548] ml-1">(테이블 {coupon.usedAtTable || '?'})</span></p>
                         <p className="text-sm text-[#D84315] font-medium">{coupon.description}</p>
