@@ -11,6 +11,7 @@ export interface User {
   phone: string;
   restaurantName?: string;
   storeId?: string;
+  googleId?: string;
 }
 
 export interface Visit {
@@ -250,18 +251,41 @@ export const useStore = () => {
     };
   }, []);
 
-  const login = (phone: string, name: string, role: Role, restaurantName?: string, storeId?: string) => {
-    const cleanPhone = phone.replace(/[^0-9]/g, '');
-    const newUserId = Math.random().toString(36).substring(2, 9);
+  const login = (phone: string, name: string, role: Role, restaurantName?: string, storeId?: string, googleId?: string) => {
+    const cleanPhone = phone ? phone.replace(/[^0-9]/g, '') : '';
     let loggedInUser: User | null = null;
 
     runGlobalTransaction((currentState) => {
       const currentUsers = currentState.users || [];
-      let user = currentUsers.find(u => u.phone.replace(/[^0-9]/g, '') === cleanPhone && u.role === role && (role === 'owner' || u.storeId === storeId));
+      
+      let user = null;
+      
+      // 1. Try to find by googleId
+      if (googleId) {
+        user = currentUsers.find(u => u.googleId === googleId && u.role === role && (role === 'owner' || u.storeId === storeId));
+        // Backward compatibility: check if id === googleId
+        if (!user) {
+          user = currentUsers.find(u => u.id === googleId && u.role === role && (role === 'owner' || u.storeId === storeId));
+        }
+      }
+      
+      // 2. Try to find by phone
+      if (!user && cleanPhone) {
+        user = currentUsers.find(u => u.phone.replace(/[^0-9]/g, '') === cleanPhone && u.role === role && (role === 'owner' || u.storeId === storeId));
+      }
       
       const updates: Partial<typeof globalState> = {};
       
-      if (!user) {
+      if (user) {
+        // Link googleId if missing
+        if (googleId && !user.googleId) {
+          const updatedUser = { ...user, googleId };
+          updates.users = currentUsers.map(u => u.id === user!.id ? updatedUser : u);
+          user = updatedUser;
+        }
+      } else {
+        // Create new user
+        const newUserId = Math.random().toString(36).substring(2, 9);
         user = {
           id: newUserId,
           role,
@@ -269,6 +293,7 @@ export const useStore = () => {
           phone: cleanPhone,
           restaurantName,
           storeId,
+          googleId
         };
         updates.users = [...currentUsers, user];
       }
