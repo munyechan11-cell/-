@@ -1,15 +1,23 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link, useParams, useSearchParams } from 'react-router-dom';
 import { useStore } from '../../store';
-import { UserCircle, ArrowLeft, Loader2 } from 'lucide-react';
+import { UserCircle, ArrowLeft, Loader2, Phone } from 'lucide-react';
 import { auth } from '../../lib/firebase';
 import { signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider } from 'firebase/auth';
+
+export const formatPhoneNumber = (value: string) => {
+  const numbers = value.replace(/[^\d]/g, '');
+  if (numbers.length <= 3) return numbers;
+  if (numbers.length <= 7) return `${numbers.slice(0, 3)}-${numbers.slice(3)}`;
+  return `${numbers.slice(0, 3)}-${numbers.slice(3, 7)}-${numbers.slice(7, 11)}`;
+};
 
 export default function CustomerLogin() {
   const { storeId } = useParams<{ storeId: string }>();
   const [searchParams] = useSearchParams();
   const tableNumber = searchParams.get('table');
 
+  const [phone, setPhone] = useState(() => sessionStorage.getItem('customerLogin_phone') || '');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
@@ -45,19 +53,23 @@ export default function CustomerLogin() {
         const result = await getRedirectResult(auth);
         if (result) {
           const user = result.user;
-          const existingUser = users.find(u => (u.googleId === user.uid || u.id === user.uid) && u.role === 'customer' && u.storeId === storeId);
+          const cleanPhone = phone.replace(/[^0-9]/g, '');
+          
+          const existingUser = users.find(u => (u.googleId === user.uid || u.id === user.uid || (cleanPhone && u.phone === cleanPhone)) && u.role === 'customer' && u.storeId === storeId);
           
           if (existingUser) {
-            const loggedInUser = login('', existingUser.name, 'customer', undefined, storeId, user.uid);
+            const loggedInUser = login(cleanPhone || existingUser.phone, existingUser.name, 'customer', undefined, storeId, user.uid);
             if (tableNumber) {
               recordVisit(loggedInUser.id, parseInt(tableNumber), storeId);
             }
+            sessionStorage.removeItem('customerLogin_phone');
             navigate(`/customer/store/${storeId}`);
           } else {
-            const loggedInUser = login('', user.displayName || '고객님', 'customer', undefined, storeId, user.uid);
+            const loggedInUser = login(cleanPhone, user.displayName || '고객님', 'customer', undefined, storeId, user.uid);
             if (tableNumber) {
               recordVisit(loggedInUser.id, parseInt(tableNumber), storeId);
             }
+            sessionStorage.removeItem('customerLogin_phone');
             navigate(`/customer/store/${storeId}`);
           }
         }
@@ -69,7 +81,51 @@ export default function CustomerLogin() {
       }
     };
     handleRedirectResult();
-  }, [auth, storeId, users, login, tableNumber, navigate, recordVisit]);
+  }, [auth, storeId, users, login, tableNumber, navigate, recordVisit, phone]);
+
+  const handlePhoneSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isLoading) return;
+    
+    const cleanPhone = phone.replace(/[^0-9]/g, '');
+    if (cleanPhone.length < 10) {
+      setError('올바른 휴대전화 번호를 입력해주세요.');
+      return;
+    }
+
+    if (!storeId) {
+      setError('가게 QR 코드를 먼저 스캔해주세요.');
+      return;
+    }
+
+    setIsLoading(true);
+    setError('');
+    
+    try {
+      const existingUser = users.find(u => u.phone.replace(/[^0-9]/g, '') === cleanPhone && u.role === 'customer' && u.storeId === storeId);
+      
+      if (existingUser) {
+        const loggedInUser = login(cleanPhone, existingUser.name, 'customer', undefined, storeId);
+        if (tableNumber) {
+          recordVisit(loggedInUser.id, parseInt(tableNumber), storeId);
+        }
+        sessionStorage.removeItem('customerLogin_phone');
+        navigate(`/customer/store/${storeId}`);
+      } else {
+        const loggedInUser = login(cleanPhone, '고객님', 'customer', undefined, storeId);
+        if (tableNumber) {
+          recordVisit(loggedInUser.id, parseInt(tableNumber), storeId);
+        }
+        sessionStorage.removeItem('customerLogin_phone');
+        navigate(`/customer/store/${storeId}`);
+      }
+    } catch (err: any) {
+      console.error(err);
+      setError('처리 중 오류가 발생했습니다.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleGoogleLogin = async () => {
     if (isLoading || !auth) {
@@ -91,27 +147,31 @@ export default function CustomerLogin() {
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
       
       if (isMobile) {
+        sessionStorage.setItem('customerLogin_phone', phone);
         await signInWithRedirect(auth, provider);
         return; // Execution stops here as the page redirects
       } else {
         const result = await signInWithPopup(auth, provider);
         const user = result.user;
+        const cleanPhone = phone.replace(/[^0-9]/g, '');
         
-        const existingUser = users.find(u => (u.googleId === user.uid || u.id === user.uid) && u.role === 'customer' && u.storeId === storeId);
+        const existingUser = users.find(u => (u.googleId === user.uid || u.id === user.uid || (cleanPhone && u.phone === cleanPhone)) && u.role === 'customer' && u.storeId === storeId);
         
         if (existingUser) {
           // Login
-          const loggedInUser = login('', existingUser.name, 'customer', undefined, storeId, user.uid);
+          const loggedInUser = login(cleanPhone || existingUser.phone, existingUser.name, 'customer', undefined, storeId, user.uid);
           if (tableNumber) {
             recordVisit(loggedInUser.id, parseInt(tableNumber), storeId);
           }
+          sessionStorage.removeItem('customerLogin_phone');
           navigate(`/customer/store/${storeId}`);
         } else {
           // Signup
-          const loggedInUser = login('', user.displayName || '고객님', 'customer', undefined, storeId, user.uid);
+          const loggedInUser = login(cleanPhone, user.displayName || '고객님', 'customer', undefined, storeId, user.uid);
           if (tableNumber) {
             recordVisit(loggedInUser.id, parseInt(tableNumber), storeId);
           }
+          sessionStorage.removeItem('customerLogin_phone');
           navigate(`/customer/store/${storeId}`);
         }
       }
@@ -176,6 +236,42 @@ export default function CustomerLogin() {
               {error}
             </div>
           )}
+
+          <form onSubmit={handlePhoneSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-bold text-[#5D4037] mb-2">휴대전화 번호</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <Phone className="h-5 w-5 text-[#A1887F]" />
+                </div>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(formatPhoneNumber(e.target.value))}
+                  className="block w-full pl-11 pr-4 py-4 bg-white border border-[#E7E0D7] rounded-xl text-[#4E342E] placeholder-[#A1887F] focus:ring-2 focus:ring-[#D84315] focus:border-transparent transition-all font-medium text-lg"
+                  placeholder="010-0000-0000"
+                  maxLength={13}
+                />
+              </div>
+            </div>
+
+            <button 
+              type="submit"
+              disabled={isLoading || phone.replace(/[^0-9]/g, '').length < 10}
+              className="w-full bg-[#D84315] hover:bg-[#BF360C] disabled:bg-[#FFCCBC] text-white font-bold py-4 rounded-xl transition-colors text-lg flex items-center justify-center shadow-sm"
+            >
+              {isLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : '전화번호로 시작하기'}
+            </button>
+          </form>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-[#E7E0D7]"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-4 bg-white text-[#A1887F] font-medium">또는</span>
+            </div>
+          </div>
 
           <button 
             type="button"
