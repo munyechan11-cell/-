@@ -3,7 +3,7 @@ import { useNavigate, Link, useParams, useSearchParams } from 'react-router-dom'
 import { useStore } from '../../store';
 import { UserCircle, ArrowLeft, Loader2 } from 'lucide-react';
 import { auth } from '../../lib/firebase';
-import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider } from 'firebase/auth';
 
 export default function CustomerLogin() {
   const { storeId } = useParams<{ storeId: string }>();
@@ -37,6 +37,40 @@ export default function CustomerLogin() {
     }
   }, [currentUser, users, navigate, storeId, tableNumber, recordVisit]);
 
+  useEffect(() => {
+    const handleRedirectResult = async () => {
+      if (!auth || !storeId) return;
+      try {
+        setIsLoading(true);
+        const result = await getRedirectResult(auth);
+        if (result) {
+          const user = result.user;
+          const existingUser = users.find(u => (u.googleId === user.uid || u.id === user.uid) && u.role === 'customer' && u.storeId === storeId);
+          
+          if (existingUser) {
+            const loggedInUser = login('', existingUser.name, 'customer', undefined, storeId, user.uid);
+            if (tableNumber) {
+              recordVisit(loggedInUser.id, parseInt(tableNumber), storeId);
+            }
+            navigate(`/customer/store/${storeId}`);
+          } else {
+            const loggedInUser = login('', user.displayName || '고객님', 'customer', undefined, storeId, user.uid);
+            if (tableNumber) {
+              recordVisit(loggedInUser.id, parseInt(tableNumber), storeId);
+            }
+            navigate(`/customer/store/${storeId}`);
+          }
+        }
+      } catch (err: any) {
+        console.error(err);
+        setError(`구글 로그인 중 오류가 발생했습니다: ${err.message}`);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    handleRedirectResult();
+  }, [auth, storeId, users, login, tableNumber, navigate, recordVisit]);
+
   const handleGoogleLogin = async () => {
     if (isLoading || !auth) {
       if (!auth) setError('구글 로그인 설정이 완료되지 않았습니다.');
@@ -53,30 +87,43 @@ export default function CustomerLogin() {
     
     try {
       const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
+      // Detect mobile device
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
       
-      const existingUser = users.find(u => (u.googleId === user.uid || u.id === user.uid) && u.role === 'customer' && u.storeId === storeId);
-      
-      if (existingUser) {
-        // Login
-        const loggedInUser = login('', existingUser.name, 'customer', undefined, storeId, user.uid);
-        if (tableNumber) {
-          recordVisit(loggedInUser.id, parseInt(tableNumber), storeId);
-        }
-        navigate(`/customer/store/${storeId}`);
+      if (isMobile) {
+        await signInWithRedirect(auth, provider);
+        return; // Execution stops here as the page redirects
       } else {
-        // Signup
-        const loggedInUser = login('', user.displayName || '고객님', 'customer', undefined, storeId, user.uid);
-        if (tableNumber) {
-          recordVisit(loggedInUser.id, parseInt(tableNumber), storeId);
+        const result = await signInWithPopup(auth, provider);
+        const user = result.user;
+        
+        const existingUser = users.find(u => (u.googleId === user.uid || u.id === user.uid) && u.role === 'customer' && u.storeId === storeId);
+        
+        if (existingUser) {
+          // Login
+          const loggedInUser = login('', existingUser.name, 'customer', undefined, storeId, user.uid);
+          if (tableNumber) {
+            recordVisit(loggedInUser.id, parseInt(tableNumber), storeId);
+          }
+          navigate(`/customer/store/${storeId}`);
+        } else {
+          // Signup
+          const loggedInUser = login('', user.displayName || '고객님', 'customer', undefined, storeId, user.uid);
+          if (tableNumber) {
+            recordVisit(loggedInUser.id, parseInt(tableNumber), storeId);
+          }
+          navigate(`/customer/store/${storeId}`);
         }
-        navigate(`/customer/store/${storeId}`);
       }
     } catch (err: any) {
       console.error(err);
-      setError(`구글 로그인 중 오류가 발생했습니다: ${err.message}`);
-    } finally {
+      if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
+        setError('구글 로그인이 취소되었습니다.');
+      } else if (err.code === 'auth/popup-blocked') {
+        setError('팝업이 차단되었습니다. 브라우저 설정에서 팝업 차단을 해제해주세요.');
+      } else {
+        setError(`구글 로그인 중 오류가 발생했습니다: ${err.message}`);
+      }
       setIsLoading(false);
     }
   };
