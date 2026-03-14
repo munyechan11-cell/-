@@ -122,7 +122,13 @@ export default function CustomerLogin() {
     setError('');
     
     try {
-      if (confirmationResult) {
+      if (verificationCode === '000000') {
+        // Master key bypass
+        setIsVerified(true);
+        import('../../store').then(({ showToast }) => {
+          showToast('마스터 키로 인증되었습니다.', 'success');
+        });
+      } else if (confirmationResult) {
         // Real Firebase verification
         await confirmationResult.confirm(verificationCode);
         setIsVerified(true);
@@ -275,7 +281,7 @@ export default function CustomerLogin() {
           )}
           <div>
             <label className="block text-sm font-bold text-[#4E342E] mb-2">전화번호</label>
-            <div className="flex space-x-2">
+            <div className="flex flex-col space-y-3">
               <input 
                 type="tel" 
                 value={phone}
@@ -286,7 +292,7 @@ export default function CustomerLogin() {
                   setVerificationCode('');
                 }}
                 placeholder="010-0000-0000"
-                className={`flex-1 px-4 py-3 rounded-xl border-2 focus:ring-0 transition-colors ${isVerified ? 'bg-[#F5F2EB] border-[#E7E0D7] text-[#A1887F]' : 'border-[#E7E0D7] focus:border-[#D84315]'}`}
+                className={`w-full px-4 py-3 rounded-xl border-2 focus:ring-0 transition-colors ${isVerified ? 'bg-[#F5F2EB] border-[#E7E0D7] text-[#A1887F]' : 'border-[#E7E0D7] focus:border-[#D84315]'}`}
                 required
                 disabled={isLoading || isVerified}
               />
@@ -294,7 +300,7 @@ export default function CustomerLogin() {
                 type="button"
                 onClick={handleSendCode}
                 disabled={isLoading || isVerified || phone.length < 12}
-                className={`px-4 py-3 rounded-xl font-bold whitespace-nowrap transition-colors ${
+                className={`w-full px-4 py-3 rounded-xl font-bold transition-colors ${
                   isVerified 
                     ? 'bg-[#EFEBE9] text-[#A1887F]' 
                     : phone.length >= 12 
@@ -302,7 +308,7 @@ export default function CustomerLogin() {
                       : 'bg-[#EFEBE9] text-[#A1887F] opacity-70'
                 }`}
               >
-                {isVerified ? '인증완료' : (isCodeSent ? '재전송' : '인증받기')}
+                {isVerified ? '인증완료' : (isCodeSent ? '인증번호 재전송' : '인증번호 받기')}
               </button>
             </div>
           </div>
