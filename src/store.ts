@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { db, isFirebaseConfigured } from './lib/firebase';
+import { db, auth, isFirebaseConfigured } from './lib/firebase';
 import { doc, onSnapshot, setDoc, runTransaction } from 'firebase/firestore';
 
 export type Role = 'customer' | 'owner';
@@ -126,7 +126,31 @@ if (!isFirebaseConfigured) {
         Object.assign(globalState, data);
       } else {
         const sanitizedState = JSON.parse(JSON.stringify(globalState));
-        setDoc(docRef, sanitizedState).catch(console.error);
+        setDoc(docRef, sanitizedState).catch((e) => {
+          console.error(e);
+          if (e.code === 'permission-denied' || e.message?.includes('Missing or insufficient permissions')) {
+            const errInfo = {
+              error: e.message || String(e),
+              operationType: 'write',
+              path: 'appState/global',
+              authInfo: {
+                userId: auth?.currentUser?.uid || null,
+                email: auth?.currentUser?.email || null,
+                emailVerified: auth?.currentUser?.emailVerified || false,
+                isAnonymous: auth?.currentUser?.isAnonymous || false,
+                tenantId: auth?.currentUser?.tenantId || null,
+                providerInfo: auth?.currentUser?.providerData.map(provider => ({
+                  providerId: provider.providerId,
+                  displayName: provider.displayName,
+                  email: provider.email,
+                  photoUrl: provider.photoURL
+                })) || []
+              }
+            };
+            console.error('Firestore Error: ', JSON.stringify(errInfo));
+            throw new Error(JSON.stringify(errInfo));
+          }
+        });
       }
       isInitialized = true;
       globalIsReady = true;
@@ -142,6 +166,29 @@ if (!isFirebaseConfigured) {
       globalFirebaseStatus = 'error';
       globalFirebaseError = `[${error.code || '알 수 없는 에러'}] ${error.message || String(error)}`;
       window.dispatchEvent(new Event('global-storage-update'));
+      
+      if (error.code === 'permission-denied' || error.message?.includes('Missing or insufficient permissions')) {
+        const errInfo = {
+          error: error.message || String(error),
+          operationType: 'get',
+          path: 'appState/global',
+          authInfo: {
+            userId: auth?.currentUser?.uid || null,
+            email: auth?.currentUser?.email || null,
+            emailVerified: auth?.currentUser?.emailVerified || false,
+            isAnonymous: auth?.currentUser?.isAnonymous || false,
+            tenantId: auth?.currentUser?.tenantId || null,
+            providerInfo: auth?.currentUser?.providerData.map(provider => ({
+              providerId: provider.providerId,
+              displayName: provider.displayName,
+              email: provider.email,
+              photoUrl: provider.photoURL
+            })) || []
+          }
+        };
+        console.error('Firestore Error: ', JSON.stringify(errInfo));
+        throw new Error(JSON.stringify(errInfo));
+      }
     }
   );
 } else {
@@ -192,7 +239,30 @@ export const runGlobalTransaction = (updater: (currentState: typeof globalState)
         resolve();
       }).catch(e => {
         console.error("Transaction failed: ", e);
-        reject(e);
+        if (e.code === 'permission-denied' || e.message?.includes('Missing or insufficient permissions')) {
+          const errInfo = {
+            error: e.message || String(e),
+            operationType: 'write',
+            path: 'appState/global',
+            authInfo: {
+              userId: auth?.currentUser?.uid || null,
+              email: auth?.currentUser?.email || null,
+              emailVerified: auth?.currentUser?.emailVerified || false,
+              isAnonymous: auth?.currentUser?.isAnonymous || false,
+              tenantId: auth?.currentUser?.tenantId || null,
+              providerInfo: auth?.currentUser?.providerData.map(provider => ({
+                providerId: provider.providerId,
+                displayName: provider.displayName,
+                email: provider.email,
+                photoUrl: provider.photoURL
+              })) || []
+            }
+          };
+          console.error('Firestore Error: ', JSON.stringify(errInfo));
+          reject(new Error(JSON.stringify(errInfo)));
+        } else {
+          reject(e);
+        }
       });
     } else {
       localStorage.setItem('offline_global_state', JSON.stringify(globalState));

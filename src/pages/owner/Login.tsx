@@ -2,9 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useStore } from '../../store';
 import { Store, ArrowLeft, Loader2 } from 'lucide-react';
-import { formatPhoneNumber } from './../customer/Login';
 import { auth } from '../../lib/firebase';
 import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+
+export const formatPhoneNumber = (value: string) => {
+  const numbers = value.replace(/[^\d]/g, '');
+  if (numbers.length <= 3) return numbers;
+  if (numbers.length <= 7) return `${numbers.slice(0, 3)}-${numbers.slice(3)}`;
+  return `${numbers.slice(0, 3)}-${numbers.slice(3, 7)}-${numbers.slice(7, 11)}`;
+};
 
 export default function OwnerLogin() {
   const [isLogin, setIsLogin] = useState(true);
@@ -70,7 +76,10 @@ export default function OwnerLogin() {
   };
 
   const handleGoogleLogin = async () => {
-    if (isLoading || !auth) return;
+    if (isLoading || !auth) {
+      if (!auth) setError('구글 로그인 설정이 완료되지 않았습니다.');
+      return;
+    }
     
     setIsLoading(true);
     setError('');
