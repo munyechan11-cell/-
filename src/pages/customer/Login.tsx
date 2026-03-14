@@ -316,22 +316,22 @@ export default function CustomerLogin() {
           {isCodeSent && !isVerified && (
             <div className="animate-in fade-in slide-in-from-top-2">
               <label className="block text-sm font-bold text-[#4E342E] mb-2">인증번호</label>
-              <div className="flex space-x-2">
+              <div className="flex flex-col space-y-3">
                 <input 
                   type="number" 
                   value={verificationCode}
                   onChange={(e) => setVerificationCode(e.target.value.slice(0, 6))}
                   placeholder="6자리 숫자 입력"
-                  className="flex-1 px-4 py-3 rounded-xl border-2 border-[#E7E0D7] focus:border-[#D84315] focus:ring-0 transition-colors"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-[#E7E0D7] focus:border-[#D84315] focus:ring-0 transition-colors"
                   maxLength={6}
                 />
                 <button
                   type="button"
                   onClick={handleVerifyCode}
                   disabled={verificationCode.length !== 6}
-                  className="px-6 py-3 bg-[#D84315] hover:bg-[#BF360C] disabled:bg-[#D84315]/50 text-white rounded-xl font-bold whitespace-nowrap transition-colors"
+                  className="w-full py-3 bg-[#D84315] hover:bg-[#BF360C] disabled:bg-[#D84315]/50 text-white rounded-xl font-bold transition-colors"
                 >
-                  확인
+                  인증 확인
                 </button>
               </div>
             </div>
