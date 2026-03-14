@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useStore, getCustomerTier, getEffectiveTier, getTierColor } from '../../store';
-import { Users, LayoutGrid, ScanLine, Search, Send, X, MessageSquare, Ticket, History, Loader2 } from 'lucide-react';
+import { Users, LayoutGrid, ScanLine, Search, Send, X, MessageSquare, Ticket, History, Loader2, CheckSquare, Square } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export default function OwnerCustomers() {
@@ -11,6 +11,10 @@ export default function OwnerCustomers() {
   const [sendType, setSendType] = useState<'coupon' | 'message'>('coupon');
   const [content, setContent] = useState('');
   const [selectedPredefinedCoupon, setSelectedPredefinedCoupon] = useState('');
+  
+  // Multi-select state
+  const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
+  const [selectedCustomers, setSelectedCustomers] = useState<string[]>([]);
 
   const predefinedCoupons = [
     { id: 'c1', title: '계란찜 1개 서비스' },
@@ -75,20 +79,31 @@ export default function OwnerCustomers() {
     e.preventDefault();
     if (isSending) return;
     
-    if (selectedCustomer && content) {
+    const targets = isMultiSelectMode ? selectedCustomers : (selectedCustomer ? [selectedCustomer] : []);
+    if (targets.length > 0 && content) {
       setIsSending(true);
       try {
-        if (sendType === 'coupon') {
-          await issueCoupon(selectedCustomer, currentUser.id, '사장님 특별 서비스', content);
-          await recordCommunication(selectedCustomer, currentUser.id, 'coupon', content);
-        } else {
-          // Simulate sending SMS
-          await recordCommunication(selectedCustomer, currentUser.id, 'message', content);
-          import('../../store').then(({ showToast }) => {
-            showToast(`[문자 발송 시뮬레이션]\n수신: ${activeCustomer?.phone}\n내용: ${content}`, 'info');
-          });
+        for (const targetId of targets) {
+          if (sendType === 'coupon') {
+            await issueCoupon(targetId, currentUser.id, '사장님 특별 서비스', content);
+            await recordCommunication(targetId, currentUser.id, 'coupon', content);
+          } else {
+            // Simulate sending SMS
+            await recordCommunication(targetId, currentUser.id, 'message', content);
+          }
         }
+        
+        import('../../store').then(({ showToast }) => {
+          if (sendType === 'message') {
+            showToast(`[문자 발송 시뮬레이션]\n${targets.length}명에게 전송 완료\n내용: ${content}`, 'info');
+          } else {
+            showToast(`${targets.length}명에게 쿠폰 발급 완료`, 'success');
+          }
+        });
+
         setSelectedCustomer(null);
+        setSelectedCustomers([]);
+        setIsMultiSelectMode(false);
         setContent('');
         setSelectedPredefinedCoupon('');
       } catch (err) {
@@ -104,11 +119,38 @@ export default function OwnerCustomers() {
   const activeHistoryCustomer = customers.find(c => c.id === historyCustomer);
   const customerHistory = communications.filter(c => c.customerId === historyCustomer && c.storeId === currentUser.id).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
+  const toggleCustomerSelection = (id: string) => {
+    setSelectedCustomers(prev => 
+      prev.includes(id) ? prev.filter(cId => cId !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedCustomers.length === filteredCustomers.length) {
+      setSelectedCustomers([]);
+    } else {
+      setSelectedCustomers(filteredCustomers.map(c => c.id));
+    }
+  };
+
   return (
     <div className="min-h-full bg-transparent pb-20">
       {/* Header */}
       <div className="bg-transparent text-[#2D1B15] p-6 pt-8 border-b border-[#E7E0D7]">
-        <h1 className="text-2xl font-black tracking-tight">고객 관리</h1>
+        <div className="flex justify-between items-center">
+          <h1 className="text-2xl font-black tracking-tight">고객 관리</h1>
+          <button
+            onClick={() => {
+              setIsMultiSelectMode(!isMultiSelectMode);
+              setSelectedCustomers([]);
+            }}
+            className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-colors ${
+              isMultiSelectMode ? 'bg-[#D84315] text-white' : 'bg-[#EFEBE9] text-[#5D4037] hover:bg-[#E7E0D7]'
+            }`}
+          >
+            {isMultiSelectMode ? '취소' : '일괄 전송'}
+          </button>
+        </div>
         
         <div className="mt-6 relative">
           <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-[#A1887F] w-5 h-5" />
@@ -120,6 +162,35 @@ export default function OwnerCustomers() {
             className="w-full bg-white/80 text-[#2D1B15] placeholder-[#A1887F] rounded-2xl py-3 pl-12 pr-4 border border-[#E7E0D7] focus:border-[#4E342E] focus:ring-0 transition-colors shadow-sm"
           />
         </div>
+
+        {isMultiSelectMode && (
+          <div className="mt-4 flex justify-between items-center bg-white/80 p-3 rounded-xl border border-[#E7E0D7]">
+            <button 
+              onClick={toggleSelectAll}
+              className="flex items-center text-[#5D4037] font-bold text-sm"
+            >
+              {selectedCustomers.length === filteredCustomers.length && filteredCustomers.length > 0 ? (
+                <CheckSquare className="w-5 h-5 mr-2 text-[#D84315]" />
+              ) : (
+                <Square className="w-5 h-5 mr-2" />
+              )}
+              전체 선택 ({selectedCustomers.length}/{filteredCustomers.length})
+            </button>
+            <button
+              onClick={() => {
+                if (selectedCustomers.length > 0) {
+                  // Open modal for bulk send
+                  setSelectedCustomer('bulk'); // Use a dummy ID to open the modal
+                }
+              }}
+              disabled={selectedCustomers.length === 0}
+              className="px-4 py-2 bg-[#D84315] text-white rounded-lg text-sm font-bold disabled:opacity-50 transition-colors flex items-center"
+            >
+              <Send className="w-4 h-4 mr-1.5" />
+              선택 전송
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Customer List */}
@@ -131,55 +202,75 @@ export default function OwnerCustomers() {
         ) : (
           filteredCustomers.map(customer => {
             const stats = getCustomerStats(customer.id);
+            const isSelected = selectedCustomers.includes(customer.id);
             return (
-              <div key={customer.id} className="bg-white/90 backdrop-blur-sm rounded-2xl p-5 shadow-sm border border-[#E7E0D7] flex justify-between items-center">
-                <div>
-                  <div className="flex items-center mb-1">
-                    <h3 className="font-bold text-[#2D1B15] text-lg mr-2">{customer.name}</h3>
-                    <select
-                      value={stats.isManualTier ? stats.tier : 'auto'}
-                      onChange={(e) => setCustomerTier(customer.id, currentUser.id, e.target.value)}
-                      className={`px-2 py-0.5 rounded-md text-xs font-bold border appearance-none cursor-pointer pr-5 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-[#D84315] ${getTierColor(stats.tier)}`}
-                      style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='currentColor' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 0.1rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.2em 1.2em' }}
-                      title="고객 등급 변경"
-                    >
-                      <option value="auto">자동 ({stats.autoTier})</option>
-                      <option value="VIP">VIP</option>
-                      <option value="다이아">다이아</option>
-                      <option value="골드">골드</option>
-                      <option value="실버">실버</option>
-                      <option value="브론즈">브론즈</option>
-                      <option value="일반">일반</option>
-                    </select>
-                  </div>
-                  <p className="text-[#795548] text-sm mb-2">{customer.phone}</p>
-                  <div className="flex flex-col space-y-1 text-xs text-[#A1887F]">
-                    <div className="flex space-x-3">
-                      <span>최근 30일: <strong className="text-[#5D4037]">{stats.recentVisits}회</strong></span>
-                      <span>마지막 방문: <strong className="text-[#5D4037]">{stats.daysSinceLastVisit !== null ? `${stats.daysSinceLastVisit}일 전` : '없음'}</strong></span>
+              <div 
+                key={customer.id} 
+                className={`bg-white/90 backdrop-blur-sm rounded-2xl p-5 shadow-sm border flex justify-between items-center transition-colors ${
+                  isMultiSelectMode && isSelected ? 'border-[#D84315] bg-[#FFF3E0]/30' : 'border-[#E7E0D7]'
+                }`}
+                onClick={() => isMultiSelectMode && toggleCustomerSelection(customer.id)}
+              >
+                <div className="flex items-center flex-1">
+                  {isMultiSelectMode && (
+                    <div className="mr-4">
+                      {isSelected ? (
+                        <CheckSquare className="w-6 h-6 text-[#D84315]" />
+                      ) : (
+                        <Square className="w-6 h-6 text-[#A1887F]" />
+                      )}
                     </div>
-                    <div>
-                      <span>월 평균 방문: <strong className="text-[#5D4037]">{stats.frequencyPerMonth}회</strong></span>
+                  )}
+                  <div>
+                    <div className="flex items-center mb-1">
+                      <h3 className="font-bold text-[#2D1B15] text-lg mr-2">{customer.name}</h3>
+                      <select
+                        value={stats.isManualTier ? stats.tier : 'auto'}
+                        onChange={(e) => setCustomerTier(customer.id, currentUser.id, e.target.value)}
+                        className={`px-2 py-0.5 rounded-md text-xs font-bold border appearance-none cursor-pointer pr-5 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-[#D84315] ${getTierColor(stats.tier)}`}
+                        style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='currentColor' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 0.1rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.2em 1.2em' }}
+                        title="고객 등급 변경"
+                      >
+                        <option value="auto">자동 ({stats.autoTier})</option>
+                        <option value="VIP">VIP</option>
+                        <option value="다이아">다이아</option>
+                        <option value="골드">골드</option>
+                        <option value="실버">실버</option>
+                        <option value="브론즈">브론즈</option>
+                        <option value="일반">일반</option>
+                      </select>
+                    </div>
+                    <p className="text-[#795548] text-sm mb-2">{customer.phone}</p>
+                    <div className="flex flex-col space-y-1 text-xs text-[#A1887F]">
+                      <div className="flex space-x-3">
+                        <span>최근 30일: <strong className="text-[#5D4037]">{stats.recentVisits}회</strong></span>
+                        <span>마지막 방문: <strong className="text-[#5D4037]">{stats.daysSinceLastVisit !== null ? `${stats.daysSinceLastVisit}일 전` : '없음'}</strong></span>
+                      </div>
+                      <div>
+                        <span>월 평균 방문: <strong className="text-[#5D4037]">{stats.frequencyPerMonth}회</strong></span>
+                      </div>
                     </div>
                   </div>
                 </div>
                 
-                <div className="flex space-x-2">
-                  <button 
-                    onClick={() => setHistoryCustomer(customer.id)}
-                    className="p-3 bg-transparent text-[#5D4037] rounded-xl hover:bg-[#EFEBE9] transition-colors"
-                    title="기록 확인"
-                  >
-                    <History className="w-5 h-5" />
-                  </button>
-                  <button 
-                    onClick={() => setSelectedCustomer(customer.id)}
-                    className="p-3 bg-transparent text-[#5D4037] rounded-xl hover:bg-[#FFF3E0]/50 hover:text-[#D84315] transition-colors"
-                    title="메시지/쿠폰 전송"
-                  >
-                    <Send className="w-5 h-5" />
-                  </button>
-                </div>
+                {!isMultiSelectMode && (
+                  <div className="flex space-x-2">
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); setHistoryCustomer(customer.id); }}
+                      className="p-3 bg-transparent text-[#5D4037] rounded-xl hover:bg-[#EFEBE9] transition-colors"
+                      title="기록 확인"
+                    >
+                      <History className="w-5 h-5" />
+                    </button>
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); setSelectedCustomer(customer.id); }}
+                      className="p-3 bg-transparent text-[#5D4037] rounded-xl hover:bg-[#FFF3E0]/50 hover:text-[#D84315] transition-colors"
+                      title="메시지/쿠폰 전송"
+                    >
+                      <Send className="w-5 h-5" />
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })
@@ -203,12 +294,13 @@ export default function OwnerCustomers() {
       </div>
 
       {/* Send Modal */}
-      {selectedCustomer && activeCustomer && (
+      {selectedCustomer && (isMultiSelectMode || activeCustomer) && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
           <div className="bg-white/90 backdrop-blur-sm w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-6 pb-12 sm:pb-6 relative animate-in slide-in-from-bottom-full sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200">
             <button 
               onClick={() => {
-                setSelectedCustomer(null);
+                if (!isMultiSelectMode) setSelectedCustomer(null);
+                else setSelectedCustomer(null); // Just close modal, keep selection
                 setSelectedPredefinedCoupon('');
                 setContent('');
               }}
@@ -218,7 +310,7 @@ export default function OwnerCustomers() {
             </button>
 
             <h2 className="text-xl font-black text-[#2D1B15] mb-2">
-              {activeCustomer.name}님에게 보내기
+              {isMultiSelectMode ? `${selectedCustomers.length}명에게 일괄 전송` : `${activeCustomer?.name}님에게 보내기`}
             </h2>
             
             <div className="flex border-b border-[#E7E0D7] mb-6 mt-4">
