@@ -25,7 +25,7 @@ export default function CustomerLogin() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
-  const { login, users, currentUser, recordVisit } = useStore();
+  const { login, users, currentUser, recordVisit, issueCoupon } = useStore();
   const processedRef = useRef(false);
 
   const store = storeId ? users.find(u => u.id === storeId && u.role === 'owner') : null;
@@ -93,6 +93,7 @@ export default function CustomerLogin() {
           setIsLogin(true);
         } else {
           const loggedInUser = login(cleanPhone, name, 'customer', undefined, storeId, undefined, isPohangResident, gender);
+          issueCoupon(loggedInUser.id, storeId, '첫 회원가입 축하', '첫 회원가입 축하쿠폰 (3000원 상당)');
           if (tableNumber) {
             recordVisit(loggedInUser.id, parseInt(tableNumber), storeId);
           }
@@ -155,6 +156,7 @@ export default function CustomerLogin() {
           setIsLogin(true);
         } else {
           const loggedInUser = login(cleanPhone, name || user.displayName || '고객님', 'customer', undefined, storeId, user.uid, isPohangResident, gender);
+          issueCoupon(loggedInUser.id, storeId, '첫 회원가입 축하', '첫 회원가입 축하쿠폰 (3000원 상당)');
           if (tableNumber) {
             recordVisit(loggedInUser.id, parseInt(tableNumber), storeId);
           }
