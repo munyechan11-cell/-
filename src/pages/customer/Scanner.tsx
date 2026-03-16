@@ -66,9 +66,17 @@ export default function CustomerScanner() {
   };
 
   useEffect(() => {
-    startScanner(facingMode);
+    let isMounted = true;
+    
+    const initScanner = async () => {
+      if (!isMounted) return;
+      await startScanner(facingMode);
+    };
+    
+    initScanner();
 
     return () => {
+      isMounted = false;
       if (scannerRef.current && scannerRef.current.isScanning) {
         scannerRef.current.stop().catch(console.error);
       }

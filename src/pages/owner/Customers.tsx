@@ -140,7 +140,7 @@ export default function OwnerCustomers() {
     const total = storeCustomers.length;
     
     if (total === 0) {
-      alert('출력할 데이터가 없습니다.');
+      import('../../store').then(({ showToast }) => showToast('출력할 데이터가 없습니다.', 'error'));
       return;
     }
 

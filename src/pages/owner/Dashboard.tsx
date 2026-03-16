@@ -234,27 +234,30 @@ export default function OwnerDashboard() {
             </h2>
 
             {activeCustomer ? (
-              <div className="space-y-6">
-                <div className="bg-[#F5F2EB]/50 p-4 rounded-2xl border border-[#E7E0D7]">
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h3 className="text-xl font-bold text-[#2D1B15]">{activeCustomer.name}님</h3>
-                      <p className="text-[#795548] text-sm">{activeCustomer.phone}</p>
+              (() => {
+                const stats = getCustomerStats(activeCustomer.id);
+                return (
+                  <div className="space-y-6">
+                    <div className="bg-[#F5F2EB]/50 p-4 rounded-2xl border border-[#E7E0D7]">
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <h3 className="text-xl font-bold text-[#2D1B15]">{activeCustomer.name}님</h3>
+                          <p className="text-[#795548] text-sm">{activeCustomer.phone}</p>
+                        </div>
+                        <span className={`px-3 py-1 rounded-full text-sm font-bold border ${getTierColor(stats.tier)}`}>
+                          {stats.tier}
+                        </span>
+                      </div>
+                      
+                      <div className="flex justify-between text-sm text-[#5D4037] border-t border-[#E7E0D7] pt-3">
+                        <span>최근 30일: {stats.recentVisits}회</span>
+                        <span>마지막 방문: {stats.daysSinceLastVisit !== null ? `${stats.daysSinceLastVisit}일 전` : '없음'}</span>
+                      </div>
+                      <div className="flex justify-between text-sm text-[#5D4037] mt-1">
+                        <span>총 방문: {stats.totalVisits}회</span>
+                        <span>월 평균 방문: {stats.frequencyPerMonth}회</span>
+                      </div>
                     </div>
-                    <span className={`px-3 py-1 rounded-full text-sm font-bold border ${getTierColor(getCustomerStats(activeCustomer.id).tier)}`}>
-                      {getCustomerStats(activeCustomer.id).tier}
-                    </span>
-                  </div>
-                  
-                  <div className="flex justify-between text-sm text-[#5D4037] border-t border-[#E7E0D7] pt-3">
-                    <span>최근 30일: {getCustomerStats(activeCustomer.id).recentVisits}회</span>
-                    <span>마지막 방문: {getCustomerStats(activeCustomer.id).daysSinceLastVisit !== null ? `${getCustomerStats(activeCustomer.id).daysSinceLastVisit}일 전` : '없음'}</span>
-                  </div>
-                  <div className="flex justify-between text-sm text-[#5D4037] mt-1">
-                    <span>총 방문: {getCustomerStats(activeCustomer.id).totalVisits}회</span>
-                    <span>월 평균 방문: {getCustomerStats(activeCustomer.id).frequencyPerMonth}회</span>
-                  </div>
-                </div>
 
                 <div>
                   <h4 className="font-bold text-[#2D1B15] mb-3">사용된 서비스 (이번 방문)</h4>
@@ -297,6 +300,8 @@ export default function OwnerDashboard() {
                   테이블 비우기
                 </button>
               </div>
+              );
+            })()
             ) : (
               <div className="text-center py-8">
                 <p className="text-[#795548] mb-6">현재 비어있는 테이블입니다.</p>

@@ -12,6 +12,7 @@ export default function Master() {
   const [newPassword, setNewPassword] = useState('');
   const [expandedOwner, setExpandedOwner] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'owners' | 'customers'>('owners');
+  const [deletingUser, setDeletingUser] = useState<{ id: string; role: 'owner' | 'customer'; name: string } | null>(null);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,10 +38,7 @@ export default function Master() {
   };
 
   const handleDeleteUser = (userId: string, role: 'owner' | 'customer', name: string) => {
-    if (window.confirm(`${name} ${role === 'owner' ? '사장님' : '고객님'}을(를) 정말 삭제하시겠습니까? 관련된 모든 데이터가 삭제됩니다.`)) {
-      deleteUser(userId, role);
-      import('../store').then(({ showToast }) => showToast('삭제되었습니다.', 'info'));
-    }
+    setDeletingUser({ id: userId, role, name });
   };
 
   if (!isAuthenticated) {
@@ -331,6 +329,38 @@ export default function Master() {
           </>
         )}
       </div>
+
+      {/* Delete User Modal */}
+      {deletingUser && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-8 max-w-sm w-full text-center relative">
+            <h3 className="text-xl font-bold text-[#2D1B15] mb-2">사용자 삭제</h3>
+            <p className="text-[#795548] mb-6">
+              <strong className="text-[#D84315]">{deletingUser.name}</strong> {deletingUser.role === 'owner' ? '사장님' : '고객님'}을(를) 정말 삭제하시겠습니까?<br/>
+              관련된 모든 데이터가 삭제됩니다.
+            </p>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeletingUser(null)}
+                className="flex-1 py-3 bg-[#EFEBE9] text-[#5D4037] rounded-xl font-bold hover:bg-[#E7E0D7] transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={() => {
+                  deleteUser(deletingUser.id, deletingUser.role);
+                  import('../store').then(({ showToast }) => showToast('삭제되었습니다.', 'info'));
+                  setDeletingUser(null);
+                }}
+                className="flex-1 py-3 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 transition-colors shadow-sm"
+              >
+                삭제하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

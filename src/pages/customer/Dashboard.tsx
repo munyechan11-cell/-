@@ -8,6 +8,7 @@ export default function CustomerDashboard() {
   const navigate = useNavigate();
   const { storeId } = useParams<{ storeId: string }>();
   const [selectedCoupon, setSelectedCoupon] = useState<string | null>(null);
+  const [cancelingCoupon, setCancelingCoupon] = useState<string | null>(null);
 
   if (!currentUser) return null;
 
@@ -181,9 +182,7 @@ export default function CustomerDashboard() {
                     if (coupon.status === 'available') {
                       setSelectedCoupon(coupon.id);
                     } else if (coupon.status === 'pending') {
-                      if (window.confirm('쿠폰 사용 요청을 취소하시겠습니까?')) {
-                        cancelCouponRequest(coupon.id);
-                      }
+                      setCancelingCoupon(coupon.id);
                     }
                   }}
                   className={`w-full bg-white/90 backdrop-blur-sm rounded-2xl p-5 shadow-sm border flex justify-between items-center transition-colors text-left animate-in fade-in slide-in-from-bottom-4 ${coupon.status === 'pending' ? 'border-[#D84315] bg-[#FFF3E0]/30' : 'border-[#D84315]/20 hover:bg-[#FFF3E0]/50'}`}
@@ -264,6 +263,41 @@ export default function CustomerDashboard() {
                 className="flex-1 py-3 bg-[#D84315] text-white rounded-xl font-bold hover:bg-[#BF360C] transition-colors shadow-sm"
               >
                 사용 요청
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel Request Modal */}
+      {cancelingCoupon && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-8 max-w-sm w-full text-center relative">
+            <button 
+              onClick={() => setCancelingCoupon(null)}
+              className="absolute top-4 right-4 p-2 bg-transparent rounded-full hover:bg-[#EFEBE9]"
+            >
+              <X className="w-5 h-5 text-[#5D4037]" />
+            </button>
+            
+            <h3 className="text-xl font-bold text-[#2D1B15] mb-2">쿠폰 사용 요청 취소</h3>
+            <p className="text-[#795548] mb-6">쿠폰 사용 요청을 취소하시겠습니까?</p>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={() => setCancelingCoupon(null)}
+                className="flex-1 py-3 bg-[#EFEBE9] text-[#5D4037] rounded-xl font-bold hover:bg-[#E7E0D7] transition-colors"
+              >
+                아니오
+              </button>
+              <button
+                onClick={() => {
+                  cancelCouponRequest(cancelingCoupon);
+                  setCancelingCoupon(null);
+                }}
+                className="flex-1 py-3 bg-[#D84315] text-white rounded-xl font-bold hover:bg-[#BF360C] transition-colors shadow-sm"
+              >
+                예, 취소합니다
               </button>
             </div>
           </div>
