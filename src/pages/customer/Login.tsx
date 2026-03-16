@@ -3,7 +3,7 @@ import { useNavigate, Link, useParams, useSearchParams } from 'react-router-dom'
 import { useStore } from '../../store';
 import { UserCircle, ArrowLeft, Loader2, Phone } from 'lucide-react';
 import { auth } from '../../lib/firebase';
-import { signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider } from 'firebase/auth';
+import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 
 export const formatPhoneNumber = (value: string) => {
   const numbers = value.replace(/[^\d]/g, '');
@@ -18,6 +18,10 @@ export default function CustomerLogin() {
   const tableNumber = searchParams.get('table');
 
   const [phone, setPhone] = useState(() => sessionStorage.getItem('customerLogin_phone') || '');
+  const [isLogin, setIsLogin] = useState(true);
+  const [name, setName] = useState('');
+  const [isPohangResident, setIsPohangResident] = useState<boolean | null>(null);
+  const [gender, setGender] = useState<'male' | 'female' | null>(null);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
@@ -45,44 +49,6 @@ export default function CustomerLogin() {
     }
   }, [currentUser, users, navigate, storeId, tableNumber, recordVisit]);
 
-  useEffect(() => {
-    const handleRedirectResult = async () => {
-      if (!auth || !storeId) return;
-      try {
-        setIsLoading(true);
-        const result = await getRedirectResult(auth);
-        if (result) {
-          const user = result.user;
-          const cleanPhone = phone.replace(/[^0-9]/g, '');
-          
-          const existingUser = users.find(u => (u.googleId === user.uid || u.id === user.uid || (cleanPhone && u.phone === cleanPhone)) && u.role === 'customer' && u.storeId === storeId);
-          
-          if (existingUser) {
-            const loggedInUser = login(cleanPhone || existingUser.phone, existingUser.name, 'customer', undefined, storeId, user.uid);
-            if (tableNumber) {
-              recordVisit(loggedInUser.id, parseInt(tableNumber), storeId);
-            }
-            sessionStorage.removeItem('customerLogin_phone');
-            navigate(`/customer/store/${storeId}`);
-          } else {
-            const loggedInUser = login(cleanPhone, user.displayName || '고객님', 'customer', undefined, storeId, user.uid);
-            if (tableNumber) {
-              recordVisit(loggedInUser.id, parseInt(tableNumber), storeId);
-            }
-            sessionStorage.removeItem('customerLogin_phone');
-            navigate(`/customer/store/${storeId}`);
-          }
-        }
-      } catch (err: any) {
-        console.error(err);
-        setError(`구글 로그인 중 오류가 발생했습니다: ${err.message}`);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    handleRedirectResult();
-  }, [auth, storeId, users, login, tableNumber, navigate, recordVisit, phone]);
-
   const handlePhoneSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (isLoading) return;
@@ -104,20 +70,35 @@ export default function CustomerLogin() {
     try {
       const existingUser = users.find(u => u.phone.replace(/[^0-9]/g, '') === cleanPhone && u.role === 'customer' && u.storeId === storeId);
       
-      if (existingUser) {
-        const loggedInUser = login(cleanPhone, existingUser.name, 'customer', undefined, storeId);
-        if (tableNumber) {
-          recordVisit(loggedInUser.id, parseInt(tableNumber), storeId);
+      if (isLogin) {
+        if (existingUser) {
+          const loggedInUser = login(cleanPhone, existingUser.name, 'customer', undefined, storeId);
+          if (tableNumber) {
+            recordVisit(loggedInUser.id, parseInt(tableNumber), storeId);
+          }
+          sessionStorage.removeItem('customerLogin_phone');
+          navigate(`/customer/store/${storeId}`);
+        } else {
+          setError('가입되지 않은 번호입니다. 회원가입을 진행해주세요.');
+          setIsLogin(false);
         }
-        sessionStorage.removeItem('customerLogin_phone');
-        navigate(`/customer/store/${storeId}`);
       } else {
-        const loggedInUser = login(cleanPhone, '고객님', 'customer', undefined, storeId);
-        if (tableNumber) {
-          recordVisit(loggedInUser.id, parseInt(tableNumber), storeId);
+        if (!name || isPohangResident === null || gender === null) {
+          setError('모든 정보를 입력해주세요.');
+          setIsLoading(false);
+          return;
         }
-        sessionStorage.removeItem('customerLogin_phone');
-        navigate(`/customer/store/${storeId}`);
+        if (existingUser) {
+          setError('이미 가입된 전화번호입니다. 로그인을 진행해주세요.');
+          setIsLogin(true);
+        } else {
+          const loggedInUser = login(cleanPhone, name, 'customer', undefined, storeId, undefined, isPohangResident, gender);
+          if (tableNumber) {
+            recordVisit(loggedInUser.id, parseInt(tableNumber), storeId);
+          }
+          sessionStorage.removeItem('customerLogin_phone');
+          navigate(`/customer/store/${storeId}`);
+        }
       }
     } catch (err: any) {
       console.error(err);
@@ -143,20 +124,13 @@ export default function CustomerLogin() {
     
     try {
       const provider = new GoogleAuthProvider();
-      // Detect mobile device
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+      const cleanPhone = phone.replace(/[^0-9]/g, '');
       
-      if (isMobile) {
-        sessionStorage.setItem('customerLogin_phone', phone);
-        await signInWithRedirect(auth, provider);
-        return; // Execution stops here as the page redirects
-      } else {
-        const result = await signInWithPopup(auth, provider);
-        const user = result.user;
-        const cleanPhone = phone.replace(/[^0-9]/g, '');
-        
-        const existingUser = users.find(u => (u.googleId === user.uid || u.id === user.uid || (cleanPhone && u.phone === cleanPhone)) && u.role === 'customer' && u.storeId === storeId);
-        
+      const existingUser = users.find(u => (u.googleId === user.uid || u.id === user.uid || (cleanPhone && u.phone === cleanPhone)) && u.role === 'customer' && u.storeId === storeId);
+      
+      if (isLogin) {
         if (existingUser) {
           // Login
           const loggedInUser = login(cleanPhone || existingUser.phone, existingUser.name, 'customer', undefined, storeId, user.uid);
@@ -166,8 +140,21 @@ export default function CustomerLogin() {
           sessionStorage.removeItem('customerLogin_phone');
           navigate(`/customer/store/${storeId}`);
         } else {
-          // Signup
-          const loggedInUser = login(cleanPhone, user.displayName || '고객님', 'customer', undefined, storeId, user.uid);
+          setError('가입되지 않은 구글 계정입니다. 회원가입을 진행해주세요.');
+          setIsLogin(false);
+        }
+      } else {
+        // Signup
+        if (!name || isPohangResident === null || gender === null) {
+          setError('모든 정보를 입력한 후 구글 회원가입을 진행해주세요.');
+          setIsLoading(false);
+          return;
+        }
+        if (existingUser) {
+          setError('이미 가입된 구글 계정입니다. 로그인을 진행해주세요.');
+          setIsLogin(true);
+        } else {
+          const loggedInUser = login(cleanPhone, name || user.displayName || '고객님', 'customer', undefined, storeId, user.uid, isPohangResident, gender);
           if (tableNumber) {
             recordVisit(loggedInUser.id, parseInt(tableNumber), storeId);
           }
@@ -180,7 +167,7 @@ export default function CustomerLogin() {
       if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
         setError('구글 로그인이 취소되었습니다.');
       } else if (err.code === 'auth/popup-blocked') {
-        setError('팝업이 차단되었습니다. 브라우저 설정에서 팝업 차단을 해제해주세요.');
+        setError('팝업이 차단되었습니다. 브라우저 설정에서 팝업 차단을 해제해주세요. (또는 새 탭에서 열어주세요)');
       } else {
         setError(`구글 로그인 중 오류가 발생했습니다: ${err.message}`);
       }
@@ -226,7 +213,7 @@ export default function CustomerLogin() {
           <div className="w-20 h-20 rounded-full bg-[#FFF3E0] flex items-center justify-center mx-auto mb-4 shadow-sm border border-[#FFE0B2]">
             <UserCircle className="w-10 h-10 text-[#D84315]" />
           </div>
-          <h1 className="text-3xl font-black text-[#2D1B15] tracking-tight">고객 로그인</h1>
+          <h1 className="text-3xl font-black text-[#2D1B15] tracking-tight">고객 {isLogin ? '로그인' : '회원가입'}</h1>
           <p className="text-[#795548] mt-2 font-medium">{store?.restaurantName || '단골 고객 서비스'}</p>
         </div>
         
@@ -237,7 +224,93 @@ export default function CustomerLogin() {
             </div>
           )}
 
+          <div className="flex rounded-xl bg-[#EFEBE9] p-1">
+            <button
+              onClick={() => { setIsLogin(true); setError(''); }}
+              className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-colors ${
+                isLogin ? 'bg-white text-[#D84315] shadow-sm' : 'text-[#795548] hover:text-[#4E342E]'
+              }`}
+            >
+              로그인
+            </button>
+            <button
+              onClick={() => { setIsLogin(false); setError(''); }}
+              className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-colors ${
+                !isLogin ? 'bg-white text-[#D84315] shadow-sm' : 'text-[#795548] hover:text-[#4E342E]'
+              }`}
+            >
+              회원가입
+            </button>
+          </div>
+
           <form onSubmit={handlePhoneSubmit} className="space-y-4">
+            {!isLogin && (
+              <>
+                <div>
+                  <label className="block text-sm font-bold text-[#5D4037] mb-2">이름 (닉네임)</label>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="block w-full px-4 py-4 bg-white border border-[#E7E0D7] rounded-xl text-[#4E342E] placeholder-[#A1887F] focus:ring-2 focus:ring-[#D84315] focus:border-transparent transition-all font-medium text-lg"
+                    placeholder="홍길동"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-bold text-[#5D4037] mb-2">포항 거주 여부</label>
+                  <div className="flex gap-4">
+                    <label className="flex-1 flex items-center justify-center p-4 border border-[#E7E0D7] rounded-xl cursor-pointer hover:bg-[#FFF3E0] transition-colors">
+                      <input
+                        type="radio"
+                        name="pohang"
+                        checked={isPohangResident === true}
+                        onChange={() => setIsPohangResident(true)}
+                        className="w-4 h-4 text-[#D84315] border-gray-300 focus:ring-[#D84315]"
+                      />
+                      <span className="ml-2 text-[#4E342E] font-bold">포항 거주</span>
+                    </label>
+                    <label className="flex-1 flex items-center justify-center p-4 border border-[#E7E0D7] rounded-xl cursor-pointer hover:bg-[#FFF3E0] transition-colors">
+                      <input
+                        type="radio"
+                        name="pohang"
+                        checked={isPohangResident === false}
+                        onChange={() => setIsPohangResident(false)}
+                        className="w-4 h-4 text-[#D84315] border-gray-300 focus:ring-[#D84315]"
+                      />
+                      <span className="ml-2 text-[#4E342E] font-bold">타지역 거주</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-[#5D4037] mb-2">성별</label>
+                  <div className="flex gap-4">
+                    <label className="flex-1 flex items-center justify-center p-4 border border-[#E7E0D7] rounded-xl cursor-pointer hover:bg-[#FFF3E0] transition-colors">
+                      <input
+                        type="radio"
+                        name="gender"
+                        checked={gender === 'male'}
+                        onChange={() => setGender('male')}
+                        className="w-4 h-4 text-[#D84315] border-gray-300 focus:ring-[#D84315]"
+                      />
+                      <span className="ml-2 text-[#4E342E] font-bold">남성</span>
+                    </label>
+                    <label className="flex-1 flex items-center justify-center p-4 border border-[#E7E0D7] rounded-xl cursor-pointer hover:bg-[#FFF3E0] transition-colors">
+                      <input
+                        type="radio"
+                        name="gender"
+                        checked={gender === 'female'}
+                        onChange={() => setGender('female')}
+                        className="w-4 h-4 text-[#D84315] border-gray-300 focus:ring-[#D84315]"
+                      />
+                      <span className="ml-2 text-[#4E342E] font-bold">여성</span>
+                    </label>
+                  </div>
+                </div>
+              </>
+            )}
+
             <div>
               <label className="block text-sm font-bold text-[#5D4037] mb-2">휴대전화 번호</label>
               <div className="relative">
@@ -257,10 +330,10 @@ export default function CustomerLogin() {
 
             <button 
               type="submit"
-              disabled={isLoading || phone.replace(/[^0-9]/g, '').length < 10}
+              disabled={isLoading || phone.replace(/[^0-9]/g, '').length < 10 || (!isLogin && (!name || isPohangResident === null || gender === null))}
               className="w-full bg-[#D84315] hover:bg-[#BF360C] disabled:bg-[#FFCCBC] text-white font-bold py-4 rounded-xl transition-colors text-lg flex items-center justify-center shadow-sm"
             >
-              {isLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : '전화번호로 시작하기'}
+              {isLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : (isLogin ? '전화번호로 시작하기' : '회원가입 완료')}
             </button>
           </form>
 

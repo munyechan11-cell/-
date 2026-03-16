@@ -12,6 +12,8 @@ export interface User {
   restaurantName?: string;
   storeId?: string;
   googleId?: string;
+  isPohangResident?: boolean;
+  gender?: 'male' | 'female';
 }
 
 export interface Visit {
@@ -28,7 +30,7 @@ export interface Coupon {
   storeId: string;
   type: string;
   description: string;
-  status: 'available' | 'used';
+  status: 'available' | 'pending' | 'used';
   issuedAt: string;
   usedAt?: string;
   usedAtTable?: number;
@@ -321,7 +323,7 @@ export const useStore = () => {
     };
   }, []);
 
-  const login = (phone: string, name: string, role: Role, restaurantName?: string, storeId?: string, googleId?: string) => {
+  const login = (phone: string, name: string, role: Role, restaurantName?: string, storeId?: string, googleId?: string, isPohangResident?: boolean, gender?: 'male' | 'female') => {
     const cleanPhone = phone ? phone.replace(/[^0-9]/g, '') : '';
     let loggedInUser: User | null = null;
 
@@ -363,7 +365,9 @@ export const useStore = () => {
           phone: cleanPhone,
           restaurantName,
           storeId,
-          googleId
+          googleId,
+          isPohangResident,
+          gender
         };
         updates.users = [...currentUsers, user];
       }
@@ -558,6 +562,49 @@ export const useStore = () => {
     });
   };
 
+  const requestCouponUse = (couponId: string, tableNumber?: number) => {
+    runGlobalTransaction((currentState) => {
+      const currentCoupons = currentState.coupons || [];
+      const newCoupons = currentCoupons.map((c: Coupon) => 
+        c.id === couponId 
+          ? { ...c, status: 'pending' as const, usedAtTable: tableNumber }
+          : c
+      );
+      return { coupons: newCoupons };
+    }).then(() => {
+      showToast('사장님께 사용 요청을 보냈습니다.', 'success');
+    });
+  };
+
+  const approveCouponUse = (couponId: string) => {
+    const now = new Date().toISOString();
+    runGlobalTransaction((currentState) => {
+      const currentCoupons = currentState.coupons || [];
+      const newCoupons = currentCoupons.map((c: Coupon) => 
+        c.id === couponId 
+          ? { ...c, status: 'used' as const, usedAt: now }
+          : c
+      );
+      return { coupons: newCoupons };
+    }).then(() => {
+      showToast('쿠폰 사용을 승인했습니다.', 'success');
+    });
+  };
+
+  const rejectCouponUse = (couponId: string) => {
+    runGlobalTransaction((currentState) => {
+      const currentCoupons = currentState.coupons || [];
+      const newCoupons = currentCoupons.map((c: Coupon) => 
+        c.id === couponId 
+          ? { ...c, status: 'available' as const, usedAtTable: undefined }
+          : c
+      );
+      return { coupons: newCoupons };
+    }).then(() => {
+      showToast('쿠폰 사용을 거절했습니다.', 'info');
+    });
+  };
+
   const useCoupon = (couponId: string, tableNumber?: number) => {
     const now = new Date().toISOString();
     runGlobalTransaction((currentState) => {
@@ -666,6 +713,9 @@ export const useStore = () => {
     leaveTable,
     issueCoupon,
     recordCommunication,
+    requestCouponUse,
+    approveCouponUse,
+    rejectCouponUse,
     useCoupon,
     initTables,
     setCustomerTier,

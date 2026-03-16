@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useStore } from '../../store';
 import { Store, ArrowLeft, Loader2 } from 'lucide-react';
 import { auth } from '../../lib/firebase';
-import { signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider } from 'firebase/auth';
+import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 
 export const formatPhoneNumber = (value: string) => {
   const numbers = value.replace(/[^\d]/g, '');
@@ -31,53 +31,6 @@ export default function OwnerLogin() {
       navigate('/owner');
     }
   }, [currentUser, users, navigate]);
-
-  useEffect(() => {
-    const handleRedirectResult = async () => {
-      if (!auth) return;
-      try {
-        setIsLoading(true);
-        const result = await getRedirectResult(auth);
-        if (result) {
-          const user = result.user;
-          
-          if (isLogin) {
-            const existingOwner = users.find(u => (u.googleId === user.uid || u.id === user.uid) && u.role === 'owner');
-            if (existingOwner) {
-              login('', existingOwner.name, 'owner', existingOwner.restaurantName, undefined, user.uid);
-              sessionStorage.clear();
-              navigate('/owner');
-            } else {
-              setError('회원가입되지 않은 구글 계정입니다. 회원가입을 먼저 진행해주세요.');
-              setIsLogin(false);
-            }
-          } else {
-            const cleanPhone = phone.replace(/[^0-9]/g, '');
-            const existingOwner = users.find(u => (u.googleId === user.uid || u.id === user.uid) && u.role === 'owner');
-            if (existingOwner) {
-              setError('이미 가입된 구글 계정입니다. 로그인을 진행해주세요.');
-              setIsLogin(true);
-            } else {
-              const existingPhone = users.find(u => u.phone === cleanPhone && u.role === 'owner');
-              if (existingPhone && existingPhone.googleId && existingPhone.googleId !== user.uid) {
-                setError('이미 다른 구글 계정과 연동된 전화번호입니다.');
-              } else {
-                login(cleanPhone, name, 'owner', restaurantName, undefined, user.uid);
-                sessionStorage.clear();
-                navigate('/owner');
-              }
-            }
-          }
-        }
-      } catch (err: any) {
-        console.error(err);
-        setError(`구글 로그인 중 오류가 발생했습니다: ${err.message}`);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    handleRedirectResult();
-  }, [auth, users, login, navigate, isLogin, phone, name, restaurantName]);
 
   const saveStateToSession = () => {
     sessionStorage.setItem('ownerLogin_isLogin', String(isLogin));
@@ -161,41 +114,33 @@ export default function OwnerLogin() {
     
     try {
       const provider = new GoogleAuthProvider();
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
       
-      if (isMobile) {
-        saveStateToSession();
-        await signInWithRedirect(auth, provider);
-        return;
+      if (isLogin) {
+        const existingOwner = users.find(u => (u.googleId === user.uid || u.id === user.uid) && u.role === 'owner');
+        if (existingOwner) {
+          login('', existingOwner.name, 'owner', existingOwner.restaurantName, undefined, user.uid);
+          sessionStorage.clear();
+          navigate('/owner');
+        } else {
+          setError('회원가입되지 않은 구글 계정입니다. 회원가입을 먼저 진행해주세요.');
+          setIsLogin(false);
+        }
       } else {
-        const result = await signInWithPopup(auth, provider);
-        const user = result.user;
-        
-        if (isLogin) {
-          const existingOwner = users.find(u => (u.googleId === user.uid || u.id === user.uid) && u.role === 'owner');
-          if (existingOwner) {
-            login('', existingOwner.name, 'owner', existingOwner.restaurantName, undefined, user.uid);
+        const cleanPhone = phone.replace(/[^0-9]/g, '');
+        const existingOwner = users.find(u => (u.googleId === user.uid || u.id === user.uid) && u.role === 'owner');
+        if (existingOwner) {
+          setError('이미 가입된 구글 계정입니다. 로그인을 진행해주세요.');
+          setIsLogin(true);
+        } else {
+          const existingPhone = users.find(u => u.phone === cleanPhone && u.role === 'owner');
+          if (existingPhone && existingPhone.googleId && existingPhone.googleId !== user.uid) {
+            setError('이미 다른 구글 계정과 연동된 전화번호입니다.');
+          } else {
+            login(cleanPhone, name, 'owner', restaurantName, undefined, user.uid);
             sessionStorage.clear();
             navigate('/owner');
-          } else {
-            setError('회원가입되지 않은 구글 계정입니다. 회원가입을 먼저 진행해주세요.');
-            setIsLogin(false);
-          }
-        } else {
-          const cleanPhone = phone.replace(/[^0-9]/g, '');
-          const existingOwner = users.find(u => (u.googleId === user.uid || u.id === user.uid) && u.role === 'owner');
-          if (existingOwner) {
-            setError('이미 가입된 구글 계정입니다. 로그인을 진행해주세요.');
-            setIsLogin(true);
-          } else {
-            const existingPhone = users.find(u => u.phone === cleanPhone && u.role === 'owner');
-            if (existingPhone && existingPhone.googleId && existingPhone.googleId !== user.uid) {
-              setError('이미 다른 구글 계정과 연동된 전화번호입니다.');
-            } else {
-              login(cleanPhone, name, 'owner', restaurantName, undefined, user.uid);
-              sessionStorage.clear();
-              navigate('/owner');
-            }
           }
         }
       }
@@ -204,7 +149,7 @@ export default function OwnerLogin() {
       if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
         setError('구글 로그인이 취소되었습니다.');
       } else if (err.code === 'auth/popup-blocked') {
-        setError('팝업이 차단되었습니다. 브라우저 설정에서 팝업 차단을 해제해주세요.');
+        setError('팝업이 차단되었습니다. 브라우저 설정에서 팝업 차단을 해제해주세요. (또는 새 탭에서 열어주세요)');
       } else {
         setError(`구글 로그인 중 오류가 발생했습니다: ${err.message}`);
       }

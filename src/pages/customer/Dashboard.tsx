@@ -1,11 +1,10 @@
 import { useState } from 'react';
 import { useStore, getCustomerTier, getEffectiveTier, getTierColor, getNextTierVisits } from '../../store';
-import { QRCodeSVG } from 'qrcode.react';
 import { LogOut, Ticket, Award, Calendar, X, ArrowLeft, LogOut as LeaveIcon, MessageSquare, Bell } from 'lucide-react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 
 export default function CustomerDashboard() {
-  const { currentUser, visits, coupons, users, tables, logout, leaveTable, communications, tierOverrides } = useStore();
+  const { currentUser, visits, coupons, users, tables, logout, leaveTable, communications, tierOverrides, requestCouponUse } = useStore();
   const navigate = useNavigate();
   const { storeId } = useParams<{ storeId: string }>();
   const [selectedCoupon, setSelectedCoupon] = useState<string | null>(null);
@@ -38,7 +37,7 @@ export default function CustomerDashboard() {
   const restaurantName = owner.restaurantName || '단골 매장';
 
   const myVisits = visits.filter(v => v.customerId === currentUser.id && v.storeId === storeId);
-  const myCoupons = coupons.filter(c => c.customerId === currentUser.id && c.storeId === storeId && c.status === 'available');
+  const myCoupons = coupons.filter(c => c.customerId === currentUser.id && c.storeId === storeId && (c.status === 'available' || c.status === 'pending'));
   const myCommunications = communications.filter(c => c.customerId === currentUser.id && c.storeId === storeId).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   
   const currentTable = tables.find(t => t.currentCustomerId === currentUser.id && t.storeId === storeId);
@@ -178,18 +177,19 @@ export default function CustomerDashboard() {
               {myCoupons.map((coupon, index) => (
                 <button
                   key={coupon.id}
-                  onClick={() => setSelectedCoupon(coupon.id)}
-                  className="w-full bg-white/90 backdrop-blur-sm rounded-2xl p-5 shadow-sm border border-[#D84315]/20 flex justify-between items-center hover:bg-[#FFF3E0]/50 transition-colors text-left animate-in fade-in slide-in-from-bottom-4"
+                  onClick={() => coupon.status === 'available' && setSelectedCoupon(coupon.id)}
+                  disabled={coupon.status === 'pending'}
+                  className={`w-full bg-white/90 backdrop-blur-sm rounded-2xl p-5 shadow-sm border flex justify-between items-center transition-colors text-left animate-in fade-in slide-in-from-bottom-4 ${coupon.status === 'pending' ? 'border-[#E7E0D7] opacity-70 cursor-not-allowed' : 'border-[#D84315]/20 hover:bg-[#FFF3E0]/50'}`}
                   style={{ animationDelay: `${(index + 4) * 100}ms`, animationFillMode: 'both' }}
                 >
                   <div>
-                    <span className="text-xs font-bold text-[#D84315] bg-[#FFF3E0] px-2 py-1 rounded-md mb-2 inline-block">
+                    <span className={`text-xs font-bold px-2 py-1 rounded-md mb-2 inline-block ${coupon.status === 'pending' ? 'bg-[#EFEBE9] text-[#795548]' : 'bg-[#FFF3E0] text-[#D84315]'}`}>
                       {coupon.type}
                     </span>
                     <h4 className="font-bold text-[#2D1B15]">{coupon.description}</h4>
                   </div>
-                  <div className="bg-[#D84315] text-white px-4 py-2 rounded-xl text-sm font-bold shadow-sm hover:shadow-md transition-shadow">
-                    사용하기
+                  <div className={`${coupon.status === 'pending' ? 'bg-[#EFEBE9] text-[#795548]' : 'bg-[#D84315] text-white hover:shadow-md'} px-4 py-2 rounded-xl text-sm font-bold shadow-sm transition-shadow`}>
+                    {coupon.status === 'pending' ? '요청 중' : '사용하기'}
                   </div>
                 </button>
               ))}
@@ -224,7 +224,7 @@ export default function CustomerDashboard() {
         </div>
       </div>
 
-      {/* QR Modal */}
+      {/* Request Modal */}
       {selectedCoupon && activeCoupon && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-8 max-w-sm w-full text-center relative">
@@ -238,27 +238,27 @@ export default function CustomerDashboard() {
             <h3 className="text-xl font-bold text-[#2D1B15] mb-2">서비스 쿠폰 사용</h3>
             <p className="text-[#795548] mb-6">{activeCoupon.description}</p>
             
-            <div className="bg-white/90 backdrop-blur-sm p-4 rounded-2xl border-4 border-[#FFF3E0] inline-block mb-6 relative group">
-              <QRCodeSVG 
-                value={JSON.stringify({ couponId: activeCoupon.id, customerId: currentUser.id, storeId })} 
-                size={200}
-                level="H"
-                includeMargin={true}
-              />
-              <button 
-                onClick={() => {
-                  navigator.clipboard.writeText(JSON.stringify({ couponId: activeCoupon.id, customerId: currentUser.id, storeId }));
-                  import('../../store').then(({ showToast }) => showToast('QR 데이터가 복사되었습니다. (테스트용)', 'info'));
-                }}
-                className="absolute inset-0 bg-black/50 text-white font-bold flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-xl"
+            <p className="text-sm font-bold text-[#D84315] bg-[#FFF3E0]/50 p-3 rounded-xl mb-6">
+              사장님께 쿠폰 사용을 요청하시겠습니까?
+            </p>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={() => setSelectedCoupon(null)}
+                className="flex-1 py-3 bg-[#EFEBE9] text-[#5D4037] rounded-xl font-bold hover:bg-[#E7E0D7] transition-colors"
               >
-                데이터 복사
+                취소
+              </button>
+              <button
+                onClick={() => {
+                  requestCouponUse(activeCoupon.id, currentTable?.number);
+                  setSelectedCoupon(null);
+                }}
+                className="flex-1 py-3 bg-[#D84315] text-white rounded-xl font-bold hover:bg-[#BF360C] transition-colors shadow-sm"
+              >
+                사용 요청
               </button>
             </div>
-            
-            <p className="text-sm font-bold text-[#D84315] bg-[#FFF3E0]/50 p-3 rounded-xl">
-              직원에게 이 화면을 보여주세요.
-            </p>
           </div>
         </div>
       )}

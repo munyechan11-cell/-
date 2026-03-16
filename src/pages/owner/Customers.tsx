@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useStore, getCustomerTier, getEffectiveTier, getTierColor } from '../../store';
-import { Users, LayoutGrid, ScanLine, Search, Send, X, MessageSquare, Ticket, History, Loader2, CheckSquare, Square } from 'lucide-react';
+import { Users, LayoutGrid, ScanLine, Search, Send, X, MessageSquare, Ticket, History, Loader2, CheckSquare, Square, Download } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export default function OwnerCustomers() {
@@ -133,23 +133,86 @@ export default function OwnerCustomers() {
     }
   };
 
+  const handleExportData = () => {
+    if (!currentUser) return;
+    
+    const storeCustomers = users.filter(u => u.role === 'customer' && u.storeId === currentUser.id);
+    const total = storeCustomers.length;
+    
+    if (total === 0) {
+      alert('출력할 데이터가 없습니다.');
+      return;
+    }
+
+    const pohangCount = storeCustomers.filter(u => u.isPohangResident === true).length;
+    const nonPohangCount = storeCustomers.filter(u => u.isPohangResident === false).length;
+    const unknownPohangCount = total - pohangCount - nonPohangCount;
+
+    const maleCount = storeCustomers.filter(u => u.gender === 'male').length;
+    const femaleCount = storeCustomers.filter(u => u.gender === 'female').length;
+    const unknownGenderCount = total - maleCount - femaleCount;
+
+    const pohangRatio = ((pohangCount / total) * 100).toFixed(1);
+    const maleRatio = ((maleCount / total) * 100).toFixed(1);
+    const femaleRatio = ((femaleCount / total) * 100).toFixed(1);
+
+    const csvContent = [
+      '\uFEFF' + '고객 통계 리포트',
+      `총 고객 수,${total}명`,
+      '',
+      '거주지 통계',
+      `포항 거주,${pohangCount}명,${pohangRatio}%`,
+      `타지역 거주,${nonPohangCount}명,${((nonPohangCount / total) * 100).toFixed(1)}%`,
+      `미입력,${unknownPohangCount}명,${((unknownPohangCount / total) * 100).toFixed(1)}%`,
+      '',
+      '성별 통계',
+      `남성,${maleCount}명,${maleRatio}%`,
+      `여성,${femaleCount}명,${femaleRatio}%`,
+      `미입력,${unknownGenderCount}명,${((unknownGenderCount / total) * 100).toFixed(1)}%`,
+      '',
+      '고객 상세 목록',
+      '이름,전화번호,포항거주,성별',
+      ...storeCustomers.map(c => 
+        `${c.name},${c.phone},${c.isPohangResident === true ? 'O' : (c.isPohangResident === false ? 'X' : '미입력')},${c.gender === 'male' ? '남성' : (c.gender === 'female' ? '여성' : '미입력')}`
+      )
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `고객통계_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="min-h-full bg-transparent pb-20">
       {/* Header */}
       <div className="bg-transparent text-[#2D1B15] p-6 pt-8 border-b border-[#E7E0D7]">
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-black tracking-tight">고객 관리</h1>
-          <button
-            onClick={() => {
-              setIsMultiSelectMode(!isMultiSelectMode);
-              setSelectedCustomers([]);
-            }}
-            className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-colors ${
-              isMultiSelectMode ? 'bg-[#D84315] text-white' : 'bg-[#EFEBE9] text-[#5D4037] hover:bg-[#E7E0D7]'
-            }`}
-          >
-            {isMultiSelectMode ? '취소' : '일괄 전송'}
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={handleExportData}
+              className="px-3 py-1.5 rounded-lg bg-[#EFEBE9] text-[#5D4037] hover:bg-[#E7E0D7] text-sm font-bold transition-colors flex items-center"
+            >
+              <Download className="w-4 h-4 mr-1.5" />
+              자료출력
+            </button>
+            <button
+              onClick={() => {
+                setIsMultiSelectMode(!isMultiSelectMode);
+                setSelectedCustomers([]);
+              }}
+              className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-colors ${
+                isMultiSelectMode ? 'bg-[#D84315] text-white' : 'bg-[#EFEBE9] text-[#5D4037] hover:bg-[#E7E0D7]'
+              }`}
+            >
+              {isMultiSelectMode ? '취소' : '일괄 전송'}
+            </button>
+          </div>
         </div>
         
         <div className="mt-6 relative">
@@ -286,10 +349,6 @@ export default function OwnerCustomers() {
         <Link to="/owner/customers" className="flex flex-col items-center text-[#2D1B15]">
           <Users className="w-6 h-6 mb-1" />
           <span className="text-xs font-bold">고객관리</span>
-        </Link>
-        <Link to="/owner/scanner" className="flex flex-col items-center text-[#A1887F] hover:text-[#2D1B15] transition-colors">
-          <ScanLine className="w-6 h-6 mb-1" />
-          <span className="text-xs font-bold">스캐너</span>
         </Link>
       </div>
 
