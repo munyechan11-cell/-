@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useStore, getCustomerTier, getEffectiveTier, getTierColor } from '../../store';
-import { Users, LayoutGrid, ScanLine, LogOut, X } from 'lucide-react';
+import { useStore, getEffectiveTier, getTierColor } from '../../store';
+import { Users, LayoutGrid, LogOut, X } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 

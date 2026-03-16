@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { useStore, getCustomerTier, getEffectiveTier, getTierColor, getNextTierVisits } from '../../store';
+import { useStore, getEffectiveTier, getTierColor, getNextTierVisits } from '../../store';
 import { LogOut, Ticket, Award, Calendar, X, ArrowLeft, LogOut as LeaveIcon, MessageSquare, Bell } from 'lucide-react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 
 export default function CustomerDashboard() {
-  const { currentUser, visits, coupons, users, tables, logout, leaveTable, communications, tierOverrides, requestCouponUse } = useStore();
+  const { currentUser, visits, coupons, users, tables, logout, leaveTable, communications, tierOverrides, requestCouponUse, cancelCouponRequest } = useStore();
   const navigate = useNavigate();
   const { storeId } = useParams<{ storeId: string }>();
   const [selectedCoupon, setSelectedCoupon] = useState<string | null>(null);
@@ -177,19 +177,26 @@ export default function CustomerDashboard() {
               {myCoupons.map((coupon, index) => (
                 <button
                   key={coupon.id}
-                  onClick={() => coupon.status === 'available' && setSelectedCoupon(coupon.id)}
-                  disabled={coupon.status === 'pending'}
-                  className={`w-full bg-white/90 backdrop-blur-sm rounded-2xl p-5 shadow-sm border flex justify-between items-center transition-colors text-left animate-in fade-in slide-in-from-bottom-4 ${coupon.status === 'pending' ? 'border-[#E7E0D7] opacity-70 cursor-not-allowed' : 'border-[#D84315]/20 hover:bg-[#FFF3E0]/50'}`}
+                  onClick={() => {
+                    if (coupon.status === 'available') {
+                      setSelectedCoupon(coupon.id);
+                    } else if (coupon.status === 'pending') {
+                      if (window.confirm('쿠폰 사용 요청을 취소하시겠습니까?')) {
+                        cancelCouponRequest(coupon.id);
+                      }
+                    }
+                  }}
+                  className={`w-full bg-white/90 backdrop-blur-sm rounded-2xl p-5 shadow-sm border flex justify-between items-center transition-colors text-left animate-in fade-in slide-in-from-bottom-4 ${coupon.status === 'pending' ? 'border-[#D84315] bg-[#FFF3E0]/30' : 'border-[#D84315]/20 hover:bg-[#FFF3E0]/50'}`}
                   style={{ animationDelay: `${(index + 4) * 100}ms`, animationFillMode: 'both' }}
                 >
                   <div>
-                    <span className={`text-xs font-bold px-2 py-1 rounded-md mb-2 inline-block ${coupon.status === 'pending' ? 'bg-[#EFEBE9] text-[#795548]' : 'bg-[#FFF3E0] text-[#D84315]'}`}>
+                    <span className={`text-xs font-bold px-2 py-1 rounded-md mb-2 inline-block ${coupon.status === 'pending' ? 'bg-[#D84315] text-white' : 'bg-[#FFF3E0] text-[#D84315]'}`}>
                       {coupon.type}
                     </span>
                     <h4 className="font-bold text-[#2D1B15]">{coupon.description}</h4>
                   </div>
-                  <div className={`${coupon.status === 'pending' ? 'bg-[#EFEBE9] text-[#795548]' : 'bg-[#D84315] text-white hover:shadow-md'} px-4 py-2 rounded-xl text-sm font-bold shadow-sm transition-shadow`}>
-                    {coupon.status === 'pending' ? '요청 중' : '사용하기'}
+                  <div className={`${coupon.status === 'pending' ? 'bg-[#EFEBE9] text-[#795548] hover:bg-[#E7E0D7]' : 'bg-[#D84315] text-white hover:shadow-md'} px-4 py-2 rounded-xl text-sm font-bold shadow-sm transition-all`}>
+                    {coupon.status === 'pending' ? '요청 취소' : '사용하기'}
                   </div>
                 </button>
               ))}

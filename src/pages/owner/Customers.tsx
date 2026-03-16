@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { useStore, getCustomerTier, getEffectiveTier, getTierColor } from '../../store';
-import { Users, LayoutGrid, ScanLine, Search, Send, X, MessageSquare, Ticket, History, Loader2, CheckSquare, Square, Download } from 'lucide-react';
+import { useStore, getEffectiveTier, getTierColor, getCustomerTier } from '../../store';
+import { Users, LayoutGrid, Search, Send, X, MessageSquare, Ticket, History, Loader2, CheckSquare, Square, Download } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export default function OwnerCustomers() {

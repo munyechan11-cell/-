@@ -8,7 +8,6 @@ import TableEntry from './pages/customer/TableEntry';
 import OwnerLogin from './pages/owner/Login';
 import OwnerDashboard from './pages/owner/Dashboard';
 import OwnerCustomers from './pages/owner/Customers';
-import OwnerScanner from './pages/owner/Scanner';
 import Home from './pages/Home';
 import Master from './pages/Master';
 import { CheckCircle2, AlertCircle, Info } from 'lucide-react';
@@ -167,11 +166,6 @@ export default function App() {
               <Route path="/owner/customers" element={
                 <PrivateRoute role="owner">
                   <OwnerCustomers />
-                </PrivateRoute>
-              } />
-              <Route path="/owner/scanner" element={
-                <PrivateRoute role="owner">
-                  <OwnerScanner />
                 </PrivateRoute>
               } />
             </Routes>

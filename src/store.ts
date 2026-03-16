@@ -576,6 +576,20 @@ export const useStore = () => {
     });
   };
 
+  const cancelCouponRequest = (couponId: string) => {
+    runGlobalTransaction((currentState) => {
+      const currentCoupons = currentState.coupons || [];
+      const newCoupons = currentCoupons.map((c: Coupon) => 
+        c.id === couponId 
+          ? { ...c, status: 'available' as const, usedAtTable: undefined }
+          : c
+      );
+      return { coupons: newCoupons };
+    }).then(() => {
+      showToast('쿠폰 사용 요청을 취소했습니다.', 'info');
+    });
+  };
+
   const approveCouponUse = (couponId: string) => {
     const now = new Date().toISOString();
     runGlobalTransaction((currentState) => {
@@ -602,21 +616,6 @@ export const useStore = () => {
       return { coupons: newCoupons };
     }).then(() => {
       showToast('쿠폰 사용을 거절했습니다.', 'info');
-    });
-  };
-
-  const useCoupon = (couponId: string, tableNumber?: number) => {
-    const now = new Date().toISOString();
-    runGlobalTransaction((currentState) => {
-      const currentCoupons = currentState.coupons || [];
-      const newCoupons = currentCoupons.map((c: Coupon) => 
-        c.id === couponId 
-          ? { ...c, status: 'used' as const, usedAt: now, usedAtTable: tableNumber }
-          : c
-      );
-      return { coupons: newCoupons };
-    }).then(() => {
-      showToast('쿠폰이 사용되었습니다.', 'success');
     });
   };
 
@@ -714,9 +713,9 @@ export const useStore = () => {
     issueCoupon,
     recordCommunication,
     requestCouponUse,
+    cancelCouponRequest,
     approveCouponUse,
     rejectCouponUse,
-    useCoupon,
     initTables,
     setCustomerTier,
     setMasterPassword,
