@@ -1,4 +1,4 @@
-import { useState } from 'react';
+  import { useEffect, useState } from 'react';
 import { useStore, getEffectiveTier, getTierColor, getNextTierVisits } from '../../store';
 import { LogOut, Ticket, Award, Calendar, X, ArrowLeft, LogOut as LeaveIcon, MessageSquare, Bell } from 'lucide-react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
@@ -10,18 +10,14 @@ export default function CustomerDashboard() {
   const [selectedCoupon, setSelectedCoupon] = useState<string | null>(null);
   const [cancelingCoupon, setCancelingCoupon] = useState<string | null>(null);
 
-  if (!currentUser) return null;
+  useEffect(() => {
+    if (currentUser && storeId && currentUser.storeId !== storeId) {
+      logout();
+      navigate(`/customer/store/${storeId}/login`);
+    }
+  }, [currentUser, storeId, logout, navigate]);
 
-  if (currentUser.storeId !== storeId) {
-    return (
-      <div className="min-h-full bg-transparent flex items-center justify-center p-4">
-        <div className="bg-white/90 backdrop-blur-sm p-8 rounded-3xl shadow-sm text-center">
-          <p className="text-[#795548] mb-4">잘못된 접근입니다. 가게 QR을 다시 스캔해주세요.</p>
-          <Link to="/scan" className="text-[#D84315] font-bold">스캐너로 돌아가기</Link>
-        </div>
-      </div>
-    );
-  }
+  if (!currentUser || currentUser.storeId !== storeId) return null;
 
   const owner = users.find(u => u.id === storeId && u.role === 'owner');
   if (!owner) {

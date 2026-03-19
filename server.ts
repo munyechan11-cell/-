@@ -9,13 +9,24 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+app.set('trust proxy', 1);
 app.use(cors());
 app.use(express.json());
+
+// Helper to get base URL
+const getBaseUrl = (req: express.Request) => {
+  if (process.env.APP_URL) return process.env.APP_URL;
+  return `${req.protocol}://${req.get('host')}`;
+};
 
 // Lazy initialize Firebase Admin
 let adminApp: admin.app.App | null = null;
 function getFirebaseAdmin() {
   if (!adminApp) {
+    if (admin.apps.length > 0) {
+      adminApp = admin.app();
+      return adminApp;
+    }
     const projectId = process.env.FIREBASE_PROJECT_ID;
     const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
     const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
@@ -33,7 +44,7 @@ function getFirebaseAdmin() {
 
 // API Routes
 app.get('/api/auth/kakao/url', (req, res) => {
-  const redirectUri = `${req.protocol}://${req.get('host')}/api/auth/kakao/callback`;
+  const redirectUri = `${getBaseUrl(req)}/api/auth/kakao/callback`;
   const clientId = process.env.KAKAO_CLIENT_ID;
   if (!clientId) return res.status(500).json({ error: 'KAKAO_CLIENT_ID is not set' });
   
@@ -43,7 +54,7 @@ app.get('/api/auth/kakao/url', (req, res) => {
 
 app.get('/api/auth/kakao/callback', async (req, res) => {
   const { code } = req.query;
-  const redirectUri = `${req.protocol}://${req.get('host')}/api/auth/kakao/callback`;
+  const redirectUri = `${getBaseUrl(req)}/api/auth/kakao/callback`;
   const clientId = process.env.KAKAO_CLIENT_ID;
   
   try {
@@ -115,7 +126,7 @@ app.get('/api/auth/kakao/callback', async (req, res) => {
 
 // Naver URL
 app.get('/api/auth/naver/url', (req, res) => {
-  const redirectUri = `${req.protocol}://${req.get('host')}/api/auth/naver/callback`;
+  const redirectUri = `${getBaseUrl(req)}/api/auth/naver/callback`;
   const clientId = process.env.NAVER_CLIENT_ID;
   if (!clientId) return res.status(500).json({ error: 'NAVER_CLIENT_ID is not set' });
   
@@ -197,7 +208,7 @@ async function startServer() {
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
-    app.get('*', (req, res) => {
+    app.get('*all', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }

@@ -326,6 +326,7 @@ export const useStore = () => {
   const login = (phone: string, name: string, role: Role, restaurantName?: string, storeId?: string, googleId?: string, isPohangResident?: boolean, gender?: 'male' | 'female') => {
     const cleanPhone = phone ? phone.replace(/[^0-9]/g, '') : '';
     let loggedInUser: User | null = null;
+    const newUserId = Math.random().toString(36).substring(2, 9);
 
     runGlobalTransaction((currentState) => {
       const currentUsers = currentState.users || [];
@@ -357,7 +358,6 @@ export const useStore = () => {
         }
       } else {
         // Create new user
-        const newUserId = Math.random().toString(36).substring(2, 9);
         user = {
           id: newUserId,
           role,

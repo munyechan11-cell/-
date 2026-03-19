@@ -45,6 +45,8 @@ export default function CustomerScanner() {
 
       if (scannerRef.current.isScanning) {
         await scannerRef.current.stop();
+      } else if (scannerRef.current.getState && scannerRef.current.getState() === 2) {
+        await scannerRef.current.stop();
       }
       
       await scannerRef.current.start({ facingMode: mode }, config, onScanSuccess, () => {});

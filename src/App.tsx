@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useStore } from './store';
 import CustomerLogin from './pages/customer/Login';
 import CustomerDashboard from './pages/customer/Dashboard';
@@ -56,6 +56,7 @@ function Toast() {
 
 function PrivateRoute({ children, role }: { children: React.ReactNode, role: 'customer' | 'owner' }) {
   const { currentUser, users, logout } = useStore();
+  const location = useLocation();
   
   const userExists = currentUser && users.some(u => u.id === currentUser.id);
 
@@ -66,7 +67,14 @@ function PrivateRoute({ children, role }: { children: React.ReactNode, role: 'cu
   }, [currentUser, userExists, logout]);
 
   if (!currentUser || currentUser.role !== role || !userExists) {
-    return <Navigate to={`/${role}/login`} replace />;
+    let loginPath = `/${role}/login`;
+    if (role === 'customer' && location.pathname.includes('/customer/store/')) {
+      const match = location.pathname.match(/\/customer\/store\/([^/]+)/);
+      if (match && match[1]) {
+        loginPath = `/customer/store/${match[1]}/login`;
+      }
+    }
+    return <Navigate to={loginPath} replace />;
   }
   return <>{children}</>;
 }

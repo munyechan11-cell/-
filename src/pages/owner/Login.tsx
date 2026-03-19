@@ -91,7 +91,7 @@ export default function OwnerLogin() {
     if (isLogin) {
       const existingOwner = users.find(u => (u.googleId === user.uid || u.id === user.uid) && u.role === 'owner');
       if (existingOwner) {
-        login('', existingOwner.name, 'owner', existingOwner.restaurantName, undefined, user.uid);
+        login(existingOwner.phone, existingOwner.name, 'owner', existingOwner.restaurantName, undefined, user.uid);
         sessionStorage.clear();
         navigate('/owner');
       } else {
@@ -119,7 +119,10 @@ export default function OwnerLogin() {
 
   useEffect(() => {
     const handleMessage = async (event: MessageEvent) => {
-      if (!event.origin.endsWith('.run.app') && !event.origin.includes('localhost')) return;
+      const allowedOrigins = [window.location.origin, 'http://localhost:3000', 'http://localhost:5173'];
+      if (!allowedOrigins.includes(event.origin) && !event.origin.endsWith('.run.app') && !event.origin.endsWith('.onrender.com')) {
+        return;
+      }
       
       if (event.data?.type === 'OAUTH_AUTH_SUCCESS' && event.data?.token) {
         try {
@@ -213,7 +216,7 @@ export default function OwnerLogin() {
       if (isLogin) {
         const existingOwner = users.find(u => (u.googleId === user.uid || u.id === user.uid) && u.role === 'owner');
         if (existingOwner) {
-          login('', existingOwner.name, 'owner', existingOwner.restaurantName, undefined, user.uid);
+          login(existingOwner.phone, existingOwner.name, 'owner', existingOwner.restaurantName, undefined, user.uid);
           sessionStorage.clear();
           navigate('/owner');
         } else {
