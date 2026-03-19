@@ -16,34 +16,40 @@ export default function CustomerScanner() {
     usersRef.current = users;
   }, [users]);
 
+  const isTransitioningRef = useRef(false);
   const retryCountRef = useRef(0);
 
   const startScanner = async (mode: "environment" | "user") => {
-    if (!scannerRef.current) {
-      scannerRef.current = new Html5Qrcode("reader");
-    }
-
-    const config = { fps: 10, qrbox: { width: 250, height: 250 } };
-    
-    const onScanSuccess = (decodedText: string) => {
-      try {
-        if (decodedText.includes('/customer/store/')) {
-          navigate(decodedText.includes('http') ? new URL(decodedText).pathname : decodedText);
-          return;
-        }
-        const data = JSON.parse(decodedText);
-        if (data.storeId && data.tableNumber) {
-          navigate(`/customer/store/${data.storeId}/table/${data.tableNumber}`);
-        }
-      } catch (e) { setError('QR 코드를 읽을 수 없습니다.'); }
-    };
+    if (isTransitioningRef.current) return;
+    isTransitioningRef.current = true;
 
     try {
+      if (!scannerRef.current) {
+        scannerRef.current = new Html5Qrcode("reader");
+      }
+
+      const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+      
+      const onScanSuccess = (decodedText: string) => {
+        try {
+          if (decodedText.includes('/customer/store/')) {
+            navigate(decodedText.includes('http') ? new URL(decodedText).pathname : decodedText);
+            return;
+          }
+          const data = JSON.parse(decodedText);
+          if (data.storeId && data.tableNumber) {
+            navigate(`/customer/store/${data.storeId}/table/${data.tableNumber}`);
+          }
+        } catch (e) { setError('QR 코드를 읽을 수 없습니다.'); }
+      };
+
       if (scannerRef.current.isScanning) {
         await scannerRef.current.stop();
       }
+      
       await scannerRef.current.start({ facingMode: mode }, config, onScanSuccess, () => {});
       retryCountRef.current = 0;
+      setError(null);
     } catch (err: any) {
       console.error("Scanner start error:", err);
       const errorMessage = String(err);
@@ -54,14 +60,22 @@ export default function CustomerScanner() {
         setError("사용 가능한 카메라를 찾을 수 없습니다.");
       } else if (errorMessage.includes("NotReadableError") || errorMessage.includes("Could not start video source")) {
         setError("카메라를 시작할 수 없습니다. 다른 앱에서 카메라를 사용 중인지 확인해주세요.");
+      } else if (errorMessage.includes("already under transition")) {
+        // Ignore transition errors, they will resolve on next retry or user action
+        console.warn("Scanner is already transitioning states.");
       } else {
         setError(`카메라 초기화 오류: ${errorMessage}`);
       }
 
-      if (retryCountRef.current < 2) {
+      // Only retry if it's not a permission or hardware missing error
+      if (!errorMessage.includes("NotAllowedError") && !errorMessage.includes("NotFoundError") && retryCountRef.current < 2) {
         retryCountRef.current += 1;
-        setTimeout(() => startScanner(mode), 1000);
+        setTimeout(() => {
+          if (scannerRef.current) startScanner(mode);
+        }, 1500);
       }
+    } finally {
+      isTransitioningRef.current = false;
     }
   };
 
@@ -73,12 +87,17 @@ export default function CustomerScanner() {
       await startScanner(facingMode);
     };
     
-    initScanner();
+    // Small delay to allow DOM to render the #reader element properly
+    const timer = setTimeout(initScanner, 100);
 
     return () => {
       isMounted = false;
-      if (scannerRef.current && scannerRef.current.isScanning) {
-        scannerRef.current.stop().catch(console.error);
+      clearTimeout(timer);
+      if (scannerRef.current && scannerRef.current.isScanning && !isTransitioningRef.current) {
+        isTransitioningRef.current = true;
+        scannerRef.current.stop().catch(console.error).finally(() => {
+          isTransitioningRef.current = false;
+        });
       }
     };
   }, [facingMode]);
