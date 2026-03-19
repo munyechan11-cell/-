@@ -142,7 +142,7 @@ export default function App() {
     <Router>
       <div className="min-h-screen hanji-bg flex justify-center">
         <Toast />
-        <div className="w-full max-w-md min-h-screen overflow-hidden relative flex flex-col">
+        <div className="w-full max-w-md md:max-w-2xl lg:max-w-4xl xl:max-w-5xl min-h-screen overflow-hidden relative flex flex-col bg-white/30 backdrop-blur-sm shadow-2xl">
           <div className="flex-1 overflow-y-auto no-scrollbar w-full h-full relative pt-safe pb-safe">
             <Routes>
               <Route path="/" element={<Home />} />

@@ -58,7 +58,12 @@ export default function CustomerScanner() {
       
       if (errorMessage.includes("NotAllowedError") || errorMessage.includes("Permission denied")) {
         setError("카메라 접근 권한이 거부되었습니다. 브라우저 설정에서 카메라 권한을 허용해주세요.");
-      } else if (errorMessage.includes("NotFoundError") || errorMessage.includes("Requested device not found")) {
+      } else if (errorMessage.includes("NotFoundError") || errorMessage.includes("Requested device not found") || errorMessage.includes("OverconstrainedError")) {
+        if (mode === "environment") {
+          console.log("Environment camera not found, falling back to user camera.");
+          setFacingMode("user");
+          return;
+        }
         setError("사용 가능한 카메라를 찾을 수 없습니다.");
       } else if (errorMessage.includes("NotReadableError") || errorMessage.includes("Could not start video source")) {
         setError("카메라를 시작할 수 없습니다. 다른 앱에서 카메라를 사용 중인지 확인해주세요.");
@@ -138,10 +143,34 @@ export default function CustomerScanner() {
           <div className="flex gap-2">
             <button 
               onClick={toggleCamera}
-              className="flex-1 bg-[#EFEBE9] text-[#5D4037] py-3 rounded-xl font-bold hover:bg-[#E7E0D7] transition-colors flex items-center justify-center"
+              className="flex-1 bg-[#EFEBE9] text-[#5D4037] py-3 rounded-xl font-bold hover:bg-[#E7E0D7] transition-colors flex items-center justify-center text-sm sm:text-base"
             >
-              <RefreshCw className="w-4 h-4 mr-2" />
+              <RefreshCw className="w-4 h-4 mr-1 sm:mr-2" />
               카메라 전환
+            </button>
+            <button 
+              onClick={() => {
+                const url = prompt('테이블 QR 코드 링크를 붙여넣어주세요.\n(예: https://gyeol.onrender.com/customer/store/...)');
+                if (url) {
+                  try {
+                    const parsed = new URL(url);
+                    if (parsed.pathname.includes('/customer/store/')) {
+                      navigate(parsed.pathname);
+                    } else {
+                      setError('올바른 테이블 링크가 아닙니다.');
+                    }
+                  } catch (e) {
+                    if (url.includes('/customer/store/')) {
+                      navigate(url);
+                    } else {
+                      setError('올바른 테이블 링크가 아닙니다.');
+                    }
+                  }
+                }
+              }}
+              className="flex-1 bg-[#D84315] text-white py-3 rounded-xl font-bold hover:bg-[#BF360C] transition-colors flex items-center justify-center text-sm sm:text-base"
+            >
+              링크로 입장하기
             </button>
           </div>
         </div>

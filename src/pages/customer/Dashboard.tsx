@@ -63,7 +63,7 @@ export default function CustomerDashboard() {
   const activeCoupon = myCoupons.find(c => c.id === selectedCoupon);
 
   return (
-    <div className="min-h-full bg-transparent pb-20">
+    <div className="min-h-full bg-transparent pb-20 max-w-lg mx-auto">
       {/* Header */}
       <div className="bg-transparent text-[#2D1B15] p-6 pt-8 border-b border-[#E7E0D7]">
         <div className="flex justify-between items-center mb-6 relative">

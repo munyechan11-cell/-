@@ -136,7 +136,7 @@ export default function OwnerDashboard() {
             <p className="text-sm text-[#A1887F]">새로고침하거나 다시 로그인해주세요.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4">
             {myTables.map((table, index) => {
               const isOccupied = table.currentCustomerId !== null;
               const customer = isOccupied ? users.find(u => u.id === table.currentCustomerId) : null;
