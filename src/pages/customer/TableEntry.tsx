@@ -5,11 +5,11 @@ import { useStore } from '../../store';
 export default function TableEntry() {
   const { storeId, tableNumber } = useParams<{ storeId: string, tableNumber: string }>();
   const navigate = useNavigate();
-  const { currentUser, users, recordVisit, logout } = useStore();
+  const { currentUser, users, recordVisit, logout, isReady } = useStore();
   const processedRef = useRef(false);
 
   useEffect(() => {
-    if (processedRef.current) return;
+    if (processedRef.current || !isReady) return;
     
     if (!storeId || !tableNumber) {
       navigate('/');
@@ -37,7 +37,7 @@ export default function TableEntry() {
       // Not logged in
       navigate(`/customer/store/${storeId}/login?table=${tableNumber}`);
     }
-  }, [currentUser, users, navigate, storeId, tableNumber, recordVisit, logout]);
+  }, [currentUser, users, navigate, storeId, tableNumber, recordVisit, logout, isReady]);
 
   return (
     <div className="min-h-full bg-transparent flex items-center justify-center">

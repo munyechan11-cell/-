@@ -170,22 +170,28 @@ export default function OwnerLogin() {
     setError('');
     
     try {
-      const response = await fetch(`/api/auth/${provider}/url`);
-      if (!response.ok) throw new Error('Failed to get auth URL');
-      const { url } = await response.json();
-      
-      const authWindow = window.open(url, 'oauth_popup', 'width=600,height=700');
+      const authWindow = window.open('', 'oauth_popup', 'width=600,height=700');
       if (!authWindow) {
         setError('팝업이 차단되었습니다. 브라우저 설정에서 팝업 차단을 해제해주세요.');
         setIsLoading(false);
-      } else {
-        const timer = setInterval(() => {
-          if (authWindow.closed) {
-            clearInterval(timer);
-            setIsLoading(false);
-          }
-        }, 500);
+        return;
       }
+
+      const response = await fetch(`/api/auth/${provider}/url`);
+      if (!response.ok) {
+        authWindow.close();
+        throw new Error('Failed to get auth URL');
+      }
+      const { url } = await response.json();
+      
+      authWindow.location.href = url;
+      
+      const timer = setInterval(() => {
+        if (authWindow.closed) {
+          clearInterval(timer);
+          setIsLoading(false);
+        }
+      }, 500);
     } catch (err: any) {
       console.error(err);
       setError(`${provider === 'kakao' ? '카카오' : '네이버'} 로그인 중 오류가 발생했습니다.`);
