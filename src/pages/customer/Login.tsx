@@ -125,6 +125,7 @@ export default function CustomerLogin() {
       } else {
         setError(`가입되지 않은 ${providerName} 계정입니다. 회원가입을 진행해주세요.`);
         setIsLogin(false);
+        setIsLoading(false);
       }
     } else {
       // Signup
@@ -143,10 +144,12 @@ export default function CustomerLogin() {
       if (existingOAuthUser) {
         setError(`이미 가입된 ${providerName} 계정입니다. 로그인을 진행해주세요.`);
         setIsLogin(true);
+        setIsLoading(false);
       } else {
         const existingPhoneUser = users.find(u => u.phone === cleanPhone && u.role === 'customer' && u.storeId === storeId);
         if (existingPhoneUser && existingPhoneUser.googleId && existingPhoneUser.googleId !== user.uid) {
           setError(`이미 다른 계정과 연동된 전화번호입니다.`);
+          setIsLoading(false);
         } else {
           const loggedInUser = login(cleanPhone, name || user.displayName || '고객님', 'customer', undefined, storeId, user.uid, isPohangResident, gender);
           if (!existingPhoneUser) {
@@ -221,6 +224,13 @@ export default function CustomerLogin() {
       if (!authWindow) {
         setError('팝업이 차단되었습니다. 브라우저 설정에서 팝업 차단을 해제해주세요.');
         setIsLoading(false);
+      } else {
+        const timer = setInterval(() => {
+          if (authWindow.closed) {
+            clearInterval(timer);
+            setIsLoading(false);
+          }
+        }, 500);
       }
     } catch (err: any) {
       console.error(err);
@@ -274,6 +284,7 @@ export default function CustomerLogin() {
         } else {
           setError('가입되지 않은 구글 계정입니다. 회원가입을 진행해주세요.');
           setIsLogin(false);
+          setIsLoading(false);
         }
       } else {
         // Signup
@@ -292,10 +303,12 @@ export default function CustomerLogin() {
         if (existingOAuthUser) {
           setError('이미 가입된 구글 계정입니다. 로그인을 진행해주세요.');
           setIsLogin(true);
+          setIsLoading(false);
         } else {
           const existingPhoneUser = users.find(u => u.phone === cleanPhone && u.role === 'customer' && u.storeId === storeId);
           if (existingPhoneUser && existingPhoneUser.googleId && existingPhoneUser.googleId !== user.uid) {
             setError('이미 다른 계정과 연동된 전화번호입니다.');
+            setIsLoading(false);
           } else {
             const loggedInUser = login(cleanPhone, name || user.displayName || '고객님', 'customer', undefined, storeId, user.uid, isPohangResident, gender);
             if (!existingPhoneUser) {
