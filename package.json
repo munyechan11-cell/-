@@ -8,7 +8,7 @@
   },
   "scripts": {
   "dev": "tsx server.ts",
-  "build": "npm run clean && vite build && npx esbuild server.ts --bundle --platform=node --format=esm --outfile=dist/server.mjs --external:lightningcss",
+  "build": "npm run clean && vite build && npx esbuild server.ts --bundle --platform=node --format=esm --outfile=dist/server.mjs --packages=external",
   "start": "node dist/server.mjs",
   "preview": "vite preview",
   "clean": "rm -rf dist",
