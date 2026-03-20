@@ -120,7 +120,17 @@ app.get('/api/auth/kakao/callback', async (req, res) => {
     `);
   } catch (err: any) {
     console.error('Kakao Auth Error:', err);
-    res.status(500).send(`Authentication failed: ${err.message}`);
+    res.status(500).send(`
+      <html><body>
+        <p>Authentication failed: ${err.message}</p>
+        <script>
+          if (window.opener) {
+            window.opener.postMessage({ type: 'OAUTH_AUTH_ERROR', error: '${err.message}' }, '*');
+            setTimeout(() => window.close(), 2000);
+          }
+        </script>
+      </body></html>
+    `);
   }
 });
 
@@ -192,7 +202,17 @@ app.get('/api/auth/naver/callback', async (req, res) => {
     `);
   } catch (err: any) {
     console.error('Naver Auth Error:', err);
-    res.status(500).send(`Authentication failed: ${err.message}`);
+    res.status(500).send(`
+      <html><body>
+        <p>Authentication failed: ${err.message}</p>
+        <script>
+          if (window.opener) {
+            window.opener.postMessage({ type: 'OAUTH_AUTH_ERROR', error: '${err.message}' }, '*');
+            setTimeout(() => window.close(), 2000);
+          }
+        </script>
+      </body></html>
+    `);
   }
 });
 
@@ -213,7 +233,7 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
+  app.listen(Number(PORT), "0.0.0.0", () => {
     console.log(`Server running on port ${PORT}`);
   });
 }

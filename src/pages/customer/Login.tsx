@@ -22,6 +22,7 @@ export default function CustomerLogin() {
   const [name, setName] = useState('');
   const [isPohangResident, setIsPohangResident] = useState<boolean | null>(null);
   const [gender, setGender] = useState<'male' | 'female' | null>(null);
+  const [pendingOAuthUser, setPendingOAuthUser] = useState<{ uid: string, provider: string, displayName: string | null } | null>(null);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
@@ -72,11 +73,12 @@ export default function CustomerLogin() {
       
       if (isLogin) {
         if (existingUser) {
-          const loggedInUser = login(cleanPhone, existingUser.name, 'customer', undefined, storeId);
+          const loggedInUser = login(cleanPhone, existingUser.name, 'customer', undefined, storeId, pendingOAuthUser?.uid);
           if (tableNumber) {
             recordVisit(loggedInUser.id, parseInt(tableNumber), storeId);
           }
           sessionStorage.removeItem('customerLogin_phone');
+          setPendingOAuthUser(null);
           navigate(`/customer/store/${storeId}`);
         } else {
           setError('가입되지 않은 번호입니다. 회원가입을 진행해주세요.');
@@ -89,15 +91,26 @@ export default function CustomerLogin() {
           return;
         }
         if (existingUser) {
-          setError('이미 가입된 전화번호입니다. 로그인을 진행해주세요.');
-          setIsLogin(true);
+          if (pendingOAuthUser) {
+            const loggedInUser = login(cleanPhone, existingUser.name, 'customer', undefined, storeId, pendingOAuthUser.uid);
+            if (tableNumber) {
+              recordVisit(loggedInUser.id, parseInt(tableNumber), storeId);
+            }
+            sessionStorage.removeItem('customerLogin_phone');
+            setPendingOAuthUser(null);
+            navigate(`/customer/store/${storeId}`);
+          } else {
+            setError('이미 가입된 전화번호입니다. 로그인을 진행해주세요.');
+            setIsLogin(true);
+          }
         } else {
-          const loggedInUser = login(cleanPhone, name, 'customer', undefined, storeId, undefined, isPohangResident, gender);
+          const loggedInUser = login(cleanPhone, name, 'customer', undefined, storeId, pendingOAuthUser?.uid, isPohangResident, gender);
           issueCoupon(loggedInUser.id, storeId, '첫 회원가입 축하', '첫 회원가입 축하쿠폰 (3000원 상당)');
           if (tableNumber) {
             recordVisit(loggedInUser.id, parseInt(tableNumber), storeId);
           }
           sessionStorage.removeItem('customerLogin_phone');
+          setPendingOAuthUser(null);
           navigate(`/customer/store/${storeId}`);
         }
       }
@@ -113,17 +126,19 @@ export default function CustomerLogin() {
     const cleanPhone = phone.replace(/[^0-9]/g, '');
     
     if (isLogin) {
-      const existingUser = users.find(u => (u.googleId === user.uid || u.id === user.uid || (cleanPhone && u.phone === cleanPhone)) && u.role === 'customer' && u.storeId === storeId);
+      const existingUser = users.find(u => (u.googleId === user.uid || u.id === user.uid || u.socialIds?.includes(user.uid)) && u.role === 'customer' && u.storeId === storeId);
       if (existingUser) {
         // Login
-        const loggedInUser = login(cleanPhone || existingUser.phone, existingUser.name, 'customer', undefined, storeId, user.uid);
+        const loggedInUser = login(existingUser.phone, existingUser.name, 'customer', undefined, storeId, user.uid);
         if (tableNumber) {
           recordVisit(loggedInUser.id, parseInt(tableNumber), storeId);
         }
         sessionStorage.removeItem('customerLogin_phone');
         navigate(`/customer/store/${storeId}`);
       } else {
-        setError(`가입되지 않은 ${providerName} 계정입니다. 회원가입을 진행해주세요.`);
+        setError(`가입되지 않은 ${providerName} 계정입니다. 정보를 입력하고 회원가입을 완료해주세요.`);
+        setPendingOAuthUser({ uid: user.uid, provider: providerName, displayName: user.displayName || null });
+        if (user.displayName && !name) setName(user.displayName);
         setIsLogin(false);
         setIsLoading(false);
       }
@@ -140,21 +155,23 @@ export default function CustomerLogin() {
         return;
       }
       
-      const existingOAuthUser = users.find(u => (u.googleId === user.uid || u.id === user.uid) && u.role === 'customer' && u.storeId === storeId);
+      const existingOAuthUser = users.find(u => (u.googleId === user.uid || u.id === user.uid || u.socialIds?.includes(user.uid)) && u.role === 'customer' && u.storeId === storeId);
       if (existingOAuthUser) {
         setError(`이미 가입된 ${providerName} 계정입니다. 로그인을 진행해주세요.`);
         setIsLogin(true);
         setIsLoading(false);
       } else {
         const existingPhoneUser = users.find(u => u.phone === cleanPhone && u.role === 'customer' && u.storeId === storeId);
-        if (existingPhoneUser && existingPhoneUser.googleId && existingPhoneUser.googleId !== user.uid) {
-          setError(`이미 다른 계정과 연동된 전화번호입니다.`);
-          setIsLoading(false);
+        if (existingPhoneUser) {
+          const loggedInUser = login(cleanPhone, existingPhoneUser.name, 'customer', undefined, storeId, user.uid);
+          if (tableNumber) {
+            recordVisit(loggedInUser.id, parseInt(tableNumber), storeId);
+          }
+          sessionStorage.removeItem('customerLogin_phone');
+          navigate(`/customer/store/${storeId}`);
         } else {
           const loggedInUser = login(cleanPhone, name || user.displayName || '고객님', 'customer', undefined, storeId, user.uid, isPohangResident, gender);
-          if (!existingPhoneUser) {
-            issueCoupon(loggedInUser.id, storeId, '첫 회원가입 축하', '첫 회원가입 축하쿠폰 (3000원 상당)');
-          }
+          issueCoupon(loggedInUser.id, storeId, '첫 회원가입 축하', '첫 회원가입 축하쿠폰 (3000원 상당)');
           if (tableNumber) {
             recordVisit(loggedInUser.id, parseInt(tableNumber), storeId);
           }
@@ -165,6 +182,8 @@ export default function CustomerLogin() {
     }
   };
 
+  const popupTimerRef = useRef<NodeJS.Timeout | null>(null);
+
   useEffect(() => {
     const handleMessage = async (event: MessageEvent) => {
       const allowedOrigins = [window.location.origin, 'http://localhost:3000', 'http://localhost:5173'];
@@ -173,6 +192,10 @@ export default function CustomerLogin() {
       }
       
       if (event.data?.type === 'OAUTH_AUTH_SUCCESS' && event.data?.token) {
+        if (popupTimerRef.current) {
+          clearInterval(popupTimerRef.current);
+          popupTimerRef.current = null;
+        }
         try {
           setIsLoading(true);
           const result = await signInWithCustomToken(auth, event.data.token);
@@ -183,6 +206,13 @@ export default function CustomerLogin() {
           setError(`로그인 처리 중 오류가 발생했습니다: ${err.message}`);
           setIsLoading(false);
         }
+      } else if (event.data?.type === 'OAUTH_AUTH_ERROR') {
+        if (popupTimerRef.current) {
+          clearInterval(popupTimerRef.current);
+          popupTimerRef.current = null;
+        }
+        setError(`소셜 로그인 실패: ${event.data.error}`);
+        setIsLoading(false);
       }
     };
     window.addEventListener('message', handleMessage);
@@ -232,9 +262,12 @@ export default function CustomerLogin() {
       
       authWindow.location.href = url;
       
-      const timer = setInterval(() => {
+      popupTimerRef.current = setInterval(() => {
         if (authWindow.closed) {
-          clearInterval(timer);
+          if (popupTimerRef.current) {
+            clearInterval(popupTimerRef.current);
+            popupTimerRef.current = null;
+          }
           setIsLoading(false);
         }
       }, 500);
@@ -278,17 +311,19 @@ export default function CustomerLogin() {
       const cleanPhone = phone.replace(/[^0-9]/g, '');
       
       if (isLogin) {
-        const existingUser = users.find(u => (u.googleId === user.uid || u.id === user.uid || (cleanPhone && u.phone === cleanPhone)) && u.role === 'customer' && u.storeId === storeId);
+        const existingUser = users.find(u => (u.googleId === user.uid || u.id === user.uid || u.socialIds?.includes(user.uid)) && u.role === 'customer' && u.storeId === storeId);
         if (existingUser) {
           // Login
-          const loggedInUser = login(cleanPhone || existingUser.phone, existingUser.name, 'customer', undefined, storeId, user.uid);
+          const loggedInUser = login(existingUser.phone, existingUser.name, 'customer', undefined, storeId, user.uid);
           if (tableNumber) {
             recordVisit(loggedInUser.id, parseInt(tableNumber), storeId);
           }
           sessionStorage.removeItem('customerLogin_phone');
           navigate(`/customer/store/${storeId}`);
         } else {
-          setError('가입되지 않은 구글 계정입니다. 회원가입을 진행해주세요.');
+          setError('가입되지 않은 구글 계정입니다. 정보를 입력하고 회원가입을 완료해주세요.');
+          setPendingOAuthUser({ uid: user.uid, provider: 'Google', displayName: user.displayName || null });
+          if (user.displayName && !name) setName(user.displayName);
           setIsLogin(false);
           setIsLoading(false);
         }
@@ -305,21 +340,23 @@ export default function CustomerLogin() {
           return;
         }
         
-        const existingOAuthUser = users.find(u => (u.googleId === user.uid || u.id === user.uid) && u.role === 'customer' && u.storeId === storeId);
+        const existingOAuthUser = users.find(u => (u.googleId === user.uid || u.id === user.uid || u.socialIds?.includes(user.uid)) && u.role === 'customer' && u.storeId === storeId);
         if (existingOAuthUser) {
           setError('이미 가입된 구글 계정입니다. 로그인을 진행해주세요.');
           setIsLogin(true);
           setIsLoading(false);
         } else {
           const existingPhoneUser = users.find(u => u.phone === cleanPhone && u.role === 'customer' && u.storeId === storeId);
-          if (existingPhoneUser && existingPhoneUser.googleId && existingPhoneUser.googleId !== user.uid) {
-            setError('이미 다른 계정과 연동된 전화번호입니다.');
-            setIsLoading(false);
+          if (existingPhoneUser) {
+            const loggedInUser = login(cleanPhone, existingPhoneUser.name, 'customer', undefined, storeId, user.uid);
+            if (tableNumber) {
+              recordVisit(loggedInUser.id, parseInt(tableNumber), storeId);
+            }
+            sessionStorage.removeItem('customerLogin_phone');
+            navigate(`/customer/store/${storeId}`);
           } else {
             const loggedInUser = login(cleanPhone, name || user.displayName || '고객님', 'customer', undefined, storeId, user.uid, isPohangResident, gender);
-            if (!existingPhoneUser) {
-              issueCoupon(loggedInUser.id, storeId, '첫 회원가입 축하', '첫 회원가입 축하쿠폰 (3000원 상당)');
-            }
+            issueCoupon(loggedInUser.id, storeId, '첫 회원가입 축하', '첫 회원가입 축하쿠폰 (3000원 상당)');
             if (tableNumber) {
               recordVisit(loggedInUser.id, parseInt(tableNumber), storeId);
             }
@@ -379,7 +416,9 @@ export default function CustomerLogin() {
           <div className="w-20 h-20 rounded-full bg-[#FFF3E0] flex items-center justify-center mx-auto mb-4 shadow-sm border border-[#FFE0B2]">
             <UserCircle className="w-10 h-10 text-[#D84315]" />
           </div>
-          <h1 className="text-3xl font-black text-[#2D1B15] tracking-tight">고객 {isLogin ? '로그인' : '회원가입'}</h1>
+          <h1 className="text-3xl font-black text-[#2D1B15] tracking-tight">
+            {pendingOAuthUser ? `${pendingOAuthUser.provider} 회원가입` : (isLogin ? '고객 로그인' : '고객 회원가입')}
+          </h1>
           <p className="text-[#795548] mt-2 font-medium">{store?.restaurantName || '단골 고객 서비스'}</p>
         </div>
         
@@ -392,7 +431,7 @@ export default function CustomerLogin() {
 
           <div className="flex rounded-xl bg-[#EFEBE9] p-1">
             <button
-              onClick={() => { setIsLogin(true); setError(''); }}
+              onClick={() => { setIsLogin(true); setError(''); setPendingOAuthUser(null); }}
               className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-colors ${
                 isLogin ? 'bg-white text-[#D84315] shadow-sm' : 'text-[#795548] hover:text-[#4E342E]'
               }`}
@@ -499,63 +538,67 @@ export default function CustomerLogin() {
               disabled={isLoading || phone.replace(/[^0-9]/g, '').length < 10 || (!isLogin && (!name || isPohangResident === null || gender === null))}
               className="w-full bg-[#D84315] hover:bg-[#BF360C] disabled:bg-[#FFCCBC] text-white font-bold py-4 rounded-xl transition-colors text-lg flex items-center justify-center shadow-sm"
             >
-              {isLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : (isLogin ? '전화번호로 시작하기' : '회원가입 완료')}
+              {isLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : (isLogin ? '전화번호로 시작하기' : (pendingOAuthUser ? `${pendingOAuthUser.provider} 계정으로 가입 완료` : '회원가입 완료'))}
             </button>
           </form>
 
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-[#E7E0D7]"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-white text-[#A1887F] font-medium">또는</span>
-            </div>
-          </div>
+          {!pendingOAuthUser && (
+            <>
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-[#E7E0D7]"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-4 bg-white text-[#A1887F] font-medium">또는</span>
+                </div>
+              </div>
 
-          <div className="space-y-3">
-            <button 
-              type="button"
-              onClick={handleGoogleLogin}
-              disabled={isLoading}
-              className="w-full bg-white hover:bg-gray-50 border border-[#E7E0D7] disabled:bg-gray-100 text-[#4E342E] font-bold py-3.5 rounded-xl transition-colors text-lg flex items-center justify-center shadow-sm"
-            >
-              {isLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : (
-                <>
-                  <svg className="w-6 h-6 mr-2" viewBox="0 0 24 24">
-                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+              <div className="space-y-3">
+                <button 
+                  type="button"
+                  onClick={handleGoogleLogin}
+                  disabled={isLoading}
+                  className="w-full bg-white hover:bg-gray-50 border border-[#E7E0D7] disabled:bg-gray-100 text-[#4E342E] font-bold py-3.5 rounded-xl transition-colors text-lg flex items-center justify-center shadow-sm"
+                >
+                  {isLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : (
+                    <>
+                      <svg className="w-6 h-6 mr-2" viewBox="0 0 24 24">
+                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                      </svg>
+                      Google로 시작하기
+                    </>
+                  )}
+                </button>
+
+                <button 
+                  type="button"
+                  onClick={() => handleOAuthLogin('kakao')}
+                  disabled={isLoading}
+                  className="w-full bg-[#FEE500] hover:bg-[#E5CE00] disabled:bg-[#FEE500]/50 text-[#000000] font-bold py-3.5 rounded-xl transition-colors text-lg flex items-center justify-center shadow-sm"
+                >
+                  <svg className="w-6 h-6 mr-2" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 3c-5.523 0-10 3.538-10 7.9 0 2.834 1.88 5.32 4.686 6.722-.296 1.092-1.076 3.978-1.096 4.056-.026.104.032.208.13.236.076.022.158.006.216-.042 0 0 3.43-2.316 4.88-3.32.386.054.786.082 1.184.082 5.523 0 10-3.538 10-7.9C22 6.538 17.523 3 12 3z"/>
                   </svg>
-                  Google로 시작하기
-                </>
-              )}
-            </button>
+                  카카오로 시작하기
+                </button>
 
-            <button 
-              type="button"
-              onClick={() => handleOAuthLogin('kakao')}
-              disabled={isLoading}
-              className="w-full bg-[#FEE500] hover:bg-[#E5CE00] disabled:bg-[#FEE500]/50 text-[#000000] font-bold py-3.5 rounded-xl transition-colors text-lg flex items-center justify-center shadow-sm"
-            >
-              <svg className="w-6 h-6 mr-2" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 3c-5.523 0-10 3.538-10 7.9 0 2.834 1.88 5.32 4.686 6.722-.296 1.092-1.076 3.978-1.096 4.056-.026.104.032.208.13.236.076.022.158.006.216-.042 0 0 3.43-2.316 4.88-3.32.386.054.786.082 1.184.082 5.523 0 10-3.538 10-7.9C22 6.538 17.523 3 12 3z"/>
-              </svg>
-              카카오로 시작하기
-            </button>
-
-            <button 
-              type="button"
-              onClick={() => handleOAuthLogin('naver')}
-              disabled={isLoading}
-              className="w-full bg-[#03C75A] hover:bg-[#02B350] disabled:bg-[#03C75A]/50 text-white font-bold py-3.5 rounded-xl transition-colors text-lg flex items-center justify-center shadow-sm"
-            >
-              <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M16.273 12.845L7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727v12.845z"/>
-              </svg>
-              네이버로 시작하기
-            </button>
-          </div>
+                <button 
+                  type="button"
+                  onClick={() => handleOAuthLogin('naver')}
+                  disabled={isLoading}
+                  className="w-full bg-[#03C75A] hover:bg-[#02B350] disabled:bg-[#03C75A]/50 text-white font-bold py-3.5 rounded-xl transition-colors text-lg flex items-center justify-center shadow-sm"
+                >
+                  <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M16.273 12.845L7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727v12.845z"/>
+                  </svg>
+                  네이버로 시작하기
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

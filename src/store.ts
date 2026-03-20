@@ -12,6 +12,7 @@ export interface User {
   restaurantName?: string;
   storeId?: string;
   googleId?: string;
+  socialIds?: string[];
   isPohangResident?: boolean;
   gender?: 'male' | 'female';
 }
@@ -323,7 +324,7 @@ export const useStore = () => {
     };
   }, []);
 
-  const login = (phone: string, name: string, role: Role, restaurantName?: string, storeId?: string, googleId?: string, isPohangResident?: boolean, gender?: 'male' | 'female') => {
+  const login = (phone: string, name: string, role: Role, restaurantName?: string, storeId?: string, socialId?: string, isPohangResident?: boolean, gender?: 'male' | 'female') => {
     const cleanPhone = phone ? phone.replace(/[^0-9]/g, '') : '';
     let loggedInUser: User | null = null;
     const newUserId = Math.random().toString(36).substring(2, 9);
@@ -333,12 +334,12 @@ export const useStore = () => {
       
       let user = null;
       
-      // 1. Try to find by googleId
-      if (googleId) {
-        user = currentUsers.find(u => u.googleId === googleId && u.role === role && (role === 'owner' || u.storeId === storeId));
-        // Backward compatibility: check if id === googleId
+      // 1. Try to find by socialId
+      if (socialId) {
+        user = currentUsers.find(u => (u.googleId === socialId || u.socialIds?.includes(socialId)) && u.role === role && (role === 'owner' || u.storeId === storeId));
+        // Backward compatibility: check if id === socialId
         if (!user) {
-          user = currentUsers.find(u => u.id === googleId && u.role === role && (role === 'owner' || u.storeId === storeId));
+          user = currentUsers.find(u => u.id === socialId && u.role === role && (role === 'owner' || u.storeId === storeId));
         }
       }
       
@@ -350,11 +351,18 @@ export const useStore = () => {
       const updates: Partial<typeof globalState> = {};
       
       if (user) {
-        // Link googleId if missing
-        if (googleId && !user.googleId) {
-          const updatedUser = { ...user, googleId };
-          updates.users = currentUsers.map(u => u.id === user!.id ? updatedUser : u);
-          user = updatedUser;
+        // Link socialId if missing
+        if (socialId) {
+          const socialIds = user.socialIds ? [...user.socialIds] : [];
+          if (user.googleId && !socialIds.includes(user.googleId)) {
+            socialIds.push(user.googleId);
+          }
+          if (!socialIds.includes(socialId)) {
+            socialIds.push(socialId);
+            const updatedUser = { ...user, socialIds };
+            updates.users = currentUsers.map(u => u.id === user!.id ? updatedUser : u);
+            user = updatedUser;
+          }
         }
       } else {
         // Create new user
@@ -365,7 +373,8 @@ export const useStore = () => {
           phone: cleanPhone,
           restaurantName,
           storeId,
-          googleId,
+          googleId: socialId,
+          socialIds: socialId ? [socialId] : [],
           isPohangResident,
           gender
         };
