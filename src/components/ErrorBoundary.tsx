@@ -9,9 +9,8 @@ interface State {
   error: Error | null;
 }
 
-export class ErrorBoundary extends React.Component<Props, State> {
-  public props: Props;
-  public state: State = {
+export class ErrorBoundary extends Component<Props, State> {
+  state: State = {
     hasError: false,
     error: null
   };
@@ -23,6 +22,31 @@ export class ErrorBoundary extends React.Component<Props, State> {
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('Uncaught error:', error, errorInfo);
   }
+
+  public componentDidMount() {
+    window.addEventListener('unhandledrejection', this.handleUnhandledRejection);
+    window.addEventListener('error', this.handleGlobalError);
+  }
+
+  public componentWillUnmount() {
+    window.removeEventListener('unhandledrejection', this.handleUnhandledRejection);
+    window.removeEventListener('error', this.handleGlobalError);
+  }
+
+  private handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+    event.preventDefault();
+    this.setState({ 
+      hasError: true, 
+      error: event.reason instanceof Error ? event.reason : new Error(String(event.reason)) 
+    });
+  };
+
+  private handleGlobalError = (event: ErrorEvent) => {
+    this.setState({ 
+      hasError: true, 
+      error: event.error || new Error(event.message) 
+    });
+  };
 
   public render() {
     if (this.state.hasError) {

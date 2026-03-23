@@ -7,12 +7,12 @@
     "node": "22.x"
   },
   "scripts": {
-  "dev": "tsx server.ts",
-  "build": "npm run clean && vite build && npx esbuild server.ts --bundle --platform=node --format=esm --outfile=dist/server.mjs --packages=external",
-  "start": "node dist/server.mjs",
-  "preview": "vite preview",
-  "clean": "rm -rf dist",
-  "lint": "tsc --noEmit"
+    "dev": "tsx server.ts",
+    "build": "npm run clean && vite build && npx esbuild server.ts --bundle --platform=node --format=esm --outfile=dist/server.mjs --packages=external",
+    "start": "node dist/server.mjs",
+    "preview": "vite preview",
+    "clean": "rm -rf dist",
+    "lint": "tsc --noEmit"
   },
   "dependencies": {
     "@google/genai": "^1.45.0",
@@ -39,6 +39,8 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "^25.5.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
     "autoprefixer": "^10.4.27",
     "tailwindcss": "^4.2.1",
     "typescript": "~5.9.3",

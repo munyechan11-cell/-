@@ -226,7 +226,7 @@ export default function CustomerDashboard() {
                     <span className={`text-xs font-bold px-2 py-1 rounded-md mb-2 inline-block ${coupon.status === 'pending' ? 'bg-orange-100 text-orange-600' : 'bg-indigo-50 text-indigo-600'}`}>
                       {coupon.status === 'pending' ? '사용 승인 대기중' : '사용 가능'}
                     </span>
-                    <h4 className="font-bold text-slate-900">{coupon.title || coupon.description}</h4>
+                    <h4 className="font-bold text-slate-900">{coupon.description}</h4>
                   </div>
                   <div className={`${coupon.status === 'pending' ? 'bg-white border border-slate-200 text-slate-500 hover:bg-slate-50' : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm'} px-4 py-2 rounded-xl text-sm font-bold transition-all`}>
                     {coupon.status === 'pending' ? '요청 취소' : '사용하기'}
