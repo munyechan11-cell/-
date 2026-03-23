@@ -114,38 +114,40 @@ export default function CustomerScanner() {
   };
 
   return (
-    <div className="min-h-full bg-transparent flex flex-col">
-      <div className="bg-transparent text-[#2D1B15] p-6 pt-8 flex items-center border-b border-[#E7E0D7]">
-        <Link to="/" className="p-2 -ml-2 hover:bg-white/50 rounded-full transition-colors mr-2">
+    <div className="min-h-full bg-slate-50 flex flex-col">
+      <div className="bg-white text-slate-900 p-6 pt-8 flex items-center border-b border-slate-100 sticky top-0 z-10">
+        <Link to="/" className="p-2 -ml-2 hover:bg-slate-100 rounded-full transition-colors mr-2">
           <ArrowLeft className="w-6 h-6" />
         </Link>
-        <h1 className="text-2xl font-black tracking-tight flex-1">테이블 스캔</h1>
+        <h1 className="text-2xl font-bold tracking-tight flex-1">테이블 스캔</h1>
       </div>
 
       <div className="flex-1 p-6 flex flex-col items-center justify-center">
-        <div className="w-full max-w-sm bg-white/90 backdrop-blur-sm p-6 rounded-3xl shadow-sm border border-[#E7E0D7]">
+        <div className="w-full max-w-sm bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
           <div className="text-center mb-6">
-            <ScanLine className="w-12 h-12 text-[#D84315] mx-auto mb-3" />
-            <h2 className="text-xl font-bold text-[#2D1B15] mb-2">테이블 QR 스캔</h2>
-            <p className="text-[#795548] text-sm">테이블에 있는 QR 코드를 스캔해주세요.</p>
+            <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <ScanLine className="w-8 h-8 text-indigo-600" />
+            </div>
+            <h2 className="text-xl font-bold text-slate-900 mb-2">테이블 QR 스캔</h2>
+            <p className="text-slate-500 text-sm">테이블에 있는 QR 코드를 스캔해주세요.</p>
           </div>
 
-          <div className="relative rounded-2xl overflow-hidden bg-black aspect-square mb-6">
+          <div className="relative rounded-2xl overflow-hidden bg-slate-900 aspect-square mb-6 shadow-inner">
             <div id="reader" className="w-full h-full"></div>
           </div>
 
           {error && (
-            <div className="bg-red-50 text-red-600 p-4 rounded-xl text-sm mb-4 text-center font-bold border border-red-200">
+            <div className="bg-red-50 text-red-600 p-4 rounded-xl text-sm mb-4 text-center font-medium border border-red-100">
               {error}
             </div>
           )}
 
-          <div className="flex gap-2">
+          <div className="flex gap-3">
             <button 
               onClick={toggleCamera}
-              className="flex-1 bg-[#EFEBE9] text-[#5D4037] py-3 rounded-xl font-bold hover:bg-[#E7E0D7] transition-colors flex items-center justify-center text-sm sm:text-base"
+              className="flex-1 bg-slate-100 text-slate-700 py-3.5 rounded-xl font-semibold hover:bg-slate-200 transition-colors flex items-center justify-center text-sm"
             >
-              <RefreshCw className="w-4 h-4 mr-1 sm:mr-2" />
+              <RefreshCw className="w-4 h-4 mr-2" />
               카메라 전환
             </button>
             <button 
@@ -168,9 +170,9 @@ export default function CustomerScanner() {
                   }
                 }
               }}
-              className="flex-1 bg-[#D84315] text-white py-3 rounded-xl font-bold hover:bg-[#BF360C] transition-colors flex items-center justify-center text-sm sm:text-base"
+              className="flex-1 bg-indigo-600 text-white py-3.5 rounded-xl font-semibold hover:bg-indigo-700 transition-colors flex items-center justify-center text-sm shadow-sm shadow-indigo-200"
             >
-              링크로 입장하기
+              링크로 입장
             </button>
           </div>
         </div>

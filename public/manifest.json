@@ -4,8 +4,8 @@
   "description": "전통 한지 테마의 가게 관리 및 쿠폰 서비스",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#F5F2EB",
-  "theme_color": "#D84315",
+  "background_color": "#f8fafc",
+  "theme_color": "#4f46e5",
   "orientation": "portrait",
   "icons": [
     {

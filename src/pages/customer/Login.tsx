@@ -185,6 +185,23 @@ export default function CustomerLogin() {
   const popupTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
+    const processToken = async (token: string, provider: string) => {
+      if (popupTimerRef.current) {
+        clearInterval(popupTimerRef.current);
+        popupTimerRef.current = null;
+      }
+      try {
+        setIsLoading(true);
+        const result = await signInWithCustomToken(auth, token);
+        const providerName = provider === 'kakao' ? '카카오' : '네이버';
+        await processOAuthUser(result.user, providerName);
+      } catch (err: any) {
+        console.error(err);
+        setError(`로그인 처리 중 오류가 발생했습니다: ${err.message}`);
+        setIsLoading(false);
+      }
+    };
+
     const handleMessage = async (event: MessageEvent) => {
       const allowedOrigins = [window.location.origin, 'http://localhost:3000', 'http://localhost:5173'];
       if (!allowedOrigins.includes(event.origin) && !event.origin.endsWith('.run.app') && !event.origin.endsWith('.onrender.com')) {
@@ -192,20 +209,7 @@ export default function CustomerLogin() {
       }
       
       if (event.data?.type === 'OAUTH_AUTH_SUCCESS' && event.data?.token) {
-        if (popupTimerRef.current) {
-          clearInterval(popupTimerRef.current);
-          popupTimerRef.current = null;
-        }
-        try {
-          setIsLoading(true);
-          const result = await signInWithCustomToken(auth, event.data.token);
-          const providerName = event.data.provider === 'kakao' ? '카카오' : '네이버';
-          await processOAuthUser(result.user, providerName);
-        } catch (err: any) {
-          console.error(err);
-          setError(`로그인 처리 중 오류가 발생했습니다: ${err.message}`);
-          setIsLoading(false);
-        }
+        await processToken(event.data.token, event.data.provider);
       } else if (event.data?.type === 'OAUTH_AUTH_ERROR') {
         if (popupTimerRef.current) {
           clearInterval(popupTimerRef.current);
@@ -215,8 +219,43 @@ export default function CustomerLogin() {
         setIsLoading(false);
       }
     };
+
+    const handleStorage = async (event: StorageEvent) => {
+      if (event.key === 'oauth_token_data' && event.newValue) {
+        try {
+          const data = JSON.parse(event.newValue);
+          if (data.type === 'OAUTH_AUTH_SUCCESS' && data.token) {
+            localStorage.removeItem('oauth_token_data');
+            await processToken(data.token, data.provider);
+          }
+        } catch (e) {
+          console.error('Failed to parse oauth_token_data', e);
+        }
+      }
+    };
+
     window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
+    window.addEventListener('storage', handleStorage);
+    
+    // Check if there's already a token in localStorage (e.g., if the page was reloaded)
+    const existingToken = localStorage.getItem('oauth_token_data');
+    if (existingToken) {
+      try {
+        const data = JSON.parse(existingToken);
+        // Only process if it's recent (within 5 minutes)
+        if (data.type === 'OAUTH_AUTH_SUCCESS' && data.token && data.timestamp && Date.now() - data.timestamp < 5 * 60 * 1000) {
+          localStorage.removeItem('oauth_token_data');
+          processToken(data.token, data.provider);
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      window.removeEventListener('storage', handleStorage);
+    };
   }, [isLogin, phone, name, isPohangResident, gender, storeId, users, tableNumber, login, recordVisit, issueCoupon, navigate]);
 
   const handleOAuthLogin = async (provider: 'kakao' | 'naver') => {
@@ -380,22 +419,22 @@ export default function CustomerLogin() {
 
   if (!storeId) {
     return (
-      <div className="min-h-full bg-transparent flex flex-col items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white/90 backdrop-blur-sm rounded-3xl shadow-[0_4px_20px_rgba(78,52,46,0.08)] border border-[#E7E0D7] overflow-hidden p-8 text-center relative">
+      <div className="min-h-full bg-slate-50 flex flex-col items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden p-8 text-center relative">
           <Link 
             to="/" 
-            className="absolute top-4 left-4 p-2 bg-transparent hover:bg-[#EFEBE9] rounded-full text-[#5D4037] transition-colors z-10"
+            className="absolute top-4 left-4 p-2 hover:bg-slate-100 rounded-full text-slate-600 transition-colors z-10"
           >
             <ArrowLeft className="w-6 h-6" />
           </Link>
-          <div className="w-20 h-20 rounded-full bg-[#FFF3E0] flex items-center justify-center mx-auto mb-4 mt-4 shadow-sm border border-[#FFE0B2]">
-            <UserCircle className="w-10 h-10 text-[#D84315]" />
+          <div className="w-20 h-20 rounded-full bg-indigo-50 flex items-center justify-center mx-auto mb-4 mt-4">
+            <UserCircle className="w-10 h-10 text-indigo-600" />
           </div>
-          <h2 className="text-2xl font-black mb-4 tracking-tight text-[#2D1B15]">가게 QR 스캔 필요</h2>
-          <p className="text-[#795548] mb-8 font-medium">로그인하려면 먼저 매장 테이블의 QR 코드를 스캔해주세요.</p>
+          <h2 className="text-2xl font-bold mb-3 tracking-tight text-slate-900">가게 QR 스캔 필요</h2>
+          <p className="text-slate-500 mb-8 text-sm">로그인하려면 먼저 매장 테이블의 QR 코드를 스캔해주세요.</p>
           <div className="space-y-3">
-            <Link to="/scan" className="w-full block bg-[#D84315] hover:bg-[#BF360C] text-white px-6 py-4 rounded-xl font-bold transition-colors">앱에서 QR 스캔하기</Link>
-            <Link to="/" className="w-full block bg-[#EFEBE9] hover:bg-[#E7E0D7] text-[#4E342E] px-6 py-4 rounded-xl font-bold transition-colors">홈으로 돌아가기</Link>
+            <Link to="/scan" className="w-full flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-4 rounded-xl font-semibold transition-colors shadow-sm shadow-indigo-200">앱에서 QR 스캔하기</Link>
+            <Link to="/" className="w-full flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-700 px-6 py-4 rounded-xl font-semibold transition-colors">홈으로 돌아가기</Link>
           </div>
         </div>
       </div>
@@ -403,45 +442,45 @@ export default function CustomerLogin() {
   }
 
   return (
-    <div className="min-h-full bg-transparent flex flex-col items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white/90 backdrop-blur-sm rounded-3xl shadow-[0_4px_20px_rgba(78,52,46,0.08)] border border-[#E7E0D7] overflow-hidden relative">
+    <div className="min-h-full bg-slate-50 flex flex-col items-center justify-center p-4">
+      <div className="max-w-md w-full bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden relative">
         <Link 
           to="/" 
-          className="absolute top-4 left-4 p-2 bg-transparent hover:bg-[#FFF3E0] rounded-full text-[#D84315] transition-colors z-10"
+          className="absolute top-4 left-4 p-2 hover:bg-slate-100 rounded-full text-slate-600 transition-colors z-10"
         >
           <ArrowLeft className="w-6 h-6" />
         </Link>
         
-        <div className="bg-transparent p-8 pt-12 text-center">
-          <div className="w-20 h-20 rounded-full bg-[#FFF3E0] flex items-center justify-center mx-auto mb-4 shadow-sm border border-[#FFE0B2]">
-            <UserCircle className="w-10 h-10 text-[#D84315]" />
+        <div className="p-8 pt-12 text-center">
+          <div className="w-20 h-20 rounded-full bg-indigo-50 flex items-center justify-center mx-auto mb-4">
+            <UserCircle className="w-10 h-10 text-indigo-600" />
           </div>
-          <h1 className="text-3xl font-black text-[#2D1B15] tracking-tight">
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
             {pendingOAuthUser ? `${pendingOAuthUser.provider} 회원가입` : (isLogin ? '고객 로그인' : '고객 회원가입')}
           </h1>
-          <p className="text-[#795548] mt-2 font-medium">{store?.restaurantName || '단골 고객 서비스'}</p>
+          <p className="text-slate-500 mt-2 text-sm">{store?.restaurantName || '단골 고객 서비스'}</p>
         </div>
         
-        <div className="p-8 space-y-6">
+        <div className="px-8 pb-8 space-y-6">
           {error && (
-            <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm font-bold text-center">
+            <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm font-medium text-center border border-red-100">
               {error}
             </div>
           )}
 
-          <div className="flex rounded-xl bg-[#EFEBE9] p-1">
+          <div className="flex rounded-xl bg-slate-100 p-1">
             <button
               onClick={() => { setIsLogin(true); setError(''); setPendingOAuthUser(null); }}
-              className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-colors ${
-                isLogin ? 'bg-white text-[#D84315] shadow-sm' : 'text-[#795548] hover:text-[#4E342E]'
+              className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all ${
+                isLogin ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
               }`}
             >
               로그인
             </button>
             <button
               onClick={() => { setIsLogin(false); setError(''); }}
-              className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-colors ${
-                !isLogin ? 'bg-white text-[#D84315] shadow-sm' : 'text-[#795548] hover:text-[#4E342E]'
+              className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all ${
+                !isLogin ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
               }`}
             >
               회원가입
@@ -452,64 +491,64 @@ export default function CustomerLogin() {
             {!isLogin && (
               <>
                 <div>
-                  <label className="block text-sm font-bold text-[#5D4037] mb-2">이름 (닉네임)</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">이름 (닉네임)</label>
                   <input
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="block w-full px-4 py-4 bg-white border border-[#E7E0D7] rounded-xl text-[#4E342E] placeholder-[#A1887F] focus:ring-2 focus:ring-[#D84315] focus:border-transparent transition-all font-medium text-lg"
+                    className="block w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-base"
                     placeholder="홍길동"
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-bold text-[#5D4037] mb-2">포항 거주 여부</label>
-                  <div className="flex gap-4">
-                    <label className="flex-1 flex items-center justify-center p-4 border border-[#E7E0D7] rounded-xl cursor-pointer hover:bg-[#FFF3E0] transition-colors">
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">포항 거주 여부</label>
+                  <div className="flex gap-3">
+                    <label className={`flex-1 flex items-center justify-center p-3.5 border rounded-xl cursor-pointer transition-colors ${isPohangResident === true ? 'border-indigo-600 bg-indigo-50' : 'border-slate-200 bg-slate-50 hover:bg-slate-100'}`}>
                       <input
                         type="radio"
                         name="pohang"
                         checked={isPohangResident === true}
                         onChange={() => setIsPohangResident(true)}
-                        className="w-4 h-4 text-[#D84315] border-gray-300 focus:ring-[#D84315]"
+                        className="sr-only"
                       />
-                      <span className="ml-2 text-[#4E342E] font-bold">포항 거주</span>
+                      <span className={`font-semibold text-sm ${isPohangResident === true ? 'text-indigo-700' : 'text-slate-600'}`}>포항 거주</span>
                     </label>
-                    <label className="flex-1 flex items-center justify-center p-4 border border-[#E7E0D7] rounded-xl cursor-pointer hover:bg-[#FFF3E0] transition-colors">
+                    <label className={`flex-1 flex items-center justify-center p-3.5 border rounded-xl cursor-pointer transition-colors ${isPohangResident === false ? 'border-indigo-600 bg-indigo-50' : 'border-slate-200 bg-slate-50 hover:bg-slate-100'}`}>
                       <input
                         type="radio"
                         name="pohang"
                         checked={isPohangResident === false}
                         onChange={() => setIsPohangResident(false)}
-                        className="w-4 h-4 text-[#D84315] border-gray-300 focus:ring-[#D84315]"
+                        className="sr-only"
                       />
-                      <span className="ml-2 text-[#4E342E] font-bold">타지역 거주</span>
+                      <span className={`font-semibold text-sm ${isPohangResident === false ? 'text-indigo-700' : 'text-slate-600'}`}>타지역 거주</span>
                     </label>
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-[#5D4037] mb-2">성별</label>
-                  <div className="flex gap-4">
-                    <label className="flex-1 flex items-center justify-center p-4 border border-[#E7E0D7] rounded-xl cursor-pointer hover:bg-[#FFF3E0] transition-colors">
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">성별</label>
+                  <div className="flex gap-3">
+                    <label className={`flex-1 flex items-center justify-center p-3.5 border rounded-xl cursor-pointer transition-colors ${gender === 'male' ? 'border-indigo-600 bg-indigo-50' : 'border-slate-200 bg-slate-50 hover:bg-slate-100'}`}>
                       <input
                         type="radio"
                         name="gender"
                         checked={gender === 'male'}
                         onChange={() => setGender('male')}
-                        className="w-4 h-4 text-[#D84315] border-gray-300 focus:ring-[#D84315]"
+                        className="sr-only"
                       />
-                      <span className="ml-2 text-[#4E342E] font-bold">남성</span>
+                      <span className={`font-semibold text-sm ${gender === 'male' ? 'text-indigo-700' : 'text-slate-600'}`}>남성</span>
                     </label>
-                    <label className="flex-1 flex items-center justify-center p-4 border border-[#E7E0D7] rounded-xl cursor-pointer hover:bg-[#FFF3E0] transition-colors">
+                    <label className={`flex-1 flex items-center justify-center p-3.5 border rounded-xl cursor-pointer transition-colors ${gender === 'female' ? 'border-indigo-600 bg-indigo-50' : 'border-slate-200 bg-slate-50 hover:bg-slate-100'}`}>
                       <input
                         type="radio"
                         name="gender"
                         checked={gender === 'female'}
                         onChange={() => setGender('female')}
-                        className="w-4 h-4 text-[#D84315] border-gray-300 focus:ring-[#D84315]"
+                        className="sr-only"
                       />
-                      <span className="ml-2 text-[#4E342E] font-bold">여성</span>
+                      <span className={`font-semibold text-sm ${gender === 'female' ? 'text-indigo-700' : 'text-slate-600'}`}>여성</span>
                     </label>
                   </div>
                 </div>
@@ -517,16 +556,16 @@ export default function CustomerLogin() {
             )}
 
             <div>
-              <label className="block text-sm font-bold text-[#5D4037] mb-2">휴대전화 번호</label>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">휴대전화 번호</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Phone className="h-5 w-5 text-[#A1887F]" />
+                  <Phone className="h-5 w-5 text-slate-400" />
                 </div>
                 <input
                   type="tel"
                   value={phone}
                   onChange={(e) => setPhone(formatPhoneNumber(e.target.value))}
-                  className="block w-full pl-11 pr-4 py-4 bg-white border border-[#E7E0D7] rounded-xl text-[#4E342E] placeholder-[#A1887F] focus:ring-2 focus:ring-[#D84315] focus:border-transparent transition-all font-medium text-lg"
+                  className="block w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-base"
                   placeholder="010-0000-0000"
                   maxLength={13}
                 />
@@ -536,9 +575,9 @@ export default function CustomerLogin() {
             <button 
               type="submit"
               disabled={isLoading || phone.replace(/[^0-9]/g, '').length < 10 || (!isLogin && (!name || isPohangResident === null || gender === null))}
-              className="w-full bg-[#D84315] hover:bg-[#BF360C] disabled:bg-[#FFCCBC] text-white font-bold py-4 rounded-xl transition-colors text-lg flex items-center justify-center shadow-sm"
+              className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-semibold py-3.5 rounded-xl transition-colors text-base flex items-center justify-center shadow-sm shadow-indigo-200 mt-2"
             >
-              {isLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : (isLogin ? '전화번호로 시작하기' : (pendingOAuthUser ? `${pendingOAuthUser.provider} 계정으로 가입 완료` : '회원가입 완료'))}
+              {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : (isLogin ? '전화번호로 시작하기' : (pendingOAuthUser ? `${pendingOAuthUser.provider} 계정으로 가입 완료` : '회원가입 완료'))}
             </button>
           </form>
 
@@ -546,10 +585,10 @@ export default function CustomerLogin() {
             <>
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-[#E7E0D7]"></div>
+                  <div className="w-full border-t border-slate-200"></div>
                 </div>
                 <div className="relative flex justify-center text-sm">
-                  <span className="px-4 bg-white text-[#A1887F] font-medium">또는</span>
+                  <span className="px-4 bg-white text-slate-400 font-medium">또는</span>
                 </div>
               </div>
 
@@ -558,11 +597,11 @@ export default function CustomerLogin() {
                   type="button"
                   onClick={handleGoogleLogin}
                   disabled={isLoading}
-                  className="w-full bg-white hover:bg-gray-50 border border-[#E7E0D7] disabled:bg-gray-100 text-[#4E342E] font-bold py-3.5 rounded-xl transition-colors text-lg flex items-center justify-center shadow-sm"
+                  className="w-full bg-white hover:bg-slate-50 border border-slate-200 disabled:bg-slate-50 text-slate-700 font-semibold py-3.5 rounded-xl transition-colors text-base flex items-center justify-center shadow-sm"
                 >
-                  {isLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : (
+                  {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : (
                     <>
-                      <svg className="w-6 h-6 mr-2" viewBox="0 0 24 24">
+                      <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
                         <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
                         <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
                         <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
@@ -577,9 +616,9 @@ export default function CustomerLogin() {
                   type="button"
                   onClick={() => handleOAuthLogin('kakao')}
                   disabled={isLoading}
-                  className="w-full bg-[#FEE500] hover:bg-[#E5CE00] disabled:bg-[#FEE500]/50 text-[#000000] font-bold py-3.5 rounded-xl transition-colors text-lg flex items-center justify-center shadow-sm"
+                  className="w-full bg-[#FEE500] hover:bg-[#E5CE00] disabled:bg-[#FEE500]/50 text-[#000000] font-semibold py-3.5 rounded-xl transition-colors text-base flex items-center justify-center shadow-sm"
                 >
-                  <svg className="w-6 h-6 mr-2" viewBox="0 0 24 24" fill="currentColor">
+                  <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12 3c-5.523 0-10 3.538-10 7.9 0 2.834 1.88 5.32 4.686 6.722-.296 1.092-1.076 3.978-1.096 4.056-.026.104.032.208.13.236.076.022.158.006.216-.042 0 0 3.43-2.316 4.88-3.32.386.054.786.082 1.184.082 5.523 0 10-3.538 10-7.9C22 6.538 17.523 3 12 3z"/>
                   </svg>
                   카카오로 시작하기
@@ -589,9 +628,9 @@ export default function CustomerLogin() {
                   type="button"
                   onClick={() => handleOAuthLogin('naver')}
                   disabled={isLoading}
-                  className="w-full bg-[#03C75A] hover:bg-[#02B350] disabled:bg-[#03C75A]/50 text-white font-bold py-3.5 rounded-xl transition-colors text-lg flex items-center justify-center shadow-sm"
+                  className="w-full bg-[#03C75A] hover:bg-[#02B350] disabled:bg-[#03C75A]/50 text-white font-semibold py-3.5 rounded-xl transition-colors text-base flex items-center justify-center shadow-sm"
                 >
-                  <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
+                  <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M16.273 12.845L7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727v12.845z"/>
                   </svg>
                   네이버로 시작하기

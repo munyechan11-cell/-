@@ -40,13 +40,13 @@ export class ErrorBoundary extends React.Component<Props, State> {
       }
 
       return (
-        <div className="min-h-screen bg-[#F5F2EB] flex flex-col items-center justify-center p-4">
-          <div className="bg-white p-8 rounded-2xl shadow-sm border border-[#E7E0D7] max-w-md w-full text-center">
+        <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
+          <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 max-w-md w-full text-center">
             <h2 className="text-2xl font-bold text-red-600 mb-4">오류가 발생했습니다</h2>
-            <p className="text-[#795548] mb-6">{errorMessage}</p>
+            <p className="text-slate-500 mb-6">{errorMessage}</p>
             <button
               onClick={() => window.location.reload()}
-              className="bg-[#D84315] text-white px-6 py-3 rounded-xl font-bold hover:bg-[#BF360C] transition-colors"
+              className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 transition-colors shadow-sm"
             >
               새로고침
             </button>

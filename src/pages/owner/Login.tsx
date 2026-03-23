@@ -136,6 +136,23 @@ export default function OwnerLogin() {
   const popupTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
+    const processToken = async (token: string, provider: string) => {
+      if (popupTimerRef.current) {
+        clearInterval(popupTimerRef.current);
+        popupTimerRef.current = null;
+      }
+      try {
+        setIsLoading(true);
+        const result = await signInWithCustomToken(auth, token);
+        const providerName = provider === 'kakao' ? '카카오' : '네이버';
+        await processOAuthUser(result.user, providerName);
+      } catch (err: any) {
+        console.error(err);
+        setError(`로그인 처리 중 오류가 발생했습니다: ${err.message}`);
+        setIsLoading(false);
+      }
+    };
+
     const handleMessage = async (event: MessageEvent) => {
       const allowedOrigins = [window.location.origin, 'http://localhost:3000', 'http://localhost:5173'];
       if (!allowedOrigins.includes(event.origin) && !event.origin.endsWith('.run.app') && !event.origin.endsWith('.onrender.com')) {
@@ -143,20 +160,7 @@ export default function OwnerLogin() {
       }
       
       if (event.data?.type === 'OAUTH_AUTH_SUCCESS' && event.data?.token) {
-        if (popupTimerRef.current) {
-          clearInterval(popupTimerRef.current);
-          popupTimerRef.current = null;
-        }
-        try {
-          setIsLoading(true);
-          const result = await signInWithCustomToken(auth, event.data.token);
-          const providerName = event.data.provider === 'kakao' ? '카카오' : '네이버';
-          await processOAuthUser(result.user, providerName);
-        } catch (err: any) {
-          console.error(err);
-          setError(`로그인 처리 중 오류가 발생했습니다: ${err.message}`);
-          setIsLoading(false);
-        }
+        await processToken(event.data.token, event.data.provider);
       } else if (event.data?.type === 'OAUTH_AUTH_ERROR') {
         if (popupTimerRef.current) {
           clearInterval(popupTimerRef.current);
@@ -166,8 +170,43 @@ export default function OwnerLogin() {
         setIsLoading(false);
       }
     };
+
+    const handleStorage = async (event: StorageEvent) => {
+      if (event.key === 'oauth_token_data' && event.newValue) {
+        try {
+          const data = JSON.parse(event.newValue);
+          if (data.type === 'OAUTH_AUTH_SUCCESS' && data.token) {
+            localStorage.removeItem('oauth_token_data');
+            await processToken(data.token, data.provider);
+          }
+        } catch (e) {
+          console.error('Failed to parse oauth_token_data', e);
+        }
+      }
+    };
+
     window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
+    window.addEventListener('storage', handleStorage);
+    
+    // Check if there's already a token in localStorage (e.g., if the page was reloaded)
+    const existingToken = localStorage.getItem('oauth_token_data');
+    if (existingToken) {
+      try {
+        const data = JSON.parse(existingToken);
+        // Only process if it's recent (within 5 minutes)
+        if (data.type === 'OAUTH_AUTH_SUCCESS' && data.token && data.timestamp && Date.now() - data.timestamp < 5 * 60 * 1000) {
+          localStorage.removeItem('oauth_token_data');
+          processToken(data.token, data.provider);
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      window.removeEventListener('storage', handleStorage);
+    };
   }, [isLogin, phone, name, restaurantName, users, login, navigate]);
 
   const handleOAuthLogin = async (provider: 'kakao' | 'naver') => {
@@ -305,54 +344,54 @@ export default function OwnerLogin() {
   };
 
   return (
-    <div className="min-h-full bg-transparent flex flex-col items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white/90 backdrop-blur-sm rounded-3xl shadow-[0_4px_20px_rgba(78,52,46,0.08)] border border-[#E7E0D7] overflow-hidden relative">
+    <div className="min-h-full bg-slate-50 flex flex-col items-center justify-center p-4">
+      <div className="max-w-md w-full bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden relative">
         <Link 
           to="/" 
-          className="absolute top-4 left-4 p-2 bg-transparent hover:bg-[#EFEBE9] rounded-full text-[#4E342E] transition-colors z-10"
+          className="absolute top-4 left-4 p-2 hover:bg-slate-100 rounded-full text-slate-600 transition-colors z-10"
         >
           <ArrowLeft className="w-6 h-6" />
         </Link>
         
-        <div className="bg-transparent p-8 pt-12 text-center">
-          <div className="w-20 h-20 rounded-full bg-[#EFEBE9] flex items-center justify-center mx-auto mb-4 shadow-sm border border-[#D7CCC8]">
-            <Store className="w-10 h-10 text-[#4E342E]" />
+        <div className="p-8 pt-12 text-center">
+          <div className="w-20 h-20 rounded-full bg-indigo-50 flex items-center justify-center mx-auto mb-4">
+            <Store className="w-10 h-10 text-indigo-600" />
           </div>
-          <h1 className="text-3xl font-black text-[#2D1B15] tracking-tight">
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
             {pendingOAuthUser ? `${pendingOAuthUser.provider} 회원가입` : (!isLogin && restaurantName ? restaurantName : '사장님 서비스')}
           </h1>
-          <p className="text-[#795548] mt-2 font-medium">단골 관리 파트너</p>
+          <p className="text-slate-500 mt-2 text-sm">단골 관리 파트너</p>
         </div>
         
-        <div className="flex border-b border-[#E7E0D7]">
+        <div className="flex border-b border-slate-100 px-8">
           <button 
-            className={`flex-1 py-4 font-bold text-sm transition-colors ${isLogin ? 'text-[#2D1B15] border-b-2 border-[#4E342E]' : 'text-[#A1887F] hover:text-[#5D4037]'}`}
+            className={`flex-1 py-4 font-semibold text-sm transition-colors ${isLogin ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
             onClick={() => { setIsLogin(true); setError(''); setPendingOAuthUser(null); }}
           >
             로그인
           </button>
           <button 
-            className={`flex-1 py-4 font-bold text-sm transition-colors ${!isLogin ? 'text-[#2D1B15] border-b-2 border-[#4E342E]' : 'text-[#A1887F] hover:text-[#5D4037]'}`}
+            className={`flex-1 py-4 font-semibold text-sm transition-colors ${!isLogin ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
             onClick={() => { setIsLogin(false); setError(''); }}
           >
             회원가입
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-8 space-y-6">
+        <form onSubmit={handleSubmit} className="p-8 space-y-5">
           {error && (
-            <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm font-bold text-center">
+            <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm font-medium text-center border border-red-100">
               {error}
             </div>
           )}
           <div>
-            <label className="block text-sm font-bold text-[#4E342E] mb-2">전화번호</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-2">전화번호</label>
             <input 
               type="tel" 
               value={phone}
               onChange={(e) => setPhone(formatPhoneNumber(e.target.value))}
               placeholder="010-0000-0000"
-              className="w-full px-4 py-3 rounded-xl border-2 border-[#E7E0D7] focus:border-[#4E342E] focus:ring-0 transition-colors"
+              className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-base"
               required
               disabled={isLoading}
             />
@@ -361,26 +400,26 @@ export default function OwnerLogin() {
           {!isLogin && (
             <>
               <div>
-                <label className="block text-sm font-bold text-[#4E342E] mb-2">성함</label>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">성함</label>
                 <input 
                   type="text" 
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="홍길동"
-                  className="w-full px-4 py-3 rounded-xl border-2 border-[#E7E0D7] focus:border-[#4E342E] focus:ring-0 transition-colors"
+                  className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-base"
                   required={!isLogin}
                   disabled={isLoading}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-[#4E342E] mb-2">가게 이름</label>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">가게 이름</label>
                 <input 
                   type="text" 
                   value={restaurantName}
                   onChange={(e) => setRestaurantName(e.target.value)}
                   placeholder="연심"
-                  className="w-full px-4 py-3 rounded-xl border-2 border-[#E7E0D7] focus:border-[#4E342E] focus:ring-0 transition-colors"
+                  className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-base"
                   required={!isLogin}
                   disabled={isLoading}
                 />
@@ -391,17 +430,17 @@ export default function OwnerLogin() {
           <button 
             type="submit"
             disabled={isLoading || phone.replace(/[^0-9]/g, '').length < 10 || (!isLogin && (!name || !restaurantName))}
-            className="w-full bg-[#4E342E] hover:bg-[#3E2723] disabled:bg-[#4E342E]/70 text-white font-bold py-4 rounded-xl transition-colors text-lg flex items-center justify-center"
+            className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-semibold py-3.5 rounded-xl transition-colors text-base flex items-center justify-center shadow-sm shadow-indigo-200 mt-2"
           >
-            {isLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : (isLogin ? '로그인' : (pendingOAuthUser ? `${pendingOAuthUser.provider} 계정으로 가입 완료` : '회원가입 및 시작하기'))}
+            {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : (isLogin ? '로그인' : (pendingOAuthUser ? `${pendingOAuthUser.provider} 계정으로 가입 완료` : '회원가입 및 시작하기'))}
           </button>
           
           {!pendingOAuthUser && (
             <>
               <div className="relative flex items-center py-2">
-                <div className="flex-grow border-t border-[#E7E0D7]"></div>
-                <span className="flex-shrink-0 mx-4 text-[#A1887F] text-sm font-medium">또는</span>
-                <div className="flex-grow border-t border-[#E7E0D7]"></div>
+                <div className="flex-grow border-t border-slate-200"></div>
+                <span className="flex-shrink-0 mx-4 text-slate-400 text-sm font-medium">또는</span>
+                <div className="flex-grow border-t border-slate-200"></div>
               </div>
               
               <div className="space-y-3">
@@ -409,9 +448,9 @@ export default function OwnerLogin() {
                   type="button"
                   onClick={handleGoogleLogin}
                   disabled={isLoading}
-                  className="w-full bg-white hover:bg-gray-50 border border-[#E7E0D7] disabled:bg-gray-100 text-[#4E342E] font-bold py-3.5 rounded-xl transition-colors text-lg flex items-center justify-center"
+                  className="w-full bg-white hover:bg-slate-50 border border-slate-200 disabled:bg-slate-50 text-slate-700 font-semibold py-3.5 rounded-xl transition-colors text-base flex items-center justify-center shadow-sm"
                 >
-                  <svg className="w-6 h-6 mr-2" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
                     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
                     <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
                     <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
@@ -424,9 +463,9 @@ export default function OwnerLogin() {
                   type="button"
                   onClick={() => handleOAuthLogin('kakao')}
                   disabled={isLoading}
-                  className="w-full bg-[#FEE500] hover:bg-[#E5CE00] disabled:bg-[#FEE500]/50 text-[#000000] font-bold py-3.5 rounded-xl transition-colors text-lg flex items-center justify-center shadow-sm"
+                  className="w-full bg-[#FEE500] hover:bg-[#E5CE00] disabled:bg-[#FEE500]/50 text-[#000000] font-semibold py-3.5 rounded-xl transition-colors text-base flex items-center justify-center shadow-sm"
                 >
-                  <svg className="w-6 h-6 mr-2" viewBox="0 0 24 24" fill="currentColor">
+                  <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12 3c-5.523 0-10 3.538-10 7.9 0 2.834 1.88 5.32 4.686 6.722-.296 1.092-1.076 3.978-1.096 4.056-.026.104.032.208.13.236.076.022.158.006.216-.042 0 0 3.43-2.316 4.88-3.32.386.054.786.082 1.184.082 5.523 0 10-3.538 10-7.9C22 6.538 17.523 3 12 3z"/>
                   </svg>
                   카카오로 {isLogin ? '로그인' : '회원가입'}
@@ -436,9 +475,9 @@ export default function OwnerLogin() {
                   type="button"
                   onClick={() => handleOAuthLogin('naver')}
                   disabled={isLoading}
-                  className="w-full bg-[#03C75A] hover:bg-[#02B350] disabled:bg-[#03C75A]/50 text-white font-bold py-3.5 rounded-xl transition-colors text-lg flex items-center justify-center shadow-sm"
+                  className="w-full bg-[#03C75A] hover:bg-[#02B350] disabled:bg-[#03C75A]/50 text-white font-semibold py-3.5 rounded-xl transition-colors text-base flex items-center justify-center shadow-sm"
                 >
-                  <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
+                  <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M16.273 12.845L7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727v12.845z"/>
                   </svg>
                   네이버로 {isLogin ? '로그인' : '회원가입'}

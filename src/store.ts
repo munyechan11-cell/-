@@ -762,7 +762,7 @@ export const getTierColor = (tier: string) => {
     case '골드': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
     case '실버': return 'bg-gray-200 text-gray-800 border-gray-300';
     case '브론즈': return 'bg-orange-100 text-orange-800 border-orange-200';
-    default: return 'bg-[#FFF3E0] text-[#D84315] border-[#FFE0B2]'; // 일반
+    default: return 'bg-slate-100 text-slate-700 border-slate-200'; // 일반
   }
 };
 

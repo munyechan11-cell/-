@@ -1,16 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useStore } from './store';
-import CustomerLogin from './pages/customer/Login';
-import CustomerDashboard from './pages/customer/Dashboard';
-import CustomerScanner from './pages/customer/Scanner';
-import TableEntry from './pages/customer/TableEntry';
-import OwnerLogin from './pages/owner/Login';
-import OwnerDashboard from './pages/owner/Dashboard';
-import OwnerCustomers from './pages/owner/Customers';
-import Home from './pages/Home';
-import Master from './pages/Master';
-import { CheckCircle2, AlertCircle, Info } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Info, Loader2 } from 'lucide-react';
+
+// Lazy load pages for better performance
+const CustomerLogin = lazy(() => import('./pages/customer/Login'));
+const CustomerDashboard = lazy(() => import('./pages/customer/Dashboard'));
+const CustomerScanner = lazy(() => import('./pages/customer/Scanner'));
+const TableEntry = lazy(() => import('./pages/customer/TableEntry'));
+const OwnerLogin = lazy(() => import('./pages/owner/Login'));
+const OwnerDashboard = lazy(() => import('./pages/owner/Dashboard'));
+const OwnerCustomers = lazy(() => import('./pages/owner/Customers'));
+const Home = lazy(() => import('./pages/Home'));
+const Master = lazy(() => import('./pages/Master'));
 
 function Toast() {
   const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' | 'info', id: number } | null>(null);
@@ -79,24 +81,33 @@ function PrivateRoute({ children, role }: { children: React.ReactNode, role: 'cu
   return <>{children}</>;
 }
 
+function PageLoader() {
+  return (
+    <div className="min-h-full flex flex-col items-center justify-center p-4 text-center">
+      <Loader2 className="w-8 h-8 text-indigo-600 animate-spin mb-4" />
+      <p className="text-slate-500 font-medium text-sm">페이지를 불러오는 중...</p>
+    </div>
+  );
+}
+
 export default function App() {
   const { isReady, firebaseStatus, firebaseError } = useStore();
 
   if (!isReady) {
     return (
-      <div className="min-h-screen hanji-bg flex flex-col items-center justify-center p-4 text-center">
-        <p className="text-[#795548] font-bold text-xl mb-4">서버와 연결 중...</p>
-        <div className="w-8 h-8 border-4 border-[#D84315] border-t-transparent rounded-full animate-spin"></div>
+      <div className="min-h-screen modern-bg flex flex-col items-center justify-center p-4 text-center">
+        <p className="text-slate-600 font-semibold text-xl mb-4">서버와 연결 중...</p>
+        <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
 
   if (firebaseStatus === 'error' || firebaseStatus === 'offline') {
     return (
-      <div className="min-h-screen hanji-bg flex flex-col items-center justify-center p-6 text-center">
-        <div className="bg-white p-8 rounded-3xl shadow-lg max-w-md w-full border-2 border-red-500">
-          <h2 className="text-2xl font-black text-red-600 mb-4">🚨 서버 연결 실패 🚨</h2>
-          <p className="text-[#795548] font-bold mb-4">
+      <div className="min-h-screen modern-bg flex flex-col items-center justify-center p-6 text-center">
+        <div className="bg-white p-8 rounded-3xl shadow-xl max-w-md w-full border border-red-100">
+          <h2 className="text-2xl font-bold text-red-600 mb-4">서버 연결 실패</h2>
+          <p className="text-slate-600 font-medium mb-4">
             현재 오프라인 모드(기기 내부 저장소)로 작동하려고 합니다.<br/>
             온라인 연동이 되지 않는 상태입니다.
           </p>
@@ -140,43 +151,45 @@ export default function App() {
 
   return (
     <Router>
-      <div className="min-h-screen hanji-bg flex justify-center">
+      <div className="min-h-screen modern-bg flex justify-center items-center md:p-6 lg:p-8">
         <Toast />
-        <div className="w-full max-w-md md:max-w-2xl lg:max-w-4xl xl:max-w-5xl min-h-screen overflow-hidden relative flex flex-col bg-white/30 backdrop-blur-sm shadow-2xl">
+        <div className="w-full max-w-md md:max-w-3xl lg:max-w-5xl xl:max-w-6xl min-h-screen md:min-h-[calc(100vh-3rem)] lg:min-h-[calc(100vh-4rem)] overflow-hidden relative flex flex-col bg-white shadow-2xl md:rounded-[2.5rem] border-0 md:border border-slate-200">
           <div className="flex-1 overflow-y-auto no-scrollbar w-full h-full relative pt-safe pb-safe">
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/master" element={<Master />} />
-              
-              {/* Customer Routes */}
-              <Route path="/scan" element={<CustomerScanner />} />
-              <Route path="/customer/login" element={<CustomerLogin />} />
-              <Route path="/customer/store/:storeId/login" element={<CustomerLogin />} />
-              <Route path="/customer/store/:storeId/table/:tableNumber" element={<TableEntry />} />
-              <Route path="/customer" element={
-                <PrivateRoute role="customer">
-                  <CustomerDashboard />
-                </PrivateRoute>
-              } />
-              <Route path="/customer/store/:storeId" element={
-                <PrivateRoute role="customer">
-                  <CustomerDashboard />
-                </PrivateRoute>
-              } />
+            <Suspense fallback={<PageLoader />}>
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/master" element={<Master />} />
+                
+                {/* Customer Routes */}
+                <Route path="/scan" element={<CustomerScanner />} />
+                <Route path="/customer/login" element={<CustomerLogin />} />
+                <Route path="/customer/store/:storeId/login" element={<CustomerLogin />} />
+                <Route path="/customer/store/:storeId/table/:tableNumber" element={<TableEntry />} />
+                <Route path="/customer" element={
+                  <PrivateRoute role="customer">
+                    <CustomerDashboard />
+                  </PrivateRoute>
+                } />
+                <Route path="/customer/store/:storeId" element={
+                  <PrivateRoute role="customer">
+                    <CustomerDashboard />
+                  </PrivateRoute>
+                } />
 
-              {/* Owner Routes */}
-              <Route path="/owner/login" element={<OwnerLogin />} />
-              <Route path="/owner" element={
-                <PrivateRoute role="owner">
-                  <OwnerDashboard />
-                </PrivateRoute>
-              } />
-              <Route path="/owner/customers" element={
-                <PrivateRoute role="owner">
-                  <OwnerCustomers />
-                </PrivateRoute>
-              } />
-            </Routes>
+                {/* Owner Routes */}
+                <Route path="/owner/login" element={<OwnerLogin />} />
+                <Route path="/owner" element={
+                  <PrivateRoute role="owner">
+                    <OwnerDashboard />
+                  </PrivateRoute>
+                } />
+                <Route path="/owner/customers" element={
+                  <PrivateRoute role="owner">
+                    <OwnerCustomers />
+                  </PrivateRoute>
+                } />
+              </Routes>
+            </Suspense>
           </div>
         </div>
       </div>

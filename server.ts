@@ -110,12 +110,27 @@ app.get('/api/auth/kakao/callback', async (req, res) => {
     
     res.send(`
       <html><body><script>
-        if (window.opener) {
-          window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS', token: '${customToken}', provider: 'kakao' }, '*');
-          window.close();
-        } else {
-          window.location.href = '/';
+        const tokenData = { type: 'OAUTH_AUTH_SUCCESS', token: '${customToken}', provider: 'kakao', timestamp: Date.now() };
+        
+        // 1. Try postMessage
+        if (window.opener && !window.opener.closed) {
+          window.opener.postMessage(tokenData, '*');
         }
+        
+        // 2. Write to localStorage for cross-tab communication (fallback)
+        try {
+          localStorage.setItem('oauth_token_data', JSON.stringify(tokenData));
+        } catch (e) {
+          console.error('localStorage error', e);
+        }
+        
+        // 3. Try to close the window
+        window.close();
+        
+        // 4. If window didn't close (e.g. mobile Safari), show message
+        setTimeout(() => {
+          document.body.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;text-align:center;padding:20px;"><div><h2 style="color:#4CAF50;margin-bottom:10px;">로그인 성공!</h2><p style="color:#666;margin-bottom:20px;">원래 화면으로 돌아가주세요.<br>이 창은 닫으셔도 됩니다.</p><button onclick="window.close()" style="padding:10px 20px;background:#4CAF50;color:white;border:none;border-radius:5px;font-size:16px;cursor:pointer;">창 닫기</button></div></div>';
+        }, 500);
       </script></body></html>
     `);
   } catch (err: any) {
@@ -192,12 +207,27 @@ app.get('/api/auth/naver/callback', async (req, res) => {
     
     res.send(`
       <html><body><script>
-        if (window.opener) {
-          window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS', token: '${customToken}', provider: 'naver' }, '*');
-          window.close();
-        } else {
-          window.location.href = '/';
+        const tokenData = { type: 'OAUTH_AUTH_SUCCESS', token: '${customToken}', provider: 'naver', timestamp: Date.now() };
+        
+        // 1. Try postMessage
+        if (window.opener && !window.opener.closed) {
+          window.opener.postMessage(tokenData, '*');
         }
+        
+        // 2. Write to localStorage for cross-tab communication (fallback)
+        try {
+          localStorage.setItem('oauth_token_data', JSON.stringify(tokenData));
+        } catch (e) {
+          console.error('localStorage error', e);
+        }
+        
+        // 3. Try to close the window
+        window.close();
+        
+        // 4. If window didn't close (e.g. mobile Safari), show message
+        setTimeout(() => {
+          document.body.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;text-align:center;padding:20px;"><div><h2 style="color:#03C75A;margin-bottom:10px;">로그인 성공!</h2><p style="color:#666;margin-bottom:20px;">원래 화면으로 돌아가주세요.<br>이 창은 닫으셔도 됩니다.</p><button onclick="window.close()" style="padding:10px 20px;background:#03C75A;color:white;border:none;border-radius:5px;font-size:16px;cursor:pointer;">창 닫기</button></div></div>';
+        }, 500);
       </script></body></html>
     `);
   } catch (err: any) {
