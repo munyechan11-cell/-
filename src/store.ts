@@ -15,6 +15,7 @@ export interface User {
   socialIds?: string[];
   isPohangResident?: boolean;
   gender?: 'male' | 'female';
+  memo?: string;
 }
 
 export interface Visit {
@@ -703,6 +704,16 @@ export const useStore = () => {
     });
   };
 
+  const updateUserMemo = (userId: string, storeId: string, memo: string) => {
+    runGlobalTransaction((currentState) => {
+      const currentUsers = currentState.users || [];
+      const newUsers = currentUsers.map(u => 
+        u.id === userId && u.storeId === storeId ? { ...u, memo } : u
+      );
+      return { users: newUsers };
+    });
+  };
+
   return {
     isReady,
     firebaseStatus,
@@ -729,6 +740,7 @@ export const useStore = () => {
     setCustomerTier,
     setMasterPassword,
     deleteUser,
+    updateUserMemo,
   };
 };
 

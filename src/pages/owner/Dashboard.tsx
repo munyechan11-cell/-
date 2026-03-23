@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useStore, getEffectiveTier, getTierColor } from '../../store';
-import { Users, LayoutGrid, LogOut, X, Check, Bell } from 'lucide-react';
+import { Users, LayoutGrid, LogOut, X, Check, Bell, BarChart3 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 
@@ -213,6 +213,10 @@ export default function OwnerDashboard() {
         <Link to="/owner/customers" className="flex flex-col items-center text-slate-400 hover:text-slate-900 transition-colors">
           <Users className="w-6 h-6 mb-1" />
           <span className="text-xs font-bold">고객관리</span>
+        </Link>
+        <Link to="/owner/statistics" className="flex flex-col items-center text-slate-400 hover:text-slate-900 transition-colors">
+          <BarChart3 className="w-6 h-6 mb-1" />
+          <span className="text-xs font-bold">통계</span>
         </Link>
       </div>
 

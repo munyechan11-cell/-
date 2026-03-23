@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useStore, getEffectiveTier, getTierColor, getCustomerTier } from '../../store';
-import { Users, LayoutGrid, Search, Send, X, MessageSquare, Ticket, History, Loader2, CheckSquare, Square, Download, ChevronDown } from 'lucide-react';
+import { Users, LayoutGrid, Search, Send, X, MessageSquare, Ticket, History, Loader2, CheckSquare, Square, Download, ChevronDown, BarChart3 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export default function OwnerCustomers() {
@@ -70,7 +70,7 @@ export default function OwnerCustomers() {
   };
 
   const filteredCustomers = customers.filter(c => 
-    c.name.includes(searchTerm) || c.phone.includes(searchTerm)
+    c.name.includes(searchTerm) || c.phone.includes(searchTerm) || (c.memo && c.memo.includes(searchTerm))
   );
 
   const [isSending, setIsSending] = useState(false);
@@ -324,7 +324,7 @@ export default function OwnerCustomers() {
                     </div>
                     
                     <div className="bg-slate-50 rounded-xl p-3 mt-3 flex justify-between items-center">
-                      <div className="flex flex-col space-y-1 text-xs text-slate-500">
+                      <div className="flex flex-col space-y-1 text-xs text-slate-500 w-full">
                         <div className="flex space-x-4">
                           <span>최근 30일: <strong className="text-slate-900">{stats.recentVisits}회</strong></span>
                           <span>마지막 방문: <strong className="text-slate-900">{stats.daysSinceLastVisit !== null ? `${stats.daysSinceLastVisit}일 전` : '없음'}</strong></span>
@@ -332,10 +332,31 @@ export default function OwnerCustomers() {
                         <div>
                           <span>월 평균 방문: <strong className="text-slate-900">{stats.frequencyPerMonth}회</strong></span>
                         </div>
+                        {customer.memo && (
+                          <div className="mt-2 text-slate-700 bg-white p-2 rounded border border-slate-100">
+                            <span className="font-bold text-slate-500 mr-1">메모:</span>
+                            {customer.memo}
+                          </div>
+                        )}
                       </div>
                       
                       {!isMultiSelectMode && (
                         <div className="flex space-x-1.5 shrink-0 ml-2">
+                          <button 
+                            onClick={(e) => { 
+                              e.stopPropagation(); 
+                              const newMemo = prompt('고객 메모를 입력하세요:', customer.memo || '');
+                              if (newMemo !== null) {
+                                import('../../store').then(({ useStore }) => {
+                                  useStore.getState().updateUserMemo(customer.id, currentUser.id, newMemo);
+                                });
+                              }
+                            }}
+                            className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
+                            title="메모 수정"
+                          >
+                            <MessageSquare className="w-4 h-4" />
+                          </button>
                           <button 
                             onClick={(e) => { e.stopPropagation(); setHistoryCustomer(customer.id); }}
                             className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
@@ -370,6 +391,10 @@ export default function OwnerCustomers() {
         <Link to="/owner/customers" className="flex flex-col items-center text-indigo-600">
           <Users className="w-6 h-6 mb-1" />
           <span className="text-xs font-bold">고객관리</span>
+        </Link>
+        <Link to="/owner/statistics" className="flex flex-col items-center text-slate-400 hover:text-slate-900 transition-colors">
+          <BarChart3 className="w-6 h-6 mb-1" />
+          <span className="text-xs font-bold">통계</span>
         </Link>
       </div>
 
