@@ -34,7 +34,7 @@ export default function Master() {
     setIsChangingPassword(false);
     setNewPassword('');
     setError('');
-    import('../store').then(({ showToast }) => showToast('비밀번호가 성공적으로 변경되었습니다.', 'success'));
+    import('../store').then(({ showToast }) => showToast('비밀번호가 성공적으로 변경되었습니다.', 'success')).catch(console.error);
   };
 
   const handleDeleteUser = (userId: string, role: 'owner' | 'customer', name: string) => {
@@ -377,7 +377,7 @@ export default function Master() {
               <button
                 onClick={() => {
                   deleteUser(deletingUser.id, deletingUser.role);
-                  import('../store').then(({ showToast }) => showToast('삭제되었습니다.', 'info'));
+                  import('../store').then(({ showToast }) => showToast('삭제되었습니다.', 'info')).catch(console.error);
                   setDeletingUser(null);
                 }}
                 className="flex-1 py-3 bg-red-500 text-white rounded-xl font-semibold hover:bg-red-600 transition-colors shadow-sm"

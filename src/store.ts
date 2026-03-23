@@ -214,7 +214,7 @@ export const showToast = (message: string, type: 'success' | 'error' | 'info' = 
 };
 
 export const runGlobalTransaction = (updater: (currentState: typeof globalState) => Partial<typeof globalState>): Promise<void> => {
-  return new Promise((resolve, reject) => {
+  return new Promise<void>((resolve, reject) => {
     // 1. Optimistic local update
     const localUpdates = updater(globalState);
     Object.assign(globalState, localUpdates);
@@ -276,7 +276,7 @@ export const runGlobalTransaction = (updater: (currentState: typeof globalState)
 };
 
 export const setGlobalStorage = <T>(key: string, value: T) => {
-  runGlobalTransaction(() => ({ [key]: value }));
+  runGlobalTransaction(() => ({ [key]: value })).catch(console.error);
 };
 
 export const useStore = () => {
@@ -415,7 +415,7 @@ export const useStore = () => {
       }
       
       return updates;
-    });
+    }).catch(console.error);
 
     if (loggedInUser) {
       setLocalStorage('currentUser', loggedInUser);
@@ -487,7 +487,7 @@ export const useStore = () => {
       return updates;
     }).then(() => {
       showToast('방문이 기록되었습니다.', 'success');
-    });
+    }).catch(console.error);
 
     if (shouldCheckCoupons) {
       setTimeout(() => checkAndIssueTierCoupons(customerId, storeId, finalVisits), 0);
@@ -505,7 +505,7 @@ export const useStore = () => {
       return { tables: newTables };
     }).then(() => {
       showToast('테이블에서 퇴장했습니다.', 'info');
-    });
+    }).catch(console.error);
   };
 
   const checkAndIssueTierCoupons = (customerId: string, storeId: string, allVisits: Visit[]) => {
@@ -533,6 +533,43 @@ export const useStore = () => {
     }
   };
 
+  const bulkIssueCoupon = (customerIds: string[], storeId: string, type: string, description: string) => {
+    const now = new Date().toISOString();
+    
+    runGlobalTransaction((currentState) => {
+      const currentCoupons = currentState.coupons || [];
+      const newCoupons = customerIds.map(customerId => ({
+        id: Math.random().toString(36).substring(2, 9),
+        customerId,
+        storeId,
+        type,
+        description,
+        status: 'available' as const,
+        issuedAt: now,
+      }));
+      return { coupons: [...currentCoupons, ...newCoupons] };
+    }).then(() => {
+      showToast(`${customerIds.length}명에게 쿠폰을 발급했습니다.`, 'success');
+    }).catch(console.error);
+  };
+
+  const bulkRecordCommunication = (customerIds: string[], storeId: string, type: 'coupon' | 'message', content: string) => {
+    const now = new Date().toISOString();
+    
+    runGlobalTransaction((currentState) => {
+      const currentComms = currentState.communications || [];
+      const newComms = customerIds.map(customerId => ({
+        id: Math.random().toString(36).substring(2, 9),
+        customerId,
+        storeId,
+        type,
+        content,
+        sentAt: now,
+      }));
+      return { communications: [...currentComms, ...newComms] };
+    }).catch(console.error);
+  };
+
   const issueCoupon = (customerId: string, storeId: string, type: string, description: string) => {
     const newCouponId = Math.random().toString(36).substring(2, 9);
     const now = new Date().toISOString();
@@ -551,7 +588,7 @@ export const useStore = () => {
       return { coupons: [...currentCoupons, newCoupon] };
     }).then(() => {
       showToast(`쿠폰 발급: ${description}`, 'success');
-    });
+    }).catch(console.error);
   };
 
   const recordCommunication = (customerId: string, storeId: string, type: 'coupon' | 'message', content: string) => {
@@ -583,7 +620,7 @@ export const useStore = () => {
       return { coupons: newCoupons };
     }).then(() => {
       showToast('사장님께 사용 요청을 보냈습니다.', 'success');
-    });
+    }).catch(console.error);
   };
 
   const cancelCouponRequest = (couponId: string) => {
@@ -597,7 +634,7 @@ export const useStore = () => {
       return { coupons: newCoupons };
     }).then(() => {
       showToast('쿠폰 사용 요청을 취소했습니다.', 'info');
-    });
+    }).catch(console.error);
   };
 
   const approveCouponUse = (couponId: string) => {
@@ -612,7 +649,7 @@ export const useStore = () => {
       return { coupons: newCoupons };
     }).then(() => {
       showToast('쿠폰 사용을 승인했습니다.', 'success');
-    });
+    }).catch(console.error);
   };
 
   const rejectCouponUse = (couponId: string) => {
@@ -626,7 +663,7 @@ export const useStore = () => {
       return { coupons: newCoupons };
     }).then(() => {
       showToast('쿠폰 사용을 거절했습니다.', 'info');
-    });
+    }).catch(console.error);
   };
 
   const initTables = (storeId: string) => {
@@ -741,6 +778,8 @@ export const useStore = () => {
     setMasterPassword,
     deleteUser,
     updateUserMemo,
+    bulkIssueCoupon,
+    bulkRecordCommunication
   };
 };
 

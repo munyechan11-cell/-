@@ -14,9 +14,8 @@ app.use(cors());
 app.use(express.json());
 
 // Helper to get base URL
-const getBaseUrl = (req: express.Request) => {
-  if (process.env.APP_URL) return process.env.APP_URL;
-  return `${req.protocol}://${req.get('host')}`;
+const getBaseUrl = () => {
+  return process.env.APP_URL || 'http://localhost:3000';
 };
 
 // Lazy initialize Firebase Admin
@@ -44,7 +43,7 @@ function getFirebaseAdmin() {
 
 // API Routes
 app.get('/api/auth/kakao/url', (req, res) => {
-  const redirectUri = `${getBaseUrl(req)}/api/auth/kakao/callback`;
+  const redirectUri = `${getBaseUrl()}/api/auth/kakao/callback`;
   const clientId = process.env.KAKAO_CLIENT_ID;
   if (!clientId) return res.status(500).json({ error: 'KAKAO_CLIENT_ID is not set' });
   
@@ -54,7 +53,7 @@ app.get('/api/auth/kakao/url', (req, res) => {
 
 app.get('/api/auth/kakao/callback', async (req, res) => {
   const { code } = req.query;
-  const redirectUri = `${getBaseUrl(req)}/api/auth/kakao/callback`;
+  const redirectUri = `${getBaseUrl()}/api/auth/kakao/callback`;
   const clientId = process.env.KAKAO_CLIENT_ID;
   
   try {
@@ -151,7 +150,7 @@ app.get('/api/auth/kakao/callback', async (req, res) => {
 
 // Naver URL
 app.get('/api/auth/naver/url', (req, res) => {
-  const redirectUri = `${getBaseUrl(req)}/api/auth/naver/callback`;
+  const redirectUri = `${getBaseUrl()}/api/auth/naver/callback`;
   const clientId = process.env.NAVER_CLIENT_ID;
   if (!clientId) return res.status(500).json({ error: 'NAVER_CLIENT_ID is not set' });
   

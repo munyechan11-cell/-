@@ -299,7 +299,7 @@ export default function CustomerDashboard() {
                     requestCouponUse(activeCoupon.id, currentTable.number);
                     setSelectedCoupon(null);
                   } else {
-                    import('../../store').then(({ showToast }) => showToast('테이블에 착석한 상태에서만 사용할 수 있습니다.', 'error'));
+                    import('../../store').then(({ showToast }) => showToast('테이블에 착석한 상태에서만 사용할 수 있습니다.', 'error')).catch(console.error);
                   }
                 }}
                 className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors shadow-sm"

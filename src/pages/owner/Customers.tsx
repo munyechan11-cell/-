@@ -4,7 +4,7 @@ import { Users, LayoutGrid, Search, Send, X, MessageSquare, Ticket, History, Loa
 import { Link } from 'react-router-dom';
 
 export default function OwnerCustomers() {
-  const { users, visits, issueCoupon, recordCommunication, communications, currentUser, tierOverrides, setCustomerTier } = useStore();
+  const { users, visits, issueCoupon, recordCommunication, communications, currentUser, tierOverrides, setCustomerTier, updateUserMemo, bulkIssueCoupon, bulkRecordCommunication } = useStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<string | null>(null);
   const [historyCustomer, setHistoryCustomer] = useState<string | null>(null);
@@ -83,23 +83,19 @@ export default function OwnerCustomers() {
     if (targets.length > 0 && content) {
       setIsSending(true);
       try {
-        for (const targetId of targets) {
-          if (sendType === 'coupon') {
-            await issueCoupon(targetId, currentUser.id, '사장님 특별 서비스', content);
-            await recordCommunication(targetId, currentUser.id, 'coupon', content);
-          } else {
-            // Simulate sending SMS
-            await recordCommunication(targetId, currentUser.id, 'message', content);
-          }
+        if (sendType === 'coupon') {
+          bulkIssueCoupon(targets, currentUser.id, '사장님 특별 서비스', content);
+          bulkRecordCommunication(targets, currentUser.id, 'coupon', content);
+        } else {
+          // Simulate sending SMS
+          bulkRecordCommunication(targets, currentUser.id, 'message', content);
         }
         
         import('../../store').then(({ showToast }) => {
           if (sendType === 'message') {
             showToast(`[문자 발송 시뮬레이션]\n${targets.length}명에게 전송 완료\n내용: ${content}`, 'info');
-          } else {
-            showToast(`${targets.length}명에게 쿠폰 발급 완료`, 'success');
           }
-        });
+        }).catch(console.error);
 
         setSelectedCustomer(null);
         setSelectedCustomers([]);
@@ -108,7 +104,7 @@ export default function OwnerCustomers() {
         setSelectedPredefinedCoupon('');
       } catch (err) {
         console.error(err);
-        import('../../store').then(({ showToast }) => showToast('발송 중 오류가 발생했습니다.', 'error'));
+        import('../../store').then(({ showToast }) => showToast('발송 중 오류가 발생했습니다.', 'error')).catch(console.error);
       } finally {
         setIsSending(false);
       }
@@ -140,7 +136,7 @@ export default function OwnerCustomers() {
     const total = storeCustomers.length;
     
     if (total === 0) {
-      import('../../store').then(({ showToast }) => showToast('출력할 데이터가 없습니다.', 'error'));
+      import('../../store').then(({ showToast }) => showToast('출력할 데이터가 없습니다.', 'error')).catch(console.error);
       return;
     }
 
@@ -347,9 +343,7 @@ export default function OwnerCustomers() {
                               e.stopPropagation(); 
                               const newMemo = prompt('고객 메모를 입력하세요:', customer.memo || '');
                               if (newMemo !== null) {
-                                import('../../store').then(({ useStore }) => {
-                                  useStore.getState().updateUserMemo(customer.id, currentUser.id, newMemo);
-                                });
+                                updateUserMemo(customer.id, currentUser.id, newMemo);
                               }
                             }}
                             className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
