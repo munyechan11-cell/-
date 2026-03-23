@@ -14,7 +14,7 @@ export default function OwnerCustomers() {
   const [content, setContent] = useState('');
   const [selectedPredefinedCoupon, setSelectedPredefinedCoupon] = useState('');
   const [historyMemo, setHistoryMemo] = useState('');
-  const [memoStatus, setMemoStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [memoStatus, setMemoStatus] = useState<'idle' | 'saving' | 'saved' | 'deleted'>('idle');
   const [isMemoLoading, setIsMemoLoading] = useState(false);
   const memoBaselineRef = useRef('');
   const memoStatusTimeoutRef = useRef<number | null>(null);
@@ -170,27 +170,61 @@ export default function OwnerCustomers() {
     };
   }, [historyCustomer]);
 
+  const persistHistoryMemo = async (memoValue: string) => {
+    if (!historyCustomer || !db) return;
+
+    try {
+      setMemoStatus('saving');
+      const userDocRef = doc(db, 'users', historyCustomer);
+      await setDoc(userDocRef, { memo: memoValue }, { merge: true });
+      memoBaselineRef.current = memoValue;
+      setMemoStatus('saved');
+
+      if (memoStatusTimeoutRef.current) {
+        window.clearTimeout(memoStatusTimeoutRef.current);
+      }
+      memoStatusTimeoutRef.current = window.setTimeout(() => {
+        setMemoStatus('idle');
+      }, 1500);
+    } catch (error) {
+      console.error('Failed to save customer memo:', error);
+      setMemoStatus('idle');
+    }
+  };
+
+  const deleteHistoryMemo = async () => {
+    if (!historyCustomer || !db) return;
+    const hasAnyMemo = (historyMemo ?? '').trim().length > 0 || (memoBaselineRef.current ?? '').trim().length > 0;
+    if (!hasAnyMemo) return;
+
+    try {
+      setMemoStatus('saving');
+      const userDocRef = doc(db, 'users', historyCustomer);
+      // "비우기"를 의미하기 위해 필드를 삭제하지 않고 빈 문자열로 저장합니다.
+      await setDoc(userDocRef, { memo: '' }, { merge: true });
+
+      memoBaselineRef.current = '';
+      setHistoryMemo('');
+      setMemoStatus('deleted');
+
+      if (memoStatusTimeoutRef.current) {
+        window.clearTimeout(memoStatusTimeoutRef.current);
+      }
+      memoStatusTimeoutRef.current = window.setTimeout(() => {
+        setMemoStatus('idle');
+      }, 1500);
+    } catch (error) {
+      console.error('Failed to delete customer memo:', error);
+      setMemoStatus('idle');
+    }
+  };
+
   useEffect(() => {
     if (!historyCustomer || !db || isMemoLoading) return;
     if (historyMemo === memoBaselineRef.current) return;
 
     const timeout = window.setTimeout(async () => {
-      try {
-        setMemoStatus('saving');
-        const userDocRef = doc(db, 'users', historyCustomer);
-        await setDoc(userDocRef, { memo: historyMemo }, { merge: true });
-        memoBaselineRef.current = historyMemo;
-        setMemoStatus('saved');
-        if (memoStatusTimeoutRef.current) {
-          window.clearTimeout(memoStatusTimeoutRef.current);
-        }
-        memoStatusTimeoutRef.current = window.setTimeout(() => {
-          setMemoStatus('idle');
-        }, 1500);
-      } catch (error) {
-        console.error('Failed to save customer memo:', error);
-        setMemoStatus('idle');
-      }
+      await persistHistoryMemo(historyMemo);
     }, 1000);
 
     return () => {
@@ -569,8 +603,27 @@ export default function OwnerCustomers() {
               />
               <div className="mt-1 text-xs text-[#A1887F] min-h-[1rem]">
                 {memoStatus === 'saving' && '저장 중...'}
-                {memoStatus === 'saved' && '저장됨'}
+                {memoStatus === 'saved' && '저장됨!'}
+                {memoStatus === 'deleted' && '삭제됨!'}
               </div>
+
+              <button
+                type="button"
+                disabled={isMemoLoading || memoStatus === 'saving'}
+                onClick={() => persistHistoryMemo(historyMemo)}
+                className="mt-3 w-full bg-[#D84315] hover:bg-[#BF360C] disabled:bg-[#D84315]/70 text-white font-bold py-3 rounded-xl transition-colors flex items-center justify-center"
+              >
+                {memoStatus === 'saving' ? '저장 중...' : memoStatus === 'saved' ? '저장됨!' : '저장하기'}
+              </button>
+
+              <button
+                type="button"
+                disabled={isMemoLoading || memoStatus === 'saving' || ((historyMemo ?? '').trim().length === 0 && (memoBaselineRef.current ?? '').trim().length === 0)}
+                onClick={deleteHistoryMemo}
+                className="mt-2 w-full bg-transparent border-2 border-[#E7E0D7] text-[#D84315] hover:bg-[#FFF3E0]/40 disabled:opacity-50 disabled:hover:bg-transparent font-bold py-3 rounded-xl transition-colors flex items-center justify-center"
+              >
+                메모 삭제
+              </button>
             </div>
             
             <div className="overflow-y-auto flex-1 pr-2 space-y-3">
