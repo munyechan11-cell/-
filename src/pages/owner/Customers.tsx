@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useStore, getEffectiveTier, getTierColor, getCustomerTier } from '../../store';
 import { Users, LayoutGrid, Search, Send, X, MessageSquare, Ticket, History, Loader2, CheckSquare, Square, Download } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { db } from '../../lib/firebase';
 
 export default function OwnerCustomers() {
   const { users, visits, issueCoupon, recordCommunication, communications, currentUser, tierOverrides, setCustomerTier } = useStore();
@@ -11,6 +13,11 @@ export default function OwnerCustomers() {
   const [sendType, setSendType] = useState<'coupon' | 'message'>('coupon');
   const [content, setContent] = useState('');
   const [selectedPredefinedCoupon, setSelectedPredefinedCoupon] = useState('');
+  const [historyMemo, setHistoryMemo] = useState('');
+  const [memoStatus, setMemoStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [isMemoLoading, setIsMemoLoading] = useState(false);
+  const memoBaselineRef = useRef('');
+  const memoStatusTimeoutRef = useRef<number | null>(null);
   
   // Multi-select state
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
@@ -118,6 +125,86 @@ export default function OwnerCustomers() {
   const activeCustomer = customers.find(c => c.id === selectedCustomer);
   const activeHistoryCustomer = customers.find(c => c.id === historyCustomer);
   const customerHistory = communications.filter(c => c.customerId === historyCustomer && c.storeId === currentUser.id).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  useEffect(() => {
+    if (!historyCustomer) {
+      setHistoryMemo('');
+      setMemoStatus('idle');
+      memoBaselineRef.current = '';
+      return;
+    }
+
+    if (!db) {
+      setHistoryMemo('');
+      setMemoStatus('idle');
+      memoBaselineRef.current = '';
+      return;
+    }
+
+    let cancelled = false;
+    setIsMemoLoading(true);
+
+    const loadMemo = async () => {
+      try {
+        const userDocRef = doc(db, 'users', historyCustomer);
+        const userDoc = await getDoc(userDocRef);
+        const memo = typeof userDoc.data()?.memo === 'string' ? userDoc.data()?.memo : '';
+        if (cancelled) return;
+        setHistoryMemo(memo);
+        memoBaselineRef.current = memo;
+        setMemoStatus('idle');
+      } catch (error) {
+        if (!cancelled) {
+          console.error('Failed to load customer memo:', error);
+          setMemoStatus('idle');
+        }
+      } finally {
+        if (!cancelled) setIsMemoLoading(false);
+      }
+    };
+
+    loadMemo();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [historyCustomer]);
+
+  useEffect(() => {
+    if (!historyCustomer || !db || isMemoLoading) return;
+    if (historyMemo === memoBaselineRef.current) return;
+
+    const timeout = window.setTimeout(async () => {
+      try {
+        setMemoStatus('saving');
+        const userDocRef = doc(db, 'users', historyCustomer);
+        await setDoc(userDocRef, { memo: historyMemo }, { merge: true });
+        memoBaselineRef.current = historyMemo;
+        setMemoStatus('saved');
+        if (memoStatusTimeoutRef.current) {
+          window.clearTimeout(memoStatusTimeoutRef.current);
+        }
+        memoStatusTimeoutRef.current = window.setTimeout(() => {
+          setMemoStatus('idle');
+        }, 1500);
+      } catch (error) {
+        console.error('Failed to save customer memo:', error);
+        setMemoStatus('idle');
+      }
+    }, 1000);
+
+    return () => {
+      window.clearTimeout(timeout);
+    };
+  }, [historyMemo, historyCustomer, isMemoLoading]);
+
+  useEffect(() => {
+    return () => {
+      if (memoStatusTimeoutRef.current) {
+        window.clearTimeout(memoStatusTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const toggleCustomerSelection = (id: string) => {
     setSelectedCustomers(prev => 
@@ -467,6 +554,24 @@ export default function OwnerCustomers() {
               <History className="w-6 h-6 mr-2 text-[#795548]" />
               {activeHistoryCustomer.name}님 전송 기록
             </h2>
+
+            <div className="mb-4">
+              <label className="block text-sm font-bold text-[#4E342E] mb-2">
+                메모/특이사항
+              </label>
+              <textarea
+                value={historyMemo}
+                onChange={(e) => setHistoryMemo(e.target.value)}
+                placeholder="고객 메모/특이사항을 입력하세요."
+                rows={4}
+                disabled={isMemoLoading}
+                className="w-full px-4 py-3 rounded-xl border-2 border-[#E7E0D7] focus:border-[#D84315] focus:ring-0 transition-colors resize-none bg-white text-[#2D1B15] disabled:bg-[#F5F2EB] disabled:text-[#A1887F]"
+              />
+              <div className="mt-1 text-xs text-[#A1887F] min-h-[1rem]">
+                {memoStatus === 'saving' && '저장 중...'}
+                {memoStatus === 'saved' && '저장됨'}
+              </div>
+            </div>
             
             <div className="overflow-y-auto flex-1 pr-2 space-y-3">
               {customerHistory.length === 0 ? (
