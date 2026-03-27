@@ -152,7 +152,7 @@ if (!isFirebaseConfigured) {
               }
             };
             console.error('Firestore Error: ', JSON.stringify(errInfo));
-            throw new Error(JSON.stringify(errInfo));
+            // Removed throw new Error to prevent unhandled promise rejection
           }
         });
       }
@@ -191,7 +191,7 @@ if (!isFirebaseConfigured) {
           }
         };
         console.error('Firestore Error: ', JSON.stringify(errInfo));
-        throw new Error(JSON.stringify(errInfo));
+        // Removed throw new Error to prevent uncaught exception
       }
     }
   );
@@ -429,7 +429,7 @@ export const useStore = () => {
     if (auth) {
       import('firebase/auth').then(({ signOut }) => {
         signOut(auth).catch(console.error);
-      });
+      }).catch(console.error);
     }
     setLocalStorage('currentUser', null);
     setCurrentUser(null);
