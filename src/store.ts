@@ -426,6 +426,11 @@ export const useStore = () => {
   };
 
   const logout = () => {
+    if (auth) {
+      import('firebase/auth').then(({ signOut }) => {
+        signOut(auth).catch(console.error);
+      });
+    }
     setLocalStorage('currentUser', null);
     setCurrentUser(null);
     showToast('로그아웃 되었습니다.', 'info');
@@ -606,7 +611,7 @@ export const useStore = () => {
         date: now,
       };
       return { communications: [...currentComms, newComm] };
-    });
+    }).catch(console.error);
   };
 
   const requestCouponUse = (couponId: string, tableNumber?: number) => {
@@ -696,7 +701,7 @@ export const useStore = () => {
         }
       }
       return {};
-    });
+    }).catch(console.error);
   };
 
   const setCustomerTier = (customerId: string, storeId: string, tier: string) => {
@@ -707,11 +712,11 @@ export const useStore = () => {
         newOverrides.push({ customerId, storeId, tier });
       }
       return { tierOverrides: newOverrides };
-    });
+    }).catch(console.error);
   };
 
   const setMasterPassword = (newPassword: string) => {
-    runGlobalTransaction(() => ({ masterPassword: newPassword }));
+    runGlobalTransaction(() => ({ masterPassword: newPassword })).catch(console.error);
   };
 
   const deleteUser = (userId: string, role: Role) => {
@@ -738,7 +743,7 @@ export const useStore = () => {
       }
       
       return updates;
-    });
+    }).catch(console.error);
   };
 
   const updateUserMemo = (userId: string, storeId: string, memo: string) => {
@@ -748,7 +753,7 @@ export const useStore = () => {
         u.id === userId && u.storeId === storeId ? { ...u, memo } : u
       );
       return { users: newUsers };
-    });
+    }).catch(console.error);
   };
 
   return {

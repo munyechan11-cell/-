@@ -243,21 +243,7 @@ export default function OwnerLogin() {
     try {
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-      
-      const existingOwner = users.find(u => (u.googleId === user.uid || u.id === user.uid || u.socialIds?.includes(user.uid)) && u.role === 'owner');
-      
-      if (existingOwner) {
-        login(existingOwner.phone, existingOwner.name, 'owner', existingOwner.restaurantName, undefined, user.uid);
-        sessionStorage.clear();
-        navigate('/owner');
-      } else {
-        setError('가입되지 않은 구글 계정입니다. 추가 정보를 입력하고 회원가입을 완료해주세요.');
-        setPendingOAuthUser({ uid: user.uid, provider: 'Google', displayName: user.displayName || null });
-        if (user.displayName && !name) setName(user.displayName);
-        setIsLogin(false);
-        setIsLoading(false);
-      }
+      await processOAuthUser(result.user, 'Google');
     } catch (err: any) {
       console.error(err);
       if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
