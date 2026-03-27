@@ -98,38 +98,18 @@ export default function OwnerLogin() {
   };
 
   const processOAuthUser = async (user: any, providerName: string) => {
-    if (isLogin) {
-      const existingOwner = users.find(u => (u.googleId === user.uid || u.id === user.uid || u.socialIds?.includes(user.uid)) && u.role === 'owner');
-      if (existingOwner) {
-        login(existingOwner.phone, existingOwner.name, 'owner', existingOwner.restaurantName, undefined, user.uid);
-        sessionStorage.clear();
-        navigate('/owner');
-      } else {
-        setError(`가입되지 않은 ${providerName} 계정입니다. 정보를 입력하고 회원가입을 완료해주세요.`);
-        setPendingOAuthUser({ uid: user.uid, provider: providerName, displayName: user.displayName || null });
-        if (user.displayName && !name) setName(user.displayName);
-        setIsLogin(false);
-        setIsLoading(false);
-      }
+    const existingOwner = users.find(u => (u.googleId === user.uid || u.id === user.uid || u.socialIds?.includes(user.uid)) && u.role === 'owner');
+    
+    if (existingOwner) {
+      login(existingOwner.phone, existingOwner.name, 'owner', existingOwner.restaurantName, undefined, user.uid);
+      sessionStorage.clear();
+      navigate('/owner');
     } else {
-      const cleanPhone = phone.replace(/[^0-9]/g, '');
-      const existingOwner = users.find(u => (u.googleId === user.uid || u.id === user.uid || u.socialIds?.includes(user.uid)) && u.role === 'owner');
-      if (existingOwner) {
-        setError(`이미 가입된 ${providerName} 계정입니다. 로그인을 진행해주세요.`);
-        setIsLogin(true);
-        setIsLoading(false);
-      } else {
-        const existingPhone = users.find(u => u.phone === cleanPhone && u.role === 'owner');
-        if (existingPhone) {
-          login(cleanPhone, existingPhone.name, 'owner', existingPhone.restaurantName, undefined, user.uid);
-          sessionStorage.clear();
-          navigate('/owner');
-        } else {
-          login(cleanPhone, name || user.displayName || '사장님', 'owner', restaurantName, undefined, user.uid);
-          sessionStorage.clear();
-          navigate('/owner');
-        }
-      }
+      setError(`가입되지 않은 ${providerName} 계정입니다. 추가 정보를 입력하고 회원가입을 완료해주세요.`);
+      setPendingOAuthUser({ uid: user.uid, provider: providerName, displayName: user.displayName || null });
+      if (user.displayName && !name) setName(user.displayName);
+      setIsLogin(false);
+      setIsLoading(false);
     }
   };
 
@@ -215,22 +195,6 @@ export default function OwnerLogin() {
       return;
     }
     
-    if (!isLogin) {
-      const cleanPhone = phone.replace(/[^0-9]/g, '');
-      if (cleanPhone.length < 10) {
-        setError(`전화번호를 올바르게 입력한 후 ${provider === 'kakao' ? '카카오' : '네이버'} 회원가입을 진행해주세요.`);
-        return;
-      }
-      if (!name) {
-        setError(`성함을 입력한 후 ${provider === 'kakao' ? '카카오' : '네이버'} 회원가입을 진행해주세요.`);
-        return;
-      }
-      if (!restaurantName) {
-        setError(`가게 이름을 입력한 후 ${provider === 'kakao' ? '카카오' : '네이버'} 회원가입을 진행해주세요.`);
-        return;
-      }
-    }
-    
     setIsLoading(true);
     setError('');
     
@@ -273,22 +237,6 @@ export default function OwnerLogin() {
       return;
     }
     
-    if (!isLogin) {
-      const cleanPhone = phone.replace(/[^0-9]/g, '');
-      if (cleanPhone.length < 10) {
-        setError('전화번호를 올바르게 입력한 후 구글 회원가입을 진행해주세요.');
-        return;
-      }
-      if (!name) {
-        setError('성함을 입력한 후 구글 회원가입을 진행해주세요.');
-        return;
-      }
-      if (!restaurantName) {
-        setError('가게 이름을 입력한 후 구글 회원가입을 진행해주세요.');
-        return;
-      }
-    }
-    
     setIsLoading(true);
     setError('');
     
@@ -297,38 +245,18 @@ export default function OwnerLogin() {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
       
-      if (isLogin) {
-        const existingOwner = users.find(u => (u.googleId === user.uid || u.id === user.uid || u.socialIds?.includes(user.uid)) && u.role === 'owner');
-        if (existingOwner) {
-          login(existingOwner.phone, existingOwner.name, 'owner', existingOwner.restaurantName, undefined, user.uid);
-          sessionStorage.clear();
-          navigate('/owner');
-        } else {
-          setError('가입되지 않은 구글 계정입니다. 정보를 입력하고 회원가입을 완료해주세요.');
-          setPendingOAuthUser({ uid: user.uid, provider: 'Google', displayName: user.displayName || null });
-          if (user.displayName && !name) setName(user.displayName);
-          setIsLogin(false);
-          setIsLoading(false);
-        }
+      const existingOwner = users.find(u => (u.googleId === user.uid || u.id === user.uid || u.socialIds?.includes(user.uid)) && u.role === 'owner');
+      
+      if (existingOwner) {
+        login(existingOwner.phone, existingOwner.name, 'owner', existingOwner.restaurantName, undefined, user.uid);
+        sessionStorage.clear();
+        navigate('/owner');
       } else {
-        const cleanPhone = phone.replace(/[^0-9]/g, '');
-        const existingOwner = users.find(u => (u.googleId === user.uid || u.id === user.uid || u.socialIds?.includes(user.uid)) && u.role === 'owner');
-        if (existingOwner) {
-          setError('이미 가입된 구글 계정입니다. 로그인을 진행해주세요.');
-          setIsLogin(true);
-          setIsLoading(false);
-        } else {
-          const existingPhone = users.find(u => u.phone === cleanPhone && u.role === 'owner');
-          if (existingPhone) {
-            login(cleanPhone, existingPhone.name, 'owner', existingPhone.restaurantName, undefined, user.uid);
-            sessionStorage.clear();
-            navigate('/owner');
-          } else {
-            login(cleanPhone, name || user.displayName || '사장님', 'owner', restaurantName, undefined, user.uid);
-            sessionStorage.clear();
-            navigate('/owner');
-          }
-        }
+        setError('가입되지 않은 구글 계정입니다. 추가 정보를 입력하고 회원가입을 완료해주세요.');
+        setPendingOAuthUser({ uid: user.uid, provider: 'Google', displayName: user.displayName || null });
+        if (user.displayName && !name) setName(user.displayName);
+        setIsLogin(false);
+        setIsLoading(false);
       }
     } catch (err: any) {
       console.error(err);

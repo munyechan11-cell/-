@@ -329,9 +329,23 @@ export default function OwnerCustomers() {
                           <span>월 평균 방문: <strong className="text-slate-900">{stats.frequencyPerMonth}회</strong></span>
                         </div>
                         {customer.memo && (
-                          <div className="mt-2 text-slate-700 bg-white p-2 rounded border border-slate-100">
-                            <span className="font-bold text-slate-500 mr-1">메모:</span>
-                            {customer.memo}
+                          <div className="mt-2 text-slate-700 bg-white p-2 rounded border border-slate-100 flex justify-between items-start">
+                            <div>
+                              <span className="font-bold text-slate-500 mr-1">메모:</span>
+                              {customer.memo}
+                            </div>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (confirm('메모를 삭제하시겠습니까?')) {
+                                  updateUserMemo(customer.id, currentUser.id, '');
+                                }
+                              }}
+                              className="text-slate-400 hover:text-red-500 transition-colors p-1"
+                              title="메모 삭제"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
                           </div>
                         )}
                       </div>

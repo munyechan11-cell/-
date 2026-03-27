@@ -123,62 +123,23 @@ export default function CustomerLogin() {
   };
 
   const processOAuthUser = async (user: any, providerName: string) => {
-    const cleanPhone = phone.replace(/[^0-9]/g, '');
+    const existingUser = users.find(u => (u.googleId === user.uid || u.id === user.uid || u.socialIds?.includes(user.uid)) && u.role === 'customer' && u.storeId === storeId);
     
-    if (isLogin) {
-      const existingUser = users.find(u => (u.googleId === user.uid || u.id === user.uid || u.socialIds?.includes(user.uid)) && u.role === 'customer' && u.storeId === storeId);
-      if (existingUser) {
-        // Login
-        const loggedInUser = login(existingUser.phone, existingUser.name, 'customer', undefined, storeId, user.uid);
-        if (tableNumber) {
-          recordVisit(loggedInUser.id, parseInt(tableNumber), storeId);
-        }
-        sessionStorage.removeItem('customerLogin_phone');
-        navigate(`/customer/store/${storeId}`);
-      } else {
-        setError(`가입되지 않은 ${providerName} 계정입니다. 정보를 입력하고 회원가입을 완료해주세요.`);
-        setPendingOAuthUser({ uid: user.uid, provider: providerName, displayName: user.displayName || null });
-        if (user.displayName && !name) setName(user.displayName);
-        setIsLogin(false);
-        setIsLoading(false);
+    if (existingUser) {
+      // Login successful
+      const loggedInUser = login(existingUser.phone, existingUser.name, 'customer', undefined, storeId, user.uid);
+      if (tableNumber) {
+        recordVisit(loggedInUser.id, parseInt(tableNumber), storeId);
       }
+      sessionStorage.removeItem('customerLogin_phone');
+      navigate(`/customer/store/${storeId}`);
     } else {
-      // Signup
-      if (cleanPhone.length < 10) {
-        setError(`전화번호를 올바르게 입력한 후 ${providerName} 회원가입을 진행해주세요.`);
-        setIsLoading(false);
-        return;
-      }
-      if (!name || isPohangResident === null || gender === null) {
-        setError(`모든 정보를 입력한 후 ${providerName} 회원가입을 진행해주세요.`);
-        setIsLoading(false);
-        return;
-      }
-      
-      const existingOAuthUser = users.find(u => (u.googleId === user.uid || u.id === user.uid || u.socialIds?.includes(user.uid)) && u.role === 'customer' && u.storeId === storeId);
-      if (existingOAuthUser) {
-        setError(`이미 가입된 ${providerName} 계정입니다. 로그인을 진행해주세요.`);
-        setIsLogin(true);
-        setIsLoading(false);
-      } else {
-        const existingPhoneUser = users.find(u => u.phone === cleanPhone && u.role === 'customer' && u.storeId === storeId);
-        if (existingPhoneUser) {
-          const loggedInUser = login(cleanPhone, existingPhoneUser.name, 'customer', undefined, storeId, user.uid);
-          if (tableNumber) {
-            recordVisit(loggedInUser.id, parseInt(tableNumber), storeId);
-          }
-          sessionStorage.removeItem('customerLogin_phone');
-          navigate(`/customer/store/${storeId}`);
-        } else {
-          const loggedInUser = login(cleanPhone, name || user.displayName || '고객님', 'customer', undefined, storeId, user.uid, isPohangResident, gender);
-          issueCoupon(loggedInUser.id, storeId, '첫 회원가입 축하', '첫 회원가입 축하쿠폰 (3000원 상당)');
-          if (tableNumber) {
-            recordVisit(loggedInUser.id, parseInt(tableNumber), storeId);
-          }
-          sessionStorage.removeItem('customerLogin_phone');
-          navigate(`/customer/store/${storeId}`);
-        }
-      }
+      // User does not exist, need to collect more info
+      setError(`가입되지 않은 ${providerName} 계정입니다. 추가 정보를 입력하고 회원가입을 완료해주세요.`);
+      setPendingOAuthUser({ uid: user.uid, provider: providerName, displayName: user.displayName || null });
+      if (user.displayName && !name) setName(user.displayName);
+      setIsLogin(false);
+      setIsLoading(false);
     }
   };
 
@@ -269,18 +230,6 @@ export default function CustomerLogin() {
       return;
     }
 
-    if (!isLogin) {
-      const cleanPhone = phone.replace(/[^0-9]/g, '');
-      if (cleanPhone.length < 10) {
-        setError(`전화번호를 올바르게 입력한 후 ${provider === 'kakao' ? '카카오' : '네이버'} 회원가입을 진행해주세요.`);
-        return;
-      }
-      if (!name || isPohangResident === null || gender === null) {
-        setError(`모든 정보를 입력한 후 ${provider === 'kakao' ? '카카오' : '네이버'} 회원가입을 진행해주세요.`);
-        return;
-      }
-    }
-    
     setIsLoading(true);
     setError('');
     
@@ -328,18 +277,6 @@ export default function CustomerLogin() {
       return;
     }
 
-    if (!isLogin) {
-      const cleanPhone = phone.replace(/[^0-9]/g, '');
-      if (cleanPhone.length < 10) {
-        setError('전화번호를 올바르게 입력한 후 구글 회원가입을 진행해주세요.');
-        return;
-      }
-      if (!name || isPohangResident === null || gender === null) {
-        setError('모든 정보를 입력한 후 구글 회원가입을 진행해주세요.');
-        return;
-      }
-    }
-    
     setIsLoading(true);
     setError('');
     
@@ -347,62 +284,22 @@ export default function CustomerLogin() {
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
-      const cleanPhone = phone.replace(/[^0-9]/g, '');
       
-      if (isLogin) {
-        const existingUser = users.find(u => (u.googleId === user.uid || u.id === user.uid || u.socialIds?.includes(user.uid)) && u.role === 'customer' && u.storeId === storeId);
-        if (existingUser) {
-          // Login
-          const loggedInUser = login(existingUser.phone, existingUser.name, 'customer', undefined, storeId, user.uid);
-          if (tableNumber) {
-            recordVisit(loggedInUser.id, parseInt(tableNumber), storeId);
-          }
-          sessionStorage.removeItem('customerLogin_phone');
-          navigate(`/customer/store/${storeId}`);
-        } else {
-          setError('가입되지 않은 구글 계정입니다. 정보를 입력하고 회원가입을 완료해주세요.');
-          setPendingOAuthUser({ uid: user.uid, provider: 'Google', displayName: user.displayName || null });
-          if (user.displayName && !name) setName(user.displayName);
-          setIsLogin(false);
-          setIsLoading(false);
+      const existingUser = users.find(u => (u.googleId === user.uid || u.id === user.uid || u.socialIds?.includes(user.uid)) && u.role === 'customer' && u.storeId === storeId);
+      if (existingUser) {
+        // Login
+        const loggedInUser = login(existingUser.phone, existingUser.name, 'customer', undefined, storeId, user.uid);
+        if (tableNumber) {
+          recordVisit(loggedInUser.id, parseInt(tableNumber), storeId);
         }
+        sessionStorage.removeItem('customerLogin_phone');
+        navigate(`/customer/store/${storeId}`);
       } else {
-        // Signup
-        if (cleanPhone.length < 10) {
-          setError('전화번호를 올바르게 입력한 후 구글 회원가입을 진행해주세요.');
-          setIsLoading(false);
-          return;
-        }
-        if (!name || isPohangResident === null || gender === null) {
-          setError('모든 정보를 입력한 후 구글 회원가입을 진행해주세요.');
-          setIsLoading(false);
-          return;
-        }
-        
-        const existingOAuthUser = users.find(u => (u.googleId === user.uid || u.id === user.uid || u.socialIds?.includes(user.uid)) && u.role === 'customer' && u.storeId === storeId);
-        if (existingOAuthUser) {
-          setError('이미 가입된 구글 계정입니다. 로그인을 진행해주세요.');
-          setIsLogin(true);
-          setIsLoading(false);
-        } else {
-          const existingPhoneUser = users.find(u => u.phone === cleanPhone && u.role === 'customer' && u.storeId === storeId);
-          if (existingPhoneUser) {
-            const loggedInUser = login(cleanPhone, existingPhoneUser.name, 'customer', undefined, storeId, user.uid);
-            if (tableNumber) {
-              recordVisit(loggedInUser.id, parseInt(tableNumber), storeId);
-            }
-            sessionStorage.removeItem('customerLogin_phone');
-            navigate(`/customer/store/${storeId}`);
-          } else {
-            const loggedInUser = login(cleanPhone, name || user.displayName || '고객님', 'customer', undefined, storeId, user.uid, isPohangResident, gender);
-            issueCoupon(loggedInUser.id, storeId, '첫 회원가입 축하', '첫 회원가입 축하쿠폰 (3000원 상당)');
-            if (tableNumber) {
-              recordVisit(loggedInUser.id, parseInt(tableNumber), storeId);
-            }
-            sessionStorage.removeItem('customerLogin_phone');
-            navigate(`/customer/store/${storeId}`);
-          }
-        }
+        setError('가입되지 않은 구글 계정입니다. 추가 정보를 입력하고 회원가입을 완료해주세요.');
+        setPendingOAuthUser({ uid: user.uid, provider: 'Google', displayName: user.displayName || null });
+        if (user.displayName && !name) setName(user.displayName);
+        setIsLogin(false);
+        setIsLoading(false);
       }
     } catch (err: any) {
       console.error(err);
