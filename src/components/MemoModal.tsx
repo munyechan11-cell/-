@@ -40,7 +40,6 @@ export default function MemoModal({ customer, onClose }: MemoModalProps) {
       ? parseInt(Object.entries(hourCounts).sort((a, b) => b[1] - a[1])[0][0])
       : null;
 
-  // 가장 많이 방문한 인원 (tableNumber를 인원 근사값으로 사용 불가 → 방문 횟수로 대체)
   const totalVisitCount = customerVisits.length;
 
   // 알레르기 파싱 (메모에서)
@@ -60,10 +59,10 @@ export default function MemoModal({ customer, onClose }: MemoModalProps) {
       return;
     }
     setSelectedAllergies((prev) => {
-      const without없음 = prev.filter((a) => a !== '없음');
-      return without없음.includes(item)
-        ? without없음.filter((a) => a !== item)
-        : [...without없음, item];
+      const withoutNone = prev.filter((a) => a !== '없음');
+      return withoutNone.includes(item)
+        ? withoutNone.filter((a) => a !== item)
+        : [...withoutNone, item];
     });
   };
 
