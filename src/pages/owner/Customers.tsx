@@ -1,18 +1,19 @@
 import React, { useState } from 'react';
 import { useStore, getEffectiveTier, getTierColor, getCustomerTier } from '../../store';
-import { Users, LayoutGrid, Search, Send, X, MessageSquare, Ticket, History, Loader2, CheckSquare, Square, Download, ChevronDown, BarChart3 } from 'lucide-react';
+import { Users, LayoutGrid, Search, Send, X, MessageSquare, Ticket, History, Loader2, CheckSquare, Square, Download, ChevronDown, BarChart3, ClipboardList } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import MemoModal from '../../components/MemoModal';
 
 export default function OwnerCustomers() {
   const { users, visits, issueCoupon, recordCommunication, communications, currentUser, tierOverrides, setCustomerTier, updateUserMemo, bulkIssueCoupon, bulkRecordCommunication } = useStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<string | null>(null);
   const [historyCustomer, setHistoryCustomer] = useState<string | null>(null);
+  const [memoCustomerId, setMemoCustomerId] = useState<string | null>(null);
   const [sendType, setSendType] = useState<'coupon' | 'message'>('coupon');
   const [content, setContent] = useState('');
   const [selectedPredefinedCoupon, setSelectedPredefinedCoupon] = useState('');
   
-  // Multi-select state
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
   const [selectedCustomers, setSelectedCustomers] = useState<string[]>([]);
 
@@ -38,7 +39,6 @@ export default function OwnerCustomers() {
     const recentVisitsData = customerVisits.filter(v => new Date(v.date) >= thirtyDaysAgo);
     const recentVisits = new Set(recentVisitsData.map(v => new Date(v.date).toDateString())).size;
     
-    // Calculate days since last visit
     const lastVisit = customerVisits.length > 0 
       ? new Date(Math.max(...customerVisits.map(v => new Date(v.date).getTime())))
       : null;
@@ -47,7 +47,6 @@ export default function OwnerCustomers() {
       ? Math.floor((new Date().getTime() - lastVisit.getTime()) / (1000 * 3600 * 24))
       : null;
 
-    // Calculate frequency
     const firstVisit = customerVisits.length > 0 
       ? new Date(Math.min(...customerVisits.map(v => new Date(v.date).getTime())))
       : new Date();
@@ -87,7 +86,6 @@ export default function OwnerCustomers() {
           bulkIssueCoupon(targets, currentUser.id, '사장님 특별 서비스', content);
           bulkRecordCommunication(targets, currentUser.id, 'coupon', content);
         } else {
-          // Simulate sending SMS
           bulkRecordCommunication(targets, currentUser.id, 'message', content);
         }
         
@@ -113,6 +111,7 @@ export default function OwnerCustomers() {
 
   const activeCustomer = customers.find(c => c.id === selectedCustomer);
   const activeHistoryCustomer = customers.find(c => c.id === historyCustomer);
+  const memoTargetCustomer = customers.find(c => c.id === memoCustomerId);
   const customerHistory = communications.filter(c => c.customerId === historyCustomer && c.storeId === currentUser.id).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   const toggleCustomerSelection = (id: string) => {
@@ -183,6 +182,18 @@ export default function OwnerCustomers() {
     URL.revokeObjectURL(url);
   };
 
+  // 단골 판별 헬퍼
+  const isRegularCustomer = (customerId: string) => {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const recentVisitDays = new Set(
+      visits
+        .filter(v => v.customerId === customerId && v.storeId === currentUser.id && new Date(v.date) >= thirtyDaysAgo)
+        .map(v => new Date(v.date).toDateString())
+    ).size;
+    return recentVisitDays >= 2;
+  };
+
   return (
     <div className="min-h-full bg-slate-50 pb-20">
       {/* Header */}
@@ -238,8 +249,7 @@ export default function OwnerCustomers() {
             <button
               onClick={() => {
                 if (selectedCustomers.length > 0) {
-                  // Open modal for bulk send
-                  setSelectedCustomer('bulk'); // Use a dummy ID to open the modal
+                  setSelectedCustomer('bulk');
                 }
               }}
               disabled={selectedCustomers.length === 0}
@@ -262,6 +272,7 @@ export default function OwnerCustomers() {
           filteredCustomers.map(customer => {
             const stats = getCustomerStats(customer.id);
             const isSelected = selectedCustomers.includes(customer.id);
+            const isRegular = isRegularCustomer(customer.id);
             return (
               <div 
                 key={customer.id} 
@@ -282,14 +293,41 @@ export default function OwnerCustomers() {
                   )}
                   <div className="w-full">
                     <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center">
-                        <div className="w-10 h-10 bg-gradient-to-tr from-indigo-500 to-purple-500 rounded-full p-0.5 mr-3 shrink-0">
+                      <div className="flex items-center gap-2">
+                        <div className="w-10 h-10 bg-gradient-to-tr from-indigo-500 to-purple-500 rounded-full p-0.5 shrink-0">
                           <div className="w-full h-full bg-white rounded-full flex items-center justify-center text-indigo-600 font-bold text-sm">
                             {customer.name.charAt(0)}
                           </div>
                         </div>
                         <div>
-                          <h3 className="font-bold text-slate-900 text-base">{customer.name}</h3>
+                          <div className="flex items-center gap-1.5">
+                            <h3 className="font-bold text-slate-900 text-base">{customer.name}</h3>
+                            {/* 신규/단골 태그 */}
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                              isRegular
+                                ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                : 'bg-blue-50 text-blue-600 border-blue-100'
+                            }`}>
+                              {isRegular ? '단골' : '신규'}
+                            </span>
+                            {/* 메모 아이콘 버튼 */}
+                            {!isMultiSelectMode && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setMemoCustomerId(customer.id);
+                                }}
+                                className={`p-1 rounded-md transition-colors ${
+                                  customer.memo
+                                    ? 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100'
+                                    : 'text-slate-400 hover:text-indigo-500 hover:bg-indigo-50'
+                                }`}
+                                title="메모 보기/편집"
+                              >
+                                <ClipboardList className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
                           <p className="text-slate-500 text-xs">{customer.phone}</p>
                         </div>
                       </div>
@@ -332,7 +370,12 @@ export default function OwnerCustomers() {
                           <div className="mt-2 text-slate-700 bg-white p-2 rounded border border-slate-100 flex justify-between items-start">
                             <div>
                               <span className="font-bold text-slate-500 mr-1">메모:</span>
-                              {customer.memo}
+                              {customer.memo.replace(/\[알레르기:[^\]]+\]\s*/g, '')}
+                              {customer.memo.match(/\[알레르기:([^\]]+)\]/) && (
+                                <span className="ml-1 text-rose-500 font-semibold">
+                                  ⚠️ {customer.memo.match(/\[알레르기:([^\]]+)\]/)![1]}
+                                </span>
+                              )}
                             </div>
                             <button
                               onClick={(e) => {
@@ -352,19 +395,6 @@ export default function OwnerCustomers() {
                       
                       {!isMultiSelectMode && (
                         <div className="flex space-x-1.5 shrink-0 ml-2">
-                          <button 
-                            onClick={(e) => { 
-                              e.stopPropagation(); 
-                              const newMemo = prompt('고객 메모를 입력하세요:', customer.memo || '');
-                              if (newMemo !== null) {
-                                updateUserMemo(customer.id, currentUser.id, newMemo);
-                              }
-                            }}
-                            className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
-                            title="메모 수정"
-                          >
-                            <MessageSquare className="w-4 h-4" />
-                          </button>
                           <button 
                             onClick={(e) => { e.stopPropagation(); setHistoryCustomer(customer.id); }}
                             className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
@@ -406,14 +436,21 @@ export default function OwnerCustomers() {
         </Link>
       </div>
 
+      {/* Memo Modal */}
+      {memoCustomerId && memoTargetCustomer && (
+        <MemoModal
+          customer={memoTargetCustomer}
+          onClose={() => setMemoCustomerId(null)}
+        />
+      )}
+
       {/* Send Modal */}
       {selectedCustomer && (isMultiSelectMode || activeCustomer) && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-in fade-in duration-200">
           <div className="bg-white w-full sm:max-w-md rounded-t-[2rem] sm:rounded-[2rem] p-6 pb-12 sm:pb-6 relative shadow-2xl animate-in slide-in-from-bottom-full sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200">
             <button 
               onClick={() => {
-                if (!isMultiSelectMode) setSelectedCustomer(null);
-                else setSelectedCustomer(null); // Just close modal, keep selection
+                setSelectedCustomer(null);
                 setSelectedPredefinedCoupon('');
                 setContent('');
               }}
