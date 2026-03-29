@@ -40,10 +40,10 @@ export default function TableEntry() {
   }, [currentUser, users, navigate, storeId, tableNumber, recordVisit, logout, isReady]);
 
   return (
-    <div className="min-h-full bg-slate-50 flex items-center justify-center">
-      <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 text-center">
-        <div className="w-16 h-16 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin mx-auto mb-4"></div>
-        <p className="text-slate-600 font-semibold">테이블 확인 중...</p>
+    <div className="min-h-full bg-hanji-light dark:bg-hanji-dark flex items-center justify-center">
+      <div className="bg-white dark:bg-black/20 p-8 rounded-3xl shadow-sm border border-ink-light/10 dark:border-ink-dark/10 text-center">
+        <div className="w-16 h-16 border-4 border-burgundy/20 border-t-burgundy rounded-full animate-spin mx-auto mb-4"></div>
+        <p className="text-ink-light/70 dark:text-ink-dark/70 font-bold">테이블 확인 중...</p>
       </div>
     </div>
   );

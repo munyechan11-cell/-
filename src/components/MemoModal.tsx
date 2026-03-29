@@ -1,205 +1,193 @@
 import React, { useState, useEffect } from 'react';
-import { X, Clock, Users, AlertTriangle, FileText } from 'lucide-react';
-import { useStore } from '../store';
-import type { User, Visit } from '../store';
+import { X, Check } from 'lucide-react';
 
 interface MemoModalProps {
-  customer: User;
+  isOpen: boolean;
   onClose: () => void;
+  initialMemo: string;
+  onSave: (memo: string) => void;
 }
 
-const ALLERGY_OPTIONS = ['없음', '우유', '대두', '밀', '게', '새우', '땅콩', '계란', '복숭아', '토마토'];
+export const SIDE_DISH_OPTIONS = [
+  '밑반찬 많이', '밑반찬 적게', '쌈채소 많이', '마늘 많이', '파절이 많이', '소금장 선호', '쌈장 선호', '멜젓 선호'
+];
 
-export default function MemoModal({ customer, onClose }: MemoModalProps) {
-  const { visits, updateUserMemo, currentUser } = useStore();
-  const [specialNote, setSpecialNote] = useState(customer.memo || '');
-  const [selectedAllergies, setSelectedAllergies] = useState<string[]>([]);
-  const [isSaving, setIsSaving] = useState(false);
+export const MEAT_OPTIONS = [
+  '바싹 익혀서', '부드럽게(덜 익혀서)', '직접 굽기 선호', '구워주는 것 선호', '불판 자주 교체'
+];
 
-  if (!currentUser) return null;
+export const MEAL_DRINK_OPTIONS = [
+  '찌개 필수', '냉면 필수', '볶음밥 필수', '주류 많이 마심', '주류 안 마심'
+];
 
-  const customerVisits: Visit[] = visits.filter(
-    (v) => v.customerId === customer.id && v.storeId === currentUser.id
-  );
+export const SEATING_OTHER_OPTIONS = [
+  '조용한 자리 선호', '창가 자리 선호', '아이 동반', '유모차 있음', '단체 모임 잦음', '앞치마 필수', '식사 속도 빠름', '식사 속도 느림'
+];
 
-  // 단골 여부: 최근 30일 내 방문일 2회 이상
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-  const recentVisits = customerVisits.filter((v) => new Date(v.date) >= thirtyDaysAgo);
-  const uniqueRecentDays = new Set(recentVisits.map((v) => new Date(v.date).toDateString())).size;
-  const isRegular = uniqueRecentDays >= 2;
+export interface MemoData {
+  sideDishes: string[];
+  meats: string[];
+  mealsDrinks: string[];
+  seatingOthers: string[];
+  other?: string;
+}
 
-  // 가장 많이 방문한 시간대 계산
-  const hourCounts: Record<number, number> = {};
-  customerVisits.forEach((v) => {
-    const hour = new Date(v.date).getHours();
-    hourCounts[hour] = (hourCounts[hour] || 0) + 1;
-  });
-  const topHour =
-    Object.keys(hourCounts).length > 0
-      ? parseInt(Object.entries(hourCounts).sort((a, b) => b[1] - a[1])[0][0])
-      : null;
+export function parseMemo(memoStr: string): MemoData {
+  const defaultData: MemoData = { sideDishes: [], meats: [], mealsDrinks: [], seatingOthers: [] };
+  if (!memoStr) return defaultData;
+  try {
+    if (memoStr.startsWith('{') && memoStr.endsWith('}')) {
+      const parsed = JSON.parse(memoStr);
+      return {
+        sideDishes: Array.isArray(parsed.sideDishes) ? parsed.sideDishes : [],
+        meats: Array.isArray(parsed.meats) ? parsed.meats : [],
+        mealsDrinks: Array.isArray(parsed.mealsDrinks) ? parsed.mealsDrinks : [],
+        seatingOthers: Array.isArray(parsed.seatingOthers) ? parsed.seatingOthers : [],
+        other: parsed.other
+      };
+    }
+  } catch (e) {
+    // Ignore
+  }
+  return { ...defaultData, other: memoStr };
+}
 
-  const totalVisitCount = customerVisits.length;
+export function formatMemoDisplay(memoStr: string): string {
+  if (!memoStr) return '';
+  const data = parseMemo(memoStr);
+  const parts = [];
+  if (data.sideDishes?.length > 0) parts.push(`[반찬/소스] ${data.sideDishes.join(', ')}`);
+  if (data.meats?.length > 0) parts.push(`[고기 취향] ${data.meats.join(', ')}`);
+  if (data.mealsDrinks?.length > 0) parts.push(`[식사/주류] ${data.mealsDrinks.join(', ')}`);
+  if (data.seatingOthers?.length > 0) parts.push(`[좌석/기타] ${data.seatingOthers.join(', ')}`);
+  if (data.other) parts.push(`[직접입력] ${data.other}`);
+  
+  if (parts.length === 0) return memoStr; // Fallback
+  return parts.join(' / ');
+}
 
-  // 알레르기 파싱 (메모에서)
+export default function MemoModal({ isOpen, onClose, initialMemo, onSave }: MemoModalProps) {
+  const [data, setData] = useState<MemoData>({ sideDishes: [], meats: [], mealsDrinks: [], seatingOthers: [] });
+
   useEffect(() => {
-    const memoText = customer.memo || '';
-    const allergyMatch = memoText.match(/\[알레르기:([^\]]+)\]/);
-    if (allergyMatch) {
-      setSelectedAllergies(allergyMatch[1].split(',').map((s) => s.trim()).filter(Boolean));
+    if (isOpen) {
+      setData(parseMemo(initialMemo));
     }
-    const noteMatch = memoText.replace(/\[알레르기:[^\]]+\]/, '').trim();
-    setSpecialNote(noteMatch);
-  }, [customer.memo]);
+  }, [isOpen, initialMemo]);
 
-  const toggleAllergy = (item: string) => {
-    if (item === '없음') {
-      setSelectedAllergies(['없음']);
-      return;
-    }
-    setSelectedAllergies((prev) => {
-      const withoutNone = prev.filter((a) => a !== '없음');
-      return withoutNone.includes(item)
-        ? withoutNone.filter((a) => a !== item)
-        : [...withoutNone, item];
+  if (!isOpen) return null;
+
+  const handleSave = () => {
+    onSave(JSON.stringify(data));
+    onClose();
+  };
+
+  const toggleOption = (category: keyof MemoData, option: string) => {
+    setData(prev => {
+      const list = (prev[category] as string[]) || [];
+      if (list.includes(option)) {
+        return { ...prev, [category]: list.filter(item => item !== option) };
+      } else {
+        return { ...prev, [category]: [...list, option] };
+      }
     });
   };
 
-  const handleSave = () => {
-    setIsSaving(true);
-    const allergyPart =
-      selectedAllergies.length > 0 ? `[알레르기:${selectedAllergies.join(',')}]` : '';
-    const fullMemo = [allergyPart, specialNote].filter(Boolean).join(' ').trim();
-    updateUserMemo(customer.id, currentUser.id, fullMemo);
-    setTimeout(() => {
-      setIsSaving(false);
-      onClose();
-    }, 400);
+  const OptionButton = ({ category, option }: { category: keyof MemoData, option: string }) => {
+    const isSelected = (data[category] as string[])?.includes(option);
+    return (
+      <button
+        onClick={() => toggleOption(category, option)}
+        className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+          isSelected
+            ? 'bg-burgundy text-hanji-light border-2 border-burgundy shadow-md' 
+            : 'bg-hanji-light text-ink-light border border-ink-light/20 hover:bg-ink-light/5 dark:bg-hanji-dark dark:text-ink-dark dark:border-ink-dark/20 dark:hover:bg-ink-dark/10'
+        }`}
+      >
+        {option}
+      </button>
+    );
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-in fade-in duration-200">
-      <div className="bg-white w-full sm:max-w-md rounded-t-[2rem] sm:rounded-[2rem] p-6 pb-10 sm:pb-6 relative shadow-2xl animate-in slide-in-from-bottom-full sm:zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
-        {/* 닫기 버튼 */}
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-100 transition-colors"
-        >
-          <X className="w-5 h-5 text-slate-400" />
-        </button>
-
-        {/* 헤더: 이름 + 신규/단골 태그 */}
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-11 h-11 bg-gradient-to-tr from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-lg shrink-0">
-            {customer.name.charAt(0)}
-          </div>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-hanji-light dark:bg-hanji-dark rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-ink-light/10 dark:border-ink-dark/10">
+        <div className="p-6 border-b border-ink-light/10 dark:border-ink-dark/10 flex justify-between items-center shrink-0">
+          <h2 className="text-2xl font-serif font-bold text-ink-light dark:text-ink-dark">고객 맞춤 메모</h2>
+          <button onClick={onClose} className="p-2 hover:bg-ink-light/5 dark:hover:bg-ink-dark/10 rounded-full transition-colors">
+            <X className="w-6 h-6 text-ink-light/60 dark:text-ink-dark/60" />
+          </button>
+        </div>
+        
+        <div className="p-6 overflow-y-auto flex-1 space-y-8 no-scrollbar">
+          {/* 반찬/소스 */}
           <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-xl font-bold text-slate-900">{customer.name}</h2>
-              <span
-                className={`text-xs font-bold px-2.5 py-1 rounded-full ${
-                  isRegular
-                    ? 'bg-amber-100 text-amber-700 border border-amber-200'
-                    : 'bg-blue-50 text-blue-600 border border-blue-100'
-                }`}
-              >
-                {isRegular ? '단골' : '신규'}
-              </span>
+            <h3 className="text-base font-serif font-bold text-ink-light dark:text-ink-dark mb-3 flex items-center">
+              <span className="w-1.5 h-4 bg-olive rounded-full mr-2"></span>
+              반찬 및 소스 취향
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {SIDE_DISH_OPTIONS.map(opt => <OptionButton key={opt} category="sideDishes" option={opt} />)}
             </div>
-            <p className="text-sm text-slate-500">{customer.phone}</p>
+          </div>
+
+          {/* 고기 취향 */}
+          <div>
+            <h3 className="text-base font-serif font-bold text-ink-light dark:text-ink-dark mb-3 flex items-center">
+              <span className="w-1.5 h-4 bg-burgundy rounded-full mr-2"></span>
+              고기 굽기 및 취향
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {MEAT_OPTIONS.map(opt => <OptionButton key={opt} category="meats" option={opt} />)}
+            </div>
+          </div>
+
+          {/* 식사/주류 */}
+          <div>
+            <h3 className="text-base font-serif font-bold text-ink-light dark:text-ink-dark mb-3 flex items-center">
+              <span className="w-1.5 h-4 bg-mustard rounded-full mr-2"></span>
+              식사 및 주류
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {MEAL_DRINK_OPTIONS.map(opt => <OptionButton key={opt} category="mealsDrinks" option={opt} />)}
+            </div>
+          </div>
+
+          {/* 좌석/기타 */}
+          <div>
+            <h3 className="text-base font-serif font-bold text-ink-light dark:text-ink-dark mb-3 flex items-center">
+              <span className="w-1.5 h-4 bg-espresso rounded-full mr-2"></span>
+              좌석 및 기타 요청
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {SEATING_OTHER_OPTIONS.map(opt => <OptionButton key={opt} category="seatingOthers" option={opt} />)}
+            </div>
+          </div>
+
+          {/* 직접 입력 */}
+          <div>
+            <h3 className="text-base font-serif font-bold text-ink-light dark:text-ink-dark mb-3 flex items-center">
+              <span className="w-1.5 h-4 bg-ink-light/50 dark:bg-ink-dark/50 rounded-full mr-2"></span>
+              직접 입력
+            </h3>
+            <textarea
+              value={data.other || ''}
+              onChange={(e) => setData(prev => ({ ...prev, other: e.target.value }))}
+              placeholder="추가로 기억해야 할 내용을 자유롭게 적어주세요."
+              className="w-full p-4 bg-white/50 dark:bg-black/20 border border-ink-light/20 dark:border-ink-dark/20 rounded-2xl focus:ring-2 focus:ring-burgundy focus:border-burgundy resize-none h-32 text-sm text-ink-light dark:text-ink-dark placeholder:text-ink-light/40 dark:placeholder:text-ink-dark/40"
+            />
           </div>
         </div>
 
-        {/* 날짜/시간대 */}
-        <div className="mb-5">
-          <div className="flex items-center gap-2 mb-2">
-            <Clock className="w-4 h-4 text-indigo-500" />
-            <span className="text-sm font-bold text-slate-700">방문 시간대</span>
-          </div>
-          <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 text-sm text-slate-600">
-            {customerVisits.length === 0 ? (
-              <span className="text-slate-400">방문 기록 없음</span>
-            ) : (
-              <span>총 <strong className="text-slate-900">{totalVisitCount}회</strong> 방문</span>
-            )}
-          </div>
-          {isRegular && topHour !== null && (
-            <p className="text-xs text-indigo-600 mt-1.5 font-medium">
-              💡 가장 많이 방문하신 시간대는 <strong>{topHour}시</strong>입니다.
-            </p>
-          )}
+        <div className="p-6 border-t border-ink-light/10 dark:border-ink-dark/10 bg-black/5 dark:bg-white/5 shrink-0">
+          <button
+            onClick={handleSave}
+            className="w-full bg-burgundy text-hanji-light py-4 rounded-2xl font-serif font-bold text-lg hover:bg-burgundy/90 transition-all duration-200 flex items-center justify-center shadow-lg hover:shadow-xl hover:-translate-y-0.5"
+          >
+            <Check className="w-6 h-6 mr-2" />
+            메모 저장하기
+          </button>
         </div>
-
-        {/* 인원 */}
-        <div className="mb-5">
-          <div className="flex items-center gap-2 mb-2">
-            <Users className="w-4 h-4 text-indigo-500" />
-            <span className="text-sm font-bold text-slate-700">방문 횟수</span>
-          </div>
-          <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 text-sm text-slate-600">
-            최근 30일 <strong className="text-slate-900">{uniqueRecentDays}회</strong> 방문
-          </div>
-          {isRegular && (
-            <p className="text-xs text-indigo-600 mt-1.5 font-medium">
-              💡 최근 30일 기준 <strong>{uniqueRecentDays}회</strong> 방문하셨습니다.
-            </p>
-          )}
-        </div>
-
-        {/* 알레르기 필터 */}
-        <div className="mb-5">
-          <div className="flex items-center gap-2 mb-2">
-            <AlertTriangle className="w-4 h-4 text-rose-400" />
-            <span className="text-sm font-bold text-slate-700">알레르기 필터</span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {ALLERGY_OPTIONS.map((item) => (
-              <button
-                key={item}
-                onClick={() => toggleAllergy(item)}
-                className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${
-                  selectedAllergies.includes(item)
-                    ? 'bg-rose-500 text-white border-rose-500'
-                    : 'bg-white text-slate-600 border-slate-200 hover:border-rose-300'
-                }`}
-              >
-                {item}
-              </button>
-            ))}
-          </div>
-          {isRegular && selectedAllergies.length > 0 && !selectedAllergies.includes('없음') && (
-            <p className="text-xs text-rose-500 mt-1.5 font-medium">
-              ⚠️ <strong>{selectedAllergies.join(', ')}</strong> 알레르기가 있으십니다.
-            </p>
-          )}
-        </div>
-
-        {/* 특이사항 기록 */}
-        <div className="mb-6">
-          <div className="flex items-center gap-2 mb-2">
-            <FileText className="w-4 h-4 text-slate-500" />
-            <span className="text-sm font-bold text-slate-700">특이사항 기록</span>
-          </div>
-          <textarea
-            value={specialNote}
-            onChange={(e) => setSpecialNote(e.target.value)}
-            placeholder="최대 50자까지 기록해 주세요."
-            maxLength={50}
-            rows={3}
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all resize-none"
-          />
-          <p className="text-xs text-slate-400 text-right mt-1">{specialNote.length}/50</p>
-        </div>
-
-        {/* 저장 버튼 */}
-        <button
-          onClick={handleSave}
-          disabled={isSaving}
-          className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-bold py-4 rounded-xl transition-colors shadow-sm"
-        >
-          {isSaving ? '저장 중...' : '저장하기'}
-        </button>
       </div>
     </div>
   );

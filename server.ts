@@ -267,4 +267,4 @@ async function startServer() {
   });
 }
 
-startServer();
+startServer().catch(console.error);

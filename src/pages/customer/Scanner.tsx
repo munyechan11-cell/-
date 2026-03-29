@@ -114,30 +114,30 @@ export default function CustomerScanner() {
   };
 
   return (
-    <div className="min-h-full bg-slate-50 flex flex-col">
-      <div className="bg-white text-slate-900 p-6 pt-8 flex items-center border-b border-slate-100 sticky top-0 z-10">
-        <Link to="/" className="p-2 -ml-2 hover:bg-slate-100 rounded-full transition-colors mr-2">
-          <ArrowLeft className="w-6 h-6" />
+    <div className="min-h-full bg-hanji-light dark:bg-hanji-dark flex flex-col">
+      <div className="bg-white/80 dark:bg-black/20 backdrop-blur-md text-ink-light dark:text-ink-dark p-6 pt-8 flex items-center border-b border-ink-light/10 dark:border-ink-dark/10 sticky top-0 z-10">
+        <Link to="/" className="p-2 -ml-2 hover:bg-ink-light/5 dark:hover:bg-ink-dark/10 rounded-full transition-colors mr-2">
+          <ArrowLeft className="w-6 h-6 text-ink-light/70 dark:text-ink-dark/70" />
         </Link>
-        <h1 className="text-2xl font-bold tracking-tight flex-1">테이블 스캔</h1>
+        <h1 className="text-2xl font-serif font-bold tracking-tight flex-1">테이블 스캔</h1>
       </div>
 
       <div className="flex-1 p-6 flex flex-col items-center justify-center">
-        <div className="w-full max-w-sm bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+        <div className="w-full max-w-sm bg-white dark:bg-black/20 p-6 rounded-3xl shadow-sm border border-ink-light/10 dark:border-ink-dark/10">
           <div className="text-center mb-6">
-            <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <ScanLine className="w-8 h-8 text-indigo-600" />
+            <div className="w-16 h-16 bg-burgundy/10 dark:bg-burgundy/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <ScanLine className="w-8 h-8 text-burgundy dark:text-burgundy-light" />
             </div>
-            <h2 className="text-xl font-bold text-slate-900 mb-2">테이블 QR 스캔</h2>
-            <p className="text-slate-500 text-sm">테이블에 있는 QR 코드를 스캔해주세요.</p>
+            <h2 className="text-xl font-serif font-bold text-ink-light dark:text-ink-dark mb-2">테이블 QR 스캔</h2>
+            <p className="text-ink-light/60 dark:text-ink-dark/60 text-sm">테이블에 있는 QR 코드를 스캔해주세요.</p>
           </div>
 
-          <div className="relative rounded-2xl overflow-hidden bg-slate-900 aspect-square mb-6 shadow-inner">
+          <div className="relative rounded-2xl overflow-hidden bg-black/90 aspect-square mb-6 shadow-inner border border-ink-light/10 dark:border-ink-dark/10">
             <div id="reader" className="w-full h-full"></div>
           </div>
 
           {error && (
-            <div className="bg-red-50 text-red-600 p-4 rounded-xl text-sm mb-4 text-center font-medium border border-red-100">
+            <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-4 rounded-xl text-sm mb-4 text-center font-medium border border-red-100 dark:border-red-900/30">
               {error}
             </div>
           )}
@@ -145,7 +145,7 @@ export default function CustomerScanner() {
           <div className="flex gap-3">
             <button 
               onClick={toggleCamera}
-              className="flex-1 bg-slate-100 text-slate-700 py-3.5 rounded-xl font-semibold hover:bg-slate-200 transition-colors flex items-center justify-center text-sm"
+              className="flex-1 bg-white dark:bg-black/20 border border-ink-light/10 dark:border-ink-dark/10 text-ink-light/70 dark:text-ink-dark/70 py-3.5 rounded-xl font-bold hover:bg-ink-light/5 dark:hover:bg-ink-dark/10 transition-colors flex items-center justify-center text-sm shadow-sm"
             >
               <RefreshCw className="w-4 h-4 mr-2" />
               카메라 전환
@@ -170,7 +170,7 @@ export default function CustomerScanner() {
                   }
                 }
               }}
-              className="flex-1 bg-indigo-600 text-white py-3.5 rounded-xl font-semibold hover:bg-indigo-700 transition-colors flex items-center justify-center text-sm shadow-sm shadow-indigo-200"
+              className="flex-1 bg-burgundy hover:bg-burgundy/90 text-hanji-light py-3.5 rounded-xl font-bold transition-colors flex items-center justify-center text-sm shadow-sm"
             >
               링크로 입장
             </button>

@@ -258,34 +258,34 @@ export default function OwnerLogin() {
   };
 
   return (
-    <div className="min-h-full bg-slate-50 flex flex-col items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden relative">
+    <div className="min-h-full bg-hanji-light dark:bg-hanji-dark flex flex-col items-center justify-center p-4">
+      <div className="max-w-md w-full bg-white dark:bg-black/20 rounded-3xl shadow-sm border border-ink-light/10 dark:border-ink-dark/10 overflow-hidden relative">
         <Link 
           to="/" 
-          className="absolute top-4 left-4 p-2 hover:bg-slate-100 rounded-full text-slate-600 transition-colors z-10"
+          className="absolute top-4 left-4 p-2 hover:bg-ink-light/5 dark:hover:bg-ink-dark/10 rounded-full text-ink-light/60 dark:text-ink-dark/60 transition-colors z-10"
         >
           <ArrowLeft className="w-6 h-6" />
         </Link>
         
         <div className="p-8 pt-12 text-center">
-          <div className="w-20 h-20 rounded-full bg-indigo-50 flex items-center justify-center mx-auto mb-4">
-            <Store className="w-10 h-10 text-indigo-600" />
+          <div className="w-20 h-20 rounded-full bg-burgundy/10 dark:bg-burgundy/20 flex items-center justify-center mx-auto mb-4">
+            <Store className="w-10 h-10 text-burgundy dark:text-burgundy-light" />
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+          <h1 className="text-2xl font-serif font-bold text-ink-light dark:text-ink-dark tracking-tight">
             {pendingOAuthUser ? `${pendingOAuthUser.provider} 회원가입` : (!isLogin && restaurantName ? restaurantName : '사장님 서비스')}
           </h1>
-          <p className="text-slate-500 mt-2 text-sm">단골 관리 파트너</p>
+          <p className="text-ink-light/60 dark:text-ink-dark/60 mt-2 text-sm">단골 관리 파트너</p>
         </div>
         
-        <div className="flex border-b border-slate-100 px-8">
+        <div className="flex border-b border-ink-light/10 dark:border-ink-dark/10 px-8">
           <button 
-            className={`flex-1 py-4 font-semibold text-sm transition-colors ${isLogin ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+            className={`flex-1 py-4 font-bold text-sm transition-colors ${isLogin ? 'text-burgundy dark:text-burgundy-light border-b-2 border-burgundy dark:border-burgundy-light' : 'text-ink-light/50 dark:text-ink-dark/50 hover:text-ink-light/70 dark:hover:text-ink-dark/70'}`}
             onClick={() => { setIsLogin(true); setError(''); setPendingOAuthUser(null); }}
           >
             로그인
           </button>
           <button 
-            className={`flex-1 py-4 font-semibold text-sm transition-colors ${!isLogin ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+            className={`flex-1 py-4 font-bold text-sm transition-colors ${!isLogin ? 'text-burgundy dark:text-burgundy-light border-b-2 border-burgundy dark:border-burgundy-light' : 'text-ink-light/50 dark:text-ink-dark/50 hover:text-ink-light/70 dark:hover:text-ink-dark/70'}`}
             onClick={() => { setIsLogin(false); setError(''); }}
           >
             회원가입
@@ -294,18 +294,18 @@ export default function OwnerLogin() {
 
         <form onSubmit={handleSubmit} className="p-8 space-y-5">
           {error && (
-            <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm font-medium text-center border border-red-100">
+            <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-3 rounded-xl text-sm font-medium text-center border border-red-100 dark:border-red-900/30">
               {error}
             </div>
           )}
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">전화번호</label>
+            <label className="block text-sm font-bold text-ink-light/80 dark:text-ink-dark/80 mb-2">전화번호</label>
             <input 
               type="tel" 
               value={phone}
               onChange={(e) => setPhone(formatPhoneNumber(e.target.value))}
               placeholder="010-0000-0000"
-              className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-base"
+              className="w-full px-4 py-3.5 bg-white dark:bg-black/20 border border-ink-light/10 dark:border-ink-dark/10 rounded-xl text-ink-light dark:text-ink-dark placeholder-ink-light/30 dark:placeholder-ink-dark/30 focus:ring-2 focus:ring-burgundy focus:border-transparent transition-all text-base"
               required
               disabled={isLoading}
             />
@@ -314,26 +314,26 @@ export default function OwnerLogin() {
           {!isLogin && (
             <>
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">성함</label>
+                <label className="block text-sm font-bold text-ink-light/80 dark:text-ink-dark/80 mb-2">성함</label>
                 <input 
                   type="text" 
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="홍길동"
-                  className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-base"
+                  className="w-full px-4 py-3.5 bg-white dark:bg-black/20 border border-ink-light/10 dark:border-ink-dark/10 rounded-xl text-ink-light dark:text-ink-dark placeholder-ink-light/30 dark:placeholder-ink-dark/30 focus:ring-2 focus:ring-burgundy focus:border-transparent transition-all text-base"
                   required={!isLogin}
                   disabled={isLoading}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">가게 이름</label>
+                <label className="block text-sm font-bold text-ink-light/80 dark:text-ink-dark/80 mb-2">가게 이름</label>
                 <input 
                   type="text" 
                   value={restaurantName}
                   onChange={(e) => setRestaurantName(e.target.value)}
                   placeholder="연심"
-                  className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-base"
+                  className="w-full px-4 py-3.5 bg-white dark:bg-black/20 border border-ink-light/10 dark:border-ink-dark/10 rounded-xl text-ink-light dark:text-ink-dark placeholder-ink-light/30 dark:placeholder-ink-dark/30 focus:ring-2 focus:ring-burgundy focus:border-transparent transition-all text-base"
                   required={!isLogin}
                   disabled={isLoading}
                 />
@@ -344,7 +344,7 @@ export default function OwnerLogin() {
           <button 
             type="submit"
             disabled={isLoading || phone.replace(/[^0-9]/g, '').length < 10 || (!isLogin && (!name || !restaurantName))}
-            className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-semibold py-3.5 rounded-xl transition-colors text-base flex items-center justify-center shadow-sm shadow-indigo-200 mt-2"
+            className="w-full bg-burgundy hover:bg-burgundy/90 disabled:bg-burgundy/50 text-hanji-light font-bold py-3.5 rounded-xl transition-colors text-base flex items-center justify-center shadow-sm mt-2"
           >
             {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : (isLogin ? '로그인' : (pendingOAuthUser ? `${pendingOAuthUser.provider} 계정으로 가입 완료` : '회원가입 및 시작하기'))}
           </button>
@@ -352,9 +352,9 @@ export default function OwnerLogin() {
           {!pendingOAuthUser && (
             <>
               <div className="relative flex items-center py-2">
-                <div className="flex-grow border-t border-slate-200"></div>
-                <span className="flex-shrink-0 mx-4 text-slate-400 text-sm font-medium">또는</span>
-                <div className="flex-grow border-t border-slate-200"></div>
+                <div className="flex-grow border-t border-ink-light/10 dark:border-ink-dark/10"></div>
+                <span className="flex-shrink-0 mx-4 text-ink-light/40 dark:text-ink-dark/40 text-sm font-bold">또는</span>
+                <div className="flex-grow border-t border-ink-light/10 dark:border-ink-dark/10"></div>
               </div>
               
               <div className="space-y-3">
@@ -362,7 +362,7 @@ export default function OwnerLogin() {
                   type="button"
                   onClick={handleGoogleLogin}
                   disabled={isLoading}
-                  className="w-full bg-white hover:bg-slate-50 border border-slate-200 disabled:bg-slate-50 text-slate-700 font-semibold py-3.5 rounded-xl transition-colors text-base flex items-center justify-center shadow-sm"
+                  className="w-full bg-white dark:bg-black/20 hover:bg-ink-light/5 dark:hover:bg-ink-dark/10 border border-ink-light/10 dark:border-ink-dark/10 disabled:bg-ink-light/5 dark:disabled:bg-ink-dark/5 text-ink-light/80 dark:text-ink-dark/80 font-bold py-3.5 rounded-xl transition-colors text-base flex items-center justify-center shadow-sm"
                 >
                   <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
                     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -377,7 +377,7 @@ export default function OwnerLogin() {
                   type="button"
                   onClick={() => handleOAuthLogin('kakao')}
                   disabled={isLoading}
-                  className="w-full bg-[#FEE500] hover:bg-[#E5CE00] disabled:bg-[#FEE500]/50 text-[#000000] font-semibold py-3.5 rounded-xl transition-colors text-base flex items-center justify-center shadow-sm"
+                  className="w-full bg-[#FEE500] hover:bg-[#E5CE00] disabled:bg-[#FEE500]/50 text-[#000000] font-bold py-3.5 rounded-xl transition-colors text-base flex items-center justify-center shadow-sm"
                 >
                   <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12 3c-5.523 0-10 3.538-10 7.9 0 2.834 1.88 5.32 4.686 6.722-.296 1.092-1.076 3.978-1.096 4.056-.026.104.032.208.13.236.076.022.158.006.216-.042 0 0 3.43-2.316 4.88-3.32.386.054.786.082 1.184.082 5.523 0 10-3.538 10-7.9C22 6.538 17.523 3 12 3z"/>
@@ -389,7 +389,7 @@ export default function OwnerLogin() {
                   type="button"
                   onClick={() => handleOAuthLogin('naver')}
                   disabled={isLoading}
-                  className="w-full bg-[#03C75A] hover:bg-[#02B350] disabled:bg-[#03C75A]/50 text-white font-semibold py-3.5 rounded-xl transition-colors text-base flex items-center justify-center shadow-sm"
+                  className="w-full bg-[#03C75A] hover:bg-[#02B350] disabled:bg-[#03C75A]/50 text-white font-bold py-3.5 rounded-xl transition-colors text-base flex items-center justify-center shadow-sm"
                 >
                   <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M16.273 12.845L7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727v12.845z"/>
