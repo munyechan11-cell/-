@@ -99,7 +99,7 @@ export default function App() {
 
   useEffect(() => {
     if (!isReady) {
-      const timer = setTimeout(() => setShowSlowHint(true), 3000);
+      const timer = setTimeout(() => setShowSlowHint(true), 10000);
       return () => clearTimeout(timer);
     }
   }, [isReady]);

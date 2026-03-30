@@ -187,7 +187,7 @@ if (!isFirebaseConfigured) {
       globalFirebaseStatus = 'offline';
       notifyUpdate();
     }
-  }, 8000); // 8초까지 대기 시간 연장 (마이그레이션 고려)
+  }, 10000); // 10초까지 대기 시간 연장 (마이그레이션 고려)
 
 } else {
   globalIsReady = true;
