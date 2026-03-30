@@ -18,12 +18,55 @@
   </head>
   <body>
     <div id="root"></div>
+    
+    <!-- Emergency Recovery Script: Prevents permanent white screens -->
+    <script>
+      (function() {
+        var timer = setTimeout(function() {
+          var root = document.getElementById('root');
+          if (root && root.innerHTML === "") {
+            root.innerHTML = '<div style="min-h-screen:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;text-align:center;font-family:sans-serif;background:#f8fafc;">' +
+              '<h2 style="color:#800020;margin-bottom:10px;">화면을 불러오지 못했습니다</h2>' +
+              '<p style="color:#64748b;margin-bottom:20px;font-size:14px;">캐시 충돌이나 네트워크 문제일 수 있습니다.<br>아래 버튼을 눌러 초기화를 진행해 주세요.</p>' +
+              '<button onclick="clearAndReload()" style="background:#800020;color:white;border:none;padding:12px 24px;border-radius:12px;font-weight:bold;cursor:pointer;box-shadow:0 4px 6px -1px rgb(0 0 0 / 0.1);">초기화 후 다시 접속</button>' +
+              '</div>';
+          }
+        }, 8000);
+
+        window.clearAndReload = function() {
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+              for(var registration of registrations) {
+                registration.unregister();
+              }
+            });
+          }
+          localStorage.clear();
+          sessionStorage.clear();
+          window.location.href = window.location.origin + '?reset=' + Date.now();
+        };
+
+        // If React mounts, clear the timeout
+        window.addEventListener('load', function() {
+          var observer = new MutationObserver(function(mutations) {
+            if (document.getElementById('root').innerHTML !== "") {
+              clearTimeout(timer);
+              observer.disconnect();
+            }
+          });
+          observer.observe(document.getElementById('root'), { childList: true });
+        });
+      })();
+    </script>
+
     <script type="module" src="/src/main.tsx"></script>
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').then(registration => {
+          navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then(registration => {
             console.log('SW registered: ', registration);
+            // Check for updates every time the page is loaded
+            registration.update();
           }).catch(registrationError => {
             console.log('SW registration failed: ', registrationError);
           });
