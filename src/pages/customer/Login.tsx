@@ -136,6 +136,7 @@ export default function CustomerLogin() {
     } else {
       // User does not exist, need to collect more info
       setError(`가입되지 않은 ${providerName} 계정입니다. 추가 정보를 입력하고 회원가입을 완료해주세요.`);
+      setIsLogin(false); // Switch to registration mode
       setPendingOAuthUser({ uid: user.uid, provider: providerName, displayName: user.displayName || null });
       if (user.displayName && !name) setName(user.displayName);
       setIsLogin(false);

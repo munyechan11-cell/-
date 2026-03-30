@@ -131,9 +131,14 @@ if (!isFirebaseConfigured) {
       if (docSnap.exists()) {
         const data = docSnap.data();
         Object.assign(globalState, data);
-      } else {
+      } else if (!isInitialized) {
+        // Only seed the document if it's the very first time we connect and it's empty
+        console.warn("Global state document not found - Seeding initial empty state");
         const sanitizedState = JSON.parse(JSON.stringify(globalState));
-        setDoc(docRef, sanitizedState).catch((e) => {
+        setDoc(docRef, sanitizedState).then(() => {
+          console.info("Seeding successful");
+        }).catch((e) => {
+          console.error("Failed to seed initial state:", e);
           console.error(e);
           if (e.code === 'permission-denied' || e.message?.includes('Missing or insufficient permissions')) {
             const errInfo = {
