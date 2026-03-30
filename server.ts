@@ -254,10 +254,36 @@ async function startServer() {
       appType: "spa",
     });
     app.use(vite.middlewares);
-  } else {
     const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*all', (req, res) => {
+    
+    // Add health check/logging for deployment
+    import('fs').then(fs => {
+      if (fs.existsSync(distPath)) {
+        const files = fs.readdirSync(distPath);
+        console.log(`[Production] Static folder found: ${distPath}. Contents: ${files.join(', ')}`);
+        const assetsPath = path.join(distPath, 'assets');
+        if (fs.existsSync(assetsPath)) {
+          const assets = fs.readdirSync(assetsPath);
+          console.log(`[Production] Assets found: ${assets.length} files.`);
+        } else {
+          console.error(`[CRITICAL] Assets folder missing at ${assetsPath}`);
+        }
+      } else {
+        console.error(`[CRITICAL] Distribution folder missing at ${distPath}. Build might have failed or process.cwd() is wrong.`);
+      }
+    }).catch(console.error);
+
+    app.use(express.static(distPath, {
+      index: false,
+      maxAge: '1d',
+      etag: true
+    }));
+
+    app.get('*', (req, res) => {
+      // Don't serve HTML for missing assets
+      if (req.path.match(/\.(js|css|png|jpg|svg|ico)$/)) {
+        return res.status(404).send('Asset not found');
+      }
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
