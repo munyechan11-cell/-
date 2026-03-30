@@ -99,36 +99,51 @@ if (!isFirebaseConfigured) {
 } else if (db && collections) {
   // --- MIGRATION LOGIC (One-time) ---
   const migrateData = async () => {
-    const globalDocRef = doc(db, 'appState', 'global');
-    const snap = await getDoc(globalDocRef);
-    if (snap.exists()) {
-      console.info("Found legacy legacy data - starting migration...");
-      const data = snap.data();
-      const batch = writeBatch(db);
+    try {
+      const settingsDocRef = doc(db, 'appState', 'settings');
+      const settingsSnap = await getDoc(settingsDocRef);
       
-      // Migrate each category to its own collection
-      const cats = ['users', 'visits', 'coupons', 'tables', 'communications', 'tierOverrides'];
-      for (const cat of cats) {
-        if (Array.isArray(data[cat])) {
-          for (const item of data[cat]) {
-            const itemRef = doc(db, cat, item.id || `${item.storeId}_${item.number}`);
-            batch.set(itemRef, item);
+      // 만약 이미 마이그레이션이 완료되었다면 중단
+      if (settingsSnap.exists() && settingsSnap.data().migration_complete) {
+        console.info("Migration already marked as complete.");
+        return;
+      }
+
+      const globalDocRef = doc(db, 'appState', 'global');
+      const snap = await getDoc(globalDocRef);
+      
+      if (snap.exists()) {
+        console.info("Found legacy legacy data - starting migration...");
+        const data = snap.data();
+        const batch = writeBatch(db);
+        
+        // Migrate each category to its own collection
+        const cats = ['users', 'visits', 'coupons', 'tables', 'communications', 'tierOverrides'];
+        for (const cat of cats) {
+          if (Array.isArray(data[cat])) {
+            for (const item of data[cat]) {
+              const itemRef = doc(db, cat, item.id || `${item.storeId}_${item.number}`);
+              batch.set(itemRef, item, { merge: true });
+            }
           }
         }
+        
+        // Mark migration as complete
+        batch.set(settingsDocRef, { 
+          migration_complete: true, 
+          masterPassword: data.masterPassword || 'IMC' 
+        }, { merge: true });
+        
+        // Delete legacy doc
+        batch.delete(globalDocRef);
+        await batch.commit();
+        console.info("Migration to collections complete.");
       }
-      
-      // Migrate master password
-      if (data.masterPassword) {
-        batch.set(doc(db, 'appState', 'settings'), { masterPassword: data.masterPassword });
-      }
-      
-      // Delete legacy doc
-      batch.delete(globalDocRef);
-      await batch.commit();
-      console.info("Migration to collections complete.");
+    } catch (err: any) {
+      console.error("Migration fatal error (ignoring to allow app to run):", err);
     }
   };
-  migrateData().catch(console.error);
+  migrateData();
 
   // --- COLLECTION SUBSCRIPTIONS ---
   const syncCollection = (collName: string, stateKey: string) => {
@@ -139,8 +154,14 @@ if (!isFirebaseConfigured) {
       notifyUpdate();
     }, (err) => {
       console.error(`Error syncing ${collName}:`, err);
+      let userMessage = err.message;
+      if (err.code === 'permission-denied') {
+        userMessage = `[권한 오류] Firebase 보안 규칙이 업데이트되지 않았습니다. (${collName})`;
+      }
       globalFirebaseStatus = 'error';
-      globalFirebaseError = err.message;
+      globalFirebaseError = userMessage;
+      // 인지할 수 있도록 즉시 준비 완료 상태로 변경 (에러 화면을 위함)
+      globalIsReady = true;
       notifyUpdate();
     });
   };
@@ -159,14 +180,14 @@ if (!isFirebaseConfigured) {
     }
   });
 
-  // Set timeout for initial load
+  // Set timeout for initial load (fallback)
   setTimeout(() => {
     if (!globalIsReady) {
       globalIsReady = true;
       globalFirebaseStatus = 'offline';
       notifyUpdate();
     }
-  }, 5000);
+  }, 8000); // 8초까지 대기 시간 연장 (마이그레이션 고려)
 
 } else {
   globalIsReady = true;
