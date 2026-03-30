@@ -279,12 +279,25 @@ async function startServer() {
       etag: true
     }));
 
-    app.get('(.*)', (req, res) => {
-      // Don't serve HTML for missing assets
-      if (req.path.match(/\.(js|css|png|jpg|svg|ico)$/)) {
+    // Robust catch-all for SPA: Using app.use() instead of app.get('*') 
+    // to bypass path-to-regexp parsing errors in Express 5.
+    app.use((req, res, next) => {
+      // 1. Only handle GET requests for SPA routing
+      if (req.method !== 'GET') return next();
+
+      // 2. Protect against MIME type mismatch: Don't serve HTML for missing static files
+      if (req.path.match(/\.(js|css|png|jpg|svg|ico|json|txt|webp|json|map)$/)) {
+        console.warn(`[Static] Missing asset: ${req.path}`);
         return res.status(404).send('Asset not found');
       }
-      res.sendFile(path.join(distPath, 'index.html'));
+
+      // 3. Serve index.html for all other GET requests (SPA client-side routing)
+      res.sendFile(path.join(distPath, 'index.html'), (err) => {
+        if (err) {
+          console.error('[Server] Failed to send index.html', err);
+          res.status(500).send('Server Error');
+        }
+      });
     });
   }
 
