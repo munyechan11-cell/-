@@ -7,6 +7,7 @@ import MemoModal, { formatMemoDisplay } from '../../components/MemoModal';
 export default function OwnerCustomers() {
   const { users, visits, issueCoupon, recordCommunication, communications, currentUser, tierOverrides, setCustomerTier, updateUserMemo, bulkIssueCoupon, bulkRecordCommunication } = useStore();
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterTier, setFilterTier] = useState<string>('all');
   const [selectedCustomer, setSelectedCustomer] = useState<string | null>(null);
   const [historyCustomer, setHistoryCustomer] = useState<string | null>(null);
   const [editingMemoCustomer, setEditingMemoCustomer] = useState<string | null>(null);
@@ -73,7 +74,13 @@ export default function OwnerCustomers() {
 
   const filteredCustomers = customers.filter(c => {
     const formattedMemo = c.memo ? formatMemoDisplay(c.memo) : '';
-    return c.name.includes(searchTerm) || c.phone.includes(searchTerm) || (c.memo && c.memo.includes(searchTerm)) || formattedMemo.includes(searchTerm);
+    const matchesSearch = c.name.includes(searchTerm) || c.phone.includes(searchTerm) || (c.memo && c.memo.includes(searchTerm)) || formattedMemo.includes(searchTerm);
+    
+    if (!matchesSearch) return false;
+    if (filterTier === 'all') return true;
+    
+    const stats = getCustomerStats(c.id);
+    return stats.tier === filterTier;
   });
 
   const [isSending, setIsSending] = useState(false);
@@ -228,6 +235,27 @@ export default function OwnerCustomers() {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full bg-white dark:bg-black/20 text-ink-light dark:text-ink-dark placeholder-ink-light/40 dark:placeholder-ink-dark/40 rounded-2xl py-3 pl-12 pr-4 border border-ink-light/10 dark:border-ink-dark/10 focus:border-burgundy focus:ring-2 focus:ring-burgundy/20 transition-all shadow-sm"
           />
+        </div>
+
+        <div className="mt-3 flex overflow-x-auto no-scrollbar gap-2 pb-2">
+          {['all', 'VIP', '다이아', '골드', '실버', '브론즈', '일반'].map(tier => (
+            <button
+              key={tier}
+              onClick={() => {
+                setFilterTier(tier);
+                setSelectedCustomers([]); // 필터 변경 시 다중 선택 초기화
+              }}
+              className={`whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-bold transition-all shadow-sm border ${
+                filterTier === tier 
+                  ? (tier === 'all' 
+                      ? 'bg-ink-light dark:bg-ink-dark text-hanji-light dark:text-hanji-dark border-ink-light dark:border-ink-dark' 
+                      : getTierColor(tier).replace('bg-', 'bg-').replace('text-', 'text-').concat(' border-current')) 
+                  : 'bg-white dark:bg-black/20 text-ink-light/60 dark:text-ink-dark/60 border-ink-light/10 dark:border-ink-dark/10 hover:border-ink-light/30 dark:hover:border-ink-dark/30'
+              }`}
+            >
+              {tier === 'all' ? '전체 등급' : tier}
+            </button>
+          ))}
         </div>
 
         {isMultiSelectMode && (
