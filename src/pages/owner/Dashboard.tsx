@@ -158,9 +158,16 @@ export default function OwnerDashboard() {
                     {table.number}
                   </span>
                   {isOccupied && customer && (
-                    <span className="text-xs font-bold text-burgundy dark:text-burgundy-light mt-1 truncate w-full text-center px-1">
-                      {customer.name}
-                    </span>
+                    <div className="flex flex-col items-center mt-1 w-full px-1 overflow-hidden">
+                      <span className="text-xs font-bold text-burgundy dark:text-burgundy-light truncate w-full text-center">
+                        {customer.name}
+                      </span>
+                      {customer.memo && (
+                        <span className="text-[9px] text-ink-light/80 dark:text-ink-dark/80 mt-0.5 truncate w-full text-center bg-white/50 dark:bg-black/20 px-1 rounded border border-ink-light/10 dark:border-ink-dark/10">
+                          {customer.memo.length > 8 ? customer.memo.substring(0, 8) + '...' : customer.memo}
+                        </span>
+                      )}
+                    </div>
                   )}
                 </button>
               );
@@ -250,13 +257,7 @@ export default function OwnerDashboard() {
                           <h3 className="text-2xl font-serif font-bold text-ink-light dark:text-ink-dark">{activeCustomer.name}님</h3>
                           <p className="text-ink-light/60 dark:text-ink-dark/60 text-sm mt-1">{activeCustomer.phone}</p>
                         </div>
-                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                          stats.tier === 'VIP' ? 'bg-burgundy/10 text-burgundy dark:bg-burgundy/20 dark:text-burgundy-light' :
-                          stats.tier === '다이아' ? 'bg-espresso/10 text-espresso dark:bg-espresso/20 dark:text-espresso-light' :
-                          stats.tier === '골드' ? 'bg-mustard/20 text-mustard-dark dark:bg-mustard/30 dark:text-mustard' :
-                          stats.tier === '실버' ? 'bg-ink-light/5 text-ink-light dark:bg-ink-dark/10 dark:text-ink-dark' :
-                          'bg-olive/10 text-olive dark:bg-olive/20 dark:text-olive-light'
-                        }`}>
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${getTierColor(stats.tier)} border`}>
                           {stats.tier}
                         </span>
                       </div>

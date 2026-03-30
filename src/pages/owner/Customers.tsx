@@ -249,7 +249,7 @@ export default function OwnerCustomers() {
                 filterTier === tier 
                   ? (tier === 'all' 
                       ? 'bg-ink-light dark:bg-ink-dark text-hanji-light dark:text-hanji-dark border-ink-light dark:border-ink-dark' 
-                      : getTierColor(tier).replace('bg-', 'bg-').replace('text-', 'text-').concat(' border-current')) 
+                      : getTierColor(tier)) 
                   : 'bg-white dark:bg-black/20 text-ink-light/60 dark:text-ink-dark/60 border-ink-light/10 dark:border-ink-dark/10 hover:border-ink-light/30 dark:hover:border-ink-dark/30'
               }`}
             >
@@ -327,9 +327,7 @@ export default function OwnerCustomers() {
                             setCustomerTier(customer.id, currentUser.id, e.target.value);
                           }}
                           onClick={(e) => e.stopPropagation()}
-                          className={`appearance-none px-3 py-1 pr-6 rounded-full text-xs font-bold border-none cursor-pointer focus:ring-2 focus:ring-burgundy/50 outline-none text-white ${
-                            stats.isManualTier ? 'bg-burgundy dark:bg-burgundy-light text-white' : 'bg-ink-light/20 dark:bg-ink-dark/20 text-ink-light dark:text-ink-dark'
-                          }`}
+                          className={`appearance-none px-3 py-1 pr-6 rounded-full text-xs font-bold border-none cursor-pointer focus:ring-2 focus:ring-burgundy/50 outline-none text-white ${getTierColor(stats.tier)}`}
                         >
                           <option value="auto">자동 ({stats.autoTier})</option>
                           <option value="일반">일반</option>
@@ -340,7 +338,7 @@ export default function OwnerCustomers() {
                           <option value="VIP">VIP</option>
                           <option value="VVIP">VVIP</option>
                         </select>
-                        <ChevronDown className="w-3 h-3 text-burgundy dark:text-burgundy-light absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        <ChevronDown className="w-3 h-3 text-ink-light dark:text-ink-dark absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-50" />
                       </div>
                       <h3 className="font-serif font-bold text-ink-light dark:text-ink-dark text-2xl">{customer.name}</h3>
                     </div>

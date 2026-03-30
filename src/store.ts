@@ -814,12 +814,12 @@ export const getNextTierVisits = (visitCount: number) => {
 
 export const getTierColor = (tier: string) => {
   switch (tier) {
-    case 'VIP': return 'bg-purple-100 text-purple-800 border-purple-200';
-    case '다이아': return 'bg-cyan-100 text-cyan-800 border-cyan-200';
-    case '골드': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-    case '실버': return 'bg-gray-200 text-gray-800 border-gray-300';
-    case '브론즈': return 'bg-orange-100 text-orange-800 border-orange-200';
-    default: return 'bg-slate-100 text-slate-700 border-slate-200'; // 일반
+    case 'VIP': return 'bg-burgundy/10 text-burgundy dark:bg-burgundy/20 dark:text-burgundy-light border-burgundy/20';
+    case '다이아': return 'bg-espresso/10 text-espresso dark:bg-espresso/20 dark:text-espresso-light border-espresso/20';
+    case '골드': return 'bg-mustard/20 text-mustard-dark dark:bg-mustard/30 dark:text-mustard border-mustard/30';
+    case '실버': return 'bg-ink-light/5 text-ink-light dark:bg-ink-dark/10 dark:text-ink-dark border-ink-light/10';
+    case '브론즈': return 'bg-olive/10 text-olive dark:bg-olive/20 dark:text-olive-light border-olive/20';
+    default: return 'bg-ink-light/5 text-ink-light/70 dark:bg-ink-dark/5 dark:text-ink-dark/70 border-ink-light/10'; // 일반
   }
 };
 
