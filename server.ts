@@ -254,6 +254,7 @@ async function startServer() {
       appType: "spa",
     });
     app.use(vite.middlewares);
+  } else {
     const distPath = path.join(process.cwd(), 'dist');
     
     // Add health check/logging for deployment
@@ -274,7 +275,6 @@ async function startServer() {
     }).catch(console.error);
 
     app.use(express.static(distPath, {
-      index: false,
       maxAge: '1d',
       etag: true
     }));
