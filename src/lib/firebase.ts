@@ -18,3 +18,15 @@ export const app = isFirebaseConfigured ? initializeApp(firebaseConfig) : null;
 
 export const db = isFirebaseConfigured ? getFirestore(app, firebaseConfig.firestoreDatabaseId) : null;
 export const auth = isFirebaseConfigured ? getAuth(app) : null;
+
+// Collection Helpers
+import { collection } from 'firebase/firestore';
+export const collections = db ? {
+  users: collection(db, 'users'),
+  visits: collection(db, 'visits'),
+  coupons: collection(db, 'coupons'),
+  tables: collection(db, 'tables'),
+  communications: collection(db, 'communications'),
+  tierOverrides: collection(db, 'tierOverrides'),
+  appState: collection(db, 'appState')
+} : null;

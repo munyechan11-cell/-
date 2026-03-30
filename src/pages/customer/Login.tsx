@@ -50,7 +50,7 @@ export default function CustomerLogin() {
     }
   }, [currentUser, users, navigate, storeId, tableNumber, recordVisit]);
 
-  const handlePhoneSubmit = (e: React.FormEvent) => {
+  const handlePhoneSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isLoading) return;
     
@@ -73,9 +73,9 @@ export default function CustomerLogin() {
       
       if (isLogin) {
         if (existingUser) {
-          const loggedInUser = login(cleanPhone, existingUser.name, 'customer', undefined, storeId, pendingOAuthUser?.uid);
+          const loggedInUser = await login(cleanPhone, existingUser.name, 'customer', undefined, storeId, pendingOAuthUser?.uid);
           if (tableNumber) {
-            recordVisit(loggedInUser.id, parseInt(tableNumber), storeId);
+            await recordVisit(loggedInUser.id, parseInt(tableNumber), storeId);
           }
           sessionStorage.removeItem('customerLogin_phone');
           setPendingOAuthUser(null);
@@ -92,9 +92,9 @@ export default function CustomerLogin() {
         }
         if (existingUser) {
           if (pendingOAuthUser) {
-            const loggedInUser = login(cleanPhone, existingUser.name, 'customer', undefined, storeId, pendingOAuthUser.uid);
+            const loggedInUser = await login(cleanPhone, existingUser.name, 'customer', undefined, storeId, pendingOAuthUser.uid);
             if (tableNumber) {
-              recordVisit(loggedInUser.id, parseInt(tableNumber), storeId);
+              await recordVisit(loggedInUser.id, parseInt(tableNumber), storeId);
             }
             sessionStorage.removeItem('customerLogin_phone');
             setPendingOAuthUser(null);
@@ -104,10 +104,10 @@ export default function CustomerLogin() {
             setIsLogin(true);
           }
         } else {
-          const loggedInUser = login(cleanPhone, name, 'customer', undefined, storeId, pendingOAuthUser?.uid, isPohangResident, gender);
-          issueCoupon(loggedInUser.id, storeId, '첫 회원가입 축하', '첫 회원가입 축하쿠폰 (3000원 상당)');
+          const loggedInUser = await login(cleanPhone, name, 'customer', undefined, storeId, pendingOAuthUser?.uid, isPohangResident, gender);
+          await issueCoupon(loggedInUser.id, storeId, '첫 회원가입 축하', '첫 회원가입 축하쿠폰 (3000원 상당)');
           if (tableNumber) {
-            recordVisit(loggedInUser.id, parseInt(tableNumber), storeId);
+            await recordVisit(loggedInUser.id, parseInt(tableNumber), storeId);
           }
           sessionStorage.removeItem('customerLogin_phone');
           setPendingOAuthUser(null);
@@ -127,9 +127,9 @@ export default function CustomerLogin() {
     
     if (existingUser) {
       // Login successful
-      const loggedInUser = login(existingUser.phone, existingUser.name, 'customer', undefined, storeId, user.uid);
+      const loggedInUser = await login(existingUser.phone, existingUser.name, 'customer', undefined, storeId, user.uid);
       if (tableNumber) {
-        recordVisit(loggedInUser.id, parseInt(tableNumber), storeId);
+        await recordVisit(loggedInUser.id, parseInt(tableNumber), storeId);
       }
       sessionStorage.removeItem('customerLogin_phone');
       navigate(`/customer/store/${storeId}`);

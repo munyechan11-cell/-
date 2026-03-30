@@ -58,7 +58,7 @@ export default function OwnerLogin() {
         // Login logic
         const existingOwner = users.find(u => u.phone.replace(/[^0-9]/g, '') === cleanPhone && u.role === 'owner');
         if (existingOwner) {
-          login(cleanPhone, existingOwner.name, 'owner', existingOwner.restaurantName, undefined, pendingOAuthUser?.uid);
+          await login(cleanPhone, existingOwner.name, 'owner', existingOwner.restaurantName, undefined, pendingOAuthUser?.uid);
           sessionStorage.clear();
           setPendingOAuthUser(null);
           navigate('/owner');
@@ -71,7 +71,7 @@ export default function OwnerLogin() {
           const existingOwner = users.find(u => u.phone.replace(/[^0-9]/g, '') === cleanPhone && u.role === 'owner');
           if (existingOwner) {
             if (pendingOAuthUser) {
-              login(cleanPhone, existingOwner.name, 'owner', existingOwner.restaurantName, undefined, pendingOAuthUser.uid);
+              await login(cleanPhone, existingOwner.name, 'owner', existingOwner.restaurantName, undefined, pendingOAuthUser.uid);
               sessionStorage.clear();
               setPendingOAuthUser(null);
               navigate('/owner');
@@ -80,7 +80,7 @@ export default function OwnerLogin() {
               setIsLogin(true);
             }
           } else {
-            login(cleanPhone, name, 'owner', restaurantName, undefined, pendingOAuthUser?.uid);
+            await login(cleanPhone, name, 'owner', restaurantName, undefined, pendingOAuthUser?.uid);
             sessionStorage.clear();
             setPendingOAuthUser(null);
             navigate('/owner');
@@ -101,7 +101,7 @@ export default function OwnerLogin() {
     const existingOwner = users.find(u => (u.googleId === user.uid || u.id === user.uid || u.socialIds?.includes(user.uid)) && u.role === 'owner');
     
     if (existingOwner) {
-      login(existingOwner.phone, existingOwner.name, 'owner', existingOwner.restaurantName, undefined, user.uid);
+      await login(existingOwner.phone, existingOwner.name, 'owner', existingOwner.restaurantName, undefined, user.uid);
       sessionStorage.clear();
       navigate('/owner');
     } else {

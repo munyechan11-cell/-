@@ -16,27 +16,30 @@ export default function TableEntry() {
       return;
     }
 
-    processedRef.current = true;
-    const userExists = currentUser && users.some(u => u.id === currentUser.id);
+    const run = async () => {
+      processedRef.current = true;
+      const userExists = currentUser && users.some(u => u.id === currentUser.id);
 
-    if (currentUser?.role === 'customer' && userExists) {
-      if (currentUser.storeId === storeId) {
-        // Already logged in to this store
-        recordVisit(currentUser.id, parseInt(tableNumber), storeId);
-        navigate(`/customer/store/${storeId}`);
-      } else {
-        // Logged in to a different store, log out and redirect to login
+      if (currentUser?.role === 'customer' && userExists) {
+        if (currentUser.storeId === storeId) {
+          // Already logged in to this store
+          await recordVisit(currentUser.id, parseInt(tableNumber), storeId);
+          navigate(`/customer/store/${storeId}`);
+        } else {
+          // Logged in to a different store, log out and redirect to login
+          logout();
+          navigate(`/customer/store/${storeId}/login?table=${tableNumber}`);
+        }
+      } else if (currentUser?.role === 'owner' || (currentUser && !userExists)) {
+        // Owner shouldn't be scanning customer QR codes, or user was deleted
         logout();
         navigate(`/customer/store/${storeId}/login?table=${tableNumber}`);
+      } else {
+        // Not logged in
+        navigate(`/customer/store/${storeId}/login?table=${tableNumber}`);
       }
-    } else if (currentUser?.role === 'owner' || (currentUser && !userExists)) {
-      // Owner shouldn't be scanning customer QR codes, or user was deleted
-      logout();
-      navigate(`/customer/store/${storeId}/login?table=${tableNumber}`);
-    } else {
-      // Not logged in
-      navigate(`/customer/store/${storeId}/login?table=${tableNumber}`);
-    }
+    };
+    run();
   }, [currentUser, users, navigate, storeId, tableNumber, recordVisit, logout, isReady]);
 
   return (

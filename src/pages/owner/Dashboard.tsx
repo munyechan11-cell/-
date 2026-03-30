@@ -110,13 +110,17 @@ export default function OwnerDashboard() {
                   </div>
                   <div className="flex gap-2 mt-2">
                     <button 
-                      onClick={() => rejectCouponUse(request.id)}
+                      onClick={async () => {
+                        await rejectCouponUse(request.id);
+                      }}
                       className="flex-1 py-3 bg-white dark:bg-black/20 text-ink-light/60 dark:text-ink-dark/60 border border-ink-light/10 dark:border-ink-dark/10 rounded-2xl font-bold hover:bg-ink-light/5 dark:hover:bg-ink-dark/10 transition-colors text-sm shadow-sm"
                     >
                       거절
                     </button>
                     <button 
-                      onClick={() => approveCouponUse(request.id)}
+                      onClick={async () => {
+                        await approveCouponUse(request.id);
+                      }}
                       className="flex-1 py-3 bg-burgundy text-hanji-light rounded-2xl font-bold hover:bg-burgundy/90 transition-colors shadow-md text-sm flex items-center justify-center"
                     >
                       <Check className="w-4 h-4 mr-1.5" />
