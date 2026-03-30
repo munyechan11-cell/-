@@ -1,0 +1,14 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // WARNING: The current application architecture stores all data, including 
+    // user PII (phone numbers), in a single global document. This is highly 
+    // insecure for a production application. 
+    // These rules temporarily allow access to make the prototype function, 
+    // but the application MUST be refactored to use proper Firestore collections 
+    // and secure rules before any real-world use.
+    match /appState/global {
+      allow read, write: if true;
+    }
+  }
+}

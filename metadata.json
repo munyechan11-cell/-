@@ -1,0 +1,7 @@
+{
+  "name": "결",
+  "description": "고깃집 연심을 위한 고객 관리 및 서비스 제공 플랫폼",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

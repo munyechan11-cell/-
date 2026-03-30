@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#f8fafc" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="description" content="결 (Gyeol) - 스마트한 매장 관리 및 고객 적립 서비스. 단골 고객을 위한 특별한 혜택을 경험하세요." />
+    <meta name="keywords" content="결, Gyeol, 매장관리, 고객관리, 포인트적립, 쿠폰, 단골, 카페, 식당" />
+    <meta property="og:title" content="결 (Gyeol) - 스마트 매장 & 고객 관리" />
+    <meta property="og:description" content="단골 고객을 위한 특별한 혜택. 결(Gyeol)과 함께 매장을 스마트하게 관리하세요." />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="결 (Gyeol)" />
+    <link rel="manifest" href="/manifest.json" />
+    <title>결 (Gyeol) - 스마트 매장 & 고객 관리</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').then(registration => {
+            console.log('SW registered: ', registration);
+          }).catch(registrationError => {
+            console.log('SW registration failed: ', registrationError);
+          });
+        });
+      }
+    </script>
+  </body>
+</html>
+
