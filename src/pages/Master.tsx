@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useStore, getEffectiveTier, getTierColor } from '../store';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Store, Users, Ticket, Calendar, Lock, KeyRound, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
@@ -84,7 +84,8 @@ export default function Master() {
     );
   }
 
-  const owners = users.filter(u => u.role === 'owner');
+  const owners = useMemo(() => users.filter(u => u.role === 'owner'), [users]);
+  const customersList = useMemo(() => users.filter(u => u.role === 'customer'), [users]);
 
   const getOwnerStats = (ownerId: string) => {
     const ownerVisits = visits.filter(v => v.storeId === ownerId);
@@ -178,7 +179,7 @@ export default function Master() {
               <Users className="w-5 h-5 mr-2 text-burgundy dark:text-burgundy-light" />
               <span className="font-bold text-sm">총 손님</span>
             </div>
-            <p className="text-3xl font-bold text-ink-light dark:text-ink-dark">{users.filter(u => u.role === 'customer').length}<span className="text-lg font-medium text-ink-light/50 dark:text-ink-dark/50 ml-1">명</span></p>
+            <p className="text-3xl font-bold text-ink-light dark:text-ink-dark">{customersList.length}<span className="text-lg font-medium text-ink-light/50 dark:text-ink-dark/50 ml-1">명</span></p>
           </div>
         </div>
 
@@ -294,13 +295,13 @@ export default function Master() {
         ) : (
           <>
             <h2 className="text-lg font-serif font-bold text-ink-light dark:text-ink-dark mb-4">전체 손님 목록</h2>
-            {users.filter(u => u.role === 'customer').length === 0 ? (
+            {customersList.length === 0 ? (
               <div className="bg-white dark:bg-black/20 rounded-3xl p-8 text-center shadow-sm border border-ink-light/10 dark:border-ink-dark/10">
                 <p className="text-ink-light/60 dark:text-ink-dark/60 font-medium">아직 등록된 손님이 없습니다.</p>
               </div>
             ) : (
               <div className="space-y-3">
-                {users.filter(u => u.role === 'customer').map(customer => {
+                {customersList.map(customer => {
                   const store = owners.find(o => o.id === customer.storeId);
                   const customerVisits = visits.filter(v => v.customerId === customer.id);
                   const customerCoupons = coupons.filter(c => c.customerId === customer.id);

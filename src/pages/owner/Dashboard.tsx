@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useStore, getEffectiveTier, getTierColor } from '../../store';
-import { Users, LayoutGrid, LogOut, X, Check, Bell, BarChart3 } from 'lucide-react';
+import { Users, LayoutGrid, LogOut, X, Check, Bell, BarChart3, Download, Copy } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { formatMemoDisplay } from '../../components/MemoModal';
@@ -332,18 +332,52 @@ export default function OwnerDashboard() {
                       value={`${window.location.origin}/customer/store/${currentUser.id}/table/${selectedTable}`} 
                       size={150}
                       level="H"
-                      className="mx-auto"
+                      className="qr-code-svg-target mx-auto"
                     />
                   </div>
-                  <button 
-                    onClick={() => {
-                      navigator.clipboard.writeText(`${window.location.origin}/customer/store/${currentUser.id}/table/${selectedTable}`).catch(console.error);
-                      import('../../store').then(({ showToast }) => showToast('QR 링크가 복사되었습니다. (테스트용)', 'info')).catch(console.error);
-                    }}
-                    className="absolute inset-0 bg-black/60 text-white font-bold flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-[2rem] backdrop-blur-sm"
-                  >
-                    링크 복사
-                  </button>
+                  <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-[2rem] backdrop-blur-sm gap-2">
+                    <button 
+                      onClick={() => {
+                        const svg = document.querySelector('.qr-code-svg-target') as SVGElement;
+                        if (svg) {
+                          const svgData = new XMLSerializer().serializeToString(svg);
+                          const canvas = document.createElement("canvas");
+                          const ctx = canvas.getContext("2d");
+                          const img = new Image();
+                          img.onload = () => {
+                            canvas.width = img.width + 40;
+                            canvas.height = img.height + 40;
+                            if (ctx) {
+                              ctx.fillStyle = "white";
+                              ctx.fillRect(0, 0, canvas.width, canvas.height);
+                              ctx.drawImage(img, 20, 20);
+                              const pngFile = canvas.toDataURL("image/png");
+                              const downloadLink = document.createElement("a");
+                              downloadLink.download = `table_${selectedTable}_qr.png`;
+                              downloadLink.href = pngFile;
+                              downloadLink.click();
+                            }
+                          };
+                          img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData)));
+                          import('../../store').then(({ showToast }) => showToast('QR 코드가 다운로드되었습니다.', 'success')).catch(console.error);
+                        }
+                      }}
+                      className="text-white font-bold text-sm bg-burgundy/80 hover:bg-burgundy px-4 py-2 rounded-xl flex items-center shadow-sm w-32 justify-center"
+                    >
+                      <Download className="w-4 h-4 mr-1.5" />
+                      저장하기
+                    </button>
+                    <button 
+                      onClick={() => {
+                        navigator.clipboard.writeText(`${window.location.origin}/customer/store/${currentUser.id}/table/${selectedTable}`).catch(console.error);
+                        import('../../store').then(({ showToast }) => showToast('QR 링크가 복사되었습니다.', 'info')).catch(console.error);
+                      }}
+                      className="text-white font-bold text-sm bg-white/20 hover:bg-white/30 px-4 py-2 rounded-xl flex items-center shadow-sm w-32 justify-center"
+                    >
+                      <Copy className="w-4 h-4 mr-1.5" />
+                      링크 복사
+                    </button>
+                  </div>
                   <p className="text-xs text-ink-light/40 dark:text-ink-dark/40 mt-4 font-medium">
                     {selectedTable}번 테이블 전용 QR 코드
                   </p>

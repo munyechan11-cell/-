@@ -152,21 +152,14 @@ export default function CustomerScanner() {
             </button>
             <button 
               onClick={() => {
-                const url = prompt('테이블 QR 코드 링크를 붙여넣어주세요.\n(예: https://gyeol.onrender.com/customer/store/...)');
-                if (url) {
-                  try {
-                    const parsed = new URL(url);
-                    if (parsed.pathname.includes('/customer/store/')) {
-                      navigate(parsed.pathname);
-                    } else {
-                      setError('올바른 테이블 링크가 아닙니다.');
-                    }
-                  } catch (e) {
-                    if (url.includes('/customer/store/')) {
-                      navigate(url);
-                    } else {
-                      setError('올바른 테이블 링크가 아닙니다.');
-                    }
+                const urlInput = prompt('테이블 QR 코드 링크를 붙여넣어주세요.\n(예: https://gyeol.onrender.com/customer/store/...)');
+                if (urlInput) {
+                  // 정규표현식을 통해 도메인 등 불필요한 부분 제외하고 정확한 내부 라우팅 경로만 추출
+                  const match = urlInput.match(/(\/customer\/store\/[^/]+\/table\/\d+)/);
+                  if (match && match[1]) {
+                    navigate(match[1]);
+                  } else {
+                    setError('올바른 테이블 링크 형식이 아닙니다.');
                   }
                 }
               }}
