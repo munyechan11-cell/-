@@ -1,12 +1,12 @@
-import * as express from 'express';
+import express from 'express';
 import admin from 'firebase-admin';
 import dotenv from 'dotenv';
 import path from 'path';
-import * as cors from 'cors';
+import cors from 'cors';
 
 dotenv.config();
 
-const app = express.default();
+const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.set('trust proxy', 1);
@@ -279,7 +279,7 @@ async function startServer() {
       etag: true
     }));
 
-    app.get('*', (req, res) => {
+    app.get('/*', (req, res) => {
       // Don't serve HTML for missing assets
       if (req.path.match(/\.(js|css|png|jpg|svg|ico)$/)) {
         return res.status(404).send('Asset not found');
