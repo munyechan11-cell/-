@@ -1,10 +1,10 @@
 {
-  "projectId": "geoyl-a5217",
-  "appId": "1:248798781552:web:e67a118168fadce1bfd4b5",
-  "apiKey": "AIzaSyC9UnpdlcjYZtYRrxYOAt3fJhq1_Khrwr8",
-  "authDomain": "geoyl-a5217.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-c3b018bc-e362-4cbf-8a2f-2f8abe0e9bab",
-  "storageBucket": "geoyl-a5217.firebasestorage.app",
-  "messagingSenderId": "248798781552",
-  "measurementId": ""
+  "projectId": "gyeol-proj",
+  "appId": "1:780655756249:web:e1a4c3ff1048318e46cfc8",
+  "apiKey": "AIzaSyCa28EjvwF9N6dBIXnpWp94q1KmrdiZgyU",
+  "authDomain": "gyeol-proj.firebaseapp.com",
+  "firestoreDatabaseId": "(default)",
+  "storageBucket": "gyeol-proj.firebasestorage.app",
+  "messagingSenderId": "780655756249",
+  "measurementId": "G-BTE1ZLG59Y"
 }
