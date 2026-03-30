@@ -1,12 +1,12 @@
-import express from 'express';
+import * as express from 'express';
 import admin from 'firebase-admin';
 import dotenv from 'dotenv';
 import path from 'path';
-import cors from 'cors';
+import * as cors from 'cors';
 
 dotenv.config();
 
-const app = express();
+const app = express.default();
 const PORT = process.env.PORT || 3000;
 
 app.set('trust proxy', 1);
