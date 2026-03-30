@@ -279,7 +279,7 @@ async function startServer() {
       etag: true
     }));
 
-    app.get('/*', (req, res) => {
+    app.get('(.*)', (req, res) => {
       // Don't serve HTML for missing assets
       if (req.path.match(/\.(js|css|png|jpg|svg|ico)$/)) {
         return res.status(404).send('Asset not found');
