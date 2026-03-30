@@ -1,7 +1,7 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useStore } from './store';
-import { CheckCircle2, AlertCircle, Info, Loader2 } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Info, Loader2, WifiOff } from 'lucide-react';
 import DarkModeToggle from './components/DarkModeToggle';
 
 // Lazy load pages for better performance
@@ -94,17 +94,33 @@ function PageLoader() {
 
 export default function App() {
   const { isReady, firebaseStatus, firebaseError } = useStore();
+  const [showSlowHint, setShowSlowHint] = useState(false);
+  const [forceOffline, setForceOffline] = useState(false);
+
+  useEffect(() => {
+    if (!isReady) {
+      const timer = setTimeout(() => setShowSlowHint(true), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [isReady]);
 
   if (!isReady) {
     return (
       <div className="min-h-screen bg-hanji-light dark:bg-hanji-dark flex flex-col items-center justify-center p-4 text-center">
         <p className="text-ink-light/80 dark:text-ink-dark/80 font-bold text-xl mb-4 font-serif">서버와 연결 중...</p>
         <div className="w-8 h-8 border-4 border-burgundy/20 dark:border-burgundy-light/20 border-t-burgundy dark:border-t-burgundy-light rounded-full animate-spin"></div>
+        {showSlowHint && (
+          <p className="mt-6 text-ink-light/50 dark:text-ink-dark/50 text-sm font-medium animate-in fade-in">
+            조금 오래 걸리고 있어요...🔄🔄🔄
+            <br />
+            <span className="text-xs mt-1 block">인터넷 상태를 확인하거나 잠시 후 다시 시도해주세요.</span>
+          </p>
+        )}
       </div>
     );
   }
 
-  if (firebaseStatus === 'error' || firebaseStatus === 'offline') {
+  if ((firebaseStatus === 'error' || firebaseStatus === 'offline') && !forceOffline) {
     return (
       <div className="min-h-screen bg-hanji-light dark:bg-hanji-dark flex flex-col items-center justify-center p-6 text-center">
         <div className="bg-white dark:bg-black/20 p-8 rounded-3xl shadow-sm max-w-md w-full border border-red-100 dark:border-red-900/30">
@@ -114,6 +130,13 @@ export default function App() {
             온라인 연동이 되지 않는 상태입니다.
           </p>
           
+          <button 
+            onClick={() => setForceOffline(true)}
+            className="w-full py-3 mb-6 bg-burgundy text-white rounded-xl font-bold hover:bg-burgundy/90 transition-colors"
+          >
+            오프라인 모드로 계속하기
+          </button>
+
           {firebaseError && (
             <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/30 text-red-800 dark:text-red-300 p-3 rounded-xl text-sm mb-6 text-left break-all font-mono">
               <strong>에러 메시지:</strong><br/>

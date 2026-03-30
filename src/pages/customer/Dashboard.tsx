@@ -200,11 +200,18 @@ export default function CustomerDashboard() {
                 <div className="w-full bg-ink-light/10 dark:bg-ink-dark/10 rounded-full h-2.5 overflow-hidden">
                   <div 
                     className="bg-burgundy dark:bg-burgundy-light h-full rounded-full transition-all duration-1000 ease-out" 
-                    style={{ width: `${Math.min((recentVisitsCount / getNextTierVisits(recentVisitsCount)) * 100, 100)}%` }}
+                    style={{ 
+                      width: recentVisitsCount >= 12
+                        ? '100%'
+                        : `${Math.min(((recentVisitsCount % (recentVisitsCount + getNextTierVisits(recentVisitsCount))) / (recentVisitsCount + getNextTierVisits(recentVisitsCount))) * 100, 100)}%`
+                    }}
                   ></div>
                 </div>
                 <p className="text-xs text-ink-light/40 dark:text-ink-dark/40 mt-2 text-right">
-                  다음 등급까지 {getNextTierVisits(recentVisitsCount) - recentVisitsCount}회 남았습니다.
+                  {recentVisitsCount >= 12 
+                    ? '🏆 최고 등급 달성!'
+                    : `다음 등급까지 ${getNextTierVisits(recentVisitsCount)}회 남았습니다.`
+                  }
                 </p>
               </>
             )}
@@ -318,6 +325,7 @@ export default function CustomerDashboard() {
                     requestCouponUse(activeCoupon.id, currentTable.number);
                     setSelectedCoupon(null);
                   } else {
+                    setSelectedCoupon(null); // 모달 먼저 닫기
                     import('../../store').then(({ showToast }) => showToast('테이블에 착석한 상태에서만 사용할 수 있습니다.', 'error')).catch(console.error);
                   }
                 }}

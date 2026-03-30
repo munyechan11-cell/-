@@ -202,10 +202,13 @@ export default function OwnerCustomers() {
             </button>
             <button
               onClick={() => {
+                if (customers.length === 0) return;
                 setIsMultiSelectMode(!isMultiSelectMode);
                 setSelectedCustomers([]);
               }}
-              className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-colors shadow-sm border ${
+              disabled={customers.length === 0}
+              title={customers.length === 0 ? '등록된 고객이 없습니다' : ''}
+              className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-colors shadow-sm border disabled:opacity-40 disabled:cursor-not-allowed ${
                 isMultiSelectMode 
                   ? 'bg-burgundy text-hanji-light border-burgundy' 
                   : 'bg-white dark:bg-black/20 text-ink-light/70 dark:text-ink-dark/70 hover:bg-ink-light/5 dark:hover:bg-ink-dark/10 border-ink-light/10 dark:border-ink-dark/10'

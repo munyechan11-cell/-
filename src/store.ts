@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { db, auth, isFirebaseConfigured } from './lib/firebase';
 import { doc, onSnapshot, setDoc, runTransaction } from 'firebase/firestore';
 
+// 타임스탬프 + 랜덤 조합으로 ID 충돌 위험을 최소화하는 고유 ID 생성기
+const generateId = () => `${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 7)}`;
+
 export type Role = 'customer' | 'owner';
 
 export interface User {
@@ -328,7 +331,7 @@ export const useStore = () => {
   const login = (phone: string, name: string, role: Role, restaurantName?: string, storeId?: string, socialId?: string, isPohangResident?: boolean, gender?: 'male' | 'female') => {
     const cleanPhone = phone ? phone.replace(/[^0-9]/g, '') : '';
     let loggedInUser: User | null = null;
-    const newUserId = Math.random().toString(36).substring(2, 9);
+    const newUserId = generateId();
 
     runGlobalTransaction((currentState) => {
       const currentUsers = currentState.users || [];
@@ -438,10 +441,9 @@ export const useStore = () => {
 
   const recordVisit = (customerId: string, tableNumber: number, storeId: string) => {
     const today = new Date().toDateString();
-    const newVisitId = Math.random().toString(36).substring(2, 9);
+    const newVisitId = generateId();
     const now = new Date().toISOString();
-    let shouldCheckCoupons = false;
-    let finalVisits: Visit[] = [];
+    let couponCheckData: { customerId: string; storeId: string; visits: Visit[] } | null = null;
 
     runGlobalTransaction((currentState) => {
       const updates: Partial<typeof globalState> = {};
@@ -460,10 +462,9 @@ export const useStore = () => {
           tableNumber,
         };
         updates.visits = [...currentVisits, newVisit];
-        shouldCheckCoupons = true;
-        finalVisits = updates.visits;
+        couponCheckData = { customerId, storeId, visits: updates.visits };
       } else {
-        finalVisits = currentVisits;
+        // 오늘 이미 방문한 경우에도 테이블은 업데이트
       }
 
       const currentTables = currentState.tables || initialTables;
@@ -492,11 +493,11 @@ export const useStore = () => {
       return updates;
     }).then(() => {
       showToast('방문이 기록되었습니다.', 'success');
+      // 트랜잭션 완료 후 쿠폰 지급 → Race Condition 방지
+      if (couponCheckData) {
+        checkAndIssueTierCoupons(couponCheckData.customerId, couponCheckData.storeId, couponCheckData.visits);
+      }
     }).catch(console.error);
-
-    if (shouldCheckCoupons) {
-      setTimeout(() => checkAndIssueTierCoupons(customerId, storeId, finalVisits), 0);
-    }
   };
 
   const leaveTable = (tableNumber: number, storeId: string) => {
@@ -544,7 +545,7 @@ export const useStore = () => {
     runGlobalTransaction((currentState) => {
       const currentCoupons = currentState.coupons || [];
       const newCoupons = customerIds.map(customerId => ({
-        id: Math.random().toString(36).substring(2, 9),
+        id: generateId(),
         customerId,
         storeId,
         type,
@@ -564,7 +565,7 @@ export const useStore = () => {
     runGlobalTransaction((currentState) => {
       const currentComms = currentState.communications || [];
       const newComms = customerIds.map(customerId => ({
-        id: Math.random().toString(36).substring(2, 9),
+        id: generateId(),
         customerId,
         storeId,
         type,
@@ -576,7 +577,7 @@ export const useStore = () => {
   };
 
   const issueCoupon = (customerId: string, storeId: string, type: string, description: string) => {
-    const newCouponId = Math.random().toString(36).substring(2, 9);
+    const newCouponId = generateId();
     const now = new Date().toISOString();
     
     runGlobalTransaction((currentState) => {
@@ -597,7 +598,7 @@ export const useStore = () => {
   };
 
   const recordCommunication = (customerId: string, storeId: string, type: 'coupon' | 'message', content: string) => {
-    const newCommId = Math.random().toString(36).substring(2, 9);
+    const newCommId = generateId();
     const now = new Date().toISOString();
     
     runGlobalTransaction((currentState) => {
