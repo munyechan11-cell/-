@@ -118,11 +118,11 @@ if (!isFirebaseConfigured) {
       console.warn("Firebase sync timeout. Falling back to offline state.");
       isInitialized = true;
       globalIsReady = true;
-      globalFirebaseStatus = 'error';
-      globalFirebaseError = '연결 시간 초과 (10초). 파이어베이스 서버가 응답하지 않습니다. 데이터베이스 위치(Region) 문제이거나 일시적인 네트워크 오류일 수 있습니다.';
+      globalFirebaseStatus = 'offline';
+      globalFirebaseError = '연결 시간 초과 (5초). 네트워크가 불안정하거나 서버 응답이 늦어 오프라인 모드로 전환합니다.';
       window.dispatchEvent(new Event('global-storage-update'));
     }
-  }, 10000);
+  }, 5000);
 
   onSnapshot(
     docRef,
@@ -139,7 +139,6 @@ if (!isFirebaseConfigured) {
           console.info("Seeding successful");
         }).catch((e) => {
           console.error("Failed to seed initial state:", e);
-          console.error(e);
           if (e.code === 'permission-denied' || e.message?.includes('Missing or insufficient permissions')) {
             const errInfo = {
               error: e.message || String(e),
@@ -160,19 +159,24 @@ if (!isFirebaseConfigured) {
               }
             };
             console.error('Firestore Error: ', JSON.stringify(errInfo));
-            // Removed throw new Error to prevent unhandled promise rejection
           }
         });
       }
+      
+      // Ensure state is marked as ready
       isInitialized = true;
       globalIsReady = true;
       globalFirebaseStatus = 'connected';
       globalFirebaseError = null;
+      
+      // Only dispatch if it's the first time or if something changed
       window.dispatchEvent(new Event('global-storage-update'));
     },
     (error) => {
       clearTimeout(timeoutId);
       console.error("Firebase sync error:", error);
+      
+      // If we haven't initialized yet, fall back to offline
       isInitialized = true;
       globalIsReady = true;
       globalFirebaseStatus = 'error';
