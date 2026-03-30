@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useStore, getEffectiveTier, getTierColor } from '../store';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Store, Users, Ticket, Calendar, Lock, KeyRound, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, Store, Users, Ticket, Calendar, Lock, KeyRound, Trash2, ChevronDown, ChevronUp, Search } from 'lucide-react';
 
 export default function Master() {
   const { users, visits, coupons, tierOverrides, masterPassword, setMasterPassword, deleteUser } = useStore();
@@ -12,6 +12,7 @@ export default function Master() {
   const [newPassword, setNewPassword] = useState('');
   const [expandedOwner, setExpandedOwner] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'owners' | 'customers'>('owners');
+  const [searchTerm, setSearchTerm] = useState('');
   const [deletingUser, setDeletingUser] = useState<{ id: string; role: 'owner' | 'customer'; name: string } | null>(null);
 
   const handleLogin = (e: React.FormEvent) => {
@@ -103,6 +104,19 @@ export default function Master() {
     };
   };
 
+  const filteredOwners = owners.filter(o => 
+    (o.restaurantName || '').includes(searchTerm) || 
+    (o.name || '').includes(searchTerm) || 
+    (o.phone || '').includes(searchTerm) ||
+    o.id.includes(searchTerm)
+  );
+
+  const filteredCustomersList = customersList.filter(c => 
+    (c.name || '').includes(searchTerm) || 
+    (c.phone || '').includes(searchTerm) ||
+    c.id.includes(searchTerm)
+  );
+
   return (
     <div className="min-h-full bg-hanji-light dark:bg-hanji-dark pb-20">
       {/* Header */}
@@ -183,32 +197,43 @@ export default function Master() {
           </div>
         </div>
 
-        <div className="flex space-x-2 mb-6">
+        <div className="flex space-x-2 mb-4">
           <button
-            onClick={() => setActiveTab('owners')}
+            onClick={() => { setActiveTab('owners'); setSearchTerm(''); }}
             className={`flex-1 py-3 rounded-2xl font-bold transition-colors ${activeTab === 'owners' ? 'bg-ink-light dark:bg-ink-dark text-hanji-light dark:text-hanji-dark shadow-sm' : 'bg-white dark:bg-black/20 text-ink-light/60 dark:text-ink-dark/60 hover:text-ink-light/80 dark:hover:text-ink-dark/80 border border-ink-light/10 dark:border-ink-dark/10'}`}
           >
             가맹점 관리
           </button>
           <button
-            onClick={() => setActiveTab('customers')}
+            onClick={() => { setActiveTab('customers'); setSearchTerm(''); }}
             className={`flex-1 py-3 rounded-2xl font-bold transition-colors ${activeTab === 'customers' ? 'bg-ink-light dark:bg-ink-dark text-hanji-light dark:text-hanji-dark shadow-sm' : 'bg-white dark:bg-black/20 text-ink-light/60 dark:text-ink-dark/60 hover:text-ink-light/80 dark:hover:text-ink-dark/80 border border-ink-light/10 dark:border-ink-dark/10'}`}
           >
             전체 손님 관리
           </button>
         </div>
 
+        <div className="relative mb-6">
+          <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-ink-light/40 dark:text-ink-dark/40 w-5 h-5" />
+          <input 
+            type="text" 
+            placeholder={activeTab === 'owners' ? "가맹점명, 사장님 이름, 연락처 검색" : "손님 이름, 연락처 검색"}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-white dark:bg-black/20 text-ink-light dark:text-ink-dark placeholder-ink-light/40 dark:placeholder-ink-dark/40 rounded-2xl py-3 pl-12 pr-4 border border-ink-light/10 dark:border-ink-dark/10 focus:border-burgundy focus:ring-2 focus:ring-burgundy/20 transition-all shadow-sm"
+          />
+        </div>
+
         {activeTab === 'owners' ? (
           <>
             <h2 className="text-lg font-serif font-bold text-ink-light dark:text-ink-dark mb-4">가맹점 목록</h2>
             
-            {owners.length === 0 ? (
+            {filteredOwners.length === 0 ? (
               <div className="bg-white dark:bg-black/20 rounded-3xl p-8 text-center shadow-sm border border-ink-light/10 dark:border-ink-dark/10">
-                <p className="text-ink-light/60 dark:text-ink-dark/60 font-medium">아직 등록된 사장님이 없습니다.</p>
+                <p className="text-ink-light/60 dark:text-ink-dark/60 font-medium">검색 결과나 등록된 사장님이 없습니다.</p>
               </div>
             ) : (
               <div className="space-y-4">
-                {owners.map(owner => {
+                {filteredOwners.map(owner => {
                   const stats = getOwnerStats(owner.id);
                   const isExpanded = expandedOwner === owner.id;
                   const ownerCustomers = users.filter(u => u.role === 'customer' && u.storeId === owner.id);
@@ -295,13 +320,13 @@ export default function Master() {
         ) : (
           <>
             <h2 className="text-lg font-serif font-bold text-ink-light dark:text-ink-dark mb-4">전체 손님 목록</h2>
-            {customersList.length === 0 ? (
+            {filteredCustomersList.length === 0 ? (
               <div className="bg-white dark:bg-black/20 rounded-3xl p-8 text-center shadow-sm border border-ink-light/10 dark:border-ink-dark/10">
-                <p className="text-ink-light/60 dark:text-ink-dark/60 font-medium">아직 등록된 손님이 없습니다.</p>
+                <p className="text-ink-light/60 dark:text-ink-dark/60 font-medium">검색 결과나 등록된 손님이 없습니다.</p>
               </div>
             ) : (
               <div className="space-y-3">
-                {customersList.map(customer => {
+                {filteredCustomersList.map(customer => {
                   const store = owners.find(o => o.id === customer.storeId);
                   const customerVisits = visits.filter(v => v.customerId === customer.id);
                   const customerCoupons = coupons.filter(c => c.customerId === customer.id);

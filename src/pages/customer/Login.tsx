@@ -216,6 +216,10 @@ export default function CustomerLogin() {
     return () => {
       window.removeEventListener('message', handleMessage);
       window.removeEventListener('storage', handleStorage);
+      if (popupTimerRef.current) {
+        clearInterval(popupTimerRef.current);
+        popupTimerRef.current = null;
+      }
     };
   }, [isLogin, phone, name, isPohangResident, gender, storeId, users, tableNumber, login, recordVisit, issueCoupon, navigate]);
 

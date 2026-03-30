@@ -137,8 +137,14 @@ export default function CustomerScanner() {
           </div>
 
           {error && (
-            <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-4 rounded-xl text-sm mb-4 text-center font-medium border border-red-100 dark:border-red-900/30">
-              {error}
+            <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-4 rounded-2xl text-sm mb-4 text-center border border-red-100 dark:border-red-900/30 shadow-sm animate-in fade-in zoom-in">
+              <p className="font-medium">{error}</p>
+              <div className="mt-3 pt-3 border-t border-red-200 dark:border-red-900/50">
+                <p className="font-bold flex items-center justify-center">
+                  💡 아래의 <span className="text-white bg-burgundy px-2 py-0.5 rounded-md ml-1.5 mr-1.5 text-xs">링크로 입장</span> 버튼을 눌러주세요!
+                </p>
+                <p className="text-xs mt-1.5 opacity-80 font-medium">카메라 권한 없이도 수동으로 바로 입장할 수 있습니다.</p>
+              </div>
             </div>
           )}
 
