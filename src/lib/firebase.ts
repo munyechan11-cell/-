@@ -1,6 +1,6 @@
 // src/lib/firebase.ts
-import { initializeApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
+import { initializeApp, getApp, getApps } from 'firebase/app';
+import { getFirestore, Firestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import firebaseConfigFromJson from '../../firebase-applet-config.json';
 
@@ -14,19 +14,34 @@ const firebaseConfig = {
 
 export const isFirebaseConfigured = !!firebaseConfig.apiKey && firebaseConfig.apiKey !== "YOUR_API_KEY" && firebaseConfig.apiKey !== "undefined";
 
-export const app = isFirebaseConfigured ? initializeApp(firebaseConfig) : null;
+export const app = isFirebaseConfigured 
+  ? (getApps().length > 0 ? getApp() : initializeApp(firebaseConfig)) 
+  : null;
 
-export const db = isFirebaseConfigured ? getFirestore(app, firebaseConfig.firestoreDatabaseId) : null;
-export const auth = isFirebaseConfigured ? getAuth(app) : null;
+// Dynamic DB helper to allow fallback at runtime
+export const getDb = (databaseId?: string): Firestore | null => {
+  if (!app) return null;
+  const id = databaseId || firebaseConfig.firestoreDatabaseId;
+  return getFirestore(app, id);
+};
+
+export const db = getDb();
+export const auth = isFirebaseConfigured ? getAuth(app!) : null;
 
 // Collection Helpers
-import { collection } from 'firebase/firestore';
-export const collections = db ? {
-  users: collection(db, 'users'),
-  visits: collection(db, 'visits'),
-  coupons: collection(db, 'coupons'),
-  tables: collection(db, 'tables'),
-  communications: collection(db, 'communications'),
-  tierOverrides: collection(db, 'tierOverrides'),
-  appState: collection(db, 'appState')
-} : null;
+import { collection, CollectionReference, DocumentData } from 'firebase/firestore';
+
+export const getCollections = (database: Firestore | null) => {
+  if (!database) return null;
+  return {
+    users: collection(database, 'users'),
+    visits: collection(database, 'visits'),
+    coupons: collection(database, 'coupons'),
+    tables: collection(database, 'tables'),
+    communications: collection(database, 'communications'),
+    tierOverrides: collection(database, 'tierOverrides'),
+    appState: collection(database, 'appState')
+  };
+};
+
+export const collections = getCollections(db);

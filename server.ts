@@ -255,47 +255,68 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), 'dist');
+    // Dynamic distPath detection for various deployment environments (Render, Vercel, etc.)
+    let distPath = path.join(process.cwd(), 'dist');
+    const fs = await import('fs');
     
-    // Add health check/logging for deployment
-    import('fs').then(fs => {
-      if (fs.existsSync(distPath)) {
-        const files = fs.readdirSync(distPath);
-        console.log(`[Production] Static folder found: ${distPath}. Contents: ${files.join(', ')}`);
-        const assetsPath = path.join(distPath, 'assets');
-        if (fs.existsSync(assetsPath)) {
-          const assets = fs.readdirSync(assetsPath);
-          console.log(`[Production] Assets found: ${assets.length} files.`);
-        } else {
-          console.error(`[CRITICAL] Assets folder missing at ${assetsPath}`);
+    if (!fs.existsSync(distPath)) {
+      // Try alternate locations based on typical Node.js deployment structures
+      const alternates = [
+        path.join(__dirname, 'dist'),
+        path.join(process.cwd(), '..', 'dist'),
+        path.join(__dirname, '..', 'dist')
+      ];
+      for (const alt of alternates) {
+        if (fs.existsSync(alt)) {
+          console.info(`[Production] Found dist at alternate path: ${alt}`);
+          distPath = alt;
+          break;
         }
-      } else {
-        console.error(`[CRITICAL] Distribution folder missing at ${distPath}. Build might have failed or process.cwd() is wrong.`);
       }
-    }).catch(console.error);
+    }
 
+    // Diagnostic logging
+    if (fs.existsSync(distPath)) {
+      const files = fs.readdirSync(distPath);
+      console.log(`[Production] Serving from: ${distPath}. Root files: ${files.join(', ')}`);
+      const assetsPath = path.join(distPath, 'assets');
+      if (fs.existsSync(assetsPath)) {
+        console.log(`[Production] Assets found: ${fs.readdirSync(assetsPath).length} files.`);
+      } else {
+        console.error(`[CRITICAL] Assets folder missing at ${assetsPath}`);
+      }
+    } else {
+      console.error(`[CRITICAL] Distribution folder missing! Build might have failed or process.cwd() is wrong: ${process.cwd()}`);
+    }
+
+    // 1. Serve static files with high priority
     app.use(express.static(distPath, {
       maxAge: '1d',
-      etag: true
+      etag: true,
+      index: false // We'll handle index manually to prevent conflicts
     }));
 
-    // Robust catch-all for SPA: Using app.use() instead of app.get('*') 
+    // 2. Robust catch-all for SPA: Using app.use() instead of app.get('*') 
     // to bypass path-to-regexp parsing errors in Express 5.
     app.use((req, res, next) => {
-      // 1. Only handle GET requests for SPA routing
+      // Only handle GET requests for SPA routing
       if (req.method !== 'GET') return next();
 
-      // 2. Protect against MIME type mismatch: Don't serve HTML for missing static files
-      if (req.path.match(/\.(js|css|png|jpg|svg|ico|json|txt|webp|json|map)$/)) {
-        console.warn(`[Static] Missing asset: ${req.path}`);
-        return res.status(404).send('Asset not found');
+      const ext = path.extname(req.path).toLowerCase();
+      const isAsset = ['.js', '.css', '.png', '.jpg', '.svg', '.ico', '.json', '.txt', '.webp', '.map'].includes(ext);
+
+      // Protect against MIME type mismatch: Don't serve HTML for missing static files
+      if (isAsset) {
+        console.warn(`[Static] Missing asset 404: ${req.path}`);
+        return res.status(404).send(`Asset not found: ${req.path}`);
       }
 
-      // 3. Serve index.html for all other GET requests (SPA client-side routing)
-      res.sendFile(path.join(distPath, 'index.html'), (err) => {
+      // Serve index.html for all other GET requests (SPA client-side routing)
+      const indexPath = path.join(distPath, 'index.html');
+      res.sendFile(indexPath, (err) => {
         if (err) {
-          console.error('[Server] Failed to send index.html', err);
-          res.status(500).send('Server Error');
+          console.error(`[Server] Failed to send index.html from ${indexPath}`, err);
+          res.status(500).send('<h1>Server Configuration Error</h1><p>The application files are missing on the server. Please check your build logs.</p>');
         }
       });
     });

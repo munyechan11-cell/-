@@ -81,9 +81,75 @@ let isInitialized = false;
 let globalIsReady = false;
 let globalFirebaseStatus: 'connecting' | 'connected' | 'error' | 'offline' = isFirebaseConfigured ? 'connecting' : 'offline';
 let globalFirebaseError: string | null = null;
+let currentDb = db;
+let currentCollections = collections;
+let activeListeners: (() => void)[] = [];
+
+// Manual fallback trigger from UI
+window.addEventListener('force-firebase-fallback', async () => {
+  console.info("[Firebase] Manual fallback triggered. Switching to (default) database...");
+  try {
+    const { getDb, getCollections } = await import('./lib/firebase');
+    const fallbackDb = getDb('(default)');
+    const fallbackColls = getCollections(fallbackDb);
+    if (fallbackDb && fallbackColls) {
+      currentDb = fallbackDb;
+      currentCollections = fallbackColls;
+      startSync(currentDb, currentCollections);
+    }
+  } catch (e) {
+    console.error('[Firebase] Manual fallback failed', e);
+  }
+});
 
 const notifyUpdate = () => {
   window.dispatchEvent(new Event('global-storage-update'));
+};
+
+const cleanupListeners = () => {
+  activeListeners.forEach(unsub => unsub());
+  activeListeners = [];
+};
+
+// --- COLLECTION SUBSCRIPTIONS ---
+const startSync = (database: any, colls: any) => {
+  if (!database || !colls) return;
+  cleanupListeners();
+
+  const syncCollection = (collName: string, stateKey: string) => {
+    const unsub = onSnapshot(colls[collName], (snap) => {
+      globalState[stateKey] = snap.docs.map(d => d.data());
+      globalFirebaseStatus = 'connected';
+      globalIsReady = true;
+      notifyUpdate();
+    }, (err) => {
+      console.error(`Error syncing ${collName}:`, err);
+      let userMessage = err.message;
+      if (err.code === 'permission-denied') {
+        userMessage = `[권한 오류] Firebase 보안 규칙이 업데이트되지 않았습니다. (${collName})`;
+      }
+      globalFirebaseStatus = 'error';
+      globalFirebaseError = userMessage;
+      globalIsReady = true;
+      notifyUpdate();
+    });
+    activeListeners.push(unsub);
+  };
+
+  syncCollection('users', 'users');
+  syncCollection('visits', 'visits');
+  syncCollection('coupons', 'coupons');
+  syncCollection('tables', 'tables');
+  syncCollection('communications', 'communications');
+  syncCollection('tierOverrides', 'tierOverrides');
+  
+  const unsubSettings = onSnapshot(doc(database, 'appState', 'settings'), (snap) => {
+    if (snap.exists()) {
+      globalState.masterPassword = snap.data().masterPassword || 'IMC';
+      notifyUpdate();
+    }
+  });
+  activeListeners.push(unsubSettings);
 };
 
 // Fallback to local storage if Firebase is not configured
@@ -103,21 +169,14 @@ if (!isFirebaseConfigured) {
       const settingsDocRef = doc(db, 'appState', 'settings');
       const settingsSnap = await getDoc(settingsDocRef);
       
-      // 만약 이미 마이그레이션이 완료되었다면 중단
-      if (settingsSnap.exists() && settingsSnap.data().migration_complete) {
-        console.info("Migration already marked as complete.");
-        return;
-      }
+      if (settingsSnap.exists() && settingsSnap.data().migration_complete) return;
 
       const globalDocRef = doc(db, 'appState', 'global');
       const snap = await getDoc(globalDocRef);
       
       if (snap.exists()) {
-        console.info("Found legacy legacy data - starting migration...");
         const data = snap.data();
         const batch = writeBatch(db);
-        
-        // Migrate each category to its own collection
         const cats = ['users', 'visits', 'coupons', 'tables', 'communications', 'tierOverrides'];
         for (const cat of cats) {
           if (Array.isArray(data[cat])) {
@@ -127,67 +186,47 @@ if (!isFirebaseConfigured) {
             }
           }
         }
-        
-        // Mark migration as complete
-        batch.set(settingsDocRef, { 
-          migration_complete: true, 
-          masterPassword: data.masterPassword || 'IMC' 
-        }, { merge: true });
-        
-        // Delete legacy doc
+        batch.set(settingsDocRef, { migration_complete: true, masterPassword: data.masterPassword || 'IMC' }, { merge: true });
         batch.delete(globalDocRef);
         await batch.commit();
-        console.info("Migration to collections complete.");
       }
-    } catch (err: any) {
-      console.error("Migration fatal error (ignoring to allow app to run):", err);
-    }
+    } catch (err: any) {}
   };
   migrateData();
 
-  // --- COLLECTION SUBSCRIPTIONS ---
-  const syncCollection = (collName: string, stateKey: string) => {
-    return onSnapshot(collections[collName as keyof typeof collections], (snap) => {
-      globalState[stateKey] = snap.docs.map(d => d.data());
-      globalFirebaseStatus = 'connected';
-      globalIsReady = true;
-      notifyUpdate();
-    }, (err) => {
-      console.error(`Error syncing ${collName}:`, err);
-      let userMessage = err.message;
-      if (err.code === 'permission-denied') {
-        userMessage = `[권한 오류] Firebase 보안 규칙이 업데이트되지 않았습니다. (${collName})`;
+  // Initial Sync
+  startSync(currentDb, currentCollections);
+
+  // --- INTELLIGENT FALLBACK TO (DEFAULT) DATABASE ---
+  setTimeout(async () => {
+    if (globalFirebaseStatus === 'connecting' || globalFirebaseStatus === 'error') {
+      const configId = (db as any)?._databaseId?.database || '(unknown)';
+      if (configId !== '(default)') {
+        console.warn(`[Firebase] Connection with database ID "${configId}" is slow or failing. Attempting fallback to "(default)" database...`);
+        try {
+          const { getDb, getCollections } = await import('./lib/firebase');
+          const fallbackDb = getDb('(default)');
+          const fallbackColls = getCollections(fallbackDb);
+          if (fallbackDb && fallbackColls) {
+            currentDb = fallbackDb;
+            currentCollections = fallbackColls;
+            startSync(currentDb, currentCollections);
+          }
+        } catch (e) {
+          console.error('[Firebase] Fallback attempt failed', e);
+        }
       }
-      globalFirebaseStatus = 'error';
-      globalFirebaseError = userMessage;
-      // 인지할 수 있도록 즉시 준비 완료 상태로 변경 (에러 화면을 위함)
-      globalIsReady = true;
-      notifyUpdate();
-    });
-  };
-
-  syncCollection('users', 'users');
-  syncCollection('visits', 'visits');
-  syncCollection('coupons', 'coupons');
-  syncCollection('tables', 'tables');
-  syncCollection('communications', 'communications');
-  syncCollection('tierOverrides', 'tierOverrides');
-  
-  onSnapshot(doc(db, 'appState', 'settings'), (snap) => {
-    if (snap.exists()) {
-      globalState.masterPassword = snap.data().masterPassword || 'IMC';
-      notifyUpdate();
     }
-  });
+  }, 4000); // 4초 후 자동 전환 시도
 
-  // Set timeout for initial load (fallback)
+  // Final Timeout Check
   setTimeout(() => {
     if (!globalIsReady) {
       globalIsReady = true;
       globalFirebaseStatus = 'offline';
       notifyUpdate();
     }
-  }, 10000); // 10초까지 대기 시간 연장 (마이그레이션 고려)
+  }, 10000);
 
 } else {
   globalIsReady = true;

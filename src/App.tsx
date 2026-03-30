@@ -142,31 +142,50 @@ export default function App() {
           <h2 className="text-2xl font-serif font-bold text-ink-light dark:text-ink-dark mb-4 tracking-tight">연결이 원활하지 않습니다</h2>
           <p className="text-ink-light/60 dark:text-ink-dark/60 font-medium mb-8 text-sm leading-relaxed">
             실시간 데이터를 불러올 수 없습니다. <br/>
-            네트워크 연결을 확인하거나 나중에 다시 시도해 주세요.
+            네트워크 연결을 확인하거나 아래 복구 옵션을 시도해 보세요.
           </p>
           
-          <div className="space-y-4">
+          <div className="space-y-3">
             <button 
               onClick={() => window.location.reload()}
               className="w-full py-4 bg-burgundy text-white rounded-2xl font-bold hover:bg-burgundy/90 transition-all shadow-md active:scale-[0.98]"
             >
-              다시 시도하기
+              새로고침하여 다시 시도
             </button>
             
             <button 
-              onClick={() => setForceOffline(true)}
-              className="w-full py-4 bg-ink-light/5 dark:bg-ink-dark/5 text-ink-light/60 dark:text-ink-dark/60 rounded-2xl font-bold hover:bg-ink-light/10 dark:hover:bg-ink-dark/10 transition-colors border border-ink-light/5 dark:border-ink-dark/5"
+              onClick={() => {
+                // Manually trigger fallback to default database
+                window.dispatchEvent(new CustomEvent('force-firebase-fallback'));
+              }}
+              className="w-full py-4 bg-ink-light/5 dark:bg-ink-dark/5 text-ink-light dark:text-ink-dark rounded-2xl font-bold hover:bg-ink-light/10 transition-colors border border-ink-light/10"
             >
-              오프라인 모드 실행
+              기본 데이터베이스로 접속 시도
+            </button>
+
+            <button 
+              onClick={() => setForceOffline(true)}
+              className="w-full py-4 bg-transparent text-ink-light/40 dark:text-ink-dark/40 rounded-2xl font-bold hover:text-ink-light/60 transition-colors text-xs"
+            >
+              오프라인 모드로 계속하기
             </button>
           </div>
 
+          <div className="mt-8 pt-6 border-t border-ink-light/5 dark:border-ink-dark/5">
+            <p className="text-[10px] text-ink-light/30 dark:text-ink-dark/30 mb-2">접속 시도 중인 데이터베이스 정보</p>
+            <div className="px-3 py-2 bg-ink-light/5 dark:bg-ink-dark/5 rounded-xl inline-block">
+              <code className="text-[10px] text-ink-light/50 dark:text-ink-dark/50 font-mono">
+                {import.meta.env.VITE_FIREBASE_DATABASE_ID || 'ai-studio-c3b0...'}
+              </code>
+            </div>
+          </div>
+
           {firebaseError && (
-            <details className="mt-8 text-left group">
-              <summary className="text-[10px] text-ink-light/30 dark:text-ink-dark/30 cursor-pointer hover:text-ink-light/50 transition-colors list-none text-center">
-                상세 에러 정보 확인
+            <details className="mt-4 text-left group">
+              <summary className="text-[9px] text-ink-light/20 dark:text-ink-dark/20 cursor-pointer hover:text-ink-light/40 transition-colors list-none text-center">
+                기술적 에러 정보
               </summary>
-              <div className="mt-2 p-4 bg-ink-light/5 dark:bg-ink-dark/5 rounded-2xl text-[10px] text-ink-light/40 dark:text-ink-dark/40 font-mono break-all border border-ink-light/5 dark:border-ink-dark/5">
+              <div className="mt-2 p-4 bg-ink-light/5 dark:bg-ink-dark/5 rounded-2xl text-[9px] text-ink-light/40 dark:text-ink-dark/40 font-mono break-all border border-ink-light/5 dark:border-ink-dark/5">
                 {firebaseError}
               </div>
             </details>
