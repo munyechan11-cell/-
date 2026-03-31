@@ -503,16 +503,24 @@ export const useStore = () => {
       return;
     }
     const batch = writeBatch(db);
-    const initialTables: Table[] = [
-      { number: 1, storeId, currentCustomerId: null, sessionStartTime: null, x: 50, y: 150, seats: 4, type: 'table', shape: 'square', status: 'available' },
-      { number: 2, storeId, currentCustomerId: null, sessionStartTime: null, x: 200, y: 150, seats: 4, type: 'table', shape: 'square', status: 'available' },
-      { number: 3, storeId, currentCustomerId: null, sessionStartTime: null, x: 350, y: 150, seats: 4, type: 'table', shape: 'square', status: 'available' },
-    ];
-    globalState.tables = [...globalState.tables.filter((t: any) => t.storeId !== storeId), ...initialTables];
+    const initialTables: Table[] = [];
+    
+    // Create 12 tables in a 4x3 grid
+    for (let i = 1; i <= 12; i++) {
+      const x = ((i - 1) % 4) * 110 + 50;
+      const y = Math.floor((i - 1) / 4) * 110 + 100;
+      initialTables.push({ 
+        number: i, storeId, currentCustomerId: null, sessionStartTime: null, 
+        x, y, width: 80, height: 80, seats: 4, type: 'table', shape: 'square', status: 'available' 
+      });
+    }
+
     notifyUpdate();
     for (const table of initialTables) {
-      await updateFirestoreDoc('tables', `${storeId}_${table.number}`, table);
+      const tableId = `${storeId}_${table.number}`;
+      await updateFirestoreDoc('tables', tableId, table);
     }
+    showToast('12개 기본 테이블로 초기화되었습니다.', 'success');
   };
 
   const setCustomerTier = async (customerId: string, storeId: string, tier: string) => {

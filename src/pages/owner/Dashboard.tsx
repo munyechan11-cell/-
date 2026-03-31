@@ -122,7 +122,7 @@ export default function OwnerDashboard() {
   };
 
   const handlePointerDown = (e: React.PointerEvent, table: any) => {
-    if (!isLayoutMode) return;
+    if (!isLayoutMode || !isMoveOnlyMode) return;
     
     const rect = e.currentTarget.getBoundingClientRect();
     const offsetX = (e.clientX - rect.left) / zoom;
@@ -334,20 +334,20 @@ export default function OwnerDashboard() {
                       {isLayoutMode && draggedTable !== table.number && (
                         <div className="absolute inset-0 bg-white/80 dark:bg-black/60 rounded-inherit flex flex-wrap items-center justify-center gap-1 p-1 z-20 overflow-hidden opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-[2px]">
                           <div className="flex gap-0.5">
-                            <button onClick={(e) => { e.stopPropagation(); updateTableLayout(currentUser.id, table.number, { width: (table.width || 80) + 10, height: (table.height || 80) + 10 }); }} className="p-1 bg-white rounded shadow-sm hover:bg-burgundy hover:text-white transition-colors" title="크기 키우기"><Maximize2 className="w-2.5 h-2.5" /></button>
-                            <button onClick={(e) => { e.stopPropagation(); updateTableLayout(currentUser.id, table.number, { width: Math.max(40, (table.width || 80) - 10), height: Math.max(40, (table.height || 80) - 10) }); }} className="p-1 bg-white rounded shadow-sm hover:bg-burgundy hover:text-white transition-colors" title="크기 줄이기"><Minus className="w-2.5 h-2.5" /></button>
+                            <button onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); updateTableLayout(currentUser.id, table.number, { width: (table.width || 80) + 10, height: (table.height || 80) + 10 }); }} className="p-1 bg-white rounded shadow-sm hover:bg-burgundy hover:text-white transition-colors" title="크기 키우기"><Maximize2 className="w-2.5 h-2.5" /></button>
+                            <button onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); updateTableLayout(currentUser.id, table.number, { width: Math.max(40, (table.width || 80) - 10), height: Math.max(40, (table.height || 80) - 10) }); }} className="p-1 bg-white rounded shadow-sm hover:bg-burgundy hover:text-white transition-colors" title="크기 줄이기"><Minus className="w-2.5 h-2.5" /></button>
                           </div>
                           <div className="flex gap-0.5 mt-0.5">
-                            <button onClick={(e) => { e.stopPropagation(); updateTableLayout(currentUser.id, table.number, { seats: (table.seats || 4) + 1 }); }} className="p-1 bg-white rounded shadow-sm hover:bg-emerald-500 hover:text-white transition-colors" title="인원 늘리기"><Users className="w-2.5 h-2.5" /></button>
-                            <button onClick={(e) => { e.stopPropagation(); updateTableLayout(currentUser.id, table.number, { seats: Math.max(1, (table.seats || 4) - 1) }); }} className="p-1 bg-white rounded shadow-sm hover:bg-emerald-500 hover:text-white transition-colors" title="인원 줄이기"><Minus className="w-2.5 h-2.5" /></button>
+                            <button onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); updateTableLayout(currentUser.id, table.number, { seats: (table.seats || 4) + 1 }); }} className="p-1 bg-white rounded shadow-sm hover:bg-emerald-500 hover:text-white transition-colors" title="인원 늘리기"><Users className="w-2.5 h-2.5" /></button>
+                            <button onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); updateTableLayout(currentUser.id, table.number, { seats: Math.max(1, (table.seats || 4) - 1) }); }} className="p-1 bg-white rounded shadow-sm hover:bg-emerald-500 hover:text-white transition-colors" title="인원 줄이기"><Minus className="w-2.5 h-2.5" /></button>
                           </div>
                           <div className="flex gap-0.5 mt-0.5">
-                            <button onClick={(e) => { e.stopPropagation(); updateTableLayout(currentUser.id, table.number, { shape: table.shape === 'circle' ? 'square' : 'circle' }); }} className="p-1 bg-white rounded shadow-sm hover:bg-burgundy hover:text-white transition-colors" title="모양 변경">{table.shape === 'circle' ? <Square className="w-2.5 h-2.5" /> : <Circle className="w-2.5 h-2.5" />}</button>
-                            <button onClick={(e) => { e.stopPropagation(); deleteTable(currentUser.id, table.number); }} className="p-1 bg-white rounded shadow-sm hover:bg-red-500 hover:text-white transition-colors text-red-500" title="삭제"><Trash2 className="w-2.5 h-2.5" /></button>
+                            <button onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); updateTableLayout(currentUser.id, table.number, { shape: table.shape === 'circle' ? 'square' : 'circle' }); }} className="p-1 bg-white rounded shadow-sm hover:bg-burgundy hover:text-white transition-colors" title="모양 변경">{table.shape === 'circle' ? <Square className="w-2.5 h-2.5" /> : <Circle className="w-2.5 h-2.5" />}</button>
+                            <button onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); deleteTable(currentUser.id, table.number); }} className="p-1 bg-white rounded shadow-sm hover:bg-red-500 hover:text-white transition-colors text-red-500" title="삭제"><Trash2 className="w-2.5 h-2.5" /></button>
                           </div>
                           <div className="w-full flex justify-center gap-1 mt-1 border-t border-ink-light/5 pt-1">
                             {currentStoreSections.map(s => (
-                              <button key={s.id} onClick={(e) => { e.stopPropagation(); updateTableLayout(currentUser.id, table.number, { sectionId: s.id }); }} className={`w-3.5 h-3.5 rounded-full border border-ink-light/20 flex items-center justify-center text-[6px] font-black ${table.sectionId === s.id ? 'bg-burgundy text-white' : 'bg-white text-ink-light/30'}`}>{s.name.charAt(0)}</button>
+                              <button key={s.id} onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); updateTableLayout(currentUser.id, table.number, { sectionId: s.id }); }} className={`w-3.5 h-3.5 rounded-full border border-ink-light/20 flex items-center justify-center text-[6px] font-black ${table.sectionId === s.id ? 'bg-burgundy text-white' : 'bg-white text-ink-light/30'}`}>{s.name.charAt(0)}</button>
                             ))}
                           </div>
                         </div>
@@ -457,6 +457,19 @@ export default function OwnerDashboard() {
               >
                 <Move className="w-6 h-6" />
                 <span className="text-[8px] font-black">{isMoveOnlyMode ? 'MOVING' : 'MOVE'}</span>
+              </button>
+              
+              <button 
+                onClick={() => {
+                  if (window.confirm('기존 테이블을 모두 지우고 1-12번까지 12개 기본 레이아웃으로 초기화하시겠습니까?')) {
+                    initTables(currentUser.id);
+                  }
+                }}
+                className="p-3 bg-white dark:bg-zinc-800 text-burgundy rounded-xl shadow-lg border border-burgundy/20 hover:bg-burgundy/5 transition-all flex flex-col items-center gap-1"
+                title="12개 테이블 초기화"
+              >
+                <LayoutGrid className="w-6 h-6" />
+                <span className="text-[8px] font-black uppercase tracking-widest text-burgundy/60">Init 12</span>
               </button>
             </div>
           )}
