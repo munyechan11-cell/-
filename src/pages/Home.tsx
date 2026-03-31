@@ -3,7 +3,7 @@ import { Store, UserCircle } from 'lucide-react';
 
 export default function Home() {
   return (
-    <div className="min-h-full flex flex-col items-center px-6 bg-hanji-light dark:bg-hanji-dark">
+    <div className="flex-1 flex flex-col items-center px-6 bg-hanji-light dark:bg-hanji-dark">
       <div className="mt-20 sm:mt-32 mb-10 flex flex-col items-center">
         <h1 
           className="text-[100px] sm:text-[120px] font-serif font-black text-ink-light dark:text-ink-dark leading-none tracking-tighter"

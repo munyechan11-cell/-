@@ -200,7 +200,7 @@ export default function App() {
       <div className="min-h-screen modern-bg flex justify-center items-center md:p-6 lg:p-8">
         <DarkModeToggle />
         <Toast />
-        <div className="w-full max-w-md md:max-w-3xl lg:max-w-5xl xl:max-w-6xl min-h-screen md:min-h-[calc(100vh - 3rem)] lg:min-h-[calc(100vh - 4rem)] overflow-hidden relative flex flex-col bg-white dark:bg-hanji-dark shadow-2xl md:rounded-[2.5rem] border-0 md:border border-slate-200 dark:border-ink-dark/10">
+        <div className="w-full max-w-md md:max-w-3xl lg:max-w-5xl xl:max-w-6xl min-h-screen md:min-h-[calc(100vh - 3rem)] lg:min-h-[calc(100vh - 4rem)] overflow-hidden relative flex flex-col bg-hanji-light dark:bg-hanji-dark shadow-2xl md:rounded-[2.5rem] border-0 md:border border-slate-200 dark:border-ink-dark/10">
           <div className="flex-1 overflow-y-auto no-scrollbar w-full h-full relative pt-safe pb-safe">
             <Suspense fallback={<PageLoader />}>
               <Routes>

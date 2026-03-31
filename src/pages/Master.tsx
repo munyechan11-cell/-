@@ -44,7 +44,7 @@ export default function Master() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-full bg-hanji-light dark:bg-hanji-dark flex flex-col items-center justify-center p-4">
+      <div className="flex-1 bg-hanji-light dark:bg-hanji-dark flex flex-col items-center justify-center p-4">
         <div className="max-w-md w-full bg-white dark:bg-black/20 rounded-3xl shadow-sm border border-ink-light/10 dark:border-ink-dark/10 overflow-hidden p-8 text-center relative">
           <Link 
             to="/" 
@@ -118,7 +118,7 @@ export default function Master() {
   );
 
   return (
-    <div className="min-h-full bg-hanji-light dark:bg-hanji-dark pb-20">
+    <div className="flex-1 bg-hanji-light dark:bg-hanji-dark pb-20">
       {/* Header */}
       <div className="bg-white/80 dark:bg-black/20 backdrop-blur-md text-ink-light dark:text-ink-dark p-6 pt-8 border-b border-ink-light/10 dark:border-ink-dark/10 flex items-center justify-between sticky top-0 z-20">
         <div className="flex items-center">
