@@ -245,8 +245,13 @@ app.get('/api/auth/naver/callback', async (req, res) => {
   }
 });
 
-// Vite middleware for development
+// Optimized startServer for faster Render ready-signal
 async function startServer() {
+  // 1. Open port EARLY to tell Render we are live
+  const server = app.listen(Number(PORT), "0.0.0.0", () => {
+    console.log(`[READY] Server running on port ${PORT}`);
+  });
+
   if (process.env.NODE_ENV !== "production") {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
@@ -255,76 +260,53 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    // Dynamic distPath detection for various deployment environments (Render, Vercel, etc.)
-    let distPath = path.join(process.cwd(), 'dist');
+    // 2. Production: Concurrent path detection
     const fs = await import('fs');
+    let distPath = path.join(process.cwd(), 'dist');
     
+    // Check most likely path first, then alternates only if needed
     if (!fs.existsSync(distPath)) {
-      // Try alternate locations based on typical Node.js deployment structures
       const alternates = [
         path.join(__dirname, 'dist'),
-        path.join(process.cwd(), '..', 'dist'),
-        path.join(__dirname, '..', 'dist')
+        path.join(process.cwd(), '..', 'dist')
       ];
       for (const alt of alternates) {
         if (fs.existsSync(alt)) {
-          console.info(`[Production] Found dist at alternate path: ${alt}`);
           distPath = alt;
           break;
         }
       }
     }
 
-    // Diagnostic logging
-    if (fs.existsSync(distPath)) {
-      const files = fs.readdirSync(distPath);
-      console.log(`[Production] Serving from: ${distPath}. Root files: ${files.join(', ')}`);
-      const assetsPath = path.join(distPath, 'assets');
-      if (fs.existsSync(assetsPath)) {
-        console.log(`[Production] Assets found: ${fs.readdirSync(assetsPath).length} files.`);
+    // Diagnostic logging in background to avoid blocking
+    setImmediate(() => {
+      if (fs.existsSync(distPath)) {
+        const files = fs.readdirSync(distPath);
+        console.log(`[Production] Assets served from: ${distPath}`);
       } else {
-        console.error(`[CRITICAL] Assets folder missing at ${assetsPath}`);
+        console.error(`[CRITICAL] dist folder not found!`);
       }
-    } else {
-      console.error(`[CRITICAL] Distribution folder missing! Build might have failed or process.cwd() is wrong: ${process.cwd()}`);
-    }
+    });
 
-    // 1. Serve static files with high priority
+    // 3. Serve static files
     app.use(express.static(distPath, {
       maxAge: '1d',
       etag: true,
-      index: false // We'll handle index manually to prevent conflicts
+      index: false
     }));
 
-    // 2. Robust catch-all for SPA: Using app.use() instead of app.get('*') 
-    // to bypass path-to-regexp parsing errors in Express 5.
+    // 4. Robust catch-all
     app.use((req, res, next) => {
-      // Only handle GET requests for SPA routing
       if (req.method !== 'GET') return next();
-
       const ext = path.extname(req.path).toLowerCase();
-      const isAsset = ['.js', '.css', '.png', '.jpg', '.svg', '.ico', '.json', '.txt', '.webp', '.map'].includes(ext);
-
-      // Protect against MIME type mismatch: Don't serve HTML for missing static files
-      if (isAsset) {
-        console.warn(`[Static] Missing asset 404: ${req.path}`);
-        return res.status(404).send(`Asset not found: ${req.path}`);
+      if (['.js', '.css', '.png', '.jpg', '.svg', '.ico', '.json', '.webp', '.map'].includes(ext)) {
+        return res.status(404).send('Asset missing');
       }
-
-      // Serve index.html for all other GET requests (SPA client-side routing)
-      const indexPath = path.join(distPath, 'index.html');
-      res.sendFile(indexPath, (err) => {
-        if (err) {
-          console.error(`[Server] Failed to send index.html from ${indexPath}`, err);
-          res.status(500).send('<h1>Server Configuration Error</h1><p>The application files are missing on the server. Please check your build logs.</p>');
-        }
+      res.sendFile(path.join(distPath, 'index.html'), (err) => {
+        if (err) res.status(500).send('Server configuration issue');
       });
     });
   }
-
-  app.listen(Number(PORT), "0.0.0.0", () => {
-    console.log(`Server running on port ${PORT}`);
-  });
 }
 
 startServer().catch(console.error);

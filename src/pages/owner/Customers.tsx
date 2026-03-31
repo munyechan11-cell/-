@@ -562,17 +562,24 @@ export default function OwnerCustomers() {
                 </div>
               ) : (
                 customerHistory.map(comm => (
-                  <div key={comm.id} className="bg-white dark:bg-black/20 p-4 rounded-2xl border border-ink-light/10 dark:border-ink-dark/10">
+                  <div key={comm.id} className={`bg-white dark:bg-black/20 p-4 rounded-2xl border ${comm.senderRole === 'customer' ? 'border-blue-400/30 ring-1 ring-blue-400/10' : 'border-ink-light/10 dark:border-ink-dark/10'}`}>
                     <div className="flex justify-between items-start mb-2">
-                      <span className={`px-2 py-1 rounded-md text-xs font-bold flex items-center ${comm.type === 'coupon' ? 'bg-burgundy/10 text-burgundy dark:bg-burgundy-light/20 dark:text-burgundy-light' : 'bg-olive/10 text-olive dark:bg-olive/20 dark:text-olive-light'}`}>
-                        {comm.type === 'coupon' ? <Ticket className="w-3 h-3 mr-1" /> : <MessageSquare className="w-3 h-3 mr-1" />}
-                        {comm.type === 'coupon' ? '서비스 쿠폰' : '문자 메시지'}
-                      </span>
+                      <div className="flex gap-2">
+                        <span className={`px-2 py-1 rounded-md text-xs font-bold flex items-center ${comm.type === 'coupon' ? 'bg-burgundy/10 text-burgundy dark:bg-burgundy-light/20 dark:text-burgundy-light' : 'bg-olive/10 text-olive dark:bg-olive/20 dark:text-olive-light'}`}>
+                          {comm.type === 'coupon' ? <Ticket className="w-3 h-3 mr-1" /> : <MessageSquare className="w-3 h-3 mr-1" />}
+                          {comm.type === 'coupon' ? '서비스 쿠폰' : '메시지'}
+                        </span>
+                        {comm.senderRole === 'customer' && (
+                          <span className="px-2 py-1 rounded-md text-xs font-bold bg-blue-500 text-white flex items-center">
+                            고객 발신
+                          </span>
+                        )}
+                      </div>
                       <span className="text-xs text-ink-light/40 dark:text-ink-dark/40">
                         {new Date(comm.date).toLocaleDateString('ko-KR')} {new Date(comm.date).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
-                    <p className="text-ink-light/80 dark:text-ink-dark/80 text-sm font-medium">{comm.content}</p>
+                    <p className={`text-sm font-medium ${comm.senderRole === 'customer' ? 'text-blue-700 dark:text-blue-300' : 'text-ink-light/80 dark:text-ink-dark/80'}`}>{comm.content}</p>
                   </div>
                 ))
               )}

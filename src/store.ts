@@ -56,6 +56,7 @@ export interface Communication {
   customerId: string;
   storeId: string;
   type: 'coupon' | 'message';
+  senderRole?: Role; // 발신자 정보 (사장님/고객)
   content: string;
   date: string;
 }
@@ -103,7 +104,10 @@ window.addEventListener('force-firebase-fallback', async () => {
 });
 
 const notifyUpdate = () => {
-  window.dispatchEvent(new Event('global-storage-update'));
+  // 소폭 지연을 주어 대량 업데이트 시 UI 렌더링이 꼬이지 않도록 보증
+  setTimeout(() => {
+    window.dispatchEvent(new Event('global-storage-update'));
+  }, 10);
 };
 
 const cleanupListeners = () => {
@@ -468,8 +472,8 @@ export const useStore = () => {
     await updateFirestoreDoc('users', userId, { memo });
   };
 
-  const recordCommunication = async (customerId: string, storeId: string, type: 'coupon' | 'message', content: string) => {
-    const comm = { id: generateId(), customerId, storeId, type, content, date: new Date().toISOString() };
+  const recordCommunication = async (customerId: string, storeId: string, type: 'coupon' | 'message', content: string, senderRole: Role = 'owner') => {
+    const comm = { id: generateId(), customerId, storeId, type, content, senderRole, date: new Date().toISOString() };
     await updateFirestoreDoc('Communications', comm.id, comm);
   };
 
@@ -483,11 +487,11 @@ export const useStore = () => {
     showToast(`${customerIds.length}명에게 쿠폰을 발급했습니다.`, 'success');
   };
 
-  const bulkRecordCommunication = async (customerIds: string[], storeId: string, type: 'coupon' | 'message', content: string) => {
+  const bulkRecordCommunication = async (customerIds: string[], storeId: string, type: 'coupon' | 'message', content: string, senderRole: Role = 'owner') => {
     const batch = writeBatch(db!);
     customerIds.forEach(id => {
       const commRef = doc(collections!.Communications);
-      batch.set(commRef, { id: commRef.id, customerId: id, storeId, type, content, date: new Date().toISOString() });
+      batch.set(commRef, { id: commRef.id, customerId: id, storeId, type, content, senderRole, date: new Date().toISOString() });
     });
     await batch.commit();
   };

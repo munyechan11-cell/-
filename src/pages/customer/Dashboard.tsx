@@ -1,16 +1,19 @@
 import { useEffect, useState } from 'react';
 import { useStore, getEffectiveTier, getTierColor, getNextTierVisits } from '../../store';
-import { LogOut, Ticket, Award, Calendar, X, ArrowLeft, LogOut as LeaveIcon, MessageSquare, Bell, Edit3 } from 'lucide-react';
+import { LogOut, Ticket, Award, Calendar, X, ArrowLeft, LogOut as LeaveIcon, MessageSquare, Bell, Edit3, Send, Loader2 } from 'lucide-react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import MemoModal, { formatMemoDisplay } from '../../components/MemoModal';
 
 export default function CustomerDashboard() {
-  const { currentUser, visits, coupons, users, tables, logout, leaveTable, communications, tierOverrides, requestCouponUse, cancelCouponRequest, updateUserMemo } = useStore();
+  const { currentUser, visits, coupons, users, tables, logout, leaveTable, communications, tierOverrides, requestCouponUse, cancelCouponRequest, updateUserMemo, recordCommunication } = useStore();
   const navigate = useNavigate();
   const { storeId } = useParams<{ storeId: string }>();
   const [selectedCoupon, setSelectedCoupon] = useState<string | null>(null);
   const [cancelingCoupon, setCancelingCoupon] = useState<string | null>(null);
   const [editingMemo, setEditingMemo] = useState(false);
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const [messageContent, setMessageContent] = useState('');
+  const [isSending, setIsSending] = useState(false);
 
   useEffect(() => {
     if (currentUser && storeId && currentUser.storeId !== storeId) {
@@ -62,6 +65,24 @@ export default function CustomerDashboard() {
     }
   };
 
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!messageContent.trim() || isSending) return;
+    
+    setIsSending(true);
+    try {
+      await recordCommunication(currentUser.id, storeId!, 'message', messageContent.trim(), 'customer');
+      setMessageContent('');
+      setSendingMessage(false);
+      import('../../store').then(({ showToast }) => showToast('사장님께 메시지를 전달했습니다.', 'success')).catch(console.error);
+    } catch (err) {
+      console.error(err);
+      import('../../store').then(({ showToast }) => showToast('전송 실패했습니다.', 'error')).catch(console.error);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
   const activeCoupon = myCoupons.find(c => c.id === selectedCoupon);
   const activeCancelingCoupon = myCoupons.find(c => c.id === cancelingCoupon);
 
@@ -86,7 +107,16 @@ export default function CustomerDashboard() {
             </div>
           </div>
           <div className="flex-1 min-w-0">
-            <h2 className="text-2xl font-serif font-bold text-ink-light dark:text-ink-dark truncate">{currentUser.name}</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-serif font-bold text-ink-light dark:text-ink-dark truncate">{currentUser.name}</h2>
+              <button 
+                onClick={() => setSendingMessage(true)}
+                className="p-2 bg-burgundy/10 dark:bg-burgundy/20 text-burgundy dark:text-burgundy-light rounded-full hover:bg-burgundy/20 dark:hover:bg-burgundy/30 transition-colors shadow-sm"
+                title="사장님께 메시지 보내기"
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            </div>
             <p className="text-ink-light/60 dark:text-ink-dark/60 text-sm font-medium mt-1">단골 손님</p>
             
             <div className="mt-3 flex items-start justify-between bg-white dark:bg-black/20 p-3 rounded-xl border border-ink-light/10 dark:border-ink-dark/10">
@@ -382,6 +412,47 @@ export default function CustomerDashboard() {
           updateUserMemo(currentUser.id, storeId, memo);
         }}
       />
+
+      {/* Message to Manager Modal */}
+      {sendingMessage && (
+        <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-in fade-in duration-200">
+          <div className="bg-hanji-light dark:bg-hanji-dark w-full sm:max-w-md rounded-t-[2rem] sm:rounded-[2rem] p-6 pb-12 sm:pb-6 relative shadow-2xl animate-in slide-in-from-bottom-full sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200 border border-ink-light/10 dark:border-ink-dark/10">
+            <button 
+              onClick={() => {
+                setSendingMessage(false);
+                setMessageContent('');
+              }}
+              className="absolute top-4 right-4 p-2 bg-transparent rounded-full hover:bg-ink-light/5 dark:hover:bg-ink-dark/10 transition-colors"
+            >
+              <X className="w-5 h-5 text-ink-light/40 dark:text-ink-dark/40" />
+            </button>
+
+            <h2 className="text-2xl font-serif font-bold text-ink-light dark:text-ink-dark mb-2">사장님께 메시지</h2>
+            <p className="text-ink-light/50 dark:text-ink-dark/50 mb-6 text-sm">요청사항이나 응원의 메시지를 남겨주세요.</p>
+            
+            <form onSubmit={handleSendMessage} className="space-y-4">
+              <textarea 
+                value={messageContent}
+                onChange={(e) => setMessageContent(e.target.value)}
+                placeholder="내용을 입력하세요..."
+                rows={4}
+                className="w-full px-4 py-3 rounded-xl border border-ink-light/10 dark:border-ink-dark/10 focus:border-burgundy focus:ring-2 focus:ring-burgundy/20 transition-colors resize-none bg-white dark:bg-black/20 text-ink-light dark:text-ink-dark"
+                required
+                autoFocus
+              />
+
+              <button 
+                type="submit"
+                disabled={isSending || !messageContent.trim()}
+                className="w-full bg-burgundy hover:bg-burgundy/90 disabled:bg-burgundy/50 text-hanji-light font-bold py-4 rounded-xl transition-colors flex items-center justify-center shadow-sm"
+              >
+                {isSending ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Send className="w-5 h-5 mr-2" />}
+                {isSending ? '전송 중...' : '메시지 전송'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
