@@ -59,9 +59,14 @@ export default function OwnerDashboard() {
       ? new Date(Math.max(...customerVisits.map(v => new Date(v.date).getTime())))
       : null;
     
-    const daysSinceLastVisit = lastVisit 
-      ? Math.floor((new Date().getTime() - lastVisit.getTime()) / (1000 * 3600 * 24))
-      : null;
+    let daysSinceLastVisit = null;
+    if (lastVisit) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const visitDate = new Date(lastVisit);
+      visitDate.setHours(0, 0, 0, 0);
+      daysSinceLastVisit = Math.round((today.getTime() - visitDate.getTime()) / (1000 * 3600 * 24));
+    }
 
     const firstVisit = customerVisits.length > 0 
       ? new Date(Math.min(...customerVisits.map(v => new Date(v.date).getTime())))
@@ -333,26 +338,44 @@ export default function OwnerDashboard() {
         </div>
       </div>
 
-      {/* Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-black/80 backdrop-blur-md border-t border-ink-light/10 flex justify-around p-4 z-40">
-        <Link to="/owner" className="flex flex-col items-center text-burgundy"><LayoutGrid className="w-6 h-6 mb-1" /><span className="text-xs font-bold">테이블</span></Link>
-        <Link to="/owner/customers" className="flex flex-col items-center text-ink-light/40"><Users className="w-6 h-6 mb-1" /><span className="text-xs font-bold">고객</span></Link>
-        <Link to="/owner/statistics" className="flex flex-col items-center text-ink-light/40"><BarChart3 className="w-6 h-6 mb-1" /><span className="text-xs font-bold">통계</span></Link>
+      {/* Bottom Navigation */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-black/80 backdrop-blur-md border-t border-ink-light/10 dark:border-ink-dark/10 flex justify-around p-4 pb-safe z-40">
+        <Link to="/owner" className="flex flex-col items-center text-burgundy dark:text-burgundy-light">
+          <LayoutGrid className="w-6 h-6 mb-1" />
+          <span className="text-xs font-bold">테이블</span>
+        </Link>
+        <Link to="/owner/customers" className="flex flex-col items-center text-ink-light/40 dark:text-ink-dark/40 hover:text-ink-light dark:hover:text-ink-dark transition-colors">
+          <Users className="w-6 h-6 mb-1" />
+          <span className="text-xs font-bold">고객관리</span>
+        </Link>
+        <Link to="/owner/statistics" className="flex flex-col items-center text-ink-light/40 dark:text-ink-dark/40 hover:text-ink-light dark:hover:text-ink-dark transition-colors">
+          <BarChart3 className="w-6 h-6 mb-1" />
+          <span className="text-xs font-bold">통계</span>
+        </Link>
       </div>
 
-      {/* Modal */}
+      {/* Table Detail Modal */}
       {selectedTable && activeTable && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
-          <div className="bg-hanji-light dark:bg-hanji-dark w-full sm:max-w-md rounded-t-[2rem] sm:rounded-[2rem] p-6 relative shadow-2xl overflow-y-auto max-h-[90vh]">
-            <button onClick={() => setSelectedTable(null)} className="absolute top-4 right-4 p-2 hover:bg-ink-light/5 rounded-full"><X className="w-5 h-5 text-ink-light/40" /></button>
-            
+        <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-in fade-in duration-200">
+          <div className="bg-hanji-light dark:bg-hanji-dark w-full sm:max-w-md rounded-t-[2rem] sm:rounded-[2rem] p-6 pb-12 sm:pb-6 relative shadow-2xl animate-in slide-in-from-bottom-full sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200 border border-ink-light/10 dark:border-ink-dark/10 overflow-y-auto max-h-[90vh]">
+            <button 
+              onClick={() => setSelectedTable(null)}
+              className="absolute top-4 right-4 p-2 bg-transparent rounded-full hover:bg-ink-light/5 dark:hover:bg-ink-dark/10 transition-colors"
+            >
+              <X className="w-5 h-5 text-ink-light/40 dark:text-ink-dark/40" />
+            </button>
+
             <div className="flex justify-between items-start mb-6">
               <div className="flex items-center gap-2">
-                <span className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold ${activeTable.isRoom ? 'bg-espresso' : 'bg-burgundy'} text-white`}>{selectedTable}</span>
-                <span className="text-xs font-bold bg-ink-light/5 px-3 py-1 rounded-full">{activeTable.seats || 4}인석</span>
+                <span className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold shadow-sm ${activeTable.isRoom ? 'bg-espresso' : 'bg-burgundy'} text-hanji-light`}>
+                  {selectedTable}
+                </span>
+                <span className="text-xs font-bold text-ink-light/30 dark:text-ink-dark/30 bg-ink-light/5 px-2 py-0.5 rounded-full border border-ink-light/5">
+                  {activeTable.seats || 4}인석
+                </span>
               </div>
               {activeTable.sessionStartTime && (
-                <span className="text-xs font-bold text-burgundy bg-burgundy/10 px-3 py-1 rounded-lg">
+                <span className="text-xs font-bold text-burgundy dark:text-burgundy-light bg-burgundy/10 px-3 py-1 rounded-lg">
                   {(() => {
                     const diff = Math.floor((currentTime.getTime() - new Date(activeTable.sessionStartTime).getTime()) / 60000);
                     return diff > 60 ? `${Math.floor(diff/60)}시간 ${diff%60}분` : `${diff}분 전 입장`;
@@ -363,31 +386,64 @@ export default function OwnerDashboard() {
 
             {activeCustomer ? (
               <div className="space-y-6">
-                <div className="bg-white/50 dark:bg-black/10 p-5 rounded-[2rem] border border-ink-light/10">
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h3 className="text-2xl font-serif font-bold">{activeCustomer.name}님</h3>
-                      <p className="text-sm text-ink-light/60 mt-1">{activeCustomer.phone}</p>
+                {(() => {
+                  const stats = getCustomerStats(activeCustomer.id);
+                  return (
+                    <div className="bg-white/50 dark:bg-black/10 p-5 rounded-[2rem] border border-ink-light/10 dark:border-ink-dark/10">
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <h3 className="text-2xl font-serif font-bold text-ink-light dark:text-ink-dark">{activeCustomer.name}님</h3>
+                          <p className="text-sm text-ink-light/60 dark:text-ink-dark/60 mt-1">{activeCustomer.phone}</p>
+                        </div>
+                        <span className={`px-4 py-1.5 rounded-full text-xs font-bold border transition-all ${getTierColor(stats.tier)}`}>
+                          {getTierCustomName(stats.tier, currentUser.tierNames)}
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between text-sm text-ink-light/70 dark:text-ink-dark/70 border-t border-ink-light/10 dark:border-ink-dark/10 pt-4">
+                        <span className="font-medium text-xs">최근 30일: {stats.recentVisits}회</span>
+                        <span className="font-medium text-xs">
+                          마지막 방문: {stats.daysSinceLastVisit !== null 
+                            ? (stats.daysSinceLastVisit === 0 ? '오늘' : `${stats.daysSinceLastVisit}일 전`) 
+                            : '없음'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm text-ink-light/70 dark:text-ink-dark/70 mt-2">
+                        <span className="font-medium text-xs">총 방문: {stats.totalVisits}회</span>
+                        <span className="font-medium text-xs">월 평균 방문: {stats.frequencyPerMonth}회</span>
+                      </div>
+                      {activeCustomer.memo && (
+                        <div className="mt-4 pt-4 border-t border-ink-light/10 dark:border-ink-dark/10">
+                          <p className="text-xs font-bold text-ink-light/50 dark:text-ink-dark/50 mb-2">고객 메모</p>
+                          <p className="text-sm text-ink-light/80 dark:text-ink-dark/80 bg-white/50 dark:bg-black/20 p-4 rounded-2xl border border-ink-light/5 whitespace-pre-wrap">
+                            {formatMemoDisplay(activeCustomer.memo)}
+                          </p>
+                        </div>
+                      )}
                     </div>
-                    <span className={`px-4 py-1.5 rounded-full text-xs font-bold border ${getTierColor(getCustomerStats(activeCustomer.id).tier)}`}>
-                      {getTierCustomName(getCustomerStats(activeCustomer.id).tier, currentUser.tierNames)}
-                    </span>
-                  </div>
-                  {activeCustomer.memo && (
-                    <div className="mt-4 pt-4 border-t border-ink-light/10">
-                      <p className="text-xs font-bold text-ink-light/50 mb-2">메모</p>
-                      <p className="text-sm whitespace-pre-wrap bg-white/50 p-4 rounded-2xl">{formatMemoDisplay(activeCustomer.memo)}</p>
-                    </div>
-                  )}
-                </div>
-                <button onClick={() => { leaveTable(selectedTable, currentUser.id); setSelectedTable(null); }} className="w-full bg-white border border-ink-light/10 font-bold py-4 rounded-2xl transition-all active:scale-[0.98]">테이블 비우기</button>
+                  );
+                })()}
+
+                <button 
+                  onClick={() => {
+                    leaveTable(activeTable.number, currentUser.id);
+                    setSelectedTable(null);
+                  }}
+                  className="w-full bg-white dark:bg-black/20 hover:bg-ink-light/5 dark:hover:bg-ink-dark/10 text-ink-light/70 dark:text-ink-dark/70 border border-ink-light/10 dark:border-ink-dark/10 font-bold py-4 rounded-2xl transition-all active:scale-[0.98] shadow-sm"
+                >
+                  테이블 비우기
+                </button>
               </div>
             ) : (
               <div className="text-center py-8">
-                <div className="bg-white p-6 rounded-[2rem] border-2 border-dashed border-ink-light/10 inline-block">
-                  <QRCodeSVG value={`${window.location.origin}/customer/store/${currentUser.id}/table/${selectedTable}`} size={160} level="H" />
+                <div className="bg-white p-6 rounded-[2rem] border-2 border-dashed border-ink-light/10 inline-block relative group">
+                  <QRCodeSVG 
+                    value={`${window.location.origin}/customer/store/${currentUser.id}/table/${selectedTable}`} 
+                    size={150}
+                    level="H"
+                  />
+                  <p className="mt-4 text-xs font-bold text-ink-light/50">{selectedTable}번 테이블 전용 QR</p>
                 </div>
-                <p className="mt-4 text-xs font-bold text-ink-light/50">{selectedTable}번 테이블 전용 QR</p>
               </div>
             )}
           </div>
