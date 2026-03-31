@@ -141,7 +141,12 @@ const startSync = (database: any, colls: any) => {
   cleanupListeners();
 
   const syncCollection = (collName: string, stateKey: string) => {
-    const unsub = onSnapshot(colls[collName], (snap) => {
+    if (!colls || !colls[collName as keyof typeof colls]) {
+      console.warn(`Collection ${collName} not found, skipping sync.`);
+      return;
+    }
+
+    const unsub = onSnapshot(colls[collName as keyof typeof colls], (snap) => {
       globalState[stateKey] = snap.docs.map(d => d.data());
       globalFirebaseStatus = 'connected';
       globalIsReady = true;
@@ -162,7 +167,9 @@ const startSync = (database: any, colls: any) => {
       globalIsReady = true;
       notifyUpdate();
     });
-    activeListeners.push(unsub);
+    if (unsub) {
+      activeListeners.push(unsub);
+    }
   };
 
   syncCollection('users', 'users');
@@ -491,6 +498,11 @@ export const useStore = () => {
   };
 
   const initTables = async (storeId: string) => {
+    if (!db || !collections) {
+      showToast('데이터베이스가 아직 준비되지 않았습니다.', 'error');
+      return;
+    }
+    const batch = writeBatch(db);
     const initialTables: Table[] = [
       { number: 1, storeId, currentCustomerId: null, sessionStartTime: null, x: 50, y: 150, seats: 4, type: 'table', shape: 'square', status: 'available' },
       { number: 2, storeId, currentCustomerId: null, sessionStartTime: null, x: 200, y: 150, seats: 4, type: 'table', shape: 'square', status: 'available' },
