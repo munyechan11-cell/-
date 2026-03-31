@@ -528,9 +528,15 @@ export const useStore = () => {
     const id = `${storeId}_${tableNumber}`;
     const idx = globalState.tables.findIndex((t: any) => t.storeId === storeId && t.number === tableNumber);
     if (idx !== -1) {
-      globalState.tables[idx] = { ...globalState.tables[idx], ...data };
+      // Clean undefined values from data
+      const cleanData = { ...data };
+      if ('sectionId' in cleanData && cleanData.sectionId === undefined) {
+        cleanData.sectionId = null as any;
+      }
+      
+      globalState.tables[idx] = { ...globalState.tables[idx], ...cleanData };
       notifyUpdate();
-      await updateFirestoreDoc('tables', id, data);
+      await updateFirestoreDoc('tables', id, cleanData);
     }
   };
 
@@ -540,11 +546,12 @@ export const useStore = () => {
     const tableId = `${storeId}_${nextNum}`;
     const newTable: Table = { 
       number: nextNum, storeId, currentCustomerId: null, sessionStartTime: null,
-      x: 100, y: 100, width: 70, height: 70, isRoom: type === 'room', type, seats: type === 'table' ? 4 : 0,
-      shape: 'square', status: 'available', sectionId
+      x: 100, y: 100, width: type === 'table' ? 70 : 150, height: type === 'table' ? 70 : 80, 
+      isRoom: type === 'room', type, seats: type === 'table' ? 4 : 0,
+      shape: 'square', status: 'available', sectionId: sectionId || null as any
     };
     await updateFirestoreDoc('tables', tableId, newTable);
-    showToast(`${type === 'corridor' ? '복도' : '테이블'}가 추가되었습니다.`, 'success');
+    showToast(`${type === 'corridor' ? '복도' : (type === 'room' ? '룸' : '테이블')}가 추가되었습니다.`, 'success');
   };
 
   const deleteTable = async (storeId: string, tableNumber: number) => {

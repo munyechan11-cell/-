@@ -24,7 +24,8 @@ export default function OwnerDashboard() {
   const [isLayoutMode, setIsLayoutMode] = useState(false);
   const [draggedTable, setDraggedTable] = useState<number | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [zoom, setZoom] = useState(1); // New: Zoom state for large maps
+  const [zoom, setZoom] = useState(1); // Zoom state for large maps
+  const [isMoveOnlyMode, setIsMoveOnlyMode] = useState(false); // New: Move Only Mode
   
   // Section Management
   const currentStoreSections = sections.filter(s => s.storeId === currentUser?.id);
@@ -252,8 +253,8 @@ export default function OwnerDashboard() {
                     <div
                       key={table.number}
                       draggable={false} // We use the handle for dragging
-                      onClick={() => !isCorridor && setSelectedTable(table.number)}
-                      className={`absolute flex flex-col items-center justify-center p-3 shadow-sm border-2 transition-colors transition-shadow cursor-pointer group ${table.shape === 'circle' ? 'rounded-full' : (table.isRoom ? 'rounded-[2.5rem]' : 'rounded-3xl')} ${getStatusColor(currentStatus, isOccupied)} ${selectedTable === table.number ? 'ring-4 ring-burgundy/20 border-burgundy' : ''}`}
+                      onClick={() => (!isCorridor && !isMoveOnlyMode) && setSelectedTable(table.number)}
+                      className={`absolute flex flex-col items-center justify-center p-3 shadow-sm border-2 transition-colors transition-shadow cursor-pointer group ${table.shape === 'circle' ? 'rounded-full' : (table.isRoom ? 'rounded-[2.5rem]' : (isCorridor ? 'rounded-lg border-dashed opacity-40' : 'rounded-3xl'))} ${getStatusColor(currentStatus, isOccupied)} ${(selectedTable === table.number && !isMoveOnlyMode) ? 'ring-4 ring-burgundy/20 border-burgundy' : ''}`}
                       style={{ 
                         left: `${table.x}px`, 
                         top: `${table.y}px`, 
@@ -280,7 +281,7 @@ export default function OwnerDashboard() {
 
                       {/* Content Overlay */}
                       {!isCorridor && (
-                        <div className="flex flex-col items-center select-none">
+                        <div className={`flex flex-col items-center select-none ${isMoveOnlyMode ? 'opacity-20' : ''}`}>
                           <span className="text-lg font-black tracking-tighter leading-none">{table.number}</span>
                           <div className="flex items-center gap-1 mt-1 opacity-60">
                             <Users className="w-2.5 h-2.5" />
@@ -386,24 +387,36 @@ export default function OwnerDashboard() {
             <div className="absolute top-1/2 -translate-y-1/2 left-8 bg-white dark:bg-black/60 backdrop-blur-xl border border-ink-light/10 p-3 rounded-2xl shadow-2xl z-40 flex flex-col gap-3">
               <button 
                 onClick={() => addTable(currentUser.id, 'table', activeSectionId !== 'all' ? activeSectionId : undefined)}
-                className="p-3 bg-burgundy/10 text-burgundy rounded-xl hover:bg-burgundy hover:text-white transition-colors flex flex-col items-center gap-1"
+                className="p-3 bg-emerald-500/10 text-emerald-600 rounded-xl hover:bg-emerald-500 hover:text-white transition-colors flex flex-col items-center gap-1"
+                title="테이블 추가"
               >
                 <Plus className="w-6 h-6" />
                 <span className="text-[8px] font-black">TABLE</span>
               </button>
               <button 
                 onClick={() => addTable(currentUser.id, 'room', activeSectionId !== 'all' ? activeSectionId : undefined)}
-                className="p-3 bg-espresso/10 text-espresso rounded-xl hover:bg-espresso hover:text-white transition-colors flex flex-col items-center gap-1"
+                className="p-3 bg-sky-500/10 text-sky-600 rounded-xl hover:bg-sky-500 hover:text-white transition-colors flex flex-col items-center gap-1"
+                title="룸 추가"
               >
                 <Square className="w-6 h-6" />
-                <span className="text-[8px] font-black">AREA</span>
+                <span className="text-[8px] font-black">ROOM</span>
               </button>
               <button 
                 onClick={() => addTable(currentUser.id, 'corridor', activeSectionId !== 'all' ? activeSectionId : undefined)}
-                className="p-3 bg-ink-light/10 text-ink-light rounded-xl hover:bg-ink-light hover:text-white transition-colors flex flex-col items-center gap-1"
+                className="p-3 bg-zinc-500/10 text-zinc-600 rounded-xl hover:bg-zinc-500 hover:text-white transition-colors flex flex-col items-center gap-1"
+                title="복도 추가"
+              >
+                <Layers className="w-6 h-6" />
+                <span className="text-[8px] font-black">HALL</span>
+              </button>
+              <div className="w-full h-px bg-ink-light/5 my-1"></div>
+              <button 
+                onClick={() => setIsMoveOnlyMode(!isMoveOnlyMode)}
+                className={`p-3 rounded-xl transition-all flex flex-col items-center gap-1 ${isMoveOnlyMode ? 'bg-burgundy text-white shadow-lg' : 'bg-burgundy/10 text-burgundy hover:bg-burgundy/20'}`}
+                title="이동 전용 모드"
               >
                 <Move className="w-6 h-6" />
-                <span className="text-[8px] font-black">DRAG</span>
+                <span className="text-[8px] font-black">{isMoveOnlyMode ? 'MOVING' : 'MOVE'}</span>
               </button>
             </div>
           )}
