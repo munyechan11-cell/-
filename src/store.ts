@@ -599,12 +599,13 @@ export const useStore = () => {
   };
 
   return {
-    isReady, firebaseStatus, firebaseError, users, visits, coupons, tables, communications, tierOverrides,
+    isReady, firebaseStatus, firebaseError, users, visits, coupons, tables, sections, communications, tierOverrides,
     currentUser, masterPassword, login, logout, recordVisit, leaveTable, issueCoupon, 
     requestCouponUse, cancelCouponRequest, approveCouponUse, rejectCouponUse, 
     initTables, setCustomerTier, setMasterPassword, deleteUser, updateUserMemo, 
     recordCommunication, bulkIssueCoupon, bulkRecordCommunication,
-    updateTableLayout, updateBrandSettings, addTable, deleteTable
+    updateTableLayout, updateBrandSettings, addTable, deleteTable,
+    addSection, updateSection, deleteSection, updateTableStatus
   };
 };
 

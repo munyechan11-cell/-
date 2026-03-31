@@ -4,7 +4,7 @@ import {
   Users, LayoutGrid, LogOut, X, Check, Bell, BarChart3, 
   Settings, Map as MapIcon, List, Move, Square, Plus, 
   Minus, Trash2, Circle, GripVertical, Layers, Palette, 
-  MoreVertical, Edit2, CheckCircle2, AlertCircle, Clock
+  MoreVertical, Edit2, CheckCircle2, AlertCircle, Clock, Maximize2
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
@@ -151,7 +151,7 @@ export default function OwnerDashboard() {
         <div className="flex items-center gap-3">
           {pendingRequests.length > 0 && (
             <button className="relative p-2 bg-burgundy/10 text-burgundy rounded-full hover:bg-burgundy/20 transition-all">
-              <Bell className="w-6 h-6 animate-swing origin-top" />
+              <Bell className="w-6 h-6" />
               <span className="absolute -top-1 -right-1 bg-burgundy text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center border-2 border-white">{pendingRequests.length}</span>
             </button>
           )}
@@ -232,7 +232,7 @@ export default function OwnerDashboard() {
                       key={table.number}
                       draggable={false} // We use the handle for dragging
                       onClick={() => !isCorridor && setSelectedTable(table.number)}
-                      className={`absolute flex flex-col items-center justify-center p-3 shadow-sm border-2 transition-all cursor-pointer group ${table.shape === 'circle' ? 'rounded-full' : (table.isRoom ? 'rounded-[2.5rem]' : 'rounded-3xl')} ${getStatusColor(currentStatus, isOccupied)} ${selectedTable === table.number ? 'ring-4 ring-burgundy/20 border-burgundy' : ''}`}
+                      className={`absolute flex flex-col items-center justify-center p-3 shadow-sm border-2 transition-colors transition-shadow cursor-pointer group ${table.shape === 'circle' ? 'rounded-full' : (table.isRoom ? 'rounded-[2.5rem]' : 'rounded-3xl')} ${getStatusColor(currentStatus, isOccupied)} ${selectedTable === table.number ? 'ring-4 ring-burgundy/20 border-burgundy' : ''}`}
                       style={{ 
                         left: `${table.x}px`, 
                         top: `${table.y}px`, 
@@ -247,15 +247,14 @@ export default function OwnerDashboard() {
                         onDragStart={(e) => {
                           e.dataTransfer.setData('tableNumber', table.number.toString());
                           setDraggedTable(table.number);
-                          // Set transparent ghost image
                           const img = new Image();
                           img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
                           e.dataTransfer.setDragImage(img, 0, 0);
                         }}
                         onDragEnd={() => setDraggedTable(null)}
-                        className="absolute -top-2 -right-2 p-1.5 bg-white dark:bg-black rounded-lg shadow-lg border border-ink-light/10 text-ink-light/30 hover:text-burgundy opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing z-50"
+                        className="absolute top-1 right-1 p-1 bg-white/80 dark:bg-black/80 rounded-md shadow-sm border border-ink-light/10 text-ink-light/40 hover:text-burgundy opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing z-50"
                       >
-                        <GripVertical className="w-4 h-4" />
+                        <GripVertical className="w-3 h-3" />
                       </div>
 
                       {/* Content Overlay */}
@@ -292,13 +291,22 @@ export default function OwnerDashboard() {
 
                       {/* Layout Mode Controls */}
                       {isLayoutMode && (
-                        <div className="absolute inset-0 bg-white/60 dark:bg-black/60 rounded-inherit flex flex-wrap items-center justify-center gap-1 p-1 z-20 overflow-hidden opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm">
-                          <button onClick={(e) => { e.stopPropagation(); updateTableLayout(currentUser.id, table.number, { width: (table.width || 80) + 10, height: (table.height || 80) + 10 }); }} className="p-1.5 bg-white rounded-lg shadow hover:bg-burgundy hover:text-white transition-colors"><Plus className="w-3 h-3" /></button>
-                          <button onClick={(e) => { e.stopPropagation(); updateTableLayout(currentUser.id, table.number, { shape: table.shape === 'circle' ? 'square' : 'circle' }); }} className="p-1.5 bg-white rounded-lg shadow hover:bg-burgundy hover:text-white transition-colors"><Square className="w-3 h-3" /></button>
-                          <button onClick={(e) => { e.stopPropagation(); deleteTable(currentUser.id, table.number); }} className="p-1.5 bg-white rounded-lg shadow hover:bg-burgundy hover:text-white transition-colors text-red-500"><Trash2 className="w-3 h-3" /></button>
-                          <div className="w-full flex justify-center gap-1 mt-1">
+                        <div className="absolute inset-0 bg-white/80 dark:bg-black/60 rounded-inherit flex flex-wrap items-center justify-center gap-1 p-1 z-20 overflow-hidden opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-[2px]">
+                          <div className="flex gap-0.5">
+                            <button onClick={(e) => { e.stopPropagation(); updateTableLayout(currentUser.id, table.number, { width: (table.width || 80) + 10, height: (table.height || 80) + 10 }); }} className="p-1 bg-white rounded shadow-sm hover:bg-burgundy hover:text-white transition-colors" title="크기 키우기"><Maximize2 className="w-2.5 h-2.5" /></button>
+                            <button onClick={(e) => { e.stopPropagation(); updateTableLayout(currentUser.id, table.number, { width: Math.max(40, (table.width || 80) - 10), height: Math.max(40, (table.height || 80) - 10) }); }} className="p-1 bg-white rounded shadow-sm hover:bg-burgundy hover:text-white transition-colors" title="크기 줄이기"><Minus className="w-2.5 h-2.5" /></button>
+                          </div>
+                          <div className="flex gap-0.5 mt-0.5">
+                            <button onClick={(e) => { e.stopPropagation(); updateTableLayout(currentUser.id, table.number, { seats: (table.seats || 4) + 1 }); }} className="p-1 bg-white rounded shadow-sm hover:bg-emerald-500 hover:text-white transition-colors" title="인원 늘리기"><Users className="w-2.5 h-2.5" /></button>
+                            <button onClick={(e) => { e.stopPropagation(); updateTableLayout(currentUser.id, table.number, { seats: Math.max(1, (table.seats || 4) - 1) }); }} className="p-1 bg-white rounded shadow-sm hover:bg-emerald-500 hover:text-white transition-colors" title="인원 줄이기"><Minus className="w-2.5 h-2.5" /></button>
+                          </div>
+                          <div className="flex gap-0.5 mt-0.5">
+                            <button onClick={(e) => { e.stopPropagation(); updateTableLayout(currentUser.id, table.number, { shape: table.shape === 'circle' ? 'square' : 'circle' }); }} className="p-1 bg-white rounded shadow-sm hover:bg-burgundy hover:text-white transition-colors" title="모양 변경">{table.shape === 'circle' ? <Square className="w-2.5 h-2.5" /> : <Circle className="w-2.5 h-2.5" />}</button>
+                            <button onClick={(e) => { e.stopPropagation(); deleteTable(currentUser.id, table.number); }} className="p-1 bg-white rounded shadow-sm hover:bg-red-500 hover:text-white transition-colors text-red-500" title="삭제"><Trash2 className="w-2.5 h-2.5" /></button>
+                          </div>
+                          <div className="w-full flex justify-center gap-1 mt-1 border-t border-ink-light/5 pt-1">
                             {currentStoreSections.map(s => (
-                              <button key={s.id} onClick={(e) => { e.stopPropagation(); updateTableLayout(currentUser.id, table.number, { sectionId: s.id }); }} className={`w-3 h-3 rounded-full border border-ink-light/20 ${table.sectionId === s.id ? 'bg-burgundy' : 'bg-white'}`}></button>
+                              <button key={s.id} onClick={(e) => { e.stopPropagation(); updateTableLayout(currentUser.id, table.number, { sectionId: s.id }); }} className={`w-3.5 h-3.5 rounded-full border border-ink-light/20 flex items-center justify-center text-[6px] font-black ${table.sectionId === s.id ? 'bg-burgundy text-white' : 'bg-white text-ink-light/30'}`}>{s.name.charAt(0)}</button>
                             ))}
                           </div>
                         </div>
@@ -349,24 +357,24 @@ export default function OwnerDashboard() {
 
           {/* Quick Add Floating Panel */}
           {isLayoutMode && (
-            <div className="absolute top-1/2 -translate-y-1/2 left-8 bg-white dark:bg-black/60 backdrop-blur-xl border border-ink-light/10 p-3 rounded-2xl shadow-2xl z-40 flex flex-col gap-3 animate-in fade-in slide-in-from-left-4">
+            <div className="absolute top-1/2 -translate-y-1/2 left-8 bg-white dark:bg-black/60 backdrop-blur-xl border border-ink-light/10 p-3 rounded-2xl shadow-2xl z-40 flex flex-col gap-3">
               <button 
                 onClick={() => addTable(currentUser.id, 'table', activeSectionId !== 'all' ? activeSectionId : undefined)}
-                className="p-3 bg-burgundy/10 text-burgundy rounded-xl hover:bg-burgundy hover:text-white transition-all flex flex-col items-center gap-1"
+                className="p-3 bg-burgundy/10 text-burgundy rounded-xl hover:bg-burgundy hover:text-white transition-colors flex flex-col items-center gap-1"
               >
                 <Plus className="w-6 h-6" />
                 <span className="text-[8px] font-black">TABLE</span>
               </button>
               <button 
                 onClick={() => addTable(currentUser.id, 'room', activeSectionId !== 'all' ? activeSectionId : undefined)}
-                className="p-3 bg-espresso/10 text-espresso rounded-xl hover:bg-espresso hover:text-white transition-all flex flex-col items-center gap-1"
+                className="p-3 bg-espresso/10 text-espresso rounded-xl hover:bg-espresso hover:text-white transition-colors flex flex-col items-center gap-1"
               >
                 <Square className="w-6 h-6" />
                 <span className="text-[8px] font-black">AREA</span>
               </button>
               <button 
                 onClick={() => addTable(currentUser.id, 'corridor', activeSectionId !== 'all' ? activeSectionId : undefined)}
-                className="p-3 bg-ink-light/10 text-ink-light rounded-xl hover:bg-ink-light hover:text-white transition-all flex flex-col items-center gap-1"
+                className="p-3 bg-ink-light/10 text-ink-light rounded-xl hover:bg-ink-light hover:text-white transition-colors flex flex-col items-center gap-1"
               >
                 <Move className="w-6 h-6" />
                 <span className="text-[8px] font-black">DRAG</span>
@@ -471,7 +479,7 @@ export default function OwnerDashboard() {
                     leaveTable(selectedTable, currentUser.id); 
                     setSelectedTable(null); 
                   }} 
-                  className="w-full bg-burgundy text-white font-black py-4 rounded-2xl transition-all active:scale-[0.98] shadow-xl shadow-burgundy/20 flex items-center justify-center gap-2"
+                  className="w-full bg-burgundy text-white font-black py-4 rounded-2xl transition-colors active:scale-[0.98] shadow-xl shadow-burgundy/20 flex items-center justify-center gap-2"
                 >
                   <LogOut className="w-5 h-5" /> 테이블 비우기
                 </button>
@@ -479,14 +487,14 @@ export default function OwnerDashboard() {
                 <div className="grid grid-cols-2 gap-3">
                    <button 
                     onClick={() => { updateTableStatus(currentUser.id, selectedTable, 'available'); setSelectedTable(null); }}
-                    className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all ${activeTable.status === 'available' ? 'border-emerald-500 bg-emerald-50' : 'border-ink-light/5 hover:bg-ink-light/5'}`}
+                    className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-colors ${activeTable.status === 'available' ? 'border-emerald-500 bg-emerald-50' : 'border-ink-light/5 hover:bg-ink-light/5'}`}
                    >
                      <CheckCircle2 className={`w-8 h-8 ${activeTable.status === 'available' ? 'text-emerald-500' : 'text-ink-light/20'}`} />
                      <span className="text-[10px] font-black uppercase">Available</span>
                    </button>
                    <button 
                     onClick={() => { updateTableStatus(currentUser.id, selectedTable, 'dirty'); setSelectedTable(null); }}
-                    className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all ${activeTable.status === 'dirty' ? 'border-amber-400 bg-amber-50' : 'border-ink-light/5 hover:bg-ink-light/5'}`}
+                    className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-colors ${activeTable.status === 'dirty' ? 'border-amber-400 bg-amber-50' : 'border-ink-light/5 hover:bg-ink-light/5'}`}
                    >
                      <AlertCircle className={`w-8 h-8 ${activeTable.status === 'dirty' ? 'text-amber-500' : 'text-ink-light/20'}`} />
                      <span className="text-[10px] font-black uppercase">Dirty</span>
@@ -506,7 +514,7 @@ export default function OwnerDashboard() {
       {/* Section Editor Modal */}
       {isEditingSections && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[100] flex items-center justify-center p-6">
-          <div className="bg-white dark:bg-hanji-dark w-full max-w-md rounded-[3rem] p-8 shadow-2xl animate-in zoom-in-95 duration-200 border border-ink-light/10">
+          <div className="bg-white dark:bg-hanji-dark w-full max-w-md rounded-[3rem] p-8 shadow-2xl border border-ink-light/10">
             <div className="flex justify-between items-center mb-8">
               <h2 className="text-2xl font-black text-ink-light tracking-tighter">구역 관리</h2>
               <button 
