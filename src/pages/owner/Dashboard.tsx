@@ -125,9 +125,11 @@ export default function OwnerDashboard() {
     if (rect && draggedTable !== null) {
       const draggedT = myTables.find(t => t.number === draggedTable);
       if (draggedT) {
-        // Calculate relative position within the zoomed container
-        const rawX = (e.clientX - rect.left) / zoom - (draggedT.width || 80) / 2;
-        const rawY = (e.clientY - rect.top) / zoom - (draggedT.height || 80) / 2;
+        // Calculate relative position within the zoomed container, accounting for scroll
+        const scrollX = e.currentTarget.scrollLeft;
+        const scrollY = e.currentTarget.scrollTop;
+        const rawX = (e.clientX - rect.left + scrollX) / zoom - (draggedT.width || 80) / 2;
+        const rawY = (e.clientY - rect.top + scrollY) / zoom - (draggedT.height || 80) / 2;
         
         // 10px Grid Snapping
         const x = Math.round(rawX / 10) * 10;
@@ -268,35 +270,29 @@ export default function OwnerDashboard() {
                   return (
                     <div
                       key={table.number}
-                      draggable={false} // We use the handle for dragging
+                      draggable={isLayoutMode}
+                      onDragStart={(e) => {
+                        if (!isLayoutMode) return;
+                        e.dataTransfer.setData('tableNumber', table.number.toString());
+                        setDraggedTable(table.number);
+                        const img = new Image();
+                        img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+                        e.dataTransfer.setDragImage(img, 0, 0);
+                      }}
+                      onDragEnd={() => {
+                        setDraggedTable(null);
+                        setDragPosition(null);
+                      }}
                       onClick={() => (!isCorridor && !isMoveOnlyMode) && setSelectedTable(table.number)}
-                      className={`absolute flex flex-col items-center justify-center p-3 shadow-sm border-2 transition-colors transition-shadow cursor-pointer group ${table.shape === 'circle' ? 'rounded-full' : (table.isRoom ? 'rounded-[2.5rem]' : (isCorridor ? 'rounded-lg border-dashed opacity-40' : 'rounded-3xl'))} ${getStatusColor(currentStatus, isOccupied)} ${(selectedTable === table.number && !isMoveOnlyMode) ? 'ring-4 ring-burgundy/20 border-burgundy' : ''} ${draggedTable === table.number ? 'opacity-0' : ''}`}
+                      className={`absolute flex flex-col items-center justify-center p-3 shadow-sm border-2 transition-all transition-shadow group ${table.shape === 'circle' ? 'rounded-full' : (table.isRoom ? 'rounded-[2.5rem]' : (isCorridor ? 'rounded-lg border-dashed opacity-40' : 'rounded-3xl'))} ${getStatusColor(currentStatus, isOccupied)} ${(selectedTable === table.number && !isMoveOnlyMode) ? 'ring-4 ring-burgundy/20 border-burgundy' : ''} ${draggedTable === table.number ? 'opacity-20 bg-burgundy/5 border-burgundy/20 scale-[0.98]' : ''} ${isLayoutMode ? 'cursor-grab active:cursor-grabbing hover:shadow-lg hover:border-burgundy/30' : 'cursor-pointer'}`}
                       style={{ 
                         left: `${table.x}px`, 
                         top: `${table.y}px`, 
                         width: `${table.width || 80}px`, 
                         height: `${table.height || 80}px`,
-                        zIndex: table.isRoom ? 1 : 10
+                        zIndex: (draggedTable === table.number) ? 100 : (table.isRoom ? 1 : 10)
                       }}
                     >
-                      {/* MOVE HANDLE */}
-                      <div 
-                        draggable
-                        onDragStart={(e) => {
-                          e.dataTransfer.setData('tableNumber', table.number.toString());
-                          setDraggedTable(table.number);
-                          const img = new Image();
-                          img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-                          e.dataTransfer.setDragImage(img, 0, 0);
-                        }}
-                        onDragEnd={() => {
-                          setDraggedTable(null);
-                          setDragPosition(null);
-                        }}
-                        className="absolute top-1 right-1 p-1 bg-white/80 dark:bg-black/80 rounded-md shadow-sm border border-ink-light/10 text-ink-light/40 hover:text-burgundy opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing z-50"
-                      >
-                        <GripVertical className="w-3 h-3" />
-                      </div>
 
                       {/* Content Overlay */}
                       {!isCorridor && (
@@ -367,7 +363,7 @@ export default function OwnerDashboard() {
                   if (draggedT && dragPosition) {
                     return (
                       <div 
-                        className={`absolute pointer-events-none flex flex-col items-center justify-center p-3 shadow-2xl border-2 border-burgundy/50 bg-burgundy/10 z-[100] ${draggedT.shape === 'circle' ? 'rounded-full' : (draggedT.isRoom ? 'rounded-[2.5rem]' : (draggedT.type === 'corridor' ? 'rounded-lg border-dashed' : 'rounded-3xl'))}`}
+                        className={`absolute pointer-events-none flex flex-col items-center justify-center p-4 shadow-[0_20px_50px_rgba(0,0,0,0.1)] border-2 border-burgundy bg-white dark:bg-black/60 z-[100] backdrop-blur-md ${draggedT.shape === 'circle' ? 'rounded-full' : (draggedT.isRoom ? 'rounded-[2.5rem]' : (draggedT.type === 'corridor' ? 'rounded-lg border-dashed border-burgundy/50' : 'rounded-[2rem]'))}`}
                         style={{ 
                           left: `${dragPosition.x}px`, 
                           top: `${dragPosition.y}px`, 
@@ -375,8 +371,12 @@ export default function OwnerDashboard() {
                           height: `${draggedT.height || 80}px`,
                         }}
                       >
-                         <div className="bg-burgundy text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-sm animate-pulse">MOVING</div>
-                         <span className="text-lg font-black tracking-tighter leading-none mt-1 opacity-40">{draggedT.number}</span>
+                         <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-burgundy text-white text-[8px] font-black px-2 py-0.5 rounded-full shadow-lg border border-white/20 whitespace-nowrap">SNAPPING TO GRID</div>
+                         <span className="text-xl font-black tracking-tighter leading-none text-burgundy">{draggedT.number}</span>
+                         <div className="flex items-center gap-1 mt-1 opacity-40 text-burgundy">
+                            <Users className="w-2.5 h-2.5" />
+                            <span className="text-[10px] font-bold">{draggedT.seats || 4}</span>
+                         </div>
                       </div>
                     );
                   }
