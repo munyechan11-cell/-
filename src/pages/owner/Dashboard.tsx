@@ -1,30 +1,42 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useStore, getEffectiveTier, getTierColor, getTierCustomName } from '../../store';
-import { Users, LayoutGrid, LogOut, X, Check, Bell, BarChart3, Download, Copy, Settings, Map as MapIcon, List, Move, Maximize2, Square, Plus, Minus, Trash2, DoorOpen, Circle } from 'lucide-react';
+import { 
+  Users, LayoutGrid, LogOut, X, Check, Bell, BarChart3, 
+  Settings, Map as MapIcon, List, Move, Square, Plus, 
+  Minus, Trash2, Circle, GripVertical, Layers, Palette, 
+  MoreVertical, Edit2, CheckCircle2, AlertCircle, Clock
+} from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { formatMemoDisplay } from '../../components/MemoModal';
 
 export default function OwnerDashboard() {
   const { 
-    currentUser, tables, users, visits, coupons, logout, leaveTable, 
+    currentUser, tables, users, visits, coupons, sections, logout, leaveTable, 
     initTables, tierOverrides, approveCouponUse, rejectCouponUse, 
-    updateTableLayout, addTable, deleteTable 
+    updateTableLayout, addTable, deleteTable, addSection, updateSection, 
+    deleteSection, updateTableStatus 
   } = useStore();
   
   const navigate = useNavigate();
   const [selectedTable, setSelectedTable] = useState<number | null>(null);
-  const [viewMode, setViewMode] = useState<'grid' | 'map'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'map'>('map');
   const [isLayoutMode, setIsLayoutMode] = useState(false);
   const [draggedTable, setDraggedTable] = useState<number | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
+  
+  // Section Management
+  const currentStoreSections = sections.filter(s => s.storeId === currentUser?.id);
+  const [activeSectionId, setActiveSectionId] = useState<string | 'all' | 'unassigned'>('all');
+  const [isEditingSections, setIsEditingSections] = useState(false);
+  const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
+  const [newSectionName, setNewSectionName] = useState('');
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
     return () => clearInterval(timer);
   }, []);
 
-  // Initialize tables if they don't exist for this owner
   useEffect(() => {
     if (currentUser && currentUser.role === 'owner') {
       const myTables = tables.filter(t => t.storeId === currentUser.id);
@@ -32,7 +44,6 @@ export default function OwnerDashboard() {
         initTables(currentUser.id);
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser]);
 
   if (!currentUser) return null;
@@ -47,6 +58,12 @@ export default function OwnerDashboard() {
   const activeCustomer = activeTable?.currentCustomerId 
     ? users.find(u => u.id === activeTable.currentCustomerId) 
     : null;
+
+  const filteredTables = myTables.filter(t => {
+    if (activeSectionId === 'all') return true;
+    if (activeSectionId === 'unassigned') return !t.sectionId;
+    return t.sectionId === activeSectionId;
+  });
 
   const getCustomerStats = (customerId: string) => {
     const customerVisits = visits.filter(v => v.customerId === customerId && v.storeId === currentUser.id);
@@ -89,366 +106,467 @@ export default function OwnerDashboard() {
 
   const pendingRequests = coupons.filter(c => c.storeId === currentUser.id && c.status === 'pending');
 
+  const getStatusColor = (status?: string, isOccupied?: boolean) => {
+    if (isOccupied) return 'bg-sky-500 border-sky-600 text-white'; // Blue
+    switch (status) {
+      case 'paid': return 'bg-emerald-500 border-emerald-600 text-white'; // Green
+      case 'dirty': return 'bg-amber-400 border-amber-500 text-ink-light'; // Yellow
+      case 'available': 
+      default: return 'bg-white dark:bg-black/40 border-ink-light/20 text-ink-light/50'; // Gray
+    }
+  };
+
+  const handleDragDrop = (e: React.DragEvent, tableNumber: number) => {
+    e.preventDefault();
+    const rect = e.currentTarget.parentElement?.getBoundingClientRect();
+    if (rect && draggedTable !== null) {
+      const draggedT = myTables.find(t => t.number === draggedTable);
+      if (draggedT) {
+        const x = Math.max(0, Math.min(rect.width - (draggedT.width || 70), e.clientX - rect.left - (draggedT.width || 70) / 2));
+        const y = Math.max(0, Math.min(rect.height - (draggedT.height || 70), e.clientY - rect.top - (draggedT.height || 70) / 2));
+        updateTableLayout(currentUser.id, draggedTable, { x, y });
+      }
+    }
+  };
+
   return (
-    <div className="min-h-full bg-hanji-light dark:bg-hanji-dark pb-20">
-      {/* Header */}
-      <div className="bg-white/80 dark:bg-black/20 backdrop-blur-md text-ink-light dark:text-ink-dark p-6 pt-8 flex justify-between items-center border-b border-ink-light/10 dark:border-ink-dark/10 sticky top-0 z-20">
-        <div>
-          <h1 className="text-3xl font-serif font-bold tracking-tight">{currentUser.restaurantName || '단골 파트너'}</h1>
-          <p className="text-ink-light/60 dark:text-ink-dark/60 text-sm mt-1 font-medium">테이블 현황</p>
+    <div className="min-h-full bg-[#F5F5F7] dark:bg-hanji-dark pb-20 overflow-hidden h-screen flex flex-col">
+      {/* Top Professional Header */}
+      <div className="bg-white dark:bg-black/40 backdrop-blur-md border-b border-ink-light/10 dark:border-ink-dark/10 p-4 flex justify-between items-center z-30 shadow-sm">
+        <div className="flex items-center gap-4">
+          <div className="bg-burgundy text-white p-2 rounded-xl shadow-lg shadow-burgundy/20">
+            <LayoutGrid className="w-6 h-6" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-ink-light dark:text-ink-dark">{currentUser.restaurantName || '매장 관리'}</h1>
+            <div className="flex items-center gap-2 mt-0.5">
+              <span className="flex items-center gap-1 text-[10px] font-bold text-ink-light/40 dark:text-ink-dark/40 uppercase tracking-widest">
+                <div className={`w-1.5 h-1.5 rounded-full ${pendingRequests.length > 0 ? 'bg-burgundy animate-pulse' : 'bg-emerald-500'}`}></div>
+                Live Status
+              </span>
+            </div>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Link to="/owner/brand" className="p-2 bg-white dark:bg-black/20 rounded-full hover:bg-ink-light/5 dark:hover:bg-ink-dark/10 shadow-sm border border-ink-light/10 dark:border-ink-dark/10 transition-colors">
-            <Settings className="w-5 h-5 text-ink-light/70 dark:text-ink-dark/70" />
-          </Link>
-          <button onClick={handleLogout} className="p-2 bg-white dark:bg-black/20 rounded-full hover:bg-ink-light/5 dark:hover:bg-ink-dark/10 shadow-sm border border-ink-light/10 dark:border-ink-dark/10 transition-colors">
-            <LogOut className="w-5 h-5 text-ink-light/70 dark:text-ink-dark/70" />
+        
+        <div className="flex items-center gap-3">
+          {pendingRequests.length > 0 && (
+            <button className="relative p-2 bg-burgundy/10 text-burgundy rounded-full hover:bg-burgundy/20 transition-all">
+              <Bell className="w-6 h-6 animate-swing origin-top" />
+              <span className="absolute -top-1 -right-1 bg-burgundy text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center border-2 border-white">{pendingRequests.length}</span>
+            </button>
+          )}
+          <div className="h-8 w-[1px] bg-ink-light/10 mx-1"></div>
+          <button onClick={handleLogout} className="flex items-center gap-2 px-4 py-2 bg-ink-light/5 dark:bg-ink-dark/5 rounded-xl hover:bg-ink-light/10 text-ink-light/70 font-bold text-sm transition-all">
+            <LogOut className="w-4 h-4" />
+            <span className="hidden sm:inline">로그아웃</span>
           </button>
         </div>
       </div>
 
-      {/* Pending Requests */}
-      {pendingRequests.length > 0 && (
-        <div className="px-6 pt-6 animate-in fade-in slide-in-from-top-4 duration-500">
-          <h2 className="text-sm font-bold text-burgundy dark:text-burgundy-light mb-4 flex items-center">
-            <span className="bg-burgundy/10 dark:bg-burgundy/20 w-8 h-8 rounded-full flex items-center justify-center mr-2 animate-pulse">
-              <Bell className="w-4 h-4 text-burgundy dark:text-burgundy-light" />
-            </span>
-            서비스 사용 요청 ({pendingRequests.length})
-          </h2>
-          <div className="space-y-3">
-            {pendingRequests.map(request => {
-              const customer = users.find(u => u.id === request.customerId);
-              return (
-                <div key={request.id} className="bg-white dark:bg-black/20 rounded-[2rem] p-5 shadow-sm border border-burgundy/20 dark:border-burgundy/30 flex flex-col gap-4">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="font-serif font-bold text-ink-light dark:text-ink-dark text-xl">
-                        {customer?.name || '알 수 없는 고객'} 
-                        {request.usedAtTable && <span className="text-xs font-bold text-burgundy dark:text-burgundy-light ml-3 bg-burgundy/10 dark:bg-burgundy/20 px-2.5 py-1 rounded-full">테이블 {request.usedAtTable}</span>}
-                      </p>
-                      <p className="text-ink-light/70 dark:text-ink-dark/70 font-medium mt-2 text-sm">{request.description}</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-2 mt-2">
-                    <button onClick={() => rejectCouponUse(request.id)} className="flex-1 py-3 bg-white dark:bg-black/20 text-ink-light/60 dark:text-ink-dark/60 border border-ink-light/10 dark:border-ink-dark/10 rounded-2xl font-bold hover:bg-ink-light/5 dark:hover:bg-ink-dark/10 transition-colors text-sm shadow-sm">거절</button>
-                    <button onClick={() => approveCouponUse(request.id)} className="flex-1 py-3 bg-burgundy text-hanji-light rounded-2xl font-bold hover:bg-burgundy/90 transition-colors shadow-md text-sm flex items-center justify-center">
-                      <Check className="w-4 h-4 mr-1.5" /> 수락
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
+      <div className="flex-1 flex flex-col min-h-0 relative">
+        {/* Section Tabs & Controls */}
+        <div className="px-4 pt-4 flex justify-between items-center bg-white/50 backdrop-blur-sm border-b border-ink-light/5 z-20">
+          <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pb-2 max-w-[70%]">
+            <button 
+              onClick={() => setActiveSectionId('all')}
+              className={`px-4 py-2 rounded-t-xl text-xs font-bold transition-all whitespace-nowrap border-b-2 ${activeSectionId === 'all' ? 'border-burgundy text-burgundy bg-burgundy/5' : 'border-transparent text-ink-light/40 hover:text-ink-light'}`}
+            >
+              전체
+            </button>
+            {currentStoreSections.map(section => (
+              <button 
+                key={section.id}
+                onClick={() => setActiveSectionId(section.id)}
+                className={`px-4 py-2 rounded-t-xl text-xs font-bold transition-all whitespace-nowrap border-b-2 ${activeSectionId === section.id ? 'border-burgundy text-burgundy bg-burgundy/5' : 'border-transparent text-ink-light/40 hover:text-ink-light'}`}
+              >
+                {section.name}
+              </button>
+            ))}
+            <button 
+              onClick={() => setActiveSectionId('unassigned')}
+              className={`px-4 py-2 rounded-t-xl text-xs font-bold transition-all whitespace-nowrap border-b-2 ${activeSectionId === 'unassigned' ? 'border-burgundy text-burgundy bg-burgundy/5' : 'border-transparent text-ink-light/40 hover:text-ink-light'}`}
+            >
+              미지정
+            </button>
+            <button onClick={() => setIsEditingSections(true)} className="p-2 text-ink-light/20 hover:text-burgundy transition-colors"><Plus className="w-4 h-4" /></button>
+          </div>
+
+          <div className="flex gap-2 pb-2">
+            <div className="flex bg-ink-light/5 p-1 rounded-xl">
+              <button onClick={() => setViewMode('grid')} className={`p-1.5 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-burgundy' : 'text-ink-light/30'}`}><List className="w-4 h-4" /></button>
+              <button onClick={() => setViewMode('map')} className={`p-1.5 rounded-lg transition-all ${viewMode === 'map' ? 'bg-white shadow-sm text-burgundy' : 'text-ink-light/30'}`}><MapIcon className="w-4 h-4" /></button>
+            </div>
+            <button 
+              onClick={() => setIsLayoutMode(!isLayoutMode)}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-tighter transition-all border ${isLayoutMode ? 'bg-burgundy text-white border-burgundy shadow-lg shadow-burgundy/20' : 'bg-white text-ink-light/40 border-ink-light/10'}`}
+            >
+              {isLayoutMode ? <Check className="w-3 h-3" /> : <Settings className="w-3 h-3" />}
+              {isLayoutMode ? 'Done' : 'Edit Mode'}
+            </button>
           </div>
         </div>
-      )}
 
-      {/* View Toggle */}
-      <div className="px-6 pt-6 flex justify-between items-center">
-        <div className="flex bg-white dark:bg-black/20 p-1 rounded-2xl border border-ink-light/10 dark:border-ink-dark/10 shadow-sm">
-          <button 
-            onClick={() => { setViewMode('grid'); setIsLayoutMode(false); }}
-            className={`flex items-center gap-2 px-4 py-2 font-bold text-xs rounded-xl transition-all ${viewMode === 'grid' ? 'bg-burgundy text-hanji-light' : 'text-ink-light/40 dark:text-ink-dark/40 hover:text-ink-light'}`}
-          >
-            <List className="w-4 h-4" /> 리스트
-          </button>
-          <button 
-            onClick={() => setViewMode('map')}
-            className={`flex items-center gap-2 px-4 py-2 font-bold text-xs rounded-xl transition-all ${viewMode === 'map' ? 'bg-burgundy text-hanji-light' : 'text-ink-light/40 dark:text-ink-dark/40 hover:text-ink-light'}`}
-          >
-            <MapIcon className="w-4 h-4" /> 매장 도면
-          </button>
-        </div>
-
-        {viewMode === 'map' && (
-          <button 
-            onClick={() => setIsLayoutMode(!isLayoutMode)}
-            className={`flex items-center gap-2 px-4 py-2.5 font-bold text-xs rounded-2xl border transition-all ${isLayoutMode ? 'bg-burgundy/10 border-burgundy text-burgundy shadow-inner' : 'bg-white dark:bg-black/20 border-ink-light/10 text-ink-light/60 dark:text-ink-dark/60 shadow-sm'}`}
-          >
-            {isLayoutMode ? <Check className="w-4 h-4" /> : <Move className="w-4 h-4" />}
-            {isLayoutMode ? '배치 완료' : '위치 수정'}
-          </button>
-        )}
-      </div>
-
-      {/* Table Content */}
-      <div className="p-6">
-        {myTables.length === 0 ? (
-          <div className="text-center py-12 bg-white dark:bg-black/20 rounded-[2rem] border-2 border-dashed border-ink-light/10">
-            <p className="text-ink-light/50">데이터를 불러오는 중이거나 테이블이 없습니다.</p>
-          </div>
-        ) : viewMode === 'grid' ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {myTables.filter(t => t.type !== 'corridor').map((table, index) => {
-              const isOccupied = table.currentCustomerId !== null;
-              const customer = isOccupied ? users.find(u => u.id === table.currentCustomerId) : null;
-              return (
-                <div 
-                  key={table.number} 
-                  onClick={() => setSelectedTable(table.number)}
-                  className={`bg-white dark:bg-black/20 rounded-3xl p-5 shadow-sm border transition-all cursor-pointer group hover:shadow-md ${isOccupied ? 'border-burgundy/30 bg-burgundy/5 dark:bg-burgundy/10' : 'border-ink-light/10 dark:border-ink-dark/10'}`}
-                  style={{ animationDelay: `${index * 50}ms` }}
-                >
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="flex items-center gap-3">
-                      <span className={`w-10 h-10 ${table.shape === 'circle' ? 'rounded-full' : 'rounded-xl'} flex items-center justify-center text-sm font-bold shadow-sm ${table.isRoom ? 'bg-espresso' : 'bg-burgundy'} text-hanji-light`}>
-                        {table.number}
-                      </span>
-                      <div className="flex flex-col">
-                        <span className="text-xs font-bold flex items-center gap-1">
-                          {table.isRoom ? '룸' : '테이블'} {table.shape === 'circle' ? <Circle className="w-2.5 h-2.5" /> : <Square className="w-2.5 h-2.5" />}
-                        </span>
-                        <span className="text-[10px] text-ink-light/40 font-bold">{table.seats || 4}인석</span>
+        {/* Main Workspace */}
+        <div className="flex-1 relative overflow-hidden bg-hanji-light dark:bg-hanji-dark p-6">
+          {viewMode === 'map' ? (
+            <div 
+              className="relative w-full h-full bg-white dark:bg-black/20 rounded-[3rem] border border-ink-light/10 shadow-inner overflow-auto no-scrollbar"
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                const tableNum = e.dataTransfer.getData('tableNumber');
+                if (tableNum) handleDragDrop(e as any, parseInt(tableNum));
+              }}
+            >
+              {/* Layout Helper Grid */}
+              {isLayoutMode && <div className="absolute inset-0 bg-[radial-gradient(#888_1px,transparent_1px)] [background-size:30px_30px] opacity-10 pointer-events-none"></div>}
+              
+              <div className="relative min-w-[1200px] min-h-[900px]">
+                {filteredTables.map((table) => {
+                  const isOccupied = table.currentCustomerId !== null;
+                  const customer = isOccupied ? users.find(u => u.id === table.currentCustomerId) : null;
+                  const isCorridor = table.type === 'corridor';
+                  const currentStatus = isOccupied ? 'occupied' : (table.status || 'available');
+                  
+                  return (
+                    <div
+                      key={table.number}
+                      draggable={false} // We use the handle for dragging
+                      onClick={() => !isCorridor && setSelectedTable(table.number)}
+                      className={`absolute flex flex-col items-center justify-center p-3 shadow-sm border-2 transition-all cursor-pointer group ${table.shape === 'circle' ? 'rounded-full' : (table.isRoom ? 'rounded-[2.5rem]' : 'rounded-3xl')} ${getStatusColor(currentStatus, isOccupied)} ${selectedTable === table.number ? 'ring-4 ring-burgundy/20 border-burgundy' : ''}`}
+                      style={{ 
+                        left: `${table.x}px`, 
+                        top: `${table.y}px`, 
+                        width: `${table.width || 80}px`, 
+                        height: `${table.height || 80}px`,
+                        zIndex: table.isRoom ? 1 : 10
+                      }}
+                    >
+                      {/* MOVE HANDLE */}
+                      <div 
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData('tableNumber', table.number.toString());
+                          setDraggedTable(table.number);
+                          // Set transparent ghost image
+                          const img = new Image();
+                          img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+                          e.dataTransfer.setDragImage(img, 0, 0);
+                        }}
+                        onDragEnd={() => setDraggedTable(null)}
+                        className="absolute -top-2 -right-2 p-1.5 bg-white dark:bg-black rounded-lg shadow-lg border border-ink-light/10 text-ink-light/30 hover:text-burgundy opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing z-50"
+                      >
+                        <GripVertical className="w-4 h-4" />
                       </div>
+
+                      {/* Content Overlay */}
+                      {!isCorridor && (
+                        <div className="flex flex-col items-center select-none">
+                          <span className="text-lg font-black tracking-tighter leading-none">{table.number}</span>
+                          <div className="flex items-center gap-1 mt-1 opacity-60">
+                            <Users className="w-2.5 h-2.5" />
+                            <span className="text-[10px] font-bold">G: {table.seats || 4}</span>
+                          </div>
+                          {isOccupied && table.sessionStartTime && (
+                            <div className="flex items-center gap-1 mt-1 font-black text-[9px] bg-black/10 px-1.5 py-0.5 rounded-full">
+                              <Clock className="w-2.5 h-2.5" />
+                              {(() => {
+                                const diff = Math.floor((currentTime.getTime() - new Date(table.sessionStartTime).getTime()) / 60000);
+                                return diff > 60 ? `${Math.floor(diff/60)}h ${diff%60}m` : `${diff}m`;
+                              })()}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Status Info (Label) */}
+                      {isOccupied && customer && (
+                        <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-sky-500 text-white px-2 py-0.5 rounded-md text-[10px] font-bold shadow-sm whitespace-nowrap z-50">
+                          {customer.name}
+                        </div>
+                      )}
+                      {!isOccupied && table.status === 'dirty' && (
+                        <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-amber-400 text-ink-light px-2 py-0.5 rounded-md text-[10px] font-bold shadow-sm whitespace-nowrap z-50 flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" /> 청소필요
+                        </div>
+                      )}
+
+                      {/* Layout Mode Controls */}
+                      {isLayoutMode && (
+                        <div className="absolute inset-0 bg-white/60 dark:bg-black/60 rounded-inherit flex flex-wrap items-center justify-center gap-1 p-1 z-20 overflow-hidden opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm">
+                          <button onClick={(e) => { e.stopPropagation(); updateTableLayout(currentUser.id, table.number, { width: (table.width || 80) + 10, height: (table.height || 80) + 10 }); }} className="p-1.5 bg-white rounded-lg shadow hover:bg-burgundy hover:text-white transition-colors"><Plus className="w-3 h-3" /></button>
+                          <button onClick={(e) => { e.stopPropagation(); updateTableLayout(currentUser.id, table.number, { shape: table.shape === 'circle' ? 'square' : 'circle' }); }} className="p-1.5 bg-white rounded-lg shadow hover:bg-burgundy hover:text-white transition-colors"><Square className="w-3 h-3" /></button>
+                          <button onClick={(e) => { e.stopPropagation(); deleteTable(currentUser.id, table.number); }} className="p-1.5 bg-white rounded-lg shadow hover:bg-burgundy hover:text-white transition-colors text-red-500"><Trash2 className="w-3 h-3" /></button>
+                          <div className="w-full flex justify-center gap-1 mt-1">
+                            {currentStoreSections.map(s => (
+                              <button key={s.id} onClick={(e) => { e.stopPropagation(); updateTableLayout(currentUser.id, table.number, { sectionId: s.id }); }} className={`w-3 h-3 rounded-full border border-ink-light/20 ${table.sectionId === s.id ? 'bg-burgundy' : 'bg-white'}`}></button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    {isOccupied && table.sessionStartTime && (
-                      <span className="text-[10px] font-bold text-burgundy bg-burgundy/10 px-2 py-1 rounded-lg">
-                        {(() => {
-                          const diff = Math.floor((currentTime.getTime() - new Date(table.sessionStartTime).getTime()) / 60000);
-                          return diff > 60 ? `${Math.floor(diff/60)}시간 ${diff%60}분` : `${diff}분 전 입장`;
-                        })()}
-                      </span>
-                    )}
-                  </div>
-                  {isOccupied && customer && (
-                    <div className="flex items-center gap-3 p-3 bg-white dark:bg-black/20 rounded-2xl border border-ink-light/5">
-                      <div className="w-8 h-8 rounded-full bg-burgundy/10 flex items-center justify-center text-burgundy font-bold text-xs">{customer.name.charAt(0)}</div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold truncate">{customer.name}</p>
-                        <p className="text-[10px] text-ink-light/50 truncate">{customer.phone}</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="relative w-full aspect-[4/3] bg-white/50 dark:bg-black/10 rounded-[3rem] border-2 border-dashed border-ink-light/10 overflow-auto shadow-inner no-scrollbar p-1">
-            {isLayoutMode && (
-              <div className="sticky top-4 left-4 right-4 z-50 flex gap-2 justify-center pointer-events-none">
-                <div className="bg-white dark:bg-black/60 backdrop-blur-md p-2 rounded-2xl shadow-xl flex gap-2 border border-ink-light/10 pointer-events-auto">
-                  <button onClick={() => addTable(currentUser.id, 'table')} className="flex flex-col items-center gap-1 p-2 hover:bg-ink-light/5 rounded-xl transition-colors">
-                    <div className="w-8 h-8 rounded-lg bg-burgundy/10 flex items-center justify-center text-burgundy"><Plus className="w-5 h-5" /></div>
-                    <span className="text-[10px] font-bold">테이블</span>
-                  </button>
-                  <button onClick={() => addTable(currentUser.id, 'room')} className="flex flex-col items-center gap-1 p-2 hover:bg-ink-light/5 rounded-xl transition-colors">
-                    <div className="w-8 h-8 rounded-lg bg-espresso/10 flex items-center justify-center text-espresso"><Square className="w-5 h-5" /></div>
-                    <span className="text-[10px] font-bold">룸 Area</span>
-                  </button>
-                  <button onClick={() => addTable(currentUser.id, 'corridor')} className="flex flex-col items-center gap-1 p-2 hover:bg-ink-light/5 rounded-xl transition-colors">
-                    <div className="w-8 h-8 rounded-lg bg-olive/10 flex items-center justify-center text-olive"><Move className="w-5 h-5" /></div>
-                    <span className="text-[10px] font-bold">복도</span>
-                  </button>
-                </div>
+                  );
+                })}
               </div>
-            )}
-            <div className="min-w-[800px] min-h-[600px] relative">
-              <div className="absolute inset-0 bg-[radial-gradient(#888_1px,transparent_1px)] [background-size:20px_20px] opacity-10"></div>
-              {myTables.map((table) => {
-                const isOccupied = table.currentCustomerId !== null;
-                const customer = isOccupied ? users.find(u => u.id === table.currentCustomerId) : null;
-                const isCorridor = table.type === 'corridor';
-                return (
-                  <div
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 overflow-y-auto h-full pr-2 no-scrollbar">
+              {filteredTables.map(table => {
+                 const isOccupied = table.currentCustomerId !== null;
+                 const customer = isOccupied ? users.find(u => u.id === table.currentCustomerId) : null;
+                 return (
+                   <div 
                     key={table.number}
-                    draggable={isLayoutMode}
-                    onDragStart={(e) => { e.dataTransfer.setData('tableNumber', table.number.toString()); setDraggedTable(table.number); }}
-                    onDragEnd={() => setDraggedTable(null)}
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      if (!isLayoutMode) return;
-                      const rect = e.currentTarget.parentElement?.getBoundingClientRect();
-                      if (rect && draggedTable !== null) {
-                        const x = Math.max(0, Math.min(rect.width - (table.width || 70), e.clientX - rect.left - (table.width || 70) / 2));
-                        const y = Math.max(0, Math.min(rect.height - (table.height || 70), e.clientY - rect.top - (table.height || 70) / 2));
-                        updateTableLayout(currentUser.id, draggedTable, { x, y });
-                      }
-                    }}
-                    onClick={() => !isLayoutMode && !isCorridor && setSelectedTable(table.number)}
-                    className={`absolute flex flex-col items-center justify-center p-2 shadow-lg border transition-all cursor-pointer group ${table.shape === 'circle' ? 'rounded-full' : (table.isRoom ? '!rounded-[2rem]' : 'rounded-2xl')} ${isCorridor ? 'bg-ink-light/5 border-ink-light/10 shadow-none' : isOccupied ? 'bg-burgundy/20 border-burgundy/50 ring-2 ring-burgundy/20' : 'bg-white dark:bg-black/40 border-ink-light/20'} ${isLayoutMode ? 'ring-2 ring-burgundy ring-offset-2 animate-bounce' : ''}`}
-                    style={{ left: `${table.x}px`, top: `${table.y}px`, width: `${table.width || 80}px`, height: `${table.height || 80}px`, scale: table.isRoom ? '1.1' : '1' }}
-                  >
-                    {!isCorridor && (
-                      <div className="flex flex-col items-center">
-                        <span className={`text-base font-black ${isOccupied ? 'text-burgundy dark:text-burgundy-light' : 'text-ink-light/50 dark:text-ink-dark/50'}`}>{table.number}</span>
+                    onClick={() => setSelectedTable(table.number)}
+                    className={`bg-white dark:bg-black/40 p-6 rounded-[2rem] border-2 transition-all cursor-pointer hover:shadow-xl hover:-translate-y-1 ${isOccupied ? 'border-sky-500/30' : table.status === 'dirty' ? 'border-amber-400/30' : 'border-ink-light/5'}`}
+                   >
+                     <div className="flex justify-between items-start mb-6">
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-xl shadow-lg ${isOccupied ? 'bg-sky-500 text-white' : table.status === 'dirty' ? 'bg-amber-400 text-ink-light' : 'bg-burgundy text-white'}`}>
+                          {table.number}
+                        </div>
                         {isOccupied && table.sessionStartTime && (
-                          <span className="text-[8px] font-bold text-burgundy/60 -mt-1">
+                          <div className="text-xs font-black text-sky-600 bg-sky-100 px-3 py-1.5 rounded-full flex items-center gap-1.5">
+                            <Clock className="w-3 h-3" />
                             {(() => {
                               const diff = Math.floor((currentTime.getTime() - new Date(table.sessionStartTime).getTime()) / 60000);
-                              return diff > 60 ? `${Math.floor(diff/60)}시간 ${diff%60}분` : `${diff}분 전 입장`;
+                              return diff > 60 ? `${Math.floor(diff/60)}시간 ${diff%60}분` : `${diff}분 전`;
                             })()}
-                          </span>
+                          </div>
                         )}
-                      </div>
-                    )}
-                    {!isOccupied && !isCorridor && (
-                      <div className="flex items-center gap-0.5 mt-0.5 px-1.5 py-0.5 bg-ink-light/5 rounded-full">
-                        <Users className="w-2 h-2 text-ink-light/30" />
-                        <span className="text-[8px] font-bold text-ink-light/40">{table.seats || 4}</span>
-                      </div>
-                    )}
-                    {isOccupied && customer && <span className="text-[10px] font-bold text-burgundy truncate max-w-full">{customer.name}</span>}
-                    {isLayoutMode && (
-                      <div className="absolute inset-0 bg-black/5 flex flex-wrap items-center justify-center gap-1 rounded-2xl pointer-events-none">
-                        <div className="flex flex-wrap justify-center gap-1 pointer-events-auto max-w-[95%]">
-                          <button onClick={(e) => { e.stopPropagation(); updateTableLayout(currentUser.id, table.number, { width: Math.min((table.width || 80) + 15, 200), height: Math.min((table.height || 80) + 15, 200) }); }} className="p-1 bg-white rounded-md shadow text-ink-light hover:bg-burgundy hover:text-white"><Plus className="w-2.5 h-2.5" /></button>
-                          <button onClick={(e) => { e.stopPropagation(); updateTableLayout(currentUser.id, table.number, { shape: table.shape === 'circle' ? 'square' : 'circle' }); }} className="p-1 bg-white rounded-md shadow text-ink-light hover:bg-burgundy hover:text-white">{table.shape === 'circle' ? <Square className="w-2.5 h-2.5" /> : <Circle className="w-2.5 h-2.5" />}</button>
-                          <button onClick={(e) => { e.stopPropagation(); const ns = (table.seats || 4) + 1; updateTableLayout(currentUser.id, table.number, { seats: ns > 12 ? 1 : ns }); }} className="p-1 bg-white rounded-md shadow text-ink-light hover:bg-burgundy hover:text-white"><span className="text-[8px] font-bold">{table.seats || 4}</span></button>
-                          <button onClick={(e) => { e.stopPropagation(); if(confirm('삭제하시겠습니까?')) deleteTable(currentUser.id, table.number); }} className="p-1 bg-white rounded-md shadow text-red-500 hover:bg-red-500 hover:text-white"><Trash2 className="w-2.5 h-2.5" /></button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
+                     </div>
+                     {isOccupied && customer ? (
+                       <div className="space-y-1">
+                          <p className="text-lg font-bold text-ink-light dark:text-ink-dark">{customer.name}님</p>
+                          <p className="text-xs text-ink-light/40 font-medium">{customer.phone}</p>
+                       </div>
+                     ) : (
+                       <p className="text-sm font-bold text-ink-light/20 uppercase tracking-widest">{table.status === 'dirty' ? 'Cleaning Needed' : 'Available'}</p>
+                     )}
+                   </div>
+                 );
               })}
             </div>
-            {isLayoutMode && (
-              <div className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-ink-light text-hanji-light px-6 py-3 rounded-full text-xs font-bold shadow-xl animate-pulse flex items-center gap-2 z-50">
-                <Move className="w-4 h-4" /> 테이블을 끌어서 옮기거나 버튼으로 관리하세요
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+          )}
 
-      {/* Usage History */}
-      <div className="px-6 pb-24">
-        <h2 className="text-sm font-bold text-ink-light mb-4">최근 서비스 사용 내역</h2>
-        <div className="bg-white dark:bg-black/20 rounded-[2rem] p-5 shadow-sm border border-ink-light/10">
-          {coupons.filter(c => c.storeId === currentUser.id && c.status === 'used').length === 0 ? (
-            <p className="text-center text-ink-light/50 py-6 text-sm">기록이 없습니다.</p>
-          ) : (
-            <div className="space-y-4">
-              {coupons.filter(c => c.storeId === currentUser.id && c.status === 'used').slice(0, 5).map(coupon => {
-                const customer = users.find(u => u.id === coupon.customerId);
-                return (
-                  <div key={coupon.id} className="flex justify-between items-center border-b border-ink-light/5 last:border-0 pb-4 last:pb-0">
-                    <div>
-                      <p className="font-bold text-sm">{customer?.name || '고객'} <span className="text-xs font-normal text-ink-light/50 ml-1">({coupon.usedAtTable}번)</span></p>
-                      <p className="text-xs text-burgundy font-medium mt-1">{coupon.description}</p>
-                    </div>
-                    <span className="text-xs text-ink-light/40">{new Date(coupon.usedAt!).toLocaleDateString()}</span>
-                  </div>
-                );
-              })}
+          {/* Quick Add Floating Panel */}
+          {isLayoutMode && (
+            <div className="absolute top-1/2 -translate-y-1/2 left-8 bg-white dark:bg-black/60 backdrop-blur-xl border border-ink-light/10 p-3 rounded-2xl shadow-2xl z-40 flex flex-col gap-3 animate-in fade-in slide-in-from-left-4">
+              <button 
+                onClick={() => addTable(currentUser.id, 'table', activeSectionId !== 'all' ? activeSectionId : undefined)}
+                className="p-3 bg-burgundy/10 text-burgundy rounded-xl hover:bg-burgundy hover:text-white transition-all flex flex-col items-center gap-1"
+              >
+                <Plus className="w-6 h-6" />
+                <span className="text-[8px] font-black">TABLE</span>
+              </button>
+              <button 
+                onClick={() => addTable(currentUser.id, 'room', activeSectionId !== 'all' ? activeSectionId : undefined)}
+                className="p-3 bg-espresso/10 text-espresso rounded-xl hover:bg-espresso hover:text-white transition-all flex flex-col items-center gap-1"
+              >
+                <Square className="w-6 h-6" />
+                <span className="text-[8px] font-black">AREA</span>
+              </button>
+              <button 
+                onClick={() => addTable(currentUser.id, 'corridor', activeSectionId !== 'all' ? activeSectionId : undefined)}
+                className="p-3 bg-ink-light/10 text-ink-light rounded-xl hover:bg-ink-light hover:text-white transition-all flex flex-col items-center gap-1"
+              >
+                <Move className="w-6 h-6" />
+                <span className="text-[8px] font-black">DRAG</span>
+              </button>
             </div>
           )}
         </div>
       </div>
 
-      {/* Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-black/80 backdrop-blur-md border-t border-ink-light/10 dark:border-ink-dark/10 flex justify-around p-4 pb-safe z-40">
-        <Link to="/owner" className="flex flex-col items-center text-burgundy dark:text-burgundy-light">
-          <LayoutGrid className="w-6 h-6 mb-1" />
-          <span className="text-xs font-bold">테이블</span>
-        </Link>
-        <Link to="/owner/customers" className="flex flex-col items-center text-ink-light/40 dark:text-ink-dark/40 hover:text-ink-light dark:hover:text-ink-dark transition-colors">
-          <Users className="w-6 h-6 mb-1" />
-          <span className="text-xs font-bold">고객관리</span>
-        </Link>
-        <Link to="/owner/statistics" className="flex flex-col items-center text-ink-light/40 dark:text-ink-dark/40 hover:text-ink-light dark:hover:text-ink-dark transition-colors">
-          <BarChart3 className="w-6 h-6 mb-1" />
-          <span className="text-xs font-bold">통계</span>
-        </Link>
-      </div>
-
-      {/* Table Detail Modal */}
-      {selectedTable && activeTable && (
-        <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-in fade-in duration-200">
-          <div className="bg-hanji-light dark:bg-hanji-dark w-full sm:max-w-md rounded-t-[2rem] sm:rounded-[2rem] p-6 pb-12 sm:pb-6 relative shadow-2xl animate-in slide-in-from-bottom-full sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200 border border-ink-light/10 dark:border-ink-dark/10 overflow-y-auto max-h-[90vh]">
-            <button 
-              onClick={() => setSelectedTable(null)}
-              className="absolute top-4 right-4 p-2 bg-transparent rounded-full hover:bg-ink-light/5 dark:hover:bg-ink-dark/10 transition-colors"
-            >
-              <X className="w-5 h-5 text-ink-light/40 dark:text-ink-dark/40" />
-            </button>
-
-            <div className="flex justify-between items-start mb-6">
-              <div className="flex items-center gap-2">
-                <span className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold shadow-sm ${activeTable.isRoom ? 'bg-espresso' : 'bg-burgundy'} text-hanji-light`}>
+      {/* RIGHT SIDE PANEL (Toast POS Detail Panel) */}
+      <div className={`fixed inset-y-0 right-0 w-full sm:w-96 bg-white dark:bg-hanji-dark z-50 shadow-2xl border-l border-ink-light/10 transform transition-transform duration-300 ease-out flex flex-col ${selectedTable ? 'translate-x-0' : 'translate-x-full'}`}>
+        {selectedTable && activeTable ? (
+          <>
+            <div className="p-6 border-b border-ink-light/5 flex justify-between items-center bg-zinc-50/50">
+              <div className="flex items-center gap-4">
+                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl font-black text-white shadow-xl ${activeTable.currentCustomerId ? 'bg-sky-500 shadow-sky-500/20' : 'bg-burgundy shadow-burgundy/20'}`}>
                   {selectedTable}
-                </span>
-                <span className="text-xs font-bold text-ink-light/30 dark:text-ink-dark/30 bg-ink-light/5 px-2 py-0.5 rounded-full border border-ink-light/5">
-                  {activeTable.seats || 4}인석
-                </span>
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-ink-light dark:text-ink-dark">상세 정보</h2>
+                  <p className="text-xs font-black text-ink-light/30 uppercase tracking-widest">{activeTable.sectionId ? (currentStoreSections.find(s => s.id === activeTable.sectionId)?.name) : '미지정 구역'}</p>
+                </div>
               </div>
-              {activeTable.sessionStartTime && (
-                <span className="text-xs font-bold text-burgundy dark:text-burgundy-light bg-burgundy/10 px-3 py-1 rounded-lg">
-                  {(() => {
-                    const diff = Math.floor((currentTime.getTime() - new Date(activeTable.sessionStartTime).getTime()) / 60000);
-                    return diff > 60 ? `${Math.floor(diff/60)}시간 ${diff%60}분` : `${diff}분 전 입장`;
-                  })()}
-                </span>
-              )}
+              <button onClick={() => setSelectedTable(null)} className="p-2 hover:bg-ink-light/5 rounded-full transition-colors"><X className="w-6 h-6 text-ink-light/40" /></button>
             </div>
 
-            {activeCustomer ? (
-              <div className="space-y-6">
-                {(() => {
+            <div className="flex-1 overflow-y-auto p-6 space-y-8">
+              {activeCustomer ? (
+                (() => {
                   const stats = getCustomerStats(activeCustomer.id);
                   return (
-                    <div className="bg-white/50 dark:bg-black/10 p-5 rounded-[2rem] border border-ink-light/10 dark:border-ink-dark/10">
-                      <div className="flex justify-between items-start mb-4">
-                        <div>
-                          <h3 className="text-2xl font-serif font-bold text-ink-light dark:text-ink-dark">{activeCustomer.name}님</h3>
-                          <p className="text-sm text-ink-light/60 dark:text-ink-dark/60 mt-1">{activeCustomer.phone}</p>
+                    <div className="space-y-6">
+                      <div className="bg-white dark:bg-black/20 p-6 rounded-[2.5rem] border border-ink-light/10 shadow-sm relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-burgundy/5 rounded-full -mr-16 -mt-16"></div>
+                        <div className="flex justify-between items-start mb-6 relative">
+                          <div className="flex items-center gap-4">
+                            <div className="w-14 h-14 bg-sky-100 text-sky-600 rounded-full flex items-center justify-center text-xl font-black">{activeCustomer.name.charAt(0)}</div>
+                            <div>
+                              <h3 className="text-2xl font-bold text-ink-light dark:text-ink-dark">{activeCustomer.name}</h3>
+                              <p className="text-sm font-medium text-ink-light/40 mt-1">{activeCustomer.phone}</p>
+                            </div>
+                          </div>
+                          <span className={`px-4 py-1.5 rounded-full text-xs font-black border uppercase tracking-wider ${getTierColor(stats.tier)}`}>
+                            {getTierCustomName(stats.tier, currentUser.tierNames)}
+                          </span>
                         </div>
-                        <span className={`px-4 py-1.5 rounded-full text-xs font-bold border transition-all ${getTierColor(stats.tier)}`}>
-                          {getTierCustomName(stats.tier, currentUser.tierNames)}
-                        </span>
+
+                        <div className="grid grid-cols-3 gap-4 pt-6 border-t border-ink-light/5 relative">
+                          <div className="text-center">
+                            <p className="text-[10px] font-black text-ink-light/30 uppercase mb-1">Total Visits</p>
+                            <p className="text-lg font-black text-ink-light">{stats.totalVisits}</p>
+                          </div>
+                          <div className="text-center border-x border-ink-light/5">
+                            <p className="text-[10px] font-black text-ink-light/30 uppercase mb-1">Recent 30D</p>
+                            <p className="text-lg font-black text-sky-500">{stats.recentVisits}</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-[10px] font-black text-ink-light/30 uppercase mb-1">Monthly Peak</p>
+                            <p className="text-lg font-black text-burgundy">{stats.frequencyPerMonth}</p>
+                          </div>
+                        </div>
+                        
+                        <div className="mt-6 flex justify-center">
+                           <div className="flex items-center gap-2 px-4 py-2 bg-zinc-50 rounded-full border border-ink-light/5 text-xs font-bold text-ink-light/50">
+                             <Clock className="w-3.5 h-3.5" />
+                             마지막 방문: {stats.daysSinceLastVisit !== null ? (stats.daysSinceLastVisit === 0 ? '오늘' : `${stats.daysSinceLastVisit}일 전`) : '기록 없음'}
+                           </div>
+                        </div>
                       </div>
 
-                      <div className="flex justify-between text-sm text-ink-light/70 dark:text-ink-dark/70 border-t border-ink-light/10 dark:border-ink-dark/10 pt-4">
-                        <span className="font-medium text-xs">최근 30일: {stats.recentVisits}회</span>
-                        <span className="font-medium text-xs">
-                          마지막 방문: {stats.daysSinceLastVisit !== null 
-                            ? (stats.daysSinceLastVisit === 0 ? '오늘' : `${stats.daysSinceLastVisit}일 전`) 
-                            : '없음'}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-sm text-ink-light/70 dark:text-ink-dark/70 mt-2">
-                        <span className="font-medium text-xs">총 방문: {stats.totalVisits}회</span>
-                        <span className="font-medium text-xs">월 평균 방문: {stats.frequencyPerMonth}회</span>
-                      </div>
                       {activeCustomer.memo && (
-                        <div className="mt-4 pt-4 border-t border-ink-light/10 dark:border-ink-dark/10">
-                          <p className="text-xs font-bold text-ink-light/50 dark:text-ink-dark/50 mb-2">고객 메모</p>
-                          <p className="text-sm text-ink-light/80 dark:text-ink-dark/80 bg-white/50 dark:bg-black/20 p-4 rounded-2xl border border-ink-light/5 whitespace-pre-wrap">
+                        <div className="p-6 bg-[#FAF9F6] dark:bg-black/40 rounded-3xl border border-espresso/10">
+                          <p className="text-xs font-black text-espresso/40 uppercase mb-3 flex items-center gap-2">
+                             <Edit2 className="w-3.5 h-3.5" /> 고객 특이사항
+                          </p>
+                          <p className="text-sm text-espresso/80 leading-relaxed font-serif whitespace-pre-wrap">
                             {formatMemoDisplay(activeCustomer.memo)}
                           </p>
                         </div>
                       )}
                     </div>
                   );
-                })()}
+                })()
+              ) : (
+                <div className="text-center space-y-6 flex flex-col items-center justify-center h-full opacity-50">
+                   <div className="bg-white p-8 rounded-[3rem] border border-ink-light/10 shadow-lg scale-110">
+                      <QRCodeSVG value={`${window.location.origin}/customer/store/${currentUser.id}/table/${selectedTable}`} size={160} level="H" />
+                   </div>
+                   <div className="space-y-2">
+                      <p className="text-lg font-black text-ink-light">Scan to Check-in</p>
+                      <p className="text-sm font-medium text-ink-light/40">{selectedTable}번 테이블 전용 QR 코드</p>
+                   </div>
+                </div>
+              )}
+            </div>
 
+            <div className="p-6 border-t border-ink-light/10 space-y-3 bg-zinc-50/50">
+              {activeCustomer ? (
+                <button 
+                  onClick={() => { 
+                    updateTableStatus(currentUser.id, selectedTable, 'dirty');
+                    leaveTable(selectedTable, currentUser.id); 
+                    setSelectedTable(null); 
+                  }} 
+                  className="w-full bg-burgundy text-white font-black py-4 rounded-2xl transition-all active:scale-[0.98] shadow-xl shadow-burgundy/20 flex items-center justify-center gap-2"
+                >
+                  <LogOut className="w-5 h-5" /> 테이블 비우기
+                </button>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                   <button 
+                    onClick={() => { updateTableStatus(currentUser.id, selectedTable, 'available'); setSelectedTable(null); }}
+                    className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all ${activeTable.status === 'available' ? 'border-emerald-500 bg-emerald-50' : 'border-ink-light/5 hover:bg-ink-light/5'}`}
+                   >
+                     <CheckCircle2 className={`w-8 h-8 ${activeTable.status === 'available' ? 'text-emerald-500' : 'text-ink-light/20'}`} />
+                     <span className="text-[10px] font-black uppercase">Available</span>
+                   </button>
+                   <button 
+                    onClick={() => { updateTableStatus(currentUser.id, selectedTable, 'dirty'); setSelectedTable(null); }}
+                    className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all ${activeTable.status === 'dirty' ? 'border-amber-400 bg-amber-50' : 'border-ink-light/5 hover:bg-ink-light/5'}`}
+                   >
+                     <AlertCircle className={`w-8 h-8 ${activeTable.status === 'dirty' ? 'text-amber-500' : 'text-ink-light/20'}`} />
+                     <span className="text-[10px] font-black uppercase">Dirty</span>
+                   </button>
+                </div>
+              )}
+            </div>
+          </>
+        ) : (
+          <div className="h-full flex items-center justify-center text-ink-light/20 p-12 text-center flex-col gap-4">
+             <LayoutGrid className="w-16 h-16" />
+             <p className="font-bold">현황판에서 테이블을 선택하여 관리하세요.</p>
+          </div>
+        )}
+      </div>
+
+      {/* Section Editor Modal */}
+      {isEditingSections && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[100] flex items-center justify-center p-6">
+          <div className="bg-white dark:bg-hanji-dark w-full max-w-md rounded-[3rem] p-8 shadow-2xl animate-in zoom-in-95 duration-200 border border-ink-light/10">
+            <div className="flex justify-between items-center mb-8">
+              <h2 className="text-2xl font-black text-ink-light tracking-tighter">구역 관리</h2>
+              <button 
+                onClick={() => { setIsEditingSections(false); setEditingSectionId(null); }}
+                className="p-2 bg-ink-light/5 rounded-full hover:bg-ink-light/10 transition-colors"
+                ><X className="w-6 h-6" /></button>
+            </div>
+            
+            <div className="space-y-4 max-h-80 overflow-y-auto no-scrollbar pr-2">
+              {currentStoreSections.map(section => (
+                <div key={section.id} className="flex items-center gap-3 p-4 bg-[#F5F5F7] rounded-2xl border border-ink-light/5">
+                  <div className="bg-emerald-500 w-2 h-2 rounded-full"></div>
+                  {editingSectionId === section.id ? (
+                    <input 
+                      autoFocus
+                      className="flex-1 bg-transparent border-b-2 border-burgundy focus:outline-none font-bold text-ink-light"
+                      value={section.name}
+                      onBlur={() => setEditingSectionId(null)}
+                      onChange={(e) => updateSection(section.id, e.target.value)}
+                    />
+                  ) : (
+                    <span className="flex-1 font-bold text-ink-light">{section.name}</span>
+                  )}
+                  <div className="flex gap-1">
+                    <button onClick={() => setEditingSectionId(section.id)} className="p-2 hover:bg-white rounded-lg transition-colors text-ink-light/30 hover:text-ink-light"><Edit2 className="w-4 h-4" /></button>
+                    <button onClick={() => deleteSection(currentUser.id, section.id)} className="p-2 hover:bg-white rounded-lg transition-colors text-red-300 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-8 pt-6 border-t border-ink-light/10">
+              <div className="flex gap-3">
+                <input 
+                  className="flex-1 bg-[#F5F5F7] border border-ink-light/5 px-4 py-3 rounded-2xl focus:outline-none focus:ring-2 focus:ring-burgundy/20 font-medium text-ink-light"
+                  placeholder="새 구역 이름 (예: 테라스)"
+                  value={newSectionName}
+                  onChange={(e) => setNewSectionName(e.target.value)}
+                />
                 <button 
                   onClick={() => {
-                    leaveTable(activeTable.number, currentUser.id);
-                    setSelectedTable(null);
+                    if (newSectionName.trim()) {
+                      addSection(currentUser.id, newSectionName);
+                      setNewSectionName('');
+                    }
                   }}
-                  className="w-full bg-white dark:bg-black/20 hover:bg-ink-light/5 dark:hover:bg-ink-dark/10 text-ink-light/70 dark:text-ink-dark/70 border border-ink-light/10 dark:border-ink-dark/10 font-bold py-4 rounded-2xl transition-all active:scale-[0.98] shadow-sm"
-                >
-                  테이블 비우기
-                </button>
+                  className="px-6 bg-burgundy text-white font-black rounded-2xl hover:bg-burgundy/90 transition-all shadow-lg shadow-burgundy/20"
+                >추가</button>
               </div>
-            ) : (
-              <div className="text-center py-8">
-                <div className="bg-white p-6 rounded-[2rem] border-2 border-dashed border-ink-light/10 inline-block relative group">
-                  <QRCodeSVG 
-                    value={`${window.location.origin}/customer/store/${currentUser.id}/table/${selectedTable}`} 
-                    size={150}
-                    level="H"
-                  />
-                  <p className="mt-4 text-xs font-bold text-ink-light/50">{selectedTable}번 테이블 전용 QR</p>
-                </div>
-              </div>
-            )}
+            </div>
           </div>
         </div>
       )}
+
+      {/* Simple Navigation */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-black/60 backdrop-blur-md border-t border-ink-light/10 flex justify-around p-4 z-40">
+        <Link to="/owner" className="flex flex-col items-center text-burgundy"><LayoutGrid className="w-6 h-6 mb-1" /><span className="text-xs font-bold">테이블</span></Link>
+        <Link to="/owner/customers" className="flex flex-col items-center text-ink-light/40"><Users className="w-6 h-6 mb-1" /><span className="text-xs font-bold">고객</span></Link>
+        <Link to="/owner/statistics" className="flex flex-col items-center text-ink-light/40"><BarChart3 className="w-6 h-6 mb-1" /><span className="text-xs font-bold">통계</span></Link>
+      </div>
     </div>
   );
 }

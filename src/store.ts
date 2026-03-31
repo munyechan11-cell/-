@@ -59,6 +59,15 @@ export interface Table {
   isRoom?: boolean;
   type?: 'table' | 'room' | 'corridor';
   shape?: 'square' | 'circle';
+  sectionId?: string; // New: Section association
+  status?: 'available' | 'occupied' | 'paid' | 'dirty'; // New: Toast POS status
+}
+
+export interface Section {
+  id: string;
+  storeId: string;
+  name: string;
+  order: number;
 }
 
 export interface Communication {
@@ -83,6 +92,7 @@ const globalState: Record<string, any> = {
   visits: [],
   coupons: [],
   tables: [],
+  sections: [],
   communications: [],
   tierOverrides: [],
   masterPassword: 'IMC'
@@ -159,7 +169,8 @@ const startSync = (database: any, colls: any) => {
   syncCollection('visits', 'visits');
   syncCollection('coupons', 'coupons');
   syncCollection('tables', 'tables');
-  syncCollection('Communications', 'communications'); // 컬렉션은 대문지, 상태는 소문자 유지
+  syncCollection('sections', 'sections'); // New: Sync sections
+  syncCollection('Communications', 'communications');
   syncCollection('tierOverrides', 'tierOverrides');
   
   const unsubSettings = onSnapshot(doc(database, 'appState', 'settings'), (snap) => {
@@ -196,11 +207,11 @@ if (!isFirebaseConfigured) {
       if (snap.exists()) {
         const data = snap.data();
         const batch = writeBatch(db);
-        const cats = ['users', 'visits', 'coupons', 'tables', 'communications', 'tierOverrides'];
+        const cats = ['users', 'visits', 'coupons', 'tables', 'sections', 'communications', 'tierOverrides'];
         for (const cat of cats) {
           if (Array.isArray(data[cat])) {
             for (const item of data[cat]) {
-              const itemRef = doc(db, cat, item.id || `${item.storeId}_${item.number}`);
+              const itemRef = doc(db, cat, item.id || (cat === 'tables' ? `${item.storeId}_${item.number}` : item.id));
               batch.set(itemRef, item, { merge: true });
             }
           }
@@ -281,6 +292,7 @@ export const useStore = () => {
   const [visits, setVisits] = useState<Visit[]>(getGlobalStorage('visits', []));
   const [coupons, setCoupons] = useState<Coupon[]>(getGlobalStorage('coupons', []));
   const [tables, setTables] = useState<Table[]>(getGlobalStorage('tables', []));
+  const [sections, setSections] = useState<Section[]>(getGlobalStorage('sections', []));
   const [communications, setCommunications] = useState<Communication[]>(getGlobalStorage('communications', []));
   const [tierOverrides, setTierOverrides] = useState<TierOverride[]>(getGlobalStorage('tierOverrides', []));
   const [masterPassword, setMasterPasswordState] = useState<string>(globalState.masterPassword);
@@ -295,6 +307,7 @@ export const useStore = () => {
       setVisits(getGlobalStorage('visits', []));
       setCoupons(getGlobalStorage('coupons', []));
       setTables(getGlobalStorage('tables', []));
+      setSections(getGlobalStorage('sections', []));
       setCommunications(getGlobalStorage('communications', []));
       setTierOverrides(getGlobalStorage('tierOverrides', []));
       setMasterPasswordState(globalState.masterPassword);
@@ -316,6 +329,45 @@ export const useStore = () => {
       window.removeEventListener('storage', handleLocalUpdate);
     };
   }, []);
+
+  const addSection = async (storeId: string, name: string) => {
+    const newSection: Section = { id: generateId(), storeId, name, order: globalState.sections.length };
+    globalState.sections.push(newSection);
+    notifyUpdate();
+    await updateFirestoreDoc('sections', newSection.id, newSection);
+  };
+
+  const updateSection = async (sectionId: string, name: string) => {
+    const idx = globalState.sections.findIndex((s: any) => s.id === sectionId);
+    if (idx !== -1) {
+      globalState.sections[idx] = { ...globalState.sections[idx], name };
+      notifyUpdate();
+      await updateFirestoreDoc('sections', sectionId, { name });
+    }
+  };
+
+  const deleteSection = async (storeId: string, sectionId: string) => {
+    globalState.tables.forEach(async (table: Table) => {
+      if (table.storeId === storeId && table.sectionId === sectionId) {
+        const id = `${table.storeId}_${table.number}`;
+        table.sectionId = undefined;
+        await updateFirestoreDoc('tables', id, { sectionId: null });
+      }
+    });
+    globalState.sections = globalState.sections.filter((s: any) => s.id !== sectionId);
+    notifyUpdate();
+    await updateFirestoreDoc('sections', sectionId, null, true);
+  };
+
+  const updateTableStatus = async (storeId: string, tableNumber: number, status: Table['status']) => {
+    const id = `${storeId}_${tableNumber}`;
+    const idx = globalState.tables.findIndex((t: any) => t.storeId === storeId && t.number === tableNumber);
+    if (idx !== -1) {
+      globalState.tables[idx].status = status;
+      notifyUpdate();
+      await updateFirestoreDoc('tables', id, { status });
+    }
+  };
 
   const login = async (phone: string, name: string, role: Role, restaurantName?: string, storeId?: string, socialId?: string, isPohangResident?: boolean, gender?: 'male' | 'female') => {
     const cleanPhone = phone ? phone.replace(/[^0-9]/g, '') : '';
@@ -345,12 +397,11 @@ export const useStore = () => {
         const batch = writeBatch(db!);
         for (let i = 1; i <= 12; i++) {
           const tableRef = doc(db!, 'tables', `${user.id}_${i}`);
-          // Default grid: 3 per row
           const x = ((i - 1) % 4) * 80 + 20;
           const y = Math.floor((i - 1) / 4) * 80 + 20;
           batch.set(tableRef, { 
             number: i, storeId: user.id, currentCustomerId: null, sessionStartTime: null,
-            x, y, width: 70, height: 70, isRoom: false, seats: 4, shape: 'square'
+            x, y, width: 70, height: 70, isRoom: false, seats: 4, shape: 'square', status: 'available'
           });
         }
         await batch.commit();
@@ -432,12 +483,16 @@ export const useStore = () => {
   };
 
   const initTables = async (storeId: string) => {
-    const batch = writeBatch(db!);
-    for (let i = 1; i <= 12; i++) {
-      const tableRef = doc(db!, 'tables', `${storeId}_${i}`);
-      batch.set(tableRef, { number: i, storeId, currentCustomerId: null, sessionStartTime: null }, { merge: true });
+    const initialTables: Table[] = [
+      { number: 1, storeId, currentCustomerId: null, sessionStartTime: null, x: 50, y: 150, seats: 4, type: 'table', shape: 'square', status: 'available' },
+      { number: 2, storeId, currentCustomerId: null, sessionStartTime: null, x: 200, y: 150, seats: 4, type: 'table', shape: 'square', status: 'available' },
+      { number: 3, storeId, currentCustomerId: null, sessionStartTime: null, x: 350, y: 150, seats: 4, type: 'table', shape: 'square', status: 'available' },
+    ];
+    globalState.tables = [...globalState.tables.filter((t: any) => t.storeId !== storeId), ...initialTables];
+    notifyUpdate();
+    for (const table of initialTables) {
+      await updateFirestoreDoc('tables', `${storeId}_${table.number}`, table);
     }
-    await batch.commit();
   };
 
   const setCustomerTier = async (customerId: string, storeId: string, tier: string) => {
@@ -449,19 +504,24 @@ export const useStore = () => {
     }
   };
 
-  const updateTableLayout = async (storeId: string, tableNumber: number, layout: Partial<Table>) => {
-    const tableId = `${storeId}_${tableNumber}`;
-    await updateFirestoreDoc('tables', tableId, layout);
+  const updateTableLayout = async (storeId: string, tableNumber: number, data: Partial<Table>) => {
+    const id = `${storeId}_${tableNumber}`;
+    const idx = globalState.tables.findIndex((t: any) => t.storeId === storeId && t.number === tableNumber);
+    if (idx !== -1) {
+      globalState.tables[idx] = { ...globalState.tables[idx], ...data };
+      notifyUpdate();
+      await updateFirestoreDoc('tables', id, data);
+    }
   };
 
-  const addTable = async (storeId: string, type: 'table' | 'room' | 'corridor' = 'table') => {
+  const addTable = async (storeId: string, type: 'table' | 'room' | 'corridor' = 'table', sectionId?: string) => {
     const storeTables = globalState.tables.filter((t: any) => t.storeId === storeId);
     const nextNum = storeTables.length > 0 ? Math.max(...storeTables.map((t: any) => t.number)) + 1 : 1;
     const tableId = `${storeId}_${nextNum}`;
-    const newTable = { 
+    const newTable: Table = { 
       number: nextNum, storeId, currentCustomerId: null, sessionStartTime: null,
       x: 100, y: 100, width: 70, height: 70, isRoom: type === 'room', type, seats: type === 'table' ? 4 : 0,
-      shape: 'square'
+      shape: 'square', status: 'available', sectionId
     };
     await updateFirestoreDoc('tables', tableId, newTable);
     showToast(`${type === 'corridor' ? '복도' : '테이블'}가 추가되었습니다.`, 'success');
