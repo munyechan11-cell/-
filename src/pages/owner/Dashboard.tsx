@@ -26,6 +26,7 @@ export default function OwnerDashboard() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [zoom, setZoom] = useState(1); // Zoom state for large maps
   const [isMoveOnlyMode, setIsMoveOnlyMode] = useState(false); // New: Move Only Mode
+  const [dragPosition, setDragPosition] = useState<{x: number, y: number} | null>(null); // New: Live drag position
   
   // Section Management
   const currentStoreSections = sections.filter(s => s.storeId === currentUser?.id);
@@ -118,17 +119,32 @@ export default function OwnerDashboard() {
     }
   };
 
-  const handleDragDrop = (e: React.DragEvent, tableNumber: number) => {
+  const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
-    const rect = e.currentTarget.parentElement?.getBoundingClientRect();
+    const rect = e.currentTarget.getBoundingClientRect();
     if (rect && draggedTable !== null) {
       const draggedT = myTables.find(t => t.number === draggedTable);
       if (draggedT) {
-        const x = Math.max(0, Math.min(rect.width - (draggedT.width || 70), e.clientX - rect.left - (draggedT.width || 70) / 2));
-        const y = Math.max(0, Math.min(rect.height - (draggedT.height || 70), e.clientY - rect.top - (draggedT.height || 70) / 2));
-        updateTableLayout(currentUser.id, draggedTable, { x, y });
+        // Calculate relative position within the zoomed container
+        const rawX = (e.clientX - rect.left) / zoom - (draggedT.width || 80) / 2;
+        const rawY = (e.clientY - rect.top) / zoom - (draggedT.height || 80) / 2;
+        
+        // 10px Grid Snapping
+        const x = Math.round(rawX / 10) * 10;
+        const y = Math.round(rawY / 10) * 10;
+        
+        setDragPosition({ x, y });
       }
     }
+  };
+
+  const handleDragDrop = (e: React.DragEvent, tableNumber: number) => {
+    e.preventDefault();
+    if (draggedTable !== null && dragPosition) {
+      updateTableLayout(currentUser.id, draggedTable, { x: dragPosition.x, y: dragPosition.y });
+    }
+    setDraggedTable(null);
+    setDragPosition(null);
   };
 
   return (
@@ -213,7 +229,7 @@ export default function OwnerDashboard() {
           {viewMode === 'map' ? (
             <div 
                 className="relative w-full h-full bg-white dark:bg-black/20 rounded-[3rem] border border-ink-light/10 shadow-inner overflow-auto no-scrollbar"
-                onDragOver={(e) => e.preventDefault()}
+                onDragOver={handleDragOver}
                 onDrop={(e) => {
                   const tableNum = e.dataTransfer.getData('tableNumber');
                   if (tableNum) handleDragDrop(e as any, parseInt(tableNum));
@@ -254,7 +270,7 @@ export default function OwnerDashboard() {
                       key={table.number}
                       draggable={false} // We use the handle for dragging
                       onClick={() => (!isCorridor && !isMoveOnlyMode) && setSelectedTable(table.number)}
-                      className={`absolute flex flex-col items-center justify-center p-3 shadow-sm border-2 transition-colors transition-shadow cursor-pointer group ${table.shape === 'circle' ? 'rounded-full' : (table.isRoom ? 'rounded-[2.5rem]' : (isCorridor ? 'rounded-lg border-dashed opacity-40' : 'rounded-3xl'))} ${getStatusColor(currentStatus, isOccupied)} ${(selectedTable === table.number && !isMoveOnlyMode) ? 'ring-4 ring-burgundy/20 border-burgundy' : ''}`}
+                      className={`absolute flex flex-col items-center justify-center p-3 shadow-sm border-2 transition-colors transition-shadow cursor-pointer group ${table.shape === 'circle' ? 'rounded-full' : (table.isRoom ? 'rounded-[2.5rem]' : (isCorridor ? 'rounded-lg border-dashed opacity-40' : 'rounded-3xl'))} ${getStatusColor(currentStatus, isOccupied)} ${(selectedTable === table.number && !isMoveOnlyMode) ? 'ring-4 ring-burgundy/20 border-burgundy' : ''} ${draggedTable === table.number ? 'opacity-0' : ''}`}
                       style={{ 
                         left: `${table.x}px`, 
                         top: `${table.y}px`, 
@@ -273,7 +289,10 @@ export default function OwnerDashboard() {
                           img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
                           e.dataTransfer.setDragImage(img, 0, 0);
                         }}
-                        onDragEnd={() => setDraggedTable(null)}
+                        onDragEnd={() => {
+                          setDraggedTable(null);
+                          setDragPosition(null);
+                        }}
                         className="absolute top-1 right-1 p-1 bg-white/80 dark:bg-black/80 rounded-md shadow-sm border border-ink-light/10 text-ink-light/40 hover:text-burgundy opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing z-50"
                       >
                         <GripVertical className="w-3 h-3" />
@@ -341,8 +360,30 @@ export default function OwnerDashboard() {
                     </div>
                   );
                 })}
+
+                {/* LIVE DRAG PREVIEW (Ghost) */}
+                {(() => {
+                  const draggedT = draggedTable !== null ? myTables.find(t => t.number === draggedTable) : null;
+                  if (draggedT && dragPosition) {
+                    return (
+                      <div 
+                        className={`absolute pointer-events-none flex flex-col items-center justify-center p-3 shadow-2xl border-2 border-burgundy/50 bg-burgundy/10 z-[100] ${draggedT.shape === 'circle' ? 'rounded-full' : (draggedT.isRoom ? 'rounded-[2.5rem]' : (draggedT.type === 'corridor' ? 'rounded-lg border-dashed' : 'rounded-3xl'))}`}
+                        style={{ 
+                          left: `${dragPosition.x}px`, 
+                          top: `${dragPosition.y}px`, 
+                          width: `${draggedT.width || 80}px`, 
+                          height: `${draggedT.height || 80}px`,
+                        }}
+                      >
+                         <div className="bg-burgundy text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-sm animate-pulse">MOVING</div>
+                         <span className="text-lg font-black tracking-tighter leading-none mt-1 opacity-40">{draggedT.number}</span>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
+                </div>
               </div>
-            </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 overflow-y-auto h-full pr-2 no-scrollbar">
               {filteredTables.map(table => {
