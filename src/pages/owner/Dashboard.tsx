@@ -24,6 +24,7 @@ export default function OwnerDashboard() {
   const [isLayoutMode, setIsLayoutMode] = useState(false);
   const [draggedTable, setDraggedTable] = useState<number | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [zoom, setZoom] = useState(1); // New: Zoom state for large maps
   
   // Section Management
   const currentStoreSections = sections.filter(s => s.storeId === currentUser?.id);
@@ -210,17 +211,37 @@ export default function OwnerDashboard() {
         <div className="flex-1 relative overflow-hidden bg-hanji-light dark:bg-hanji-dark p-6">
           {viewMode === 'map' ? (
             <div 
-              className="relative w-full h-full bg-white dark:bg-black/20 rounded-[3rem] border border-ink-light/10 shadow-inner overflow-auto no-scrollbar"
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => {
-                const tableNum = e.dataTransfer.getData('tableNumber');
-                if (tableNum) handleDragDrop(e as any, parseInt(tableNum));
-              }}
-            >
-              {/* Layout Helper Grid */}
-              {isLayoutMode && <div className="absolute inset-0 bg-[radial-gradient(#888_1px,transparent_1px)] [background-size:30px_30px] opacity-10 pointer-events-none"></div>}
-              
-              <div className="relative min-w-[1200px] min-h-[900px]">
+                className="relative w-full h-full bg-white dark:bg-black/20 rounded-[3rem] border border-ink-light/10 shadow-inner overflow-auto no-scrollbar"
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  const tableNum = e.dataTransfer.getData('tableNumber');
+                  if (tableNum) handleDragDrop(e as any, parseInt(tableNum));
+                }}
+              >
+                {/* Zoom Controls */}
+                <div className="sticky top-4 right-4 z-[60] flex flex-col gap-2 float-right mr-4">
+                  {[1, 0.8, 0.6].map(z => (
+                    <button 
+                      key={z}
+                      onClick={() => setZoom(z)}
+                      className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-[10px] shadow-lg transition-all ${zoom === z ? 'bg-burgundy text-white scale-110' : 'bg-white text-ink-light/40 hover:bg-zinc-50'}`}
+                    >
+                      {z * 100}%
+                    </button>
+                  ))}
+                </div>
+
+                {/* Layout Helper Grid */}
+                {isLayoutMode && <div className="absolute inset-0 bg-[radial-gradient(#888_1px,transparent_1px)] [background-size:30px_30px] opacity-10 pointer-events-none"></div>}
+                
+                <div 
+                  className="relative origin-top-left transition-transform duration-300 ease-out"
+                  style={{ 
+                    minWidth: '1200px', 
+                    minHeight: '900px',
+                    transform: `scale(${zoom})`
+                  }}
+                >
                 {filteredTables.map((table) => {
                   const isOccupied = table.currentCustomerId !== null;
                   const customer = isOccupied ? users.find(u => u.id === table.currentCustomerId) : null;
@@ -265,13 +286,18 @@ export default function OwnerDashboard() {
                             <Users className="w-2.5 h-2.5" />
                             <span className="text-[10px] font-bold">G: {table.seats || 4}</span>
                           </div>
-                          {isOccupied && table.sessionStartTime && (
-                            <div className="flex items-center gap-1 mt-1 font-black text-[9px] bg-black/10 px-1.5 py-0.5 rounded-full">
-                              <Clock className="w-2.5 h-2.5" />
-                              {(() => {
-                                const diff = Math.floor((currentTime.getTime() - new Date(table.sessionStartTime).getTime()) / 60000);
-                                return diff > 60 ? `${Math.floor(diff/60)}h ${diff%60}m` : `${diff}m`;
-                              })()}
+                          {isOccupied && (
+                            <div className="flex flex-col items-center gap-1 mt-1">
+                               <div className="text-[9px] font-black uppercase tracking-tighter text-white/90">식사 중</div>
+                               {table.sessionStartTime && (
+                                 <div className="flex items-center gap-1 font-black text-[9px] bg-black/10 px-1.5 py-0.5 rounded-full">
+                                   <Clock className="w-2.5 h-2.5" />
+                                   {(() => {
+                                     const diff = Math.floor((currentTime.getTime() - new Date(table.sessionStartTime).getTime()) / 60000);
+                                     return diff > 60 ? `${Math.floor(diff/60)}h ${diff%60}m` : `${diff}m`;
+                                   })()}
+                                 </div>
+                               )}
                             </div>
                           )}
                         </div>

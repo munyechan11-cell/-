@@ -432,13 +432,21 @@ export const useStore = () => {
     }
 
     const tableId = `${storeId}_${tableNumber}`;
-    await updateFirestoreDoc('tables', tableId, { currentCustomerId: customerId, sessionStartTime: new Date().toISOString() });
+    await updateFirestoreDoc('tables', tableId, { 
+      currentCustomerId: customerId, 
+      sessionStartTime: new Date().toISOString(),
+      status: 'occupied'
+    });
     showToast('방문이 기록되었습니다.', 'success');
   };
 
   const leaveTable = async (tableNumber: number, storeId: string) => {
     const tableId = `${storeId}_${tableNumber}`;
-    await updateFirestoreDoc('tables', tableId, { currentCustomerId: null, sessionStartTime: null });
+    await updateFirestoreDoc('tables', tableId, { 
+      currentCustomerId: null, 
+      sessionStartTime: null,
+      status: 'dirty'
+    });
     showToast('퇴장 처리되었습니다.', 'info');
   };
 
