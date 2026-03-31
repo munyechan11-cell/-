@@ -3,7 +3,7 @@
   "appId": "1:780655756249:web:e1a4c3ff1048318e46cfc8",
   "apiKey": "AIzaSyCa28EjvwF9N6dBIXnpWp94q1KmrdiZgyU",
   "authDomain": "gyeol-proj.firebaseapp.com",
-  "firestoreDatabaseId": "(default)",
+  "firestoreDatabaseId": "geoyl",
   "storageBucket": "gyeol-proj.firebasestorage.app",
   "messagingSenderId": "780655756249",
   "measurementId": "G-BTE1ZLG59Y"

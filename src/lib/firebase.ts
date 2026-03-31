@@ -38,7 +38,7 @@ export const getCollections = (database: Firestore | null) => {
     visits: collection(database, 'visits'),
     coupons: collection(database, 'coupons'),
     tables: collection(database, 'tables'),
-    communications: collection(database, 'communications'),
+    Communications: collection(database, 'Communications'),
     tierOverrides: collection(database, 'tierOverrides'),
     appState: collection(database, 'appState')
   };

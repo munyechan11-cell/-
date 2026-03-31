@@ -145,7 +145,7 @@ const startSync = (database: any, colls: any) => {
   syncCollection('visits', 'visits');
   syncCollection('coupons', 'coupons');
   syncCollection('tables', 'tables');
-  syncCollection('communications', 'communications');
+  syncCollection('Communications', 'communications'); // 컬렉션은 대문지, 상태는 소문자 유지
   syncCollection('tierOverrides', 'tierOverrides');
   
   const unsubSettings = onSnapshot(doc(database, 'appState', 'settings'), (snap) => {
@@ -201,28 +201,6 @@ if (!isFirebaseConfigured) {
 
   // Initial Sync
   startSync(currentDb, currentCollections);
-
-  // --- INTELLIGENT FALLBACK TO (DEFAULT) DATABASE ---
-  setTimeout(async () => {
-    if (globalFirebaseStatus === 'connecting' || globalFirebaseStatus === 'error') {
-      const configId = (db as any)?._databaseId?.database || '(unknown)';
-      if (configId !== '(default)') {
-        console.warn(`[Firebase] Connection with database ID "${configId}" is slow or failing. Attempting fallback to "(default)" database...`);
-        try {
-          const { getDb, getCollections } = await import('./lib/firebase');
-          const fallbackDb = getDb('(default)');
-          const fallbackColls = getCollections(fallbackDb);
-          if (fallbackDb && fallbackColls) {
-            currentDb = fallbackDb;
-            currentCollections = fallbackColls;
-            startSync(currentDb, currentCollections);
-          }
-        } catch (e) {
-          console.error('[Firebase] Fallback attempt failed', e);
-        }
-      }
-    }
-  }, 4000); // 4초 후 자동 전환 시도
 
   // Final Timeout Check
   setTimeout(() => {
@@ -492,7 +470,7 @@ export const useStore = () => {
 
   const recordCommunication = async (customerId: string, storeId: string, type: 'coupon' | 'message', content: string) => {
     const comm = { id: generateId(), customerId, storeId, type, content, date: new Date().toISOString() };
-    await updateFirestoreDoc('communications', comm.id, comm);
+    await updateFirestoreDoc('Communications', comm.id, comm);
   };
 
   const bulkIssueCoupon = async (customerIds: string[], storeId: string, type: string, description: string) => {
@@ -508,7 +486,7 @@ export const useStore = () => {
   const bulkRecordCommunication = async (customerIds: string[], storeId: string, type: 'coupon' | 'message', content: string) => {
     const batch = writeBatch(db!);
     customerIds.forEach(id => {
-      const commRef = doc(collections!.communications);
+      const commRef = doc(collections!.Communications);
       batch.set(commRef, { id: commRef.id, customerId: id, storeId, type, content, date: new Date().toISOString() });
     });
     await batch.commit();
