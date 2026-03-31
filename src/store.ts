@@ -22,6 +22,8 @@ export interface User {
   isPohangResident?: boolean;
   gender?: 'male' | 'female';
   memo?: string;
+  tierNames?: Record<string, string>; // { 'VIP': '단골마스터', ... }
+  tierRewards?: Record<string, string>; // { 'VIP': '특별 서비스 제공', ... }
 }
 
 export interface Visit {
@@ -49,6 +51,12 @@ export interface Table {
   storeId: string;
   currentCustomerId: string | null;
   sessionStartTime: string | null;
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+  seats: number;
+  isRoom?: boolean;
 }
 
 export interface Communication {
@@ -335,7 +343,13 @@ export const useStore = () => {
         const batch = writeBatch(db!);
         for (let i = 1; i <= 12; i++) {
           const tableRef = doc(db!, 'tables', `${user.id}_${i}`);
-          batch.set(tableRef, { number: i, storeId: user.id, currentCustomerId: null, sessionStartTime: null });
+          // Default grid: 3 per row
+          const x = ((i - 1) % 4) * 80 + 20;
+          const y = Math.floor((i - 1) / 4) * 80 + 20;
+          batch.set(tableRef, { 
+            number: i, storeId: user.id, currentCustomerId: null, sessionStartTime: null,
+            x, y, width: 70, height: 70, isRoom: false, seats: 4
+          });
         }
         await batch.commit();
       }
@@ -382,13 +396,11 @@ export const useStore = () => {
     const uniqueVisitDays = new Set(recentVisits.map(v => new Date(v.date).toDateString())).size;
 
     let reward = null, tier = '';
-    if (uniqueVisitDays === 12) { tier = 'VIP'; reward = '사이드 하나 + 음료수'; }
-    else if (uniqueVisitDays === 8) { tier = '다이아'; reward = '사이드 하나'; }
-    else if (uniqueVisitDays === 6) { tier = '골드'; reward = '작은 사이드 하나'; }
-    else if (uniqueVisitDays === 4) { tier = '실버'; reward = '음료수 2개'; }
-    else if (uniqueVisitDays === 2) { tier = '브론즈'; reward = '음료수 하나'; }
-
-    if (reward) issueCoupon(customerId, storeId, `${tier} 등급 달성`, reward);
+    if (reward) {
+      const owner = users.find(u => u.id === storeId);
+      const customReward = owner?.tierRewards?.[tier];
+      issueCoupon(customerId, storeId, `${owner?.tierNames?.[tier] || tier} 등급 달성`, customReward || reward);
+    }
   };
 
   const issueCoupon = async (customerId: string, storeId: string, type: string, description: string) => {
@@ -433,6 +445,15 @@ export const useStore = () => {
     } else {
       await updateFirestoreDoc('tierOverrides', id, { customerId, storeId, tier });
     }
+  };
+
+  const updateTableLayout = async (storeId: string, tableNumber: number, layout: Partial<Table>) => {
+    const tableId = `${storeId}_${tableNumber}`;
+    await updateFirestoreDoc('tables', tableId, layout);
+  };
+
+  const updateBrandSettings = async (storeId: string, settings: { tierNames?: Record<string, string>, tierRewards?: Record<string, string> }) => {
+    await updateFirestoreDoc('users', storeId, settings);
   };
 
   const setMasterPassword = async (newPassword: string) => {
@@ -501,8 +522,23 @@ export const useStore = () => {
     currentUser, masterPassword, login, logout, recordVisit, leaveTable, issueCoupon, 
     requestCouponUse, cancelCouponRequest, approveCouponUse, rejectCouponUse, 
     initTables, setCustomerTier, setMasterPassword, deleteUser, updateUserMemo, 
-    recordCommunication, bulkIssueCoupon, bulkRecordCommunication
+    recordCommunication, bulkIssueCoupon, bulkRecordCommunication,
+    updateTableLayout, updateBrandSettings
   };
+};
+
+export const getTierCustomName = (tier: string, tierNames?: Record<string, string>) => {
+  if (tierNames && tierNames[tier]) return tierNames[tier];
+  
+  // Default names if not customized
+  switch (tier) {
+    case 'VIP': return '티어 5';
+    case '다이아': return '티어 4';
+    case '골드': return '티어 3';
+    case '실버': return '티어 2';
+    case '브론즈': return '티어 1';
+    default: return '일반';
+  }
 };
 
 export const getCustomerTier = (visitCount: number) => {

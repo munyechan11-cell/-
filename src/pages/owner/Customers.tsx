@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useStore, getEffectiveTier, getTierColor, getCustomerTier } from '../../store';
+import { useStore, getEffectiveTier, getTierColor, getCustomerTier, getTierCustomName } from '../../store';
 import { Users, LayoutGrid, Search, Send, X, MessageSquare, Ticket, History, Loader2, CheckSquare, Square, Download, ChevronDown, BarChart3 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import MemoModal, { formatMemoDisplay } from '../../components/MemoModal';
@@ -253,7 +253,7 @@ export default function OwnerCustomers() {
                   : 'bg-white dark:bg-black/20 text-ink-light/60 dark:text-ink-dark/60 border-ink-light/10 dark:border-ink-dark/10 hover:border-ink-light/30 dark:hover:border-ink-dark/30'
               }`}
             >
-              {tier === 'all' ? '전체 등급' : tier}
+              {tier === 'all' ? '전체 등급' : getTierCustomName(tier, currentUser?.tierNames)}
             </button>
           ))}
         </div>
@@ -329,14 +329,13 @@ export default function OwnerCustomers() {
                           onClick={(e) => e.stopPropagation()}
                           className={`appearance-none px-3 py-1 pr-6 rounded-full text-xs font-bold border-none cursor-pointer focus:ring-2 focus:ring-burgundy/50 outline-none text-white ${getTierColor(stats.tier)}`}
                         >
-                          <option value="auto">자동 ({stats.autoTier})</option>
-                          <option value="일반">일반</option>
-                          <option value="브론즈">브론즈</option>
-                          <option value="실버">실버</option>
-                          <option value="골드">골드</option>
-                          <option value="다이아">다이아</option>
-                          <option value="VIP">VIP</option>
-                          <option value="VVIP">VVIP</option>
+                          <option value="auto">자동 ({getTierCustomName(stats.autoTier, currentUser?.tierNames)})</option>
+                          <option value="일반">{getTierCustomName('일반', currentUser?.tierNames)}</option>
+                          <option value="브론즈">{getTierCustomName('브론즈', currentUser?.tierNames)}</option>
+                          <option value="실버">{getTierCustomName('실버', currentUser?.tierNames)}</option>
+                          <option value="골드">{getTierCustomName('골드', currentUser?.tierNames)}</option>
+                          <option value="다이아">{getTierCustomName('다이아', currentUser?.tierNames)}</option>
+                          <option value="VIP">{getTierCustomName('VIP', currentUser?.tierNames)}</option>
                         </select>
                         <ChevronDown className="w-3 h-3 text-ink-light dark:text-ink-dark absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-50" />
                       </div>

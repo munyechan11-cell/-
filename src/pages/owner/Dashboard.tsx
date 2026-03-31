@@ -1,14 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useStore, getEffectiveTier, getTierColor } from '../../store';
-import { Users, LayoutGrid, LogOut, X, Check, Bell, BarChart3, Download, Copy } from 'lucide-react';
+import { Users, LayoutGrid, LogOut, X, Check, Bell, BarChart3, Download, Copy, Settings, Map as MapIcon, List, Move, Maximize2, Square } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { formatMemoDisplay } from '../../components/MemoModal';
 
 export default function OwnerDashboard() {
-  const { currentUser, tables, users, visits, coupons, logout, leaveTable, initTables, tierOverrides, approveCouponUse, rejectCouponUse } = useStore();
+  const { currentUser, tables, users, visits, coupons, logout, leaveTable, initTables, tierOverrides, approveCouponUse, rejectCouponUse, updateTableLayout } = useStore();
   const navigate = useNavigate();
   const [selectedTable, setSelectedTable] = useState<number | null>(null);
+  const [viewMode, setViewMode] = useState<'grid' | 'map'>('grid');
+  const [isLayoutMode, setIsLayoutMode] = useState(false);
+  const [draggedTable, setDraggedTable] = useState<number | null>(null);
 
   // Initialize tables if they don't exist for this owner (backward compatibility)
   useEffect(() => {
@@ -80,9 +83,14 @@ export default function OwnerDashboard() {
           <h1 className="text-3xl font-serif font-bold tracking-tight">{currentUser.restaurantName || '단골 파트너'}</h1>
           <p className="text-ink-light/60 dark:text-ink-dark/60 text-sm mt-1 font-medium">테이블 현황</p>
         </div>
-        <button onClick={handleLogout} className="p-2 bg-white dark:bg-black/20 rounded-full hover:bg-ink-light/5 dark:hover:bg-ink-dark/10 shadow-sm border border-ink-light/10 dark:border-ink-dark/10 transition-colors">
-          <LogOut className="w-5 h-5 text-ink-light/70 dark:text-ink-dark/70" />
-        </button>
+        <div className="flex items-center gap-2">
+          <Link to="/owner/brand" className="p-2 bg-white dark:bg-black/20 rounded-full hover:bg-ink-light/5 dark:hover:bg-ink-dark/10 shadow-sm border border-ink-light/10 dark:border-ink-dark/10 transition-colors">
+            <Settings className="w-5 h-5 text-ink-light/70 dark:text-ink-dark/70" />
+          </Link>
+          <button onClick={handleLogout} className="p-2 bg-white dark:bg-black/20 rounded-full hover:bg-ink-light/5 dark:hover:bg-ink-dark/10 shadow-sm border border-ink-light/10 dark:border-ink-dark/10 transition-colors">
+            <LogOut className="w-5 h-5 text-ink-light/70 dark:text-ink-dark/70" />
+          </button>
+        </div>
       </div>
 
       {/* Pending Requests */}
@@ -134,14 +142,42 @@ export default function OwnerDashboard() {
         </div>
       )}
 
-      {/* Table Grid */}
+      {/* View Toggle */}
+      <div className="px-6 pt-6 flex justify-between items-center">
+        <div className="flex bg-white dark:bg-black/20 p-1 rounded-2xl border border-ink-light/10 dark:border-ink-dark/10 shadow-sm">
+          <button 
+            onClick={() => { setViewMode('grid'); setIsLayoutMode(false); }}
+            className={`flex items-center gap-2 px-4 py-2 font-bold text-xs rounded-xl transition-all ${viewMode === 'grid' ? 'bg-burgundy text-hanji-light' : 'text-ink-light/40 dark:text-ink-dark/40 hover:text-ink-light'}`}
+          >
+            <List className="w-4 h-4" /> 리스트
+          </button>
+          <button 
+            onClick={() => setViewMode('map')}
+            className={`flex items-center gap-2 px-4 py-2 font-bold text-xs rounded-xl transition-all ${viewMode === 'map' ? 'bg-burgundy text-hanji-light' : 'text-ink-light/40 dark:text-ink-dark/40 hover:text-ink-light'}`}
+          >
+            <MapIcon className="w-4 h-4" /> 매장 도면
+          </button>
+        </div>
+
+        {viewMode === 'map' && (
+          <button 
+            onClick={() => setIsLayoutMode(!isLayoutMode)}
+            className={`flex items-center gap-2 px-4 py-2.5 font-bold text-xs rounded-2xl border transition-all ${isLayoutMode ? 'bg-burgundy/10 border-burgundy text-burgundy shadow-inner' : 'bg-white dark:bg-black/20 border-ink-light/10 text-ink-light/60 dark:text-ink-dark/60 shadow-sm'}`}
+          >
+            {isLayoutMode ? <Check className="w-4 h-4" /> : <Move className="w-4 h-4" />}
+            {isLayoutMode ? '배치 완료' : '위치 수정'}
+          </button>
+        )}
+      </div>
+
+      {/* Table Grid / Map View */}
       <div className="p-6">
         {myTables.length === 0 ? (
           <div className="text-center py-12 bg-white dark:bg-black/20 rounded-[2rem] shadow-sm border border-ink-light/10 dark:border-ink-dark/10 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <p className="text-ink-light/50 dark:text-ink-dark/50 mb-2">테이블 정보가 없습니다.</p>
             <p className="text-sm text-ink-light/40 dark:text-ink-dark/40">새로고침하거나 다시 로그인해주세요.</p>
           </div>
-        ) : (
+        ) : viewMode === 'grid' ? (
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4">
             {myTables.map((table, index) => {
               const isOccupied = table.currentCustomerId !== null;
@@ -166,16 +202,104 @@ export default function OwnerDashboard() {
                       <span className="text-xs font-bold text-burgundy dark:text-burgundy-light truncate w-full text-center">
                         {customer.name}
                       </span>
-                      {customer.memo && (
-                        <span className="text-[9px] text-ink-light/80 dark:text-ink-dark/80 mt-0.5 truncate w-full text-center bg-white/50 dark:bg-black/20 px-1 rounded border border-ink-light/10 dark:border-ink-dark/10">
-                          {customer.memo.length > 8 ? customer.memo.substring(0, 8) + '...' : customer.memo}
-                        </span>
-                      )}
                     </div>
                   )}
                 </button>
               );
             })}
+          </div>
+        ) : (
+          <div className="relative w-full aspect-[4/3] bg-white/50 dark:bg-black/10 rounded-[3rem] border-2 border-dashed border-ink-light/10 dark:border-ink-dark/10 overflow-hidden shadow-inner">
+            <div className="absolute inset-0 bg-[radial-gradient(#888_1px,transparent_1px)] [background-size:20px_20px] opacity-10"></div>
+            {myTables.map((table) => {
+              const isOccupied = table.currentCustomerId !== null;
+              const customer = isOccupied ? users.find(u => u.id === table.currentCustomerId) : null;
+              
+              return (
+                <div
+                  key={table.number}
+                  draggable={isLayoutMode}
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData('tableNumber', table.number.toString());
+                    setDraggedTable(table.number);
+                  }}
+                  onDragEnd={() => setDraggedTable(null)}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (!isLayoutMode) return;
+                    const rect = e.currentTarget.parentElement?.getBoundingClientRect();
+                    if (rect && draggedTable !== null) {
+                      const x = Math.max(0, Math.min(rect.width - 80, e.clientX - rect.left - 40));
+                      const y = Math.max(0, Math.min(rect.height - 80, e.clientY - rect.top - 40));
+                      updateTableLayout(currentUser.id, draggedTable, { x, y });
+                    }
+                  }}
+                  onClick={() => !isLayoutMode && setSelectedTable(table.number)}
+                  className={`absolute rounded-2xl flex flex-col items-center justify-center p-2 shadow-lg border transition-all cursor-pointer group ${
+                    table.isRoom ? 'scale-110 !rounded-[2rem] border-dashed border-2' : ''
+                  } ${
+                    isOccupied 
+                      ? 'bg-burgundy/20 dark:bg-burgundy/30 border-burgundy/50' 
+                      : 'bg-white dark:bg-black/40 border-ink-light/20 dark:border-ink-dark/20'
+                  } ${isLayoutMode ? 'ring-2 ring-burgundy ring-offset-2 animate-bounce' : ''}`}
+                  style={{ 
+                    left: `${(table.x / 400) * 100}%`, 
+                    top: `${(table.y / 300) * 100}%`,
+                    width: '18%', 
+                    height: '24%',
+                  }}
+                >
+                  <span className={`text-base font-black ${isOccupied ? 'text-burgundy dark:text-burgundy-light' : 'text-ink-light/50 dark:text-ink-dark/50'}`}>
+                    {table.number}
+                  </span>
+                  {!isOccupied && (
+                    <div className="flex items-center gap-0.5 mt-0.5 px-1.5 py-0.5 bg-ink-light/5 dark:bg-ink-dark/5 rounded-full border border-ink-light/5 dark:border-ink-dark/5">
+                      <Users className="w-2 h-2 text-ink-light/30 dark:text-ink-dark/30" />
+                      <span className="text-[8px] font-bold text-ink-light/40 dark:text-ink-dark/40">{table.seats || 4}</span>
+                    </div>
+                  )}
+                  {isOccupied && customer && (
+                    <span className="text-[10px] font-bold text-burgundy dark:text-burgundy-light truncate max-w-full">
+                      {customer.name}
+                    </span>
+                  )}
+                  {isLayoutMode && (
+                    <div className="absolute top-0 left-0 right-0 bottom-0 bg-black/5 flex flex-col items-center justify-center gap-1 rounded-2xl">
+                      <div className="flex gap-1">
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            updateTableLayout(currentUser.id, table.number, { isRoom: !table.isRoom });
+                          }}
+                          className={`p-1 rounded-md shadow-md text-white transition-colors ${table.isRoom ? 'bg-burgundy' : 'bg-ink-light/40'}`}
+                          title="룸/테이블 전환"
+                        >
+                          <Square className="w-3 h-3" />
+                        </button>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const newSeats = (table.seats || 4) + 1;
+                            updateTableLayout(currentUser.id, table.number, { seats: newSeats > 20 ? 1 : newSeats });
+                          }}
+                          className="p-1 bg-ink-light/40 rounded-md shadow-md text-white hover:bg-ink-light/60 transition-colors"
+                          title="좌석 수 조절"
+                        >
+                          <Plus className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            
+            {isLayoutMode && (
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-ink-light text-hanji-light px-6 py-3 rounded-full text-xs font-bold shadow-xl animate-pulse flex items-center gap-2">
+                <Move className="w-4 h-4" /> 테이블을 끌어서 위치를 옮기세요
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -244,10 +368,13 @@ export default function OwnerDashboard() {
             </button>
 
             <h2 className="text-2xl font-serif font-bold text-ink-light dark:text-ink-dark mb-6 flex items-center">
-              <span className="bg-burgundy text-hanji-light w-8 h-8 rounded-full flex items-center justify-center text-sm mr-3 shadow-sm">
+              <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm mr-3 shadow-sm ${activeTable?.isRoom ? 'bg-espresso' : 'bg-burgundy'} text-hanji-light`}>
                 {selectedTable}
               </span>
-              테이블 정보
+              {activeTable?.isRoom ? '룸' : '테이블'} 정보
+              <span className="ml-auto text-xs font-bold text-ink-light/30 dark:text-ink-dark/30 bg-ink-light/5 px-3 py-1 rounded-full border border-ink-light/5 flex items-center gap-1">
+                <Users className="w-3 h-3" /> {activeTable?.seats || 4}인석
+              </span>
             </h2>
 
             {activeCustomer ? (
@@ -261,8 +388,8 @@ export default function OwnerDashboard() {
                           <h3 className="text-2xl font-serif font-bold text-ink-light dark:text-ink-dark">{activeCustomer.name}님</h3>
                           <p className="text-ink-light/60 dark:text-ink-dark/60 text-sm mt-1">{activeCustomer.phone}</p>
                         </div>
-                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${getTierColor(stats.tier)} border`}>
-                          {stats.tier}
+                        <span className={`px-4 py-1.5 rounded-full text-xs font-bold border transition-all ${getTierColor(stats.tier)}`}>
+                          {getTierCustomName(stats.tier, currentUser?.tierNames)}
                         </span>
                       </div>
                       

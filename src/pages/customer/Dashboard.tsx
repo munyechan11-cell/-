@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useStore, getEffectiveTier, getTierColor, getNextTierVisits } from '../../store';
+import { useStore, getEffectiveTier, getTierColor, getNextTierVisits, getTierCustomName } from '../../store';
 import { LogOut, Ticket, Award, Calendar, X, ArrowLeft, LogOut as LeaveIcon, MessageSquare, Bell, Edit3, Send, Loader2 } from 'lucide-react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import MemoModal, { formatMemoDisplay } from '../../components/MemoModal';
@@ -163,7 +163,7 @@ export default function CustomerDashboard() {
             <p className="text-xs font-medium text-ink-light/50 dark:text-ink-dark/50 mt-1">보유 쿠폰</p>
           </div>
           <div className="text-center">
-            <p className="text-2xl font-bold text-burgundy dark:text-burgundy-light">{currentTier}</p>
+            <p className="text-2xl font-bold text-burgundy dark:text-burgundy-light">{getTierCustomName(currentTier, owner?.tierNames)}</p>
             <p className="text-xs font-medium text-ink-light/50 dark:text-ink-dark/50 mt-1">현재 등급</p>
           </div>
         </div>
@@ -212,7 +212,7 @@ export default function CustomerDashboard() {
               currentTier === '실버' ? 'bg-ink-light/5 text-ink-light dark:bg-ink-dark/10 dark:text-ink-dark' :
               'bg-olive/10 text-olive dark:bg-olive/20 dark:text-olive-light'
             }`}>
-              {currentTier}
+              {getTierCustomName(currentTier, owner?.tierNames)}
             </span>
           </div>
           

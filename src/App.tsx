@@ -13,6 +13,7 @@ const OwnerLogin = lazy(() => import('./pages/owner/Login'));
 const OwnerDashboard = lazy(() => import('./pages/owner/Dashboard'));
 const OwnerCustomers = lazy(() => import('./pages/owner/Customers'));
 const OwnerStatistics = lazy(() => import('./pages/owner/Statistics'));
+const BrandSettings = lazy(() => import('./pages/owner/BrandSettings'));
 const Home = lazy(() => import('./pages/Home'));
 const Master = lazy(() => import('./pages/Master'));
 
@@ -228,6 +229,11 @@ export default function App() {
                 <Route path="/owner" element={
                   <PrivateRoute role="owner">
                     <OwnerDashboard />
+                  </PrivateRoute>
+                } />
+                <Route path="/owner/brand" element={
+                  <PrivateRoute role="owner">
+                    <BrandSettings />
                   </PrivateRoute>
                 } />
                 <Route path="/owner/customers" element={
