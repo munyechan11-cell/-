@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
-import { useStore, getEffectiveTier, getTierColor } from '../../store';
-import { Users, LayoutGrid, LogOut, X, Check, Bell, BarChart3, Download, Copy, Settings, Map as MapIcon, List, Move, Maximize2, Square } from 'lucide-react';
+import { useStore, getEffectiveTier, getTierColor, getTierCustomName } from '../../store';
+import { Users, LayoutGrid, LogOut, X, Check, Bell, BarChart3, Download, Copy, Settings, Map as MapIcon, List, Move, Maximize2, Square, Plus, Minus, Trash2, DoorOpen } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { formatMemoDisplay } from '../../components/MemoModal';
 
 export default function OwnerDashboard() {
-  const { currentUser, tables, users, visits, coupons, logout, leaveTable, initTables, tierOverrides, approveCouponUse, rejectCouponUse, updateTableLayout } = useStore();
+  const { currentUser, tables, users, visits, coupons, logout, leaveTable, initTables, tierOverrides, approveCouponUse, rejectCouponUse, updateTableLayout, addTable, deleteTable } = useStore();
   const navigate = useNavigate();
   const [selectedTable, setSelectedTable] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'map'>('grid');
@@ -176,6 +176,14 @@ export default function OwnerDashboard() {
           <div className="text-center py-12 bg-white dark:bg-black/20 rounded-[2rem] shadow-sm border border-ink-light/10 dark:border-ink-dark/10 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <p className="text-ink-light/50 dark:text-ink-dark/50 mb-2">테이블 정보가 없습니다.</p>
             <p className="text-sm text-ink-light/40 dark:text-ink-dark/40">새로고침하거나 다시 로그인해주세요.</p>
+            {isLayoutMode && (
+              <button 
+                onClick={() => addTable(currentUser.id)}
+                className="mt-4 px-6 py-2 bg-burgundy text-white rounded-xl font-bold flex items-center mx-auto"
+              >
+                <Plus className="w-4 h-4 mr-2" /> 첫 테이블 추가
+              </button>
+            )}
           </div>
         ) : viewMode === 'grid' ? (
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4">
@@ -209,95 +217,141 @@ export default function OwnerDashboard() {
             })}
           </div>
         ) : (
-          <div className="relative w-full aspect-[4/3] bg-white/50 dark:bg-black/10 rounded-[3rem] border-2 border-dashed border-ink-light/10 dark:border-ink-dark/10 overflow-hidden shadow-inner">
-            <div className="absolute inset-0 bg-[radial-gradient(#888_1px,transparent_1px)] [background-size:20px_20px] opacity-10"></div>
-            {myTables.map((table) => {
-              const isOccupied = table.currentCustomerId !== null;
-              const customer = isOccupied ? users.find(u => u.id === table.currentCustomerId) : null;
-              
-              return (
-                <div
-                  key={table.number}
-                  draggable={isLayoutMode}
-                  onDragStart={(e) => {
-                    e.dataTransfer.setData('tableNumber', table.number.toString());
-                    setDraggedTable(table.number);
-                  }}
-                  onDragEnd={() => setDraggedTable(null)}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    if (!isLayoutMode) return;
-                    const rect = e.currentTarget.parentElement?.getBoundingClientRect();
-                    if (rect && draggedTable !== null) {
-                      const x = Math.max(0, Math.min(rect.width - 80, e.clientX - rect.left - 40));
-                      const y = Math.max(0, Math.min(rect.height - 80, e.clientY - rect.top - 40));
-                      updateTableLayout(currentUser.id, draggedTable, { x, y });
-                    }
-                  }}
-                  onClick={() => !isLayoutMode && setSelectedTable(table.number)}
-                  className={`absolute rounded-2xl flex flex-col items-center justify-center p-2 shadow-lg border transition-all cursor-pointer group ${
-                    table.isRoom ? 'scale-110 !rounded-[2rem] border-dashed border-2' : ''
-                  } ${
-                    isOccupied 
-                      ? 'bg-burgundy/20 dark:bg-burgundy/30 border-burgundy/50' 
-                      : 'bg-white dark:bg-black/40 border-ink-light/20 dark:border-ink-dark/20'
-                  } ${isLayoutMode ? 'ring-2 ring-burgundy ring-offset-2 animate-bounce' : ''}`}
-                  style={{ 
-                    left: `${(table.x / 400) * 100}%`, 
-                    top: `${(table.y / 300) * 100}%`,
-                    width: '18%', 
-                    height: '24%',
-                  }}
-                >
-                  <span className={`text-base font-black ${isOccupied ? 'text-burgundy dark:text-burgundy-light' : 'text-ink-light/50 dark:text-ink-dark/50'}`}>
-                    {table.number}
-                  </span>
-                  {!isOccupied && (
-                    <div className="flex items-center gap-0.5 mt-0.5 px-1.5 py-0.5 bg-ink-light/5 dark:bg-ink-dark/5 rounded-full border border-ink-light/5 dark:border-ink-dark/5">
-                      <Users className="w-2 h-2 text-ink-light/30 dark:text-ink-dark/30" />
-                      <span className="text-[8px] font-bold text-ink-light/40 dark:text-ink-dark/40">{table.seats || 4}</span>
-                    </div>
-                  )}
-                  {isOccupied && customer && (
-                    <span className="text-[10px] font-bold text-burgundy dark:text-burgundy-light truncate max-w-full">
-                      {customer.name}
-                    </span>
-                  )}
-                  {isLayoutMode && (
-                    <div className="absolute top-0 left-0 right-0 bottom-0 bg-black/5 flex flex-col items-center justify-center gap-1 rounded-2xl">
-                      <div className="flex gap-1">
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            updateTableLayout(currentUser.id, table.number, { isRoom: !table.isRoom });
-                          }}
-                          className={`p-1 rounded-md shadow-md text-white transition-colors ${table.isRoom ? 'bg-burgundy' : 'bg-ink-light/40'}`}
-                          title="룸/테이블 전환"
-                        >
-                          <Square className="w-3 h-3" />
-                        </button>
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const newSeats = (table.seats || 4) + 1;
-                            updateTableLayout(currentUser.id, table.number, { seats: newSeats > 20 ? 1 : newSeats });
-                          }}
-                          className="p-1 bg-ink-light/40 rounded-md shadow-md text-white hover:bg-ink-light/60 transition-colors"
-                          title="좌석 수 조절"
-                        >
-                          <Plus className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </div>
-                  )}
+          <div className="relative w-full aspect-[4/3] bg-white/50 dark:bg-black/10 rounded-[3rem] border-2 border-dashed border-ink-light/10 dark:border-ink-dark/10 overflow-auto shadow-inner no-scrollbar p-1">
+            {/* Toolbar */}
+            {isLayoutMode && (
+              <div className="sticky top-4 left-4 right-4 z-50 flex gap-2 justify-center pointer-events-none">
+                <div className="bg-white dark:bg-black/60 backdrop-blur-md p-2 rounded-2xl shadow-xl flex gap-2 border border-ink-light/10 dark:border-ink-dark/10 pointer-events-auto">
+                  <button 
+                    onClick={() => addTable(currentUser.id, 'table')}
+                    className="flex flex-col items-center gap-1 p-2 hover:bg-ink-light/5 dark:hover:bg-ink-dark/10 rounded-xl transition-colors"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-burgundy/10 flex items-center justify-center text-burgundy"><Plus className="w-5 h-5" /></div>
+                    <span className="text-[10px] font-bold">테이블</span>
+                  </button>
+                  <button 
+                    onClick={() => addTable(currentUser.id, 'room')}
+                    className="flex flex-col items-center gap-1 p-2 hover:bg-ink-light/5 dark:hover:bg-ink-dark/10 rounded-xl transition-colors"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-espresso/10 flex items-center justify-center text-espresso"><Square className="w-5 h-5" /></div>
+                    <span className="text-[10px] font-bold">룸 Area</span>
+                  </button>
+                  <button 
+                    onClick={() => addTable(currentUser.id, 'corridor')}
+                    className="flex flex-col items-center gap-1 p-2 hover:bg-ink-light/5 dark:hover:bg-ink-dark/10 rounded-xl transition-colors"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-olive/10 flex items-center justify-center text-olive"><Move className="w-5 h-5" /></div>
+                    <span className="text-[10px] font-bold">복도</span>
+                  </button>
                 </div>
-              );
-            })}
+              </div>
+            )}
+
+            <div className="min-w-[800px] min-h-[600px] relative">
+              <div className="absolute inset-0 bg-[radial-gradient(#888_1px,transparent_1px)] [background-size:20px_20px] opacity-10"></div>
+              {myTables.map((table) => {
+                const isOccupied = table.currentCustomerId !== null;
+                const customer = isOccupied ? users.find(u => u.id === table.currentCustomerId) : null;
+                const isCorridor = table.type === 'corridor';
+                
+                return (
+                  <div
+                    key={table.number}
+                    draggable={isLayoutMode}
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData('tableNumber', table.number.toString());
+                      setDraggedTable(table.number);
+                    }}
+                    onDragEnd={() => setDraggedTable(null)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (!isLayoutMode) return;
+                      const rect = e.currentTarget.parentElement?.getBoundingClientRect();
+                      if (rect && draggedTable !== null) {
+                        const x = Math.max(0, Math.min(rect.width - (table.width || 70), e.clientX - rect.left - (table.width || 70) / 2));
+                        const y = Math.max(0, Math.min(rect.height - (table.height || 70), e.clientY - rect.top - (table.height || 70) / 2));
+                        updateTableLayout(currentUser.id, draggedTable, { x, y });
+                      }
+                    }}
+                    onClick={() => !isLayoutMode && !isCorridor && setSelectedTable(table.number)}
+                    className={`absolute rounded-2xl flex flex-col items-center justify-center p-2 shadow-lg border transition-all cursor-pointer group ${
+                      table.isRoom ? 'scale-110 !rounded-[2rem] border-dashed border-2' : ''
+                    } ${
+                      isCorridor ? 'bg-ink-light/5 dark:bg-ink-dark/5 border-ink-light/10 dark:border-ink-dark/10 shadow-none' :
+                      isOccupied 
+                        ? 'bg-burgundy/20 dark:bg-burgundy/30 border-burgundy/50' 
+                        : 'bg-white dark:bg-black/40 border-ink-light/20 dark:border-ink-dark/20'
+                    } ${isLayoutMode ? 'ring-2 ring-burgundy ring-offset-2 animate-bounce' : ''}`}
+                    style={{ 
+                      left: `${table.x}px`, 
+                      top: `${table.y}px`,
+                      width: `${table.width || 80}px`, 
+                      height: `${table.height || 80}px`,
+                    }}
+                  >
+                    {!isCorridor && (
+                      <span className={`text-base font-black ${isOccupied ? 'text-burgundy dark:text-burgundy-light' : 'text-ink-light/50 dark:text-ink-dark/50'}`}>
+                        {table.number}
+                      </span>
+                    )}
+                    {!isOccupied && !isCorridor && (
+                      <div className="flex items-center gap-0.5 mt-0.5 px-1.5 py-0.5 bg-ink-light/5 dark:bg-ink-dark/5 rounded-full border border-ink-light/5 dark:border-ink-dark/5">
+                        <Users className="w-2 h-2 text-ink-light/30 dark:text-ink-dark/30" />
+                        <span className="text-[8px] font-bold text-ink-light/40 dark:text-ink-dark/40">{table.seats || 4}</span>
+                      </div>
+                    )}
+                    {isOccupied && customer && (
+                      <span className="text-[10px] font-bold text-burgundy dark:text-burgundy-light truncate max-w-full">
+                        {customer.name}
+                      </span>
+                    )}
+                    {isLayoutMode && (
+                      <div className="absolute top-0 left-0 right-0 bottom-0 bg-black/5 flex flex-col items-center justify-center gap-1 rounded-2xl pointer-events-none">
+                        <div className="flex gap-1 pointer-events-auto">
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              updateTableLayout(currentUser.id, table.number, { width: Math.min((table.width || 80) + 15, 200), height: Math.min((table.height || 80) + 15, 200) });
+                            }}
+                            className="p-1 bg-white rounded-md shadow-md text-ink-light hover:bg-burgundy hover:text-white transition-colors"
+                            title="크기 키우기"
+                          >
+                            <Plus className="w-3 h-3" />
+                          </button>
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              updateTableLayout(currentUser.id, table.number, { width: Math.max((table.width || 80) - 15, 50), height: Math.max((table.height || 80) - 15, 50) });
+                            }}
+                            className="p-1 bg-white rounded-md shadow-md text-ink-light hover:bg-burgundy hover:text-white transition-colors"
+                            title="크기 줄이기"
+                          >
+                            <Minus className="w-3 h-3" />
+                          </button>
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if(confirm('삭제하시겠습니까?')) {
+                                deleteTable(currentUser.id, table.number);
+                              }
+                            }}
+                            className="p-1 bg-white rounded-md shadow-md text-red-500 hover:bg-red-500 hover:text-white transition-all transform hover:scale-125"
+                            title="삭제"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
             
             {isLayoutMode && (
-              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-ink-light text-hanji-light px-6 py-3 rounded-full text-xs font-bold shadow-xl animate-pulse flex items-center gap-2">
-                <Move className="w-4 h-4" /> 테이블을 끌어서 위치를 옮기세요
+              <div className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-ink-light text-hanji-light px-6 py-3 rounded-full text-xs font-bold shadow-xl animate-pulse flex items-center gap-2 z-50">
+                <Move className="w-4 h-4" /> 테이블을 끌어서 위치를 옮기거나 버튼으로 관리하세요
               </div>
             )}
           </div>

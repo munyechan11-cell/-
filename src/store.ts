@@ -57,6 +57,7 @@ export interface Table {
   height?: number;
   seats: number;
   isRoom?: boolean;
+  type?: 'table' | 'room' | 'corridor';
 }
 
 export interface Communication {
@@ -452,6 +453,24 @@ export const useStore = () => {
     await updateFirestoreDoc('tables', tableId, layout);
   };
 
+  const addTable = async (storeId: string, type: 'table' | 'room' | 'corridor' = 'table') => {
+    const storeTables = globalState.tables.filter((t: any) => t.storeId === storeId);
+    const nextNum = storeTables.length > 0 ? Math.max(...storeTables.map((t: any) => t.number)) + 1 : 1;
+    const tableId = `${storeId}_${nextNum}`;
+    const newTable = { 
+      number: nextNum, storeId, currentCustomerId: null, sessionStartTime: null,
+      x: 100, y: 100, width: 70, height: 70, isRoom: type === 'room', type, seats: type === 'table' ? 4 : 0
+    };
+    await updateFirestoreDoc('tables', tableId, newTable);
+    showToast(`${type === 'corridor' ? '복도' : '테이블'}가 추가되었습니다.`, 'success');
+  };
+
+  const deleteTable = async (storeId: string, tableNumber: number) => {
+    const tableId = `${storeId}_${tableNumber}`;
+    await updateFirestoreDoc('tables', tableId, null, true);
+    showToast(`${tableNumber}번 테이블이 삭제되었습니다.`, 'info');
+  };
+
   const updateBrandSettings = async (storeId: string, settings: { tierNames?: Record<string, string>, tierRewards?: Record<string, string> }) => {
     await updateFirestoreDoc('users', storeId, settings);
   };
@@ -523,7 +542,7 @@ export const useStore = () => {
     requestCouponUse, cancelCouponRequest, approveCouponUse, rejectCouponUse, 
     initTables, setCustomerTier, setMasterPassword, deleteUser, updateUserMemo, 
     recordCommunication, bulkIssueCoupon, bulkRecordCommunication,
-    updateTableLayout, updateBrandSettings
+    updateTableLayout, updateBrandSettings, addTable, deleteTable
   };
 };
 
