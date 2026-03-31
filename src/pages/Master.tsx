@@ -1,7 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { useStore, getEffectiveTier, getTierColor, showToast } from '../store';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Store, Users, Ticket, Calendar, Lock, KeyRound, Trash2, ChevronDown, ChevronUp, Search } from 'lucide-react';
+import { 
+  ArrowLeft, Store, Users, Ticket, Calendar, Lock, KeyRound, Trash2, 
+  ChevronRight, Search, Bell, Settings, HelpCircle, LogOut, CheckCircle2,
+  LayoutDashboard, CreditCard, History, ShieldCheck, X
+} from 'lucide-react';
 
 export default function Master() {
   const { users, visits, coupons, tierOverrides, masterPassword, setMasterPassword, deleteUser } = useStore();
@@ -44,42 +48,53 @@ export default function Master() {
 
   if (!isAuthenticated) {
     return (
-      <div className="flex-1 bg-hanji-light dark:bg-hanji-dark flex flex-col items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white dark:bg-black/20 rounded-3xl shadow-sm border border-ink-light/10 dark:border-ink-dark/10 overflow-hidden p-8 text-center relative">
+      <div className="min-h-screen bg-hanji-light flex items-center justify-center p-4 hanji-texture relative overflow-hidden">
+        <div className="lattice-overlay absolute inset-0 pointer-events-none opacity-5"></div>
+        <div className="max-w-md w-full bg-white/80 backdrop-blur-xl rounded-[2.5rem] shadow-2xl border border-primary/10 overflow-hidden p-10 text-center relative z-10 transition-all duration-700 animate-in fade-in zoom-in-95">
           <Link 
             to="/" 
-            className="absolute top-4 left-4 p-2 hover:bg-ink-light/5 dark:hover:bg-ink-dark/10 rounded-full text-ink-light/60 dark:text-ink-dark/60 transition-colors z-10"
+            className="absolute top-6 left-6 p-2 hover:bg-primary/5 rounded-full text-primary/40 transition-all"
           >
-            <ArrowLeft className="w-6 h-6" />
+            <ArrowLeft className="w-5 h-5" />
           </Link>
-          <div className="w-20 h-20 rounded-full bg-burgundy/10 dark:bg-burgundy/20 flex items-center justify-center mx-auto mb-4 mt-4">
-            <Lock className="w-10 h-10 text-burgundy dark:text-burgundy-light" />
+          <div className="w-24 h-24 rounded-3xl bg-primary/5 flex items-center justify-center mx-auto mb-6 rotate-3 transform-gpu transition-transform hover:rotate-0">
+            <Lock className="w-12 h-12 text-primary" strokeWidth={1.5} />
           </div>
-          <h2 className="text-2xl font-serif font-bold mb-2 tracking-tight text-ink-light dark:text-ink-dark">마스터 인증</h2>
-          <p className="text-ink-light/60 dark:text-ink-dark/60 mb-8 text-sm font-medium">관리자 페이지에 접근하려면<br/>비밀번호를 입력해주세요.</p>
+          <h2 className="text-3xl font-serif font-black mb-2 tracking-tighter text-primary">마스터 관리자</h2>
+          <p className="text-primary/40 mb-10 text-sm font-medium leading-relaxed tracking-tight">전용 관리 페이지입니다.<br/>비밀번호를 입력하여 입장하세요.</p>
 
-          <form onSubmit={handleLogin} className="space-y-6">
-            <div>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div className="relative group">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-primary/20 group-focus-within:text-primary transition-colors">
+                <KeyRound className="w-5 h-5" />
+              </span>
               <input
                 type="password"
                 value={passwordInput}
                 onChange={(e) => setPasswordInput(e.target.value)}
                 placeholder="비밀번호 입력"
-                className="w-full bg-white dark:bg-black/20 border border-ink-light/10 dark:border-ink-dark/10 rounded-xl px-5 py-4 text-center text-lg font-bold text-ink-light dark:text-ink-dark placeholder-ink-light/30 dark:placeholder-ink-dark/30 focus:outline-none focus:border-burgundy focus:ring-2 focus:ring-burgundy/20 transition-all"
+                className="w-full bg-primary/5 border border-primary/5 rounded-2xl pl-12 pr-5 py-4 text-center text-xl font-black text-primary placeholder-primary/20 focus:outline-none focus:bg-white focus:border-primary/20 focus:ring-4 focus:ring-primary/5 transition-all"
+                autoFocus
               />
             </div>
 
             {error && (
-              <p className="text-red-600 dark:text-red-400 text-sm font-bold bg-red-50 dark:bg-red-900/20 py-2 rounded-xl border border-red-100 dark:border-red-900/30">{error}</p>
+              <p className="text-red-500 text-xs font-black bg-red-50 py-3 rounded-xl border border-red-100 flex items-center justify-center animate-shake">
+                <X className="w-3 h-3 mr-1" /> {error}
+              </p>
             )}
 
             <button
               type="submit"
-              className="w-full bg-burgundy hover:bg-burgundy/90 text-hanji-light font-bold py-4 rounded-xl transition-colors text-lg shadow-sm"
+              className="w-full bg-primary hover:bg-primary/90 text-white font-black py-4 rounded-2xl transition-all text-sm uppercase tracking-[0.2em] shadow-xl shadow-primary/20 active:scale-98"
             >
-              인증하기
+              Enter Dashboard
             </button>
           </form>
+          
+          <div className="mt-8 pt-8 border-t border-primary/5">
+            <p className="text-[10px] font-black text-primary/20 uppercase tracking-[0.3em]">Refining heritage through digital precision</p>
+          </div>
         </div>
       </div>
     );
@@ -91,324 +106,384 @@ export default function Master() {
   const getOwnerStats = (ownerId: string) => {
     const ownerVisits = visits.filter(v => v.storeId === ownerId);
     const ownerCoupons = coupons.filter(c => c.storeId === ownerId);
-    const usedCoupons = ownerCoupons.filter(c => c.status === 'used');
-    
-    // Unique customers
-    const uniqueCustomers = new Set(ownerVisits.map(v => v.customerId)).size;
-
     return {
       totalVisits: ownerVisits.length,
       totalCoupons: ownerCoupons.length,
-      usedCoupons: usedCoupons.length,
-      uniqueCustomers
+      uniqueCustomers: new Set(ownerVisits.map(v => v.customerId)).size,
+      revenue: ownerVisits.length * 15000 // Mock revenue logic
     };
   };
 
   const filteredOwners = owners.filter(o => 
-    (o.restaurantName || '').includes(searchTerm) || 
-    (o.name || '').includes(searchTerm) || 
-    (o.phone || '').includes(searchTerm) ||
-    o.id.includes(searchTerm)
+    (o.restaurantName || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+    (o.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+    (o.phone || '').includes(searchTerm)
   );
 
   const filteredCustomersList = customersList.filter(c => 
-    (c.name || '').includes(searchTerm) || 
-    (c.phone || '').includes(searchTerm) ||
-    c.id.includes(searchTerm)
+    (c.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+    (c.phone || '').includes(searchTerm)
   );
 
   return (
-    <div className="flex-1 bg-hanji-light dark:bg-hanji-dark pb-20">
-      {/* Header */}
-      <div className="bg-white/80 dark:bg-black/20 backdrop-blur-md text-ink-light dark:text-ink-dark p-6 pt-8 border-b border-ink-light/10 dark:border-ink-dark/10 flex items-center justify-between sticky top-0 z-20">
-        <div className="flex items-center">
-          <Link to="/" className="p-2 bg-white dark:bg-black/20 rounded-full hover:bg-ink-light/5 dark:hover:bg-ink-dark/10 shadow-sm border border-ink-light/10 dark:border-ink-dark/10 transition-colors mr-4">
-            <ArrowLeft className="w-5 h-5 text-ink-light/70 dark:text-ink-dark/70" />
-          </Link>
-          <div>
-            <h1 className="text-2xl font-serif font-bold tracking-tight">마스터 관리자</h1>
-            <p className="text-ink-light/60 dark:text-ink-dark/60 text-sm mt-1 font-medium">등록된 전체 사장님 현황</p>
+    <div className="flex h-screen overflow-hidden bg-surface-bright font-sans text-on-surface hanji-texture relative">
+      <div className="lattice-overlay absolute inset-0 pointer-events-none opacity-5"></div>
+      
+      {/* SideNavBar */}
+      <aside className="h-screen w-64 border-r border-primary/5 bg-primary shadow-2xl flex flex-col py-8 z-50">
+        <div className="px-8 mb-12">
+          <h1 className="text-surface-bright font-serif italic text-3xl tracking-tighter">결 (Gyeol)</h1>
+          <div className="mt-8 flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-xl bg-primary-container flex items-center justify-center border border-white/10 rotate-3">
+              <ShieldCheck className="text-white w-6 h-6" strokeWidth={1.5} />
+            </div>
+            <div>
+              <p className="text-white font-serif italic text-sm">Master Admin</p>
+              <p className="font-black uppercase tracking-widest text-[9px] text-white/40">Palace Oversight</p>
+            </div>
           </div>
         </div>
-        <button 
-          onClick={() => setIsChangingPassword(!isChangingPassword)}
-          className="p-2 bg-white dark:bg-black/20 rounded-full hover:bg-ink-light/5 dark:hover:bg-ink-dark/10 shadow-sm border border-ink-light/10 dark:border-ink-dark/10 transition-colors"
-          title="비밀번호 변경"
-        >
-          <KeyRound className="w-5 h-5 text-ink-light/70 dark:text-ink-dark/70" />
-        </button>
-      </div>
+        
+        <nav className="flex-1 space-y-1">
+          <button 
+            onClick={() => setActiveTab('owners')}
+            className={`w-full flex items-center space-x-4 px-8 py-3.5 transition-all duration-300 group ${activeTab === 'owners' ? 'bg-primary-container text-white border-l-4 border-white' : 'text-white/60 hover:text-white hover:bg-white/5'}`}
+          >
+            <LayoutDashboard className="w-5 h-5" />
+            <span className="font-black uppercase tracking-widest text-[10px]">Governance</span>
+          </button>
+          
+          <button 
+            onClick={() => setActiveTab('customers')}
+            className={`w-full flex items-center space-x-4 px-8 py-3.5 transition-all duration-300 group ${activeTab === 'customers' ? 'bg-primary-container text-white border-l-4 border-white' : 'text-white/60 hover:text-white hover:bg-white/5'}`}
+          >
+            <Users className="w-5 h-5" />
+            <span className="font-black uppercase tracking-widest text-[10px]">Craftsmen</span>
+          </button>
+          
+          <button className="w-full flex items-center space-x-4 px-8 py-3.5 text-white/40 cursor-not-allowed">
+            <History className="w-5 h-5" />
+            <span className="font-black uppercase tracking-widest text-[10px]">Archive</span>
+          </button>
+        </nav>
+        
+        <div className="px-8 mt-auto pt-8 space-y-4 border-t border-white/5">
+          <button className="w-full py-3.5 bg-surface-bright text-primary rounded-xl font-black uppercase tracking-[0.2em] text-[10px] shadow-lg hover:scale-102 transition-all">
+            System Reset
+          </button>
+          <div className="flex flex-col space-y-3">
+            <button className="flex items-center space-x-4 text-white/40 hover:text-white text-[10px] uppercase tracking-widest transition-colors font-bold">
+              <HelpCircle className="w-4 h-4" />
+              <span>Support</span>
+            </button>
+            <button onClick={() => setIsAuthenticated(false)} className="flex items-center space-x-4 text-white/40 hover:text-white text-[10px] uppercase tracking-widest transition-colors font-bold">
+              <LogOut className="w-4 h-4" />
+              <span>Exit Admin</span>
+            </button>
+          </div>
+        </div>
+      </aside>
 
-      <div className="p-6">
-        {isChangingPassword && (
-          <div className="bg-white dark:bg-black/20 rounded-3xl p-5 shadow-sm border border-burgundy/20 dark:border-burgundy-light/20 mb-8 animate-in fade-in slide-in-from-top-4">
-            <h3 className="font-serif font-bold text-ink-light dark:text-ink-dark mb-4 flex items-center">
-              <KeyRound className="w-5 h-5 mr-2 text-burgundy dark:text-burgundy-light" />
-              비밀번호 변경
-            </h3>
-            <form onSubmit={handleChangePassword} className="space-y-4">
-              <input
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="새 비밀번호 입력"
-                className="w-full bg-white dark:bg-black/20 border border-ink-light/10 dark:border-ink-dark/10 rounded-xl px-4 py-3 text-ink-light dark:text-ink-dark placeholder:text-ink-light/30 dark:placeholder:text-ink-dark/30 focus:outline-none focus:border-burgundy focus:ring-2 focus:ring-burgundy/20 transition-all"
+      {/* Main Content */}
+      <main className="flex-1 flex flex-col h-screen overflow-hidden overflow-y-auto bg-surface-bright/50 backdrop-blur-sm">
+        {/* Header */}
+        <header className="bg-white/80 backdrop-blur-md sticky top-0 z-40 flex justify-between items-center w-full px-10 py-5 border-b border-primary/5">
+          <div className="flex items-center space-x-12">
+            <div className="font-serif text-2xl font-black text-primary tracking-tighter">결 Governance</div>
+            <nav className="hidden md:flex space-x-8">
+              <a href="#" className="font-serif text-sm tracking-widest text-primary border-b-2 border-primary pb-1">CENTRAL</a>
+              <a href="#" className="font-serif text-sm tracking-widest text-primary/40 hover:text-primary transition-colors">INSIGHTS</a>
+            </nav>
+          </div>
+          
+          <div className="flex items-center space-x-6">
+            <div className="relative group">
+              <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-primary/20 group-focus-within:text-primary transition-colors">
+                <Search className="w-4 h-4" />
+              </span>
+              <input 
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="가맹점 또는 손님 검색..." 
+                className="bg-primary/5 border-none rounded-full pl-10 pr-5 py-2 text-xs focus:ring-1 focus:ring-primary w-64 transition-all font-bold placeholder:text-primary/20"
               />
-              {error && (
-                <p className="text-red-600 dark:text-red-400 text-sm font-bold">{error}</p>
-              )}
-              <div className="flex space-x-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsChangingPassword(false);
-                    setError('');
-                    setNewPassword('');
-                  }}
-                  className="flex-1 bg-ink-light/5 dark:bg-ink-dark/10 hover:bg-ink-light/10 dark:hover:bg-ink-dark/20 text-ink-light/80 dark:text-ink-dark/80 font-bold py-3 rounded-xl transition-colors"
-                >
-                  취소
+            </div>
+            <div className="flex items-center space-x-4">
+              <button className="text-primary/40 hover:text-primary transition-colors relative">
+                <Bell className="w-5 h-5" />
+                <span className="absolute top-0 right-0 w-2 h-2 bg-burgundy rounded-full border border-white"></span>
+              </button>
+              <button 
+                onClick={() => setIsChangingPassword(true)}
+                className="text-primary/40 hover:text-primary transition-colors"
+                title="보안 설정"
+              >
+                <Settings className="w-5 h-5" />
+              </button>
+              <div className="h-6 w-px bg-primary/10"></div>
+              <div className="w-8 h-8 rounded-full bg-primary-container text-white flex items-center justify-center text-[10px] font-black font-sans ring-2 ring-primary/5">M</div>
+            </div>
+          </div>
+        </header>
+
+        <div className="p-12 max-w-7xl w-full mx-auto space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
+          {/* Hero Section */}
+          <section className="flex justify-between items-end">
+            <div className="max-w-2xl space-y-4">
+              <span className="font-black uppercase tracking-[0.4em] text-[10px] text-primary/40 block">Empire Management</span>
+              <h2 className="font-serif text-6xl text-primary font-black leading-none tracking-tighter">
+                {activeTab === 'owners' ? 'Store Governance' : 'Citizen Records'}
+              </h2>
+              <p className="text-primary/60 text-lg leading-relaxed font-medium max-w-xl">
+                {activeTab === 'owners' 
+                  ? "가맹점 네트워크의 모든 정보를 한눈에 관리합니다. 각 상점의 운영 현황과 가치를 극대화하는 정밀한 관리를 시작하세요." 
+                  : "결의 모든 이용자 기록입니다. 개개인의 소중한 방문 데이터와 혜택 정보를 투명하게 확인하고 관리할 수 있습니다."}
+              </p>
+            </div>
+            <div className="flex space-x-4">
+              <div className="p-8 bg-white rounded-3xl shadow-sm border border-primary/5 text-right space-y-1 min-w-[160px]">
+                <p className="font-black uppercase tracking-widest text-[9px] text-primary/30">Total Active</p>
+                <p className="font-serif text-4xl text-primary font-black">
+                  {activeTab === 'owners' ? owners.length : customersList.length}
+                </p>
+              </div>
+              <div className="p-8 bg-white rounded-3xl shadow-sm border border-primary/5 text-right space-y-1 min-w-[160px]">
+                <p className="font-black uppercase tracking-widest text-[9px] text-primary/30">Net Flow</p>
+                <p className="font-serif text-4xl text-primary font-black">₩3.2B</p>
+              </div>
+            </div>
+          </section>
+
+          {/* Filters & Navigation */}
+          <section className="flex flex-wrap items-center gap-4 bg-primary/5 p-4 rounded-3xl border border-primary/5">
+            <div className="flex items-center space-x-3 px-5 py-2.5 bg-white rounded-2xl border border-primary/5 shadow-sm">
+              <span className="font-black text-[9px] text-primary/40 uppercase tracking-widest">Priority Index</span>
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+              <span className="text-xs font-black text-primary">Normal</span>
+            </div>
+            <div className="flex items-center space-x-3 px-5 py-2.5 bg-white rounded-2xl border border-primary/5 shadow-sm">
+              <span className="font-black text-[9px] text-primary/40 uppercase tracking-widest">View Mode</span>
+              <span className="text-xs font-black text-primary">High Fidelity</span>
+            </div>
+            
+            <div className="ml-auto flex items-center space-x-2">
+              <button className="p-2.5 text-primary/40 hover:text-primary transition-colors bg-white rounded-xl shadow-sm border border-primary/5">
+                <History className="w-4 h-4" />
+              </button>
+            </div>
+          </section>
+
+          {/* Data Table Area */}
+          <div className="bg-white rounded-[2.5rem] shadow-xl shadow-primary/5 overflow-hidden border border-primary/5">
+            {activeTab === 'owners' ? (
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-primary/5">
+                    <th className="px-10 py-6 font-black uppercase tracking-[0.2em] text-[10px] text-primary/40">Store Identity</th>
+                    <th className="px-10 py-6 font-black uppercase tracking-[0.2em] text-[10px] text-primary/40">Ownership</th>
+                    <th className="px-10 py-6 font-black uppercase tracking-[0.2em] text-[10px] text-primary/40">Status</th>
+                    <th className="px-10 py-6 font-black uppercase tracking-[0.2em] text-[10px] text-primary/40 text-right">Performance</th>
+                    <th className="px-10 py-6"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-primary/5">
+                  {filteredOwners.map((owner) => {
+                    const stats = getOwnerStats(owner.id);
+                    return (
+                      <tr key={owner.id} className="hover:bg-primary/[0.02] transition-colors group">
+                        <td className="px-10 py-8">
+                          <div className="flex items-center space-x-6">
+                            <div className="w-14 h-14 rounded-2xl overflow-hidden bg-primary/5 flex-shrink-0 flex items-center justify-center text-primary/20 group-hover:bg-primary group-hover:text-white transition-all duration-500">
+                              <Store className="w-7 h-7" strokeWidth={1} />
+                            </div>
+                            <div>
+                              <p className="font-serif text-xl text-primary font-black tracking-tight">{owner.restaurantName || 'Unnamed Atelier'}</p>
+                              <p className="text-[10px] font-black text-primary/40 uppercase tracking-widest mt-1">ID: {owner.id}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-10 py-8 text-sm">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                            <span className="font-bold text-primary">{owner.name} 사장님</span>
+                          </div>
+                        </td>
+                        <td className="px-10 py-8">
+                          <span className="px-4 py-1 bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase tracking-[0.1em] rounded-full border border-emerald-100">Operational</span>
+                        </td>
+                        <td className="px-10 py-8 text-right">
+                          <p className="font-serif text-xl text-primary font-black tracking-tight">₩{(stats.revenue/10000).toFixed(1)}M</p>
+                          <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-widest mt-1">Upward Flow</p>
+                        </td>
+                        <td className="px-10 py-8 text-right">
+                          <div className="flex justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button 
+                              onClick={() => handleDeleteUser(owner.id, 'owner', owner.name)}
+                              className="p-2.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            ) : (
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-primary/5">
+                    <th className="px-10 py-6 font-black uppercase tracking-[0.2em] text-[10px] text-primary/40">Citizen Record</th>
+                    <th className="px-10 py-6 font-black uppercase tracking-[0.2em] text-[10px] text-primary/40">Status</th>
+                    <th className="px-10 py-6 font-black uppercase tracking-[0.2em] text-[10px] text-primary/40">Affiliation</th>
+                    <th className="px-10 py-6 font-black uppercase tracking-[0.2em] text-[10px] text-primary/40 text-right">Engagement</th>
+                    <th className="px-10 py-6"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-primary/5">
+                  {filteredCustomersList.map((customer) => {
+                    const store = owners.find(o => o.id === customer.storeId);
+                    const customerVisits = visits.filter(v => v.customerId === customer.id);
+                    return (
+                      <tr key={customer.id} className="hover:bg-primary/[0.02] transition-colors group">
+                        <td className="px-10 py-8">
+                          <div className="flex items-center space-x-6">
+                            <div className="w-14 h-14 rounded-full overflow-hidden bg-primary/5 flex-shrink-0 flex items-center justify-center text-primary/20 group-hover:bg-primary group-hover:text-white transition-all duration-500">
+                              <Users className="w-7 h-7" strokeWidth={1} />
+                            </div>
+                            <div>
+                              <p className="font-serif text-xl text-primary font-black tracking-tight">{customer.name}</p>
+                              <p className="text-[10px] font-black text-primary/40 uppercase tracking-widest mt-1">{customer.phone}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-10 py-8">
+                          <span className="px-3 py-1 bg-primary/5 text-primary/60 text-[10px] font-black uppercase tracking-widest rounded-full border border-primary/10">Active</span>
+                        </td>
+                        <td className="px-10 py-8">
+                          <div className="flex items-center space-x-2">
+                             <div className="w-4 h-4 rounded bg-primary/10 flex items-center justify-center overflow-hidden">
+                                <Store className="w-2 h-2 text-primary" />
+                             </div>
+                             <span className="text-xs font-bold text-primary">{store?.restaurantName || 'Floating Guest'}</span>
+                          </div>
+                        </td>
+                        <td className="px-10 py-8 text-right">
+                          <p className="font-serif text-xl text-primary font-black tracking-tight tracking-tight">{customerVisits.length} Visits</p>
+                          <p className="text-[10px] text-primary/30 font-black uppercase tracking-widest mt-1">Loyalty Tier</p>
+                        </td>
+                        <td className="px-10 py-8 text-right">
+                          <div className="flex justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button 
+                              onClick={() => handleDeleteUser(customer.id, 'customer', customer.name)}
+                              className="p-2.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-xl transition-all"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+            
+            <div className="px-10 py-8 bg-primary/5 flex items-center justify-between border-t border-primary/5">
+              <p className="text-[9px] text-primary/30 font-black uppercase tracking-[0.3em] font-sans">Verification Check: Passed</p>
+              <div className="flex space-x-2">
+                <button className="w-10 h-10 flex items-center justify-center rounded-xl border border-primary/10 text-primary/20 hover:bg-white hover:text-primary transition-all">
+                  <ArrowLeft className="w-4 h-4" />
                 </button>
+                <button className="w-10 h-10 flex items-center justify-center rounded-xl bg-primary text-white text-xs font-black ring-4 ring-primary/10">1</button>
+                <button className="w-10 h-10 flex items-center justify-center rounded-xl border border-primary/10 text-primary/20 hover:bg-white hover:text-primary transition-all">
+                   <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <footer className="pt-20 pb-10 text-center flex flex-col items-center space-y-4">
+             <div className="w-12 h-px bg-primary/10"></div>
+             <p className="font-serif italic text-sm text-primary/20 italic">Refining heritage through digital precision.</p>
+          </footer>
+        </div>
+      </main>
+
+      {/* Security Settings Modal */}
+      {isChangingPassword && (
+        <div className="fixed inset-0 bg-primary/40 backdrop-blur-md z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-md p-10 shadow-3xl border border-primary/10 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16"></div>
+            <div className="relative z-10">
+              <div className="flex justify-between items-center mb-10">
+                <h3 className="text-2xl font-serif font-black text-primary tracking-tighter">Security Protocols</h3>
+                <button 
+                  onClick={() => { setIsChangingPassword(false); setNewPassword(''); setError(''); }}
+                  className="p-2 hover:bg-primary/5 rounded-full text-primary/20 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <form onSubmit={handleChangePassword} className="space-y-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-primary/40 uppercase tracking-[0.2em] ml-1">New Administrative Key</label>
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="최소 3자리 이상 입력"
+                    className="w-full bg-primary/5 border border-primary/5 rounded-2xl px-5 py-4 text-primary font-black placeholder:text-primary/10 focus:outline-none focus:bg-white focus:border-primary/20 transition-all"
+                  />
+                </div>
+                
+                {error && (
+                   <p className="text-red-500 text-[10px] font-black bg-red-50 py-2 rounded-lg text-center border border-red-100">{error}</p>
+                )}
+
                 <button
                   type="submit"
-                  className="flex-1 bg-burgundy hover:bg-burgundy/90 text-hanji-light font-bold py-3 rounded-xl transition-colors shadow-sm"
+                  className="w-full bg-primary text-white font-black py-4 rounded-2xl transition-all shadow-xl shadow-primary/20 hover:scale-102 uppercase tracking-widest text-xs"
                 >
-                  변경하기
+                  Authorize Changes
                 </button>
-              </div>
-            </form>
-          </div>
-        )}
-
-        <div className="grid grid-cols-2 gap-4 mb-8">
-          <div className="bg-white dark:bg-black/20 rounded-3xl p-5 shadow-sm border border-ink-light/10 dark:border-ink-dark/10">
-            <div className="flex items-center text-ink-light/60 dark:text-ink-dark/60 mb-2">
-              <Store className="w-5 h-5 mr-2 text-burgundy dark:text-burgundy-light" />
-              <span className="font-bold text-sm">총 가맹점</span>
+              </form>
             </div>
-            <p className="text-3xl font-bold text-ink-light dark:text-ink-dark">{owners.length}<span className="text-lg font-medium text-ink-light/50 dark:text-ink-dark/50 ml-1">곳</span></p>
-          </div>
-          <div className="bg-white dark:bg-black/20 rounded-3xl p-5 shadow-sm border border-ink-light/10 dark:border-ink-dark/10">
-            <div className="flex items-center text-ink-light/60 dark:text-ink-dark/60 mb-2">
-              <Users className="w-5 h-5 mr-2 text-burgundy dark:text-burgundy-light" />
-              <span className="font-bold text-sm">총 손님</span>
-            </div>
-            <p className="text-3xl font-bold text-ink-light dark:text-ink-dark">{customersList.length}<span className="text-lg font-medium text-ink-light/50 dark:text-ink-dark/50 ml-1">명</span></p>
           </div>
         </div>
+      )}
 
-        <div className="flex space-x-2 mb-4">
-          <button
-            onClick={() => { setActiveTab('owners'); setSearchTerm(''); }}
-            className={`flex-1 py-3 rounded-2xl font-bold transition-colors ${activeTab === 'owners' ? 'bg-ink-light dark:bg-ink-dark text-hanji-light dark:text-hanji-dark shadow-sm' : 'bg-white dark:bg-black/20 text-ink-light/60 dark:text-ink-dark/60 hover:text-ink-light/80 dark:hover:text-ink-dark/80 border border-ink-light/10 dark:border-ink-dark/10'}`}
-          >
-            가맹점 관리
-          </button>
-          <button
-            onClick={() => { setActiveTab('customers'); setSearchTerm(''); }}
-            className={`flex-1 py-3 rounded-2xl font-bold transition-colors ${activeTab === 'customers' ? 'bg-ink-light dark:bg-ink-dark text-hanji-light dark:text-hanji-dark shadow-sm' : 'bg-white dark:bg-black/20 text-ink-light/60 dark:text-ink-dark/60 hover:text-ink-light/80 dark:hover:text-ink-dark/80 border border-ink-light/10 dark:border-ink-dark/10'}`}
-          >
-            전체 손님 관리
-          </button>
-        </div>
-
-        <div className="relative mb-6">
-          <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-ink-light/40 dark:text-ink-dark/40 w-5 h-5" />
-          <input 
-            type="text" 
-            placeholder={activeTab === 'owners' ? "가맹점명, 사장님 이름, 연락처 검색" : "손님 이름, 연락처 검색"}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-white dark:bg-black/20 text-ink-light dark:text-ink-dark placeholder-ink-light/40 dark:placeholder-ink-dark/40 rounded-2xl py-3 pl-12 pr-4 border border-ink-light/10 dark:border-ink-dark/10 focus:border-burgundy focus:ring-2 focus:ring-burgundy/20 transition-all shadow-sm"
-          />
-        </div>
-
-        {activeTab === 'owners' ? (
-          <>
-            <h2 className="text-lg font-serif font-bold text-ink-light dark:text-ink-dark mb-4">가맹점 목록</h2>
-            
-            {filteredOwners.length === 0 ? (
-              <div className="bg-white dark:bg-black/20 rounded-3xl p-8 text-center shadow-sm border border-ink-light/10 dark:border-ink-dark/10">
-                <p className="text-ink-light/60 dark:text-ink-dark/60 font-medium">검색 결과나 등록된 사장님이 없습니다.</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {filteredOwners.map(owner => {
-                  const stats = getOwnerStats(owner.id);
-                  const isExpanded = expandedOwner === owner.id;
-                  const ownerCustomers = users.filter(u => u.role === 'customer' && u.storeId === owner.id);
-
-                  return (
-                    <div key={owner.id} className="bg-white dark:bg-black/20 rounded-3xl p-5 shadow-sm border border-ink-light/10 dark:border-ink-dark/10">
-                      <div className="flex justify-between items-start mb-4 border-b border-ink-light/10 dark:border-ink-dark/10 pb-4">
-                        <div>
-                          <h3 className="text-xl font-bold text-ink-light dark:text-ink-dark">{owner.restaurantName || '이름 없는 가게'}</h3>
-                          <p className="text-ink-light/60 dark:text-ink-dark/60 text-sm mt-1 font-medium">{owner.name} 사장님 • {owner.phone}</p>
-                        </div>
-                        <div className="flex flex-col items-end space-y-2">
-                          <span className="bg-ink-light/5 dark:bg-ink-dark/10 text-ink-light/70 dark:text-ink-dark/70 text-xs font-bold px-3 py-1 rounded-full">
-                            ID: {owner.id}
-                          </span>
-                          <button 
-                            onClick={() => handleDeleteUser(owner.id, 'owner', owner.name)}
-                            className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-1 transition-colors"
-                            title="사장님 삭제"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                      
-                      <div className="grid grid-cols-3 gap-2 mb-4">
-                        <div className="bg-ink-light/5 dark:bg-ink-dark/10 rounded-2xl p-3 text-center border border-ink-light/5 dark:border-ink-dark/5">
-                          <Users className="w-4 h-4 mx-auto mb-1 text-ink-light/40 dark:text-ink-dark/40" />
-                          <p className="text-xs text-ink-light/60 dark:text-ink-dark/60 mb-1 font-medium">등록 고객</p>
-                          <p className="font-bold text-ink-light dark:text-ink-dark">{stats.uniqueCustomers}명</p>
-                        </div>
-                        <div className="bg-ink-light/5 dark:bg-ink-dark/10 rounded-2xl p-3 text-center border border-ink-light/5 dark:border-ink-dark/5">
-                          <Calendar className="w-4 h-4 mx-auto mb-1 text-ink-light/40 dark:text-ink-dark/40" />
-                          <p className="text-xs text-ink-light/60 dark:text-ink-dark/60 mb-1 font-medium">누적 방문</p>
-                          <p className="font-bold text-ink-light dark:text-ink-dark">{stats.totalVisits}회</p>
-                        </div>
-                        <div className="bg-ink-light/5 dark:bg-ink-dark/10 rounded-2xl p-3 text-center border border-ink-light/5 dark:border-ink-dark/5">
-                          <Ticket className="w-4 h-4 mx-auto mb-1 text-ink-light/40 dark:text-ink-dark/40" />
-                          <p className="text-xs text-ink-light/60 dark:text-ink-dark/60 mb-1 font-medium">쿠폰 사용</p>
-                          <p className="font-bold text-ink-light dark:text-ink-dark">{stats.usedCoupons}/{stats.totalCoupons}</p>
-                        </div>
-                      </div>
-
-                      <button 
-                        onClick={() => setExpandedOwner(isExpanded ? null : owner.id)}
-                        className="w-full py-2.5 flex items-center justify-center text-sm font-bold text-ink-light/70 dark:text-ink-dark/70 hover:text-ink-light dark:hover:text-ink-dark transition-colors bg-ink-light/5 dark:bg-ink-dark/10 rounded-xl hover:bg-ink-light/10 dark:hover:bg-ink-dark/20"
-                      >
-                        {isExpanded ? (
-                          <><ChevronUp className="w-4 h-4 mr-1" /> 고객 목록 닫기</>
-                        ) : (
-                          <><ChevronDown className="w-4 h-4 mr-1" /> 고객 목록 보기</>
-                        )}
-                      </button>
-
-                      {isExpanded && (
-                        <div className="mt-4 space-y-2 border-t border-ink-light/10 dark:border-ink-dark/10 pt-4">
-                          {ownerCustomers.length === 0 ? (
-                            <p className="text-center text-sm text-ink-light/40 dark:text-ink-dark/40 py-2 font-medium">등록된 고객이 없습니다.</p>
-                          ) : (
-                            ownerCustomers.map(customer => (
-                              <div key={customer.id} className="flex justify-between items-center bg-white dark:bg-black/20 p-3 rounded-xl border border-ink-light/10 dark:border-ink-dark/10 shadow-sm">
-                                <div>
-                                  <p className="font-bold text-ink-light dark:text-ink-dark text-sm">{customer.name}</p>
-                                  <p className="text-xs text-ink-light/60 dark:text-ink-dark/60 font-medium">{customer.phone}</p>
-                                </div>
-                                <button 
-                                  onClick={() => handleDeleteUser(customer.id, 'customer', customer.name)}
-                                  className="text-red-400 hover:text-red-600 dark:text-red-500 dark:hover:text-red-400 p-2 transition-colors"
-                                  title="고객 삭제"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </div>
-                            ))
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </>
-        ) : (
-          <>
-            <h2 className="text-lg font-serif font-bold text-ink-light dark:text-ink-dark mb-4">전체 손님 목록</h2>
-            {filteredCustomersList.length === 0 ? (
-              <div className="bg-white dark:bg-black/20 rounded-3xl p-8 text-center shadow-sm border border-ink-light/10 dark:border-ink-dark/10">
-                <p className="text-ink-light/60 dark:text-ink-dark/60 font-medium">검색 결과나 등록된 손님이 없습니다.</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {filteredCustomersList.map(customer => {
-                  const store = owners.find(o => o.id === customer.storeId);
-                  const customerVisits = visits.filter(v => v.customerId === customer.id);
-                  const customerCoupons = coupons.filter(c => c.customerId === customer.id);
-                  const availableCoupons = customerCoupons.filter(c => c.status === 'available');
-                  
-                  // Calculate tier based on recent visits (last 30 days)
-                  const thirtyDaysAgo = new Date();
-                  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-                  const recentVisits = customerVisits.filter(v => new Date(v.date) >= thirtyDaysAgo);
-                  const uniqueVisitDays = new Set(recentVisits.map(v => new Date(v.date).toDateString())).size;
-                  
-                  const override = tierOverrides?.find(t => t.customerId === customer.id && t.storeId === customer.storeId);
-                  const currentTier = getEffectiveTier(uniqueVisitDays, override?.tier);
-                  
-                  let tierBadgeClass = 'bg-ink-light/5 dark:bg-ink-dark/10 text-ink-light/70 dark:text-ink-dark/70 border-ink-light/10 dark:border-ink-dark/10';
-                  if (currentTier === 'VIP') tierBadgeClass = 'bg-burgundy/10 dark:bg-burgundy/20 text-burgundy dark:text-burgundy-light border-burgundy/20 dark:border-burgundy-light/20';
-                  else if (currentTier === '다이아') tierBadgeClass = 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800/50';
-                  else if (currentTier === '골드') tierBadgeClass = 'bg-mustard/10 dark:bg-mustard/20 text-mustard-dark dark:text-mustard border-mustard/20 dark:border-mustard/30';
-                  else if (currentTier === '실버') tierBadgeClass = 'bg-ink-light/5 dark:bg-ink-dark/10 text-ink-light/70 dark:text-ink-dark/70 border-ink-light/10 dark:border-ink-dark/10';
-                  else if (currentTier === '브론즈') tierBadgeClass = 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-800/50';
-
-                  return (
-                    <div key={customer.id} className="bg-white dark:bg-black/20 rounded-2xl p-4 shadow-sm border border-ink-light/10 dark:border-ink-dark/10 flex justify-between items-center">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-bold text-ink-light dark:text-ink-dark">{customer.name}</h3>
-                          <span className={`text-xs font-bold px-2 py-0.5 rounded-md border ${tierBadgeClass}`}>
-                            {currentTier}
-                          </span>
-                          <span className="text-xs font-bold text-burgundy dark:text-burgundy-light bg-burgundy/5 dark:bg-burgundy/10 px-2 py-0.5 rounded-md border border-burgundy/10 dark:border-burgundy/20">
-                            {store ? store.restaurantName : '가게 미지정'}
-                          </span>
-                        </div>
-                        <p className="text-sm text-ink-light/60 dark:text-ink-dark/60 font-medium">{customer.phone}</p>
-                        <div className="flex gap-3 mt-2 text-xs font-bold text-ink-light/50 dark:text-ink-dark/50">
-                          <span className="flex items-center"><Calendar className="w-3 h-3 mr-1" /> 총 방문 {customerVisits.length}회</span>
-                          <span className="flex items-center"><Ticket className="w-3 h-3 mr-1" /> 보유 쿠폰 {availableCoupons.length}장</span>
-                        </div>
-                        <p className="text-xs text-ink-light/40 dark:text-ink-dark/40 mt-1 font-medium">ID: {customer.id}</p>
-                      </div>
-                      <button 
-                        onClick={() => handleDeleteUser(customer.id, 'customer', customer.name)}
-                        className="p-2 bg-red-50 dark:bg-red-900/20 text-red-500 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-xl transition-colors ml-4"
-                        title="손님 삭제"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </>
-        )}
-      </div>
-
-      {/* Delete User Modal */}
+      {/* Deletion Protocol Modal */}
       {deletingUser && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-ink-dark rounded-3xl p-8 max-w-sm w-full text-center relative shadow-2xl border border-ink-light/10 dark:border-ink-dark/10">
-            <h3 className="text-xl font-serif font-bold text-ink-light dark:text-ink-dark mb-2">사용자 삭제</h3>
-            <p className="text-ink-light/60 dark:text-ink-dark/60 mb-6 text-sm font-medium">
-              <strong className="text-red-600 dark:text-red-400">{deletingUser.name}</strong> {deletingUser.role === 'owner' ? '사장님' : '고객님'}을(를) 정말 삭제하시겠습니까?<br/>
-              관련된 모든 데이터가 삭제됩니다.
+        <div className="fixed inset-0 bg-burgundy/20 backdrop-blur-md z-[100] flex items-center justify-center p-6 animate-in fade-in zoom-in-95 duration-300">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-sm p-10 shadow-3xl border border-burgundy/10 text-center">
+            <div className="w-20 h-20 bg-burgundy/5 rounded-3xl flex items-center justify-center mx-auto mb-6">
+              <Trash2 className="w-10 h-10 text-burgundy" strokeWidth={1} />
+            </div>
+            <h3 className="text-2xl font-serif font-black text-primary tracking-tighter mb-2">Notice of Exclusion</h3>
+            <p className="text-primary/60 text-sm leading-relaxed mb-10 font-medium">
+               <span className="text-burgundy font-black">{deletingUser.name}</span> 사장님을 시스템에서 영구히 제명하시겠습니까? 관련한 모든 방문 기록과 데이터가 소멸됩니다.
             </p>
             
-            <div className="flex gap-3">
+            <div className="flex gap-4">
               <button
                 onClick={() => setDeletingUser(null)}
-                className="flex-1 py-3 bg-ink-light/5 dark:bg-ink-dark/10 text-ink-light/70 dark:text-ink-dark/70 rounded-xl font-bold hover:bg-ink-light/10 dark:hover:bg-ink-dark/20 transition-colors"
+                className="flex-1 py-4 bg-primary/5 text-primary/40 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-primary/10 transition-colors"
               >
-                취소
+                Retreat
               </button>
               <button
                 onClick={() => {
                   deleteUser(deletingUser.id, deletingUser.role);
-                  showToast('삭제되었습니다.', 'info');
+                  showToast('데이터가 영구히 소멸되었습니다.', 'info');
                   setDeletingUser(null);
                 }}
-                className="flex-1 py-3 bg-red-500 dark:bg-red-600 text-white rounded-xl font-bold hover:bg-red-600 dark:hover:bg-red-700 transition-colors shadow-sm"
+                className="flex-1 py-4 bg-burgundy text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-burgundy/20 active:scale-95 transition-all"
               >
-                삭제하기
+                Execute
               </button>
             </div>
           </div>

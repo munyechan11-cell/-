@@ -2,7 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useStore } from '../../store';
 import { Html5Qrcode } from 'html5-qrcode';
-import { ScanLine, ArrowLeft, RefreshCw } from 'lucide-react';
+import { 
+  ScanLine, ArrowLeft, RefreshCw, Sparkles, 
+  ShieldCheck, Heart, Star, Award, ChevronRight, 
+  LayoutGrid, Zap, Store as StoreIcon, ArrowUpRight,
+  Maximize, Camera
+} from 'lucide-react';
 
 export default function CustomerScanner() {
   const { currentUser, users } = useStore();
@@ -28,7 +33,7 @@ export default function CustomerScanner() {
         scannerRef.current = new Html5Qrcode("reader");
       }
 
-      const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+      const config = { fps: 10, qrbox: { width: 280, height: 280 } };
       
       const onScanSuccess = (decodedText: string) => {
         try {
@@ -40,7 +45,7 @@ export default function CustomerScanner() {
           if (data.storeId && data.tableNumber) {
             navigate(`/customer/store/${data.storeId}/table/${data.tableNumber}`);
           }
-        } catch (e) { setError('QR 코드를 읽을 수 없습니다.'); }
+        } catch (e) { setError('The cipher could not be decrypted.'); }
       };
 
       if (scannerRef.current.isScanning) {
@@ -57,24 +62,19 @@ export default function CustomerScanner() {
       const errorMessage = String(err);
       
       if (errorMessage.includes("NotAllowedError") || errorMessage.includes("Permission denied")) {
-        setError("카메라 접근 권한이 거부되었습니다. 브라우저 설정에서 카메라 권한을 허용해주세요.");
+        setError("Camera access is required for decryption. Please enable access in your settings.");
       } else if (errorMessage.includes("NotFoundError") || errorMessage.includes("Requested device not found") || errorMessage.includes("OverconstrainedError")) {
         if (mode === "environment") {
-          console.log("Environment camera not found, falling back to user camera.");
           setFacingMode("user");
           return;
         }
-        setError("사용 가능한 카메라를 찾을 수 없습니다.");
+        setError("No visual sensor detected.");
       } else if (errorMessage.includes("NotReadableError") || errorMessage.includes("Could not start video source")) {
-        setError("카메라를 시작할 수 없습니다. 다른 앱에서 카메라를 사용 중인지 확인해주세요.");
-      } else if (errorMessage.includes("already under transition")) {
-        // Ignore transition errors, they will resolve on next retry or user action
-        console.warn("Scanner is already transitioning states.");
+        setError("The sensor is currently occupied by another process.");
       } else {
-        setError(`카메라 초기화 오류: ${errorMessage}`);
+        setError(`Sensor Initialization Error: ${errorMessage}`);
       }
 
-      // Only retry if it's not a permission or hardware missing error
       if (!errorMessage.includes("NotAllowedError") && !errorMessage.includes("NotFoundError") && retryCountRef.current < 2) {
         retryCountRef.current += 1;
         setTimeout(() => {
@@ -88,14 +88,11 @@ export default function CustomerScanner() {
 
   useEffect(() => {
     let isMounted = true;
-    
     const initScanner = async () => {
       if (!isMounted) return;
       await startScanner(facingMode);
     };
-    
-    // Small delay to allow DOM to render the #reader element properly
-    const timer = setTimeout(initScanner, 100);
+    const timer = setTimeout(initScanner, 300);
 
     return () => {
       isMounted = false;
@@ -114,68 +111,96 @@ export default function CustomerScanner() {
   };
 
   return (
-    <div className="min-h-full bg-hanji-light dark:bg-hanji-dark flex flex-col">
-      <div className="bg-white/80 dark:bg-black/20 backdrop-blur-md text-ink-light dark:text-ink-dark p-6 pt-8 flex items-center border-b border-ink-light/10 dark:border-ink-dark/10 sticky top-0 z-10">
-        <Link to="/" className="p-2 -ml-2 hover:bg-ink-light/5 dark:hover:bg-ink-dark/10 rounded-full transition-colors mr-2">
-          <ArrowLeft className="w-6 h-6 text-ink-light/70 dark:text-ink-dark/70" />
-        </Link>
-        <h1 className="text-2xl font-serif font-bold tracking-tight flex-1">테이블 스캔</h1>
-      </div>
+    <div className="min-h-screen bg-surface-bright flex flex-col hanji-texture relative overflow-hidden">
+      <div className="lattice-overlay absolute inset-0 pointer-events-none opacity-10"></div>
+      
+      {/* Header */}
+      <header className="bg-white/80 backdrop-blur-xl p-8 pt-12 border-b border-primary/5 sticky top-0 z-40 animate-in slide-in-from-top-12 duration-700">
+        <div className="flex justify-between items-center relative">
+          <Link to="/" className="p-3 hover:bg-primary/5 rounded-2xl text-primary/30 hover:text-primary transition-all">
+            <ArrowLeft className="w-6 h-6" />
+          </Link>
+          <div className="text-center">
+             <h1 className="text-5xl font-serif font-black text-primary leading-none tracking-tighter italic select-none">결</h1>
+             <p className="text-[10px] font-black text-primary/30 uppercase tracking-[0.4em] mt-1 italic">Cipher Registry</p>
+          </div>
+          <div className="w-12"></div> {/* Spacer for symmetry */}
+        </div>
+      </header>
 
-      <div className="flex-1 p-6 flex flex-col items-center justify-center">
-        <div className="w-full max-w-sm bg-white dark:bg-black/20 p-6 rounded-3xl shadow-sm border border-ink-light/10 dark:border-ink-dark/10">
-          <div className="text-center mb-6">
-            <div className="w-16 h-16 bg-burgundy/10 dark:bg-burgundy/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <ScanLine className="w-8 h-8 text-burgundy dark:text-burgundy-light" />
+      <main className="flex-1 p-8 flex flex-col items-center justify-center relative z-10 animate-in fade-in zoom-in duration-1000">
+        <div className="w-full max-w-lg bg-white rounded-[4rem] p-12 shadow-3xl border border-primary/5 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16"></div>
+          
+          <div className="text-center mb-12 relative z-10">
+            <div className="w-20 h-20 rounded-[2rem] bg-burgundy/5 flex items-center justify-center mx-auto mb-8 rotate-3 hover:rotate-0 transition-transform">
+              <ScanLine className="w-10 h-10 text-burgundy" strokeWidth={1} />
             </div>
-            <h2 className="text-xl font-serif font-bold text-ink-light dark:text-ink-dark mb-2">테이블 QR 스캔</h2>
-            <p className="text-ink-light/60 dark:text-ink-dark/60 text-sm">테이블에 있는 QR 코드를 스캔해주세요.</p>
+            <h2 className="text-2xl font-serif font-black text-primary mb-2 italic tracking-tighter">Cipher Decoding</h2>
+            <p className="text-primary/40 text-[9px] font-black uppercase tracking-[0.3em]">Align your focus with the table's mark</p>
           </div>
 
-          <div className="relative rounded-2xl overflow-hidden bg-black/90 aspect-square mb-6 shadow-inner border border-ink-light/10 dark:border-ink-dark/10">
+          {/* Scanner Container */}
+          <div className="relative rounded-[3rem] overflow-hidden bg-black/90 aspect-square mb-12 shadow-2xl border-4 border-primary/5 group">
             <div id="reader" className="w-full h-full"></div>
+            
+            {/* Custom Scan Overlay */}
+            <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+               <div className="w-64 h-64 border-2 border-white/20 rounded-[2.5rem] relative">
+                  <div className="absolute top-0 left-0 w-12 h-12 border-t-4 border-l-4 border-burgundy rounded-tl-[1.5rem]"></div>
+                  <div className="absolute top-0 right-0 w-12 h-12 border-t-4 border-r-4 border-burgundy rounded-tr-[1.5rem]"></div>
+                  <div className="absolute bottom-0 left-0 w-12 h-12 border-b-4 border-l-4 border-burgundy rounded-bl-[1.5rem]"></div>
+                  <div className="absolute bottom-0 right-0 w-12 h-12 border-b-4 border-r-4 border-burgundy rounded-br-[1.5rem]"></div>
+                  
+                  {/* Scanning Animation Line */}
+                  <div className="absolute left-0 right-0 top-0 h-0.5 bg-burgundy/50 shadow-[0_0_20px_2px_rgba(159,18,57,0.5)] animate-scan-line"></div>
+               </div>
+            </div>
           </div>
 
           {error && (
-            <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-4 rounded-2xl text-sm mb-4 text-center border border-red-100 dark:border-red-900/30 shadow-sm animate-in fade-in zoom-in">
-              <p className="font-medium">{error}</p>
-              <div className="mt-3 pt-3 border-t border-red-200 dark:border-red-900/50">
-                <p className="font-bold flex items-center justify-center">
-                  💡 아래의 <span className="text-white bg-burgundy px-2 py-0.5 rounded-md ml-1.5 mr-1.5 text-xs">링크로 입장</span> 버튼을 눌러주세요!
-                </p>
-                <p className="text-xs mt-1.5 opacity-80 font-medium">카메라 권한 없이도 수동으로 바로 입장할 수 있습니다.</p>
-              </div>
+            <div className="bg-burgundy/5 p-8 rounded-[2.5rem] border border-burgundy/10 mb-10 animate-in slide-in-from-bottom-4 transition-all">
+               <div className="flex items-start space-x-4 mb-4">
+                  <ShieldCheck className="w-6 h-6 text-burgundy shrink-0" />
+                  <p className="text-xs font-serif italic text-burgundy leading-relaxed">{error}</p>
+               </div>
+               <div className="h-px bg-burgundy/10 w-full mb-4"></div>
+               <p className="text-[9px] font-black text-burgundy/40 uppercase tracking-widest leading-relaxed">
+                  Tip: Use the <span className="text-burgundy">manual cipher link</span> below if the visual sensor fails.
+               </p>
             </div>
           )}
 
-          <div className="flex gap-3">
+          <div className="flex gap-4">
             <button 
               onClick={toggleCamera}
-              className="flex-1 bg-white dark:bg-black/20 border border-ink-light/10 dark:border-ink-dark/10 text-ink-light/70 dark:text-ink-dark/70 py-3.5 rounded-xl font-bold hover:bg-ink-light/5 dark:hover:bg-ink-dark/10 transition-colors flex items-center justify-center text-sm shadow-sm"
+              className="flex-1 bg-primary/5 hover:bg-primary/10 border border-primary/5 text-primary/40 hover:text-primary py-5 rounded-2xl font-black uppercase tracking-widest text-[9px] transition-all flex items-center justify-center space-x-3"
             >
-              <RefreshCw className="w-4 h-4 mr-2" />
-              카메라 전환
+              <RefreshCw className="w-4 h-4" />
+              <span>Rotate Sensor</span>
             </button>
             <button 
               onClick={() => {
-                const urlInput = prompt('테이블 QR 코드 링크를 붙여넣어주세요.\n(예: https://gyeol.onrender.com/customer/store/...)');
+                const urlInput = prompt('Enter the Heritage Link cypher:');
                 if (urlInput) {
-                  // 정규표현식을 통해 도메인 등 불필요한 부분 제외하고 정확한 내부 라우팅 경로만 추출
                   const match = urlInput.match(/(\/customer\/store\/[^/]+\/table\/\d+)/);
-                  if (match && match[1]) {
-                    navigate(match[1]);
-                  } else {
-                    setError('올바른 테이블 링크 형식이 아닙니다.');
-                  }
+                  if (match && match[1]) navigate(match[1]);
+                  else setError('Invalid lineage format detected.');
                 }
               }}
-              className="flex-1 bg-burgundy hover:bg-burgundy/90 text-hanji-light py-3.5 rounded-xl font-bold transition-colors flex items-center justify-center text-sm shadow-sm"
+              className="flex-[1.5] bg-burgundy text-white py-5 rounded-2xl font-black uppercase tracking-widest text-[9px] transition-all shadow-2xl shadow-burgundy/20 hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center space-x-3"
             >
-              링크로 입장
+              <ArrowUpRight className="w-4 h-4" />
+              <span>Enter Manual Cypher</span>
             </button>
           </div>
         </div>
-      </div>
+
+        <div className="mt-16 flex flex-col items-center opacity-10">
+           <Zap className="w-8 h-8 text-primary mb-4" fill="currentColor" />
+           <p className="text-[8px] font-black uppercase tracking-[0.5em]">Governance Protocol Active</p>
+        </div>
+      </main>
     </div>
   );
 }

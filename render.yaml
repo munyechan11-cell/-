@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: gyeol-pos
+    runtime: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 22.x
+      - key: APP_URL
+        fromContext: instanceUrl
+      # Other placeholders for user to fill in Render dashboard
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+      - key: KAKAO_CLIENT_ID
+        sync: false

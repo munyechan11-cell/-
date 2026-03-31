@@ -1,7 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useStore } from '../../store';
-import { Store, ArrowLeft, Loader2 } from 'lucide-react';
+import { 
+  Store, ArrowLeft, Loader2, Sparkles, 
+  ShieldCheck, Heart, Star, Award, 
+  ChevronRight, LayoutGrid, Zap, 
+  Store as StoreIcon, ShieldAlert,
+  Phone
+} from 'lucide-react';
 import { auth } from '../../lib/firebase';
 import { signInWithPopup, GoogleAuthProvider, signInWithCustomToken } from 'firebase/auth';
 
@@ -35,13 +41,6 @@ export default function OwnerLogin() {
     }
   }, [currentUser, users, navigate]);
 
-  const saveStateToSession = () => {
-    sessionStorage.setItem('ownerLogin_isLogin', String(isLogin));
-    sessionStorage.setItem('ownerLogin_phone', phone);
-    sessionStorage.setItem('ownerLogin_name', name);
-    sessionStorage.setItem('ownerLogin_restaurantName', restaurantName);
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isLoading) return;
@@ -57,7 +56,6 @@ export default function OwnerLogin() {
     
     try {
       if (isLogin) {
-        // Login logic
         const existingOwner = users.find(u => u.phone.replace(/[^0-9]/g, '') === cleanPhone && u.role === 'owner');
         if (existingOwner) {
           await login(cleanPhone, existingOwner.name, 'owner', existingOwner.restaurantName, undefined, pendingOAuthUser?.uid);
@@ -68,7 +66,6 @@ export default function OwnerLogin() {
           setError('회원가입되지 않은 정보입니다.');
         }
       } else {
-        // Signup logic
         if (cleanPhone && name && restaurantName) {
           const existingOwner = users.find(u => u.phone.replace(/[^0-9]/g, '') === cleanPhone && u.role === 'owner');
           if (existingOwner) {
@@ -140,7 +137,6 @@ export default function OwnerLogin() {
       if (!allowedOrigins.includes(event.origin) && !event.origin.endsWith('.run.app') && !event.origin.endsWith('.onrender.com')) {
         return;
       }
-      
       if (event.data?.type === 'OAUTH_AUTH_SUCCESS' && event.data?.token) {
         await processToken(event.data.token, event.data.provider);
       } else if (event.data?.type === 'OAUTH_AUTH_ERROR') {
@@ -170,19 +166,16 @@ export default function OwnerLogin() {
     window.addEventListener('message', handleMessage);
     window.addEventListener('storage', handleStorage);
     
-    // Check if there's already a token in localStorage (e.g., if the page was reloaded)
+    // Check for recent tokens
     const existingToken = localStorage.getItem('oauth_token_data');
     if (existingToken) {
       try {
         const data = JSON.parse(existingToken);
-        // Only process if it's recent (within 5 minutes)
         if (data.type === 'OAUTH_AUTH_SUCCESS' && data.token && data.timestamp && Date.now() - data.timestamp < 5 * 60 * 1000) {
           localStorage.removeItem('oauth_token_data');
           processToken(data.token, data.provider);
         }
-      } catch (e) {
-        // ignore
-      }
+      } catch (e) {}
     }
 
     return () => {
@@ -196,10 +189,8 @@ export default function OwnerLogin() {
       if (!auth) setError('로그인 설정이 완료되지 않았습니다.');
       return;
     }
-    
     setIsLoading(true);
     setError('');
-    
     try {
       const authWindow = window.open('', 'oauth_popup', 'width=600,height=700');
       if (!authWindow) {
@@ -207,16 +198,13 @@ export default function OwnerLogin() {
         setIsLoading(false);
         return;
       }
-
       const response = await fetch(`/api/auth/${provider}/url`);
       if (!response.ok) {
         authWindow.close();
         throw new Error('Failed to get auth URL');
       }
       const { url } = await response.json();
-      
       authWindow.location.href = url;
-      
       popupTimerRef.current = setInterval(() => {
         if (authWindow.closed) {
           if (popupTimerRef.current) {
@@ -238,10 +226,8 @@ export default function OwnerLogin() {
       if (!auth) setError('구글 로그인 설정이 완료되지 않았습니다.');
       return;
     }
-    
     setIsLoading(true);
     setError('');
-    
     try {
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
@@ -251,7 +237,7 @@ export default function OwnerLogin() {
       if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
         setError('구글 로그인이 취소되었습니다.');
       } else if (err.code === 'auth/popup-blocked') {
-        setError('팝업이 차단되었습니다. 브라우저 설정에서 팝업 차단을 해제해주세요. (또는 새 탭에서 열어주세요)');
+        setError('팝업이 차단되었습니다. 브라우저 설정에서 팝업 차단을 해제해주세요.');
       } else {
         setError(`구글 로그인 중 오류가 발생했습니다: ${err.message}`);
       }
@@ -260,176 +246,162 @@ export default function OwnerLogin() {
   };
 
   return (
-    <div className="min-h-full bg-hanji-light dark:bg-hanji-dark flex flex-col items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white dark:bg-black/20 rounded-3xl shadow-sm border border-ink-light/10 dark:border-ink-dark/10 overflow-hidden relative">
+    <div className="min-h-screen bg-surface-bright flex flex-col items-center justify-center p-6 hanji-texture relative overflow-hidden">
+      <div className="lattice-overlay absolute inset-0 pointer-events-none opacity-10"></div>
+      
+      {/* Decorative Brand Elements */}
+      <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-primary/5 rounded-full -mr-64 -mt-64 blur-3xl opacity-50"></div>
+      
+      <div className="max-w-md w-full bg-white rounded-[4rem] shadow-3xl border border-primary/5 overflow-hidden relative z-10 animate-in fade-in slide-in-from-bottom-12 duration-1000">
         <Link 
           to="/" 
-          className="absolute top-4 left-4 p-2 hover:bg-ink-light/5 dark:hover:bg-ink-dark/10 rounded-full text-ink-light/60 dark:text-ink-dark/60 transition-colors z-10"
+          className="absolute top-8 left-8 p-3 hover:bg-primary/5 rounded-2xl text-primary/30 hover:text-primary transition-all z-20"
         >
           <ArrowLeft className="w-6 h-6" />
         </Link>
         
-        <div className="p-8 pt-12 text-center">
-          <div className="w-20 h-20 rounded-full bg-burgundy/10 dark:bg-burgundy/20 flex items-center justify-center mx-auto mb-4">
-            <Store className="w-10 h-10 text-burgundy dark:text-burgundy-light" />
+        <div className="p-12 pb-8 text-center">
+          <div className="inline-block relative mb-8">
+             <div className="absolute -inset-4 bg-primary/5 rounded-full blur-xl animate-pulse"></div>
+             <h1 className="text-8xl font-serif font-black text-primary leading-none tracking-tighter italic relative select-none">결</h1>
           </div>
-          <h1 className="text-2xl font-serif font-bold text-ink-light dark:text-ink-dark tracking-tight">
-            {pendingOAuthUser ? `${pendingOAuthUser.provider} 회원가입` : (!isLogin && restaurantName ? restaurantName : '사장님 서비스')}
+          <h1 className="text-2xl font-serif font-black text-primary tracking-tight mb-2 italic">
+            {pendingOAuthUser ? `${pendingOAuthUser.provider} Initialization` : (isLogin ? 'Overseer Access' : 'Initiate Atelier')}
           </h1>
-          <p className="text-ink-light/60 dark:text-ink-dark/60 mt-2 text-sm">단골 관리 파트너</p>
+          <p className="text-primary/40 text-[9px] font-black uppercase tracking-[0.3em]">Imperial Management Suite</p>
         </div>
         
-        <div className="flex border-b border-ink-light/10 dark:border-ink-dark/10 px-8">
+        <div className="flex border-b border-primary/5 px-12">
           <button 
-            className={`flex-1 py-4 font-bold text-sm transition-colors ${isLogin ? 'text-burgundy dark:text-burgundy-light border-b-2 border-burgundy dark:border-burgundy-light' : 'text-ink-light/50 dark:text-ink-dark/50 hover:text-ink-light/70 dark:hover:text-ink-dark/70'}`}
+            className={`flex-1 py-4 text-[9px] font-black uppercase tracking-widest transition-all ${isLogin ? 'text-primary border-b-2 border-primary' : 'text-primary/30 hover:text-primary'}`}
             onClick={() => { setIsLogin(true); setError(''); setPendingOAuthUser(null); }}
           >
-            로그인
+            Authorize
           </button>
           <button 
-            className={`flex-1 py-4 font-bold text-sm transition-colors ${!isLogin ? 'text-burgundy dark:text-burgundy-light border-b-2 border-burgundy dark:border-burgundy-light' : 'text-ink-light/50 dark:text-ink-dark/50 hover:text-ink-light/70 dark:hover:text-ink-dark/70'}`}
+            className={`flex-1 py-4 text-[9px] font-black uppercase tracking-widest transition-all ${!isLogin ? 'text-primary border-b-2 border-primary' : 'text-primary/30 hover:text-primary'}`}
             onClick={() => { setIsLogin(false); setError(''); }}
           >
-            회원가입
+            Initiate
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-8 space-y-5">
+        <form onSubmit={handleSubmit} className="p-12 space-y-8">
           {error && (
-            <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-3 rounded-xl text-sm font-medium text-center border border-red-100 dark:border-red-900/30">
+            <div className="bg-burgundy/5 text-burgundy p-5 rounded-2xl text-[10px] font-black uppercase tracking-widest text-center border border-burgundy/10 animate-in shake duration-500">
               {error}
             </div>
           )}
-          <div>
-            <label className="block text-sm font-bold text-ink-light/80 dark:text-ink-dark/80 mb-2">전화번호</label>
-            <input 
-              type="tel" 
-              value={phone}
-              onChange={(e) => setPhone(formatPhoneNumber(e.target.value))}
-              placeholder="010-0000-0000"
-              className="w-full px-4 py-3.5 bg-white dark:bg-black/20 border border-ink-light/10 dark:border-ink-dark/10 rounded-xl text-ink-light dark:text-ink-dark placeholder-ink-light/30 dark:placeholder-ink-dark/30 focus:ring-2 focus:ring-burgundy focus:border-transparent transition-all text-base"
-              required
-              disabled={isLoading}
-            />
+
+          <div className="space-y-3">
+             <label className="text-[9px] font-black text-primary/30 uppercase tracking-[0.2em] ml-1">Governance Cypher</label>
+             <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none">
+                  <Phone className="h-4 w-4 text-primary/20" />
+                </div>
+                <input 
+                  type="tel" 
+                  value={phone}
+                  onChange={(e) => setPhone(formatPhoneNumber(e.target.value))}
+                  placeholder="010-0000-0000"
+                  className="w-full pl-14 pr-8 py-5 bg-primary/[0.02] border border-primary/5 rounded-[2rem] text-primary font-black uppercase tracking-widest text-[10px] focus:outline-none focus:ring-4 focus:ring-primary/5 transition-all shadow-inner focus:bg-white"
+                  required
+                  disabled={isLoading}
+                />
+             </div>
           </div>
 
           {!isLogin && (
-            <>
-              <div>
-                <label className="block text-sm font-bold text-ink-light/80 dark:text-ink-dark/80 mb-2">성함</label>
+            <div className="space-y-8 animate-in fade-in slide-in-from-top-4 duration-500">
+              <div className="space-y-3">
+                <label className="text-[9px] font-black text-primary/30 uppercase tracking-[0.2em] ml-1">Overseer Name</label>
                 <input 
                   type="text" 
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="홍길동"
-                  className="w-full px-4 py-3.5 bg-white dark:bg-black/20 border border-ink-light/10 dark:border-ink-dark/10 rounded-xl text-ink-light dark:text-ink-dark placeholder-ink-light/30 dark:placeholder-ink-dark/30 focus:ring-2 focus:ring-burgundy focus:border-transparent transition-all text-base"
+                  placeholder="Official Handle"
+                  className="w-full px-8 py-5 bg-primary/[0.02] border border-primary/5 rounded-[2rem] text-primary font-black uppercase tracking-widest text-[10px] focus:outline-none focus:ring-4 focus:ring-primary/5 transition-all shadow-inner focus:bg-white"
                   required={!isLogin}
                   disabled={isLoading}
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-bold text-ink-light/80 dark:text-ink-dark/80 mb-2">포항 거주 여부</label>
-                <div className="flex gap-3">
-                  <label className={`flex-1 flex items-center justify-center p-3.5 border rounded-xl cursor-pointer transition-colors ${isPohangResident === true ? 'border-burgundy bg-burgundy/5 dark:bg-burgundy/10' : 'border-ink-light/10 dark:border-ink-dark/10 bg-white dark:bg-black/20 hover:bg-ink-light/5 dark:hover:bg-ink-dark/10'}`}>
-                    <input type="radio" name="pohang" checked={isPohangResident === true} onChange={() => setIsPohangResident(true)} className="sr-only" />
-                    <span className={`font-bold text-sm ${isPohangResident === true ? 'text-burgundy dark:text-burgundy-light' : 'text-ink-light/60 dark:text-ink-dark/60'}`}>포항 거주</span>
-                  </label>
-                  <label className={`flex-1 flex items-center justify-center p-3.5 border rounded-xl cursor-pointer transition-colors ${isPohangResident === false ? 'border-burgundy bg-burgundy/5 dark:bg-burgundy/10' : 'border-ink-light/10 dark:border-ink-dark/10 bg-white dark:bg-black/20 hover:bg-ink-light/5 dark:hover:bg-ink-dark/10'}`}>
-                    <input type="radio" name="pohang" checked={isPohangResident === false} onChange={() => setIsPohangResident(false)} className="sr-only" />
-                    <span className={`font-bold text-sm ${isPohangResident === false ? 'text-burgundy dark:text-burgundy-light' : 'text-ink-light/60 dark:text-ink-dark/60'}`}>타지역 거주</span>
-                  </label>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-ink-light/80 dark:text-ink-dark/80 mb-2">성별</label>
-                <div className="flex gap-3">
-                  <label className={`flex-1 flex items-center justify-center p-3.5 border rounded-xl cursor-pointer transition-colors ${gender === 'male' ? 'border-burgundy bg-burgundy/5 dark:bg-burgundy/10' : 'border-ink-light/10 dark:border-ink-dark/10 bg-white dark:bg-black/20 hover:bg-ink-light/5 dark:hover:bg-ink-dark/10'}`}>
-                    <input type="radio" name="gender" checked={gender === 'male'} onChange={() => setGender('male')} className="sr-only" />
-                    <span className={`font-bold text-sm ${gender === 'male' ? 'text-burgundy dark:text-burgundy-light' : 'text-ink-light/60 dark:text-ink-dark/60'}`}>남성</span>
-                  </label>
-                  <label className={`flex-1 flex items-center justify-center p-3.5 border rounded-xl cursor-pointer transition-colors ${gender === 'female' ? 'border-burgundy bg-burgundy/5 dark:bg-burgundy/10' : 'border-ink-light/10 dark:border-ink-dark/10 bg-white dark:bg-black/20 hover:bg-ink-light/5 dark:hover:bg-ink-dark/10'}`}>
-                    <input type="radio" name="gender" checked={gender === 'female'} onChange={() => setGender('female')} className="sr-only" />
-                    <span className={`font-bold text-sm ${gender === 'female' ? 'text-burgundy dark:text-burgundy-light' : 'text-ink-light/60 dark:text-ink-dark/60'}`}>여성</span>
-                  </label>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-ink-light/80 dark:text-ink-dark/80 mb-2">가게 이름</label>
+              <div className="space-y-3">
+                <label className="text-[9px] font-black text-primary/30 uppercase tracking-[0.2em] ml-1">Atelier Identity</label>
                 <input 
                   type="text" 
                   value={restaurantName}
                   onChange={(e) => setRestaurantName(e.target.value)}
-                  placeholder="연심"
-                  className="w-full px-4 py-3.5 bg-white dark:bg-black/20 border border-ink-light/10 dark:border-ink-dark/10 rounded-xl text-ink-light dark:text-ink-dark placeholder-ink-light/30 dark:placeholder-ink-dark/30 focus:ring-2 focus:ring-burgundy focus:border-transparent transition-all text-base"
+                  placeholder="e.g. Imperial Tea House"
+                  className="w-full px-8 py-5 bg-primary/[0.02] border border-primary/5 rounded-[2rem] text-primary font-serif italic text-xs focus:outline-none focus:ring-4 focus:ring-primary/5 transition-all shadow-inner focus:bg-white"
                   required={!isLogin}
                   disabled={isLoading}
                 />
               </div>
-            </>
+            </div>
           )}
 
           <button 
             type="submit"
-            disabled={isLoading || phone.replace(/[^0-9]/g, '').length < 10 || (!isLogin && (!name || !restaurantName || isPohangResident === null || gender === null))}
-            className="w-full bg-burgundy hover:bg-burgundy/90 disabled:bg-burgundy/50 text-hanji-light font-bold py-3.5 rounded-xl transition-colors text-base flex items-center justify-center shadow-sm mt-2"
+            disabled={isLoading || phone.replace(/[^0-9]/g, '').length < 10 || (!isLogin && (!name || !restaurantName))}
+            className="w-full bg-primary hover:scale-[1.02] active:scale-[0.98] disabled:opacity-30 text-white font-black py-6 rounded-[2.5rem] transition-all shadow-2xl shadow-primary/20 flex items-center justify-center space-x-3 text-[10px] uppercase tracking-widest mt-4"
           >
-            {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : (isLogin ? '로그인' : (pendingOAuthUser ? `${pendingOAuthUser.provider} 계정으로 가입 완료` : '회원가입 및 시작하기'))}
+            {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : (isLogin ? 'Grant Access' : (pendingOAuthUser ? `${pendingOAuthUser.provider} Connection` : 'Initialize Governance'))}
           </button>
           
           {!pendingOAuthUser && (
-            <>
+            <div className="space-y-8">
               <div className="relative flex items-center py-2">
-                <div className="flex-grow border-t border-ink-light/10 dark:border-ink-dark/10"></div>
-                <span className="flex-shrink-0 mx-4 text-ink-light/40 dark:text-ink-dark/40 text-sm font-bold">또는</span>
-                <div className="flex-grow border-t border-ink-light/10 dark:border-ink-dark/10"></div>
+                <div className="flex-grow border-t border-primary/5"></div>
+                <span className="flex-shrink-0 mx-6 text-[8px] font-black text-primary/20 uppercase tracking-[0.5em]">OR ACCESS VIA</span>
+                <div className="flex-grow border-t border-primary/5"></div>
               </div>
               
-              <div className="space-y-3">
+              <div className="grid grid-cols-1 gap-4">
                 <button 
                   type="button"
                   onClick={handleGoogleLogin}
                   disabled={isLoading}
-                  className="w-full bg-white dark:bg-black/20 hover:bg-ink-light/5 dark:hover:bg-ink-dark/10 border border-ink-light/10 dark:border-ink-dark/10 disabled:bg-ink-light/5 dark:disabled:bg-ink-dark/5 text-ink-light/80 dark:text-ink-dark/80 font-bold py-3.5 rounded-xl transition-colors text-base flex items-center justify-center shadow-sm"
+                  className="w-full bg-white border border-primary/5 hover:border-primary/20 py-5 rounded-[2rem] text-[9px] font-black uppercase tracking-widest text-primary/60 flex items-center justify-center space-x-4 transition-all"
                 >
-                  <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
-                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-                  </svg>
-                  Google로 {isLogin ? '로그인' : '회원가입'}
+                   <svg className="w-4 h-4 opacity-70" viewBox="0 0 24 24">
+                      <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                      <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                      <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                      <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                   </svg>
+                   <span>Google Authority</span>
                 </button>
 
-                <button 
-                  type="button"
-                  onClick={() => handleOAuthLogin('kakao')}
-                  disabled={isLoading}
-                  className="w-full bg-[#FEE500] hover:bg-[#E5CE00] disabled:bg-[#FEE500]/50 text-[#000000] font-bold py-3.5 rounded-xl transition-colors text-base flex items-center justify-center shadow-sm"
-                >
-                  <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 3c-5.523 0-10 3.538-10 7.9 0 2.834 1.88 5.32 4.686 6.722-.296 1.092-1.076 3.978-1.096 4.056-.026.104.032.208.13.236.076.022.158.006.216-.042 0 0 3.43-2.316 4.88-3.32.386.054.786.082 1.184.082 5.523 0 10-3.538 10-7.9C22 6.538 17.523 3 12 3z"/>
-                  </svg>
-                  카카오로 {isLogin ? '로그인' : '회원가입'}
-                </button>
-
-                <button 
-                  type="button"
-                  onClick={() => handleOAuthLogin('naver')}
-                  disabled={isLoading}
-                  className="w-full bg-[#03C75A] hover:bg-[#02B350] disabled:bg-[#03C75A]/50 text-white font-bold py-3.5 rounded-xl transition-colors text-base flex items-center justify-center shadow-sm"
-                >
-                  <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M16.273 12.845L7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727v12.845z"/>
-                  </svg>
-                  네이버로 {isLogin ? '로그인' : '회원가입'}
-                </button>
+                <div className="grid grid-cols-2 gap-4">
+                   <button 
+                    onClick={() => handleOAuthLogin('kakao')}
+                    className="bg-[#FEE500] hover:scale-[1.02] py-5 rounded-[2rem] flex items-center justify-center space-x-3 transition-all grayscale-[0.2] hover:grayscale-0"
+                   >
+                     <div className="w-5 h-5 bg-black rounded-lg flex items-center justify-center">
+                        <span className="text-[10px] text-[#FEE500] font-black">K</span>
+                     </div>
+                     <span className="text-[9px] font-black uppercase tracking-widest text-black">Kakao</span>
+                   </button>
+                   <button 
+                    onClick={() => handleOAuthLogin('naver')}
+                    className="bg-[#03C75A] hover:scale-[1.02] py-5 rounded-[2rem] flex items-center justify-center space-x-3 transition-all grayscale-[0.2] hover:grayscale-0"
+                   >
+                      <div className="w-5 h-5 bg-white rounded-md flex items-center justify-center">
+                        <span className="text-[10px] text-[#03C75A] font-black">N</span>
+                      </div>
+                      <span className="text-[9px] font-black uppercase tracking-widest text-white">Naver</span>
+                   </button>
+                </div>
               </div>
-            </>
+            </div>
           )}
         </form>
+      </div>
+      
+      <div className="mt-12 flex flex-col items-center opacity-10">
+         <ShieldAlert className="w-8 h-8 text-primary mb-4" />
+         <p className="text-[8px] font-black uppercase tracking-[0.5em]">High-Security Governance Perimeter</p>
       </div>
     </div>
   );

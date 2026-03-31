@@ -3,9 +3,15 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
-  --font-serif: "Gowun Batang", "Nanum Myeongjo", serif;
+  --font-sans: "Manrope", "Pretendard Variable", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-serif: "Noto Serif KR", "Gowun Batang", serif;
 
+  --color-primary: #442a22;
+  --color-primary-container: #5d4037;
+  --color-surface-bright: #fafaf5;
+  --color-surface-dim: #dadad5;
+  --color-on-surface: #1a1c19;
+  --color-on-surface-variant: #504441;
   --color-hanji-light: #F9F6F0;
   --color-hanji-dark: #2A2624;
   --color-ink-light: #332E2C;
@@ -15,6 +21,23 @@
   --color-olive: #6B7A38;
   --color-mustard: #C69C21;
   --color-espresso: #2C1E16;
+  --color-emerald: #10B981;
+}
+
+@utility hanji-texture {
+  background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBRNhJ08369wqoSYIwIZlQL1L2IeTJnzCC-xfLsfLZjBwdIZf2WvT_pZjx_NbNT148KdyQFupxxtNGAd_zl_Cwrp8DZ1-Gto7jEgiukuU5ilgF3LHuq80m6e67M_sCNarIrekFptEEJrCmdBB1zQo_GaXL1X_WJc452ootdkdQZCMBM8bppDIr-jD6nkF6Rl6bArS_CVpojZhdUiBFO3mCHJaREZGGJvFL4H7k71xZhm-_FXF9T-thg9k2uJkadRY_bfogfIn4f_D4e");
+  background-color: #fafaf5;
+}
+
+@utility lattice-overlay {
+  background-image: radial-gradient(#442a22 0.5px, transparent 0.5px);
+  background-size: 10px 10px;
+  opacity: 0.1;
+}
+
+.material-symbols-outlined {
+  font-variation-settings: "FILL" 0, "wght" 300, "GRAD" 0, "opsz" 24;
+  vertical-align: middle;
 }
 
 body {

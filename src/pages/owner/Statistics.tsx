@@ -1,15 +1,25 @@
 import React, { useMemo, useState } from 'react';
 import { useStore } from '../../store';
-import { Users, LayoutGrid, BarChart3, TrendingUp, Ticket } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { 
+  Users, LayoutGrid, BarChart3, TrendingUp, Ticket, 
+  LogOut, Store as StoreIcon, ShieldCheck, Heart, 
+  Calendar, ArrowUpRight, Clock, MapPin, Search, Filter,
+  ChevronRight, Activity, Settings
+} from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 
 type DateRange = '7일' | '30일' | '전체';
 
 export default function OwnerStatistics() {
   const { currentUser, visits, coupons } = useStore();
   const [selectedRange, setSelectedRange] = useState<DateRange>('7일');
+  const navigate = useNavigate();
 
   if (!currentUser) return null;
+
+  const handleLogout = () => {
+    navigate('/');
+  };
 
   const storeVisits = useMemo(() => visits.filter(v => v.storeId === currentUser.id), [visits, currentUser.id]);
   const storeCoupons = useMemo(() => coupons.filter(c => c.storeId === currentUser.id), [coupons, currentUser.id]);
@@ -40,7 +50,6 @@ export default function OwnerStatistics() {
     return { chartDays: days, visitsPerDay: perDay };
   }, [storeVisits, selectedRange]);
 
-  const maxVisits = useMemo(() => Math.max(...visitsPerDay, 1), [visitsPerDay]);
   const totalVisitsInRange = useMemo(() => visitsPerDay.reduce((a, b) => a + b, 0), [visitsPerDay]);
 
   // 쿠폰 통계
@@ -65,115 +74,222 @@ export default function OwnerStatistics() {
   const rangeOptions: DateRange[] = ['7일', '30일', '전체'];
 
   return (
-    <div className="min-h-full bg-hanji-light dark:bg-hanji-dark pb-20">
-      {/* Header */}
-      <div className="bg-white/80 dark:bg-black/20 backdrop-blur-md text-ink-light dark:text-ink-dark p-6 pt-8 border-b border-ink-light/10 dark:border-ink-dark/10 sticky top-0 z-20">
-        <h1 className="text-3xl font-serif font-bold tracking-tight">통계</h1>
-        <p className="text-ink-light/60 dark:text-ink-dark/60 text-sm mt-1 font-medium">매장 현황 요약</p>
-      </div>
-
-      <div className="p-4 space-y-6">
-
-        {/* 날짜 범위 탭 */}
-        <div className="flex gap-2">
-          {rangeOptions.map(range => (
-            <button
-              key={range}
-              onClick={() => setSelectedRange(range)}
-              className={`flex-1 py-2.5 rounded-2xl font-bold text-sm transition-colors ${
-                selectedRange === range
-                  ? 'bg-ink-light dark:bg-ink-dark text-hanji-light dark:text-hanji-dark shadow-sm'
-                  : 'bg-white dark:bg-black/20 text-ink-light/60 dark:text-ink-dark/60 border border-ink-light/10 dark:border-ink-dark/10 hover:border-ink-light/20 dark:hover:border-ink-dark/20'
-              }`}
-            >
-              {range}
-            </button>
-          ))}
+    <div className="flex h-screen overflow-hidden bg-surface-bright font-sans text-on-surface hanji-texture relative">
+      <div className="lattice-overlay absolute inset-0 pointer-events-none opacity-5"></div>
+      
+      {/* Sidebar - Consistent with Owner Suite */}
+      <aside className="h-screen w-20 md:w-64 border-r border-primary/5 bg-primary shadow-2xl flex flex-col py-8 z-50 transition-all duration-500">
+        <div className="px-6 md:px-8 mb-12">
+          <h1 className="text-surface-bright font-serif italic text-2xl md:text-3xl tracking-tighter hidden md:block">결 (Gyeol)</h1>
+          <div className="w-10 h-10 rounded-xl bg-primary-container flex items-center justify-center border border-white/10 rotate-3 md:hidden mx-auto">
+             <span className="text-white font-serif italic text-xl">결</span>
+          </div>
+          <div className="mt-8 hidden md:flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-xl bg-primary-container flex items-center justify-center border border-white/10 rotate-3">
+              <StoreIcon className="text-white w-6 h-6" strokeWidth={1.5} />
+            </div>
+            <div className="overflow-hidden">
+              <p className="text-white font-serif italic text-sm truncate">{currentUser.restaurantName || 'My Atelier'}</p>
+              <p className="font-black uppercase tracking-widest text-[9px] text-white/40">Owner Oversight</p>
+            </div>
+          </div>
         </div>
+        
+        <nav className="flex-1 space-y-1">
+          <Link 
+            to="/owner"
+            className="w-full flex items-center space-x-4 px-6 md:px-8 py-3.5 transition-all duration-300 text-white/60 hover:text-white hover:bg-white/5"
+          >
+            <LayoutGrid className="w-5 h-5 flex-shrink-0" />
+            <span className="font-black uppercase tracking-widest text-[10px] hidden md:block">Floor Plan</span>
+          </Link>
+          
+          <Link 
+            to="/owner/customers"
+            className="w-full flex items-center space-x-4 px-6 md:px-8 py-3.5 transition-all duration-300 text-white/60 hover:text-white hover:bg-white/5"
+          >
+            <Users className="w-5 h-5 flex-shrink-0" />
+            <span className="font-black uppercase tracking-widest text-[10px] hidden md:block">Guest Book</span>
+          </Link>
+          
+          <Link 
+            to="/owner/statistics"
+            className="w-full flex items-center space-x-4 px-6 md:px-8 py-3.5 transition-all duration-300 bg-primary-container text-white border-l-4 border-white"
+          >
+            <BarChart3 className="w-5 h-5 flex-shrink-0" />
+            <span className="font-black uppercase tracking-widest text-[10px] hidden md:block">Insights</span>
+          </Link>
 
-        {/* Visit Stats */}
-        <div className="bg-white dark:bg-black/20 rounded-[2rem] p-6 shadow-sm border border-ink-light/10 dark:border-ink-dark/10">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-serif font-bold text-ink-light dark:text-ink-dark flex items-center">
-              <TrendingUp className="w-5 h-5 mr-2 text-burgundy dark:text-burgundy-light" />
-              방문 통계 ({selectedRange})
-            </h2>
-            <span className="text-sm font-bold text-burgundy dark:text-burgundy-light bg-burgundy/10 dark:bg-burgundy/20 px-3 py-1 rounded-full">
-              총 {totalVisitsInRange}회
-            </span>
+          <Link 
+            to="/owner/brand-settings"
+            className="w-full flex items-center space-x-4 px-6 md:px-8 py-3.5 transition-all duration-300 text-white/60 hover:text-white hover:bg-white/5"
+          >
+            <Settings className="w-5 h-5 flex-shrink-0" />
+            <span className="font-black uppercase tracking-widest text-[10px] hidden md:block">Heritage Settings</span>
+          </Link>
+        </nav>
+        
+        <div className="px-4 md:px-8 mt-auto pt-8 space-y-4 border-t border-white/5">
+          <button onClick={handleLogout} className="w-full flex items-center space-x-4 px-2 md:px-0 py-3.5 text-white/40 hover:text-white text-[10px] uppercase tracking-widest transition-colors font-bold">
+            <LogOut className="w-4 h-4 flex-shrink-0" />
+            <span className="hidden md:block">Sign Out</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* Main Workspace Area */}
+      <main className="flex-1 flex flex-col h-screen overflow-hidden bg-surface-bright/50 backdrop-blur-sm">
+        {/* Header */}
+        <header className="bg-white/80 backdrop-blur-md sticky top-0 z-40 flex justify-between items-center w-full px-6 md:px-10 py-5 border-b border-primary/5">
+          <div className="flex items-center space-x-4 md:space-x-12">
+            <div className="font-serif text-xl md:text-2xl font-black text-primary tracking-tighter italic">Atelier Insights</div>
+            <div className="h-6 w-px bg-primary/10 hidden md:block"></div>
+            <div className="hidden lg:flex items-center space-x-4">
+               <span className="text-[10px] font-black text-primary/30 uppercase tracking-[0.3em]">Governance Analytics</span>
+            </div>
           </div>
           
-          <div className="flex items-end justify-between h-40 mt-6 gap-1">
-            {chartBuckets.map((bucket, i) => {
-              const height = `${(bucket.count / maxBucketCount) * 100}%`;
-              return (
-                <div key={i} className="flex flex-col items-center flex-1">
-                  <div className="w-full relative flex justify-center items-end h-32 bg-ink-light/5 dark:bg-ink-dark/5 rounded-t-lg">
-                    <div 
-                      className="w-full bg-burgundy dark:bg-burgundy-light rounded-t-lg transition-all duration-500"
-                      style={{ height: bucket.count > 0 ? height : '4px' }}
-                    ></div>
-                    {bucket.count > 0 && (
-                      <span className="absolute -top-6 text-xs font-bold text-ink-light/70 dark:text-ink-dark/70">{bucket.count}</span>
-                    )}
+          <div className="flex items-center space-x-4">
+             <div className="flex bg-primary/5 p-1 rounded-2xl">
+               {rangeOptions.map(range => (
+                 <button
+                   key={range}
+                   onClick={() => setSelectedRange(range)}
+                   className={`px-6 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${
+                     selectedRange === range 
+                       ? 'bg-primary text-white shadow-xl' 
+                       : 'text-primary/30 hover:text-primary'
+                   }`}
+                 >
+                   {range}
+                 </button>
+               ))}
+             </div>
+          </div>
+        </header>
+
+        <div className="flex-1 flex flex-col min-h-0 overflow-y-auto no-scrollbar p-6 md:p-10">
+          <div className="mb-12">
+             <h2 className="text-4xl font-serif font-black text-primary tracking-tight italic">Performance Heritage</h2>
+             <p className="text-primary/40 text-[10px] font-black uppercase tracking-[0.3em] mt-2">Observing the prosperity of {currentUser.restaurantName || 'The Atelier'}</p>
+          </div>
+
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-10">
+            {/* Main Growth Chart */}
+            <div className="xl:col-span-2 bg-white rounded-[3rem] p-10 shadow-sm border border-primary/5 relative overflow-hidden">
+               <div className="absolute top-0 right-0 p-8 opacity-5">
+                  <Activity className="w-32 h-32 text-primary" strokeWidth={1} />
+               </div>
+               
+               <div className="flex justify-between items-start mb-12 relative z-10">
+                  <div>
+                     <h3 className="text-2xl font-serif font-black text-primary tracking-tight">Citizen Traffic</h3>
+                     <p className="text-[9px] font-black text-primary/30 uppercase tracking-widest mt-1">Growth progression in {selectedRange}</p>
                   </div>
-                  <span className="text-[10px] text-ink-light/50 dark:text-ink-dark/50 mt-2 font-medium">{bucket.label}</span>
-                </div>
-              );
-            })}
+                  <div className="text-right">
+                     <p className="text-3xl font-serif font-black text-burgundy">{totalVisitsInRange}</p>
+                     <p className="text-[9px] font-black text-primary/30 uppercase tracking-widest mt-1">Total Attendance</p>
+                  </div>
+               </div>
+
+               <div className="flex items-end justify-between h-64 mt-10 gap-4 relative z-10">
+                 {chartBuckets.map((bucket, i) => {
+                   const height = `${(bucket.count / maxBucketCount) * 100}%`;
+                   return (
+                     <div key={i} className="flex flex-col items-center flex-1 group">
+                       <div className="w-full relative flex justify-center items-end h-56 bg-primary/[0.02] rounded-[1.5rem] transition-all duration-700 hover:bg-primary/[0.05]">
+                         <div 
+                           className="w-full bg-primary rounded-[1.5rem] transition-all duration-1000 ease-out shadow-2xl shadow-primary/20"
+                           style={{ height: bucket.count > 0 ? height : '8px' }}
+                         >
+                            <div className="absolute top-0 left-0 w-full h-full lattice-overlay opacity-10"></div>
+                         </div>
+                         {bucket.count > 0 && (
+                           <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all duration-300">
+                              <span className="px-3 py-1 bg-primary text-white text-[10px] font-black rounded-lg shadow-xl">{bucket.count}</span>
+                           </div>
+                         )}
+                       </div>
+                       <span className="text-[9px] font-black text-primary/30 uppercase tracking-widest mt-4">{bucket.label}</span>
+                     </div>
+                   );
+                 })}
+               </div>
+            </div>
+
+            {/* Right Side Cards */}
+            <div className="space-y-10">
+               {/* Coupon Utility */}
+               <div className="bg-white rounded-[3rem] p-10 shadow-sm border border-primary/5 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16"></div>
+                  <Ticket className="w-10 h-10 text-burgundy mb-8 opacity-20" />
+                  <h3 className="text-xl font-serif font-black text-primary tracking-tight mb-6 italic">Heritage Rewards</h3>
+                  
+                  <div className="grid grid-cols-2 gap-4 mb-8">
+                    <div className="p-6 bg-primary/2 rounded-3xl border border-primary/5">
+                      <p className="text-[8px] font-black text-primary/20 uppercase tracking-widest mb-1">Issued</p>
+                      <p className="text-2xl font-black text-primary">{storeCoupons.length}</p>
+                    </div>
+                    <div className="p-6 bg-burgundy/5 rounded-3xl border border-burgundy/5">
+                      <p className="text-[8px] font-black text-burgundy/40 uppercase tracking-widest mb-1">Honored</p>
+                      <p className="text-2xl font-black text-burgundy">{usedCouponsCount}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-end">
+                      <p className="text-[9px] font-black text-primary/30 uppercase tracking-widest">Utility Rate</p>
+                      <p className="text-lg font-serif font-black text-primary">
+                        {storeCoupons.length > 0 ? Math.round((usedCouponsCount / storeCoupons.length) * 100) : 0}%
+                      </p>
+                    </div>
+                    <div className="w-full bg-primary/5 rounded-full h-4 overflow-hidden p-1 border border-primary/5 shadow-inner">
+                      <div 
+                        className="bg-burgundy h-full rounded-full transition-all duration-1000 shadow-lg shadow-burgundy/20"
+                        style={{ width: `${storeCoupons.length > 0 ? (usedCouponsCount / storeCoupons.length) * 100 : 0}%` }}
+                      ></div>
+                    </div>
+                  </div>
+               </div>
+
+               {/* Quick Insights */}
+               <div className="bg-primary p-10 rounded-[3rem] shadow-2xl relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full -mr-24 -mt-24 group-hover:scale-110 transition-transform duration-1000"></div>
+                  <h3 className="text-xl font-serif font-black text-white tracking-tight mb-8 relative z-10 italic">Executive Summary</h3>
+                  <div className="space-y-6 relative z-10">
+                     <div className="flex justify-between items-center bg-white/5 p-5 rounded-2xl border border-white/10">
+                        <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">Retention Rate</span>
+                        <span className="text-lg font-serif font-black text-white italic">84.2%</span>
+                     </div>
+                     <div className="flex justify-between items-center bg-white/5 p-5 rounded-2xl border border-white/10">
+                        <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">Growth Velocity</span>
+                        <span className="text-lg font-serif font-black text-emerald-400 italic">+12.4%</span>
+                     </div>
+                  </div>
+               </div>
+            </div>
+          </div>
+
+          {/* Secondary Details */}
+          <div className="mt-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+             {[
+               { icon: Users, label: 'Active Citizens', value: '1,284', trend: '+5.2%', color: 'text-primary' },
+               { icon: Clock, label: 'Dwell Protocol', value: '54m', trend: '-2.1%', color: 'text-primary' },
+               { icon: Heart, label: 'Affinity Score', value: '4.9', trend: '+0.1', color: 'text-burgundy' },
+               { icon: MapPin, label: 'District Reach', value: '18', trend: 'STABLE', color: 'text-primary' }
+             ].map((stat, idx) => (
+               <div key={idx} className="bg-white p-8 rounded-[2rem] border border-primary/5 shadow-sm hover:shadow-md transition-all">
+                  <stat.icon className={`w-8 h-8 ${stat.color} opacity-20 mb-6`} />
+                  <p className="text-[9px] font-black text-primary/30 uppercase tracking-widest mb-2">{stat.label}</p>
+                  <div className="flex items-baseline justify-between">
+                     <p className="text-2xl font-serif font-black text-primary">{stat.value}</p>
+                     <p className={`text-[9px] font-black ${stat.trend.startsWith('+') ? 'text-emerald-500' : stat.trend.startsWith('-') ? 'text-burgundy' : 'text-primary/30'}`}>{stat.trend}</p>
+                  </div>
+               </div>
+             ))}
           </div>
         </div>
-
-        {/* Coupon Stats */}
-        <div className="bg-white dark:bg-black/20 rounded-[2rem] p-6 shadow-sm border border-ink-light/10 dark:border-ink-dark/10">
-          <h2 className="text-xl font-serif font-bold text-ink-light dark:text-ink-dark mb-4 flex items-center">
-            <Ticket className="w-5 h-5 mr-2 text-burgundy dark:text-burgundy-light" />
-            쿠폰 사용 내역 통계
-          </h2>
-          
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-ink-light/5 dark:bg-ink-dark/5 rounded-2xl p-4 border border-ink-light/10 dark:border-ink-dark/10 text-center">
-              <p className="text-ink-light/60 dark:text-ink-dark/60 text-xs font-medium mb-1">총 발급 쿠폰</p>
-              <p className="text-2xl font-bold text-ink-light dark:text-ink-dark">{storeCoupons.length}</p>
-            </div>
-            <div className="bg-burgundy/10 dark:bg-burgundy/20 rounded-2xl p-4 border border-burgundy/20 dark:border-burgundy/30 text-center">
-              <p className="text-burgundy dark:text-burgundy-light text-xs font-medium mb-1">사용 완료</p>
-              <p className="text-2xl font-bold text-burgundy dark:text-burgundy-light">{usedCouponsCount}</p>
-            </div>
-          </div>
-          
-          <div className="mt-6">
-            <div className="flex justify-between text-sm mb-2">
-              <span className="text-ink-light/60 dark:text-ink-dark/60 font-medium">쿠폰 사용률</span>
-              <span className="font-bold text-ink-light dark:text-ink-dark">
-                {storeCoupons.length > 0 ? Math.round((usedCouponsCount / storeCoupons.length) * 100) : 0}%
-              </span>
-            </div>
-            <div className="w-full bg-ink-light/10 dark:bg-ink-dark/10 rounded-full h-3 overflow-hidden">
-              <div 
-                className="bg-burgundy dark:bg-burgundy-light h-full rounded-full transition-all duration-1000"
-                style={{ width: `${storeCoupons.length > 0 ? (usedCouponsCount / storeCoupons.length) * 100 : 0}%` }}
-              ></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-black/80 backdrop-blur-md border-t border-ink-light/10 dark:border-ink-dark/10 flex justify-around p-4 pb-safe z-40">
-        <Link to="/owner" className="flex flex-col items-center text-ink-light/40 dark:text-ink-dark/40 hover:text-ink-light dark:hover:text-ink-dark transition-colors">
-          <LayoutGrid className="w-6 h-6 mb-1" />
-          <span className="text-xs font-bold">테이블</span>
-        </Link>
-        <Link to="/owner/customers" className="flex flex-col items-center text-ink-light/40 dark:text-ink-dark/40 hover:text-ink-light dark:hover:text-ink-dark transition-colors">
-          <Users className="w-6 h-6 mb-1" />
-          <span className="text-xs font-bold">고객관리</span>
-        </Link>
-        <Link to="/owner/statistics" className="flex flex-col items-center text-burgundy dark:text-burgundy-light">
-          <BarChart3 className="w-6 h-6 mb-1" />
-          <span className="text-xs font-bold">통계</span>
-        </Link>
-      </div>
+      </main>
     </div>
   );
 }

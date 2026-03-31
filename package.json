@@ -11,7 +11,7 @@
     "build": "npm run clean && vite build && npx esbuild server.ts --bundle --platform=node --format=esm --outfile=dist/server.mjs --packages=external",
     "start": "node dist/server.mjs",
     "preview": "vite preview",
-    "clean": "rm -rf dist",
+    "clean": "npx rimraf dist",
     "lint": "tsc --noEmit"
   },
   "dependencies": {

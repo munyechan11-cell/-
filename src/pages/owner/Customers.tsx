@@ -1,7 +1,13 @@
 import React, { useState } from 'react';
 import { useStore, getEffectiveTier, getTierColor, getCustomerTier, getTierCustomName } from '../../store';
-import { Users, LayoutGrid, Search, Send, X, MessageSquare, Ticket, History, Loader2, CheckSquare, Square, Download, ChevronDown, BarChart3 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { 
+  Users, LayoutGrid, Search, Send, X, MessageSquare, Ticket, 
+  History, Loader2, CheckSquare, Square, Download, ChevronDown, 
+  BarChart3, LogOut, Store as StoreIcon, ShieldCheck, Heart, 
+  TrendingUp, Calendar, Edit2, Filter, Trash2, Plus, ArrowUpRight,
+  Clock, MapPin, Settings
+} from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import MemoModal, { formatMemoDisplay } from '../../components/MemoModal';
 
 export default function OwnerCustomers() {
@@ -30,7 +36,13 @@ export default function OwnerCustomers() {
     { id: 'custom', title: '직접 입력' }
   ];
 
+  const navigate = useNavigate();
+
   if (!currentUser) return null;
+
+  const handleLogout = () => {
+    navigate('/');
+  };
 
   const customers = users.filter(u => u.role === 'customer' && u.storeId === currentUser.id);
 
@@ -194,391 +206,418 @@ export default function OwnerCustomers() {
   };
 
   return (
-    <div className="min-h-full bg-hanji-light dark:bg-hanji-dark pb-20">
-      {/* Header */}
-      <div className="bg-white/80 dark:bg-black/20 backdrop-blur-md text-ink-light dark:text-ink-dark p-6 pt-8 border-b border-ink-light/10 dark:border-ink-dark/10 sticky top-0 z-20">
-        <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-serif font-bold tracking-tight">고객 관리</h1>
-          <div className="flex gap-2">
-            <button
-              onClick={handleExportData}
-              className="px-3 py-1.5 rounded-lg bg-white dark:bg-black/20 text-ink-light/70 dark:text-ink-dark/70 hover:bg-ink-light/5 dark:hover:bg-ink-dark/10 border border-ink-light/10 dark:border-ink-dark/10 text-sm font-bold transition-colors flex items-center shadow-sm"
-            >
-              <Download className="w-4 h-4 mr-1.5" />
-              자료출력
-            </button>
-            <button
-              onClick={() => {
-                if (customers.length === 0) return;
-                setIsMultiSelectMode(!isMultiSelectMode);
-                setSelectedCustomers([]);
-              }}
-              disabled={customers.length === 0}
-              title={customers.length === 0 ? '등록된 고객이 없습니다' : ''}
-              className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-colors shadow-sm border disabled:opacity-40 disabled:cursor-not-allowed ${
-                isMultiSelectMode 
-                  ? 'bg-burgundy text-hanji-light border-burgundy' 
-                  : 'bg-white dark:bg-black/20 text-ink-light/70 dark:text-ink-dark/70 hover:bg-ink-light/5 dark:hover:bg-ink-dark/10 border-ink-light/10 dark:border-ink-dark/10'
-              }`}
-            >
-              {isMultiSelectMode ? '취소' : '일괄 전송'}
-            </button>
+    <div className="flex h-screen overflow-hidden bg-surface-bright font-sans text-on-surface hanji-texture relative">
+      <div className="lattice-overlay absolute inset-0 pointer-events-none opacity-5"></div>
+      
+      {/* Sidebar - Consistent with Dashboard */}
+      <aside className="h-screen w-20 md:w-64 border-r border-primary/5 bg-primary shadow-2xl flex flex-col py-8 z-50 transition-all duration-500">
+        <div className="px-6 md:px-8 mb-12">
+          <h1 className="text-surface-bright font-serif italic text-2xl md:text-3xl tracking-tighter hidden md:block">결 (Gyeol)</h1>
+          <div className="w-10 h-10 rounded-xl bg-primary-container flex items-center justify-center border border-white/10 rotate-3 md:hidden mx-auto">
+             <span className="text-white font-serif italic text-xl">결</span>
+          </div>
+          <div className="mt-8 hidden md:flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-xl bg-primary-container flex items-center justify-center border border-white/10 rotate-3">
+              <StoreIcon className="text-white w-6 h-6" strokeWidth={1.5} />
+            </div>
+            <div className="overflow-hidden">
+              <p className="text-white font-serif italic text-sm truncate">{currentUser.restaurantName || 'My Atelier'}</p>
+              <p className="font-black uppercase tracking-widest text-[9px] text-white/40">Owner Oversight</p>
+            </div>
           </div>
         </div>
         
-        <div className="mt-6 relative">
-          <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-ink-light/40 dark:text-ink-dark/40 w-5 h-5" />
-          <input 
-            type="text" 
-            placeholder="이름 또는 전화번호 검색"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-white dark:bg-black/20 text-ink-light dark:text-ink-dark placeholder-ink-light/40 dark:placeholder-ink-dark/40 rounded-2xl py-3 pl-12 pr-4 border border-ink-light/10 dark:border-ink-dark/10 focus:border-burgundy focus:ring-2 focus:ring-burgundy/20 transition-all shadow-sm"
-          />
-        </div>
+        <nav className="flex-1 space-y-1">
+          <Link 
+            to="/owner"
+            className="w-full flex items-center space-x-4 px-6 md:px-8 py-3.5 transition-all duration-300 text-white/60 hover:text-white hover:bg-white/5"
+          >
+            <LayoutGrid className="w-5 h-5 flex-shrink-0" />
+            <span className="font-black uppercase tracking-widest text-[10px] hidden md:block">Floor Plan</span>
+          </Link>
+          
+          <Link 
+            to="/owner/customers"
+            className="w-full flex items-center space-x-4 px-6 md:px-8 py-3.5 transition-all duration-300 bg-primary-container text-white border-l-4 border-white"
+          >
+            <Users className="w-5 h-5 flex-shrink-0" />
+            <span className="font-black uppercase tracking-widest text-[10px] hidden md:block">Guest Book</span>
+          </Link>
+          
+          <Link 
+            to="/owner/statistics"
+            className="w-full flex items-center space-x-4 px-6 md:px-8 py-3.5 transition-all duration-300 text-white/60 hover:text-white hover:bg-white/5"
+          >
+            <BarChart3 className="w-5 h-5 flex-shrink-0" />
+            <span className="font-black uppercase tracking-widest text-[10px] hidden md:block">Insights</span>
+          </Link>
 
-        <div className="mt-3 flex overflow-x-auto no-scrollbar gap-2 pb-2">
-          {['all', 'VIP', '다이아', '골드', '실버', '브론즈', '일반'].map(tier => (
-            <button
-              key={tier}
-              onClick={() => {
-                setFilterTier(tier);
-                setSelectedCustomers([]); // 필터 변경 시 다중 선택 초기화
-              }}
-              className={`whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-bold transition-all shadow-sm border ${
-                filterTier === tier 
-                  ? (tier === 'all' 
-                      ? 'bg-ink-light dark:bg-ink-dark text-hanji-light dark:text-hanji-dark border-ink-light dark:border-ink-dark' 
-                      : getTierColor(tier)) 
-                  : 'bg-white dark:bg-black/20 text-ink-light/60 dark:text-ink-dark/60 border-ink-light/10 dark:border-ink-dark/10 hover:border-ink-light/30 dark:hover:border-ink-dark/30'
-              }`}
-            >
-              {tier === 'all' ? '전체 등급' : getTierCustomName(tier, currentUser?.tierNames)}
-            </button>
-          ))}
+          <Link 
+            to="/owner/brand-settings"
+            className="w-full flex items-center space-x-4 px-6 md:px-8 py-3.5 transition-all duration-300 text-white/60 hover:text-white hover:bg-white/5"
+          >
+            <Settings className="w-5 h-5 flex-shrink-0" />
+            <span className="font-black uppercase tracking-widest text-[10px] hidden md:block">Heritage Settings</span>
+          </Link>
+        </nav>
+        
+        <div className="px-4 md:px-8 mt-auto pt-8 space-y-4 border-t border-white/5">
+          <button onClick={handleLogout} className="w-full flex items-center space-x-4 px-2 md:px-0 py-3.5 text-white/40 hover:text-white text-[10px] uppercase tracking-widest transition-colors font-bold">
+            <LogOut className="w-4 h-4 flex-shrink-0" />
+            <span className="hidden md:block">Sign Out</span>
+          </button>
         </div>
+      </aside>
 
-        {isMultiSelectMode && (
-          <div className="mt-4 flex justify-between items-center bg-burgundy/5 dark:bg-burgundy/10 p-3 rounded-xl border border-burgundy/20 animate-in fade-in slide-in-from-top-2">
-            <button 
-              onClick={toggleSelectAll}
-              className="flex items-center text-burgundy dark:text-burgundy-light font-bold text-sm"
-            >
-              {selectedCustomers.length === filteredCustomers.length && filteredCustomers.length > 0 ? (
-                <CheckSquare className="w-5 h-5 mr-2 text-burgundy" />
-              ) : (
-                <Square className="w-5 h-5 mr-2" />
-              )}
-              전체 선택 ({selectedCustomers.length}/{filteredCustomers.length})
-            </button>
+      {/* Main Workspace Area */}
+      <main className="flex-1 flex flex-col h-screen overflow-hidden bg-surface-bright/50 backdrop-blur-sm">
+        {/* Header */}
+        <header className="bg-white/80 backdrop-blur-md sticky top-0 z-40 flex justify-between items-center w-full px-6 md:px-10 py-5 border-b border-primary/5">
+          <div className="flex items-center space-x-4 md:space-x-12">
+            <div className="font-serif text-xl md:text-2xl font-black text-primary tracking-tighter italic">Citizen Registry</div>
+            <div className="h-6 w-px bg-primary/10 hidden md:block"></div>
+            <div className="hidden lg:flex items-center space-x-4">
+               <button 
+                onClick={handleExportData}
+                className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-primary/5 text-primary text-[10px] font-black uppercase tracking-widest hover:bg-primary/10 transition-all border border-primary/5"
+               >
+                 <Download className="w-4 h-4" />
+                 <span>Archive Stats</span>
+               </button>
+            </div>
+          </div>
+          
+          <div className="flex items-center space-x-4">
+            <div className="relative hidden md:block w-64 lg:w-96">
+               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-primary/30" />
+               <input 
+                type="text" 
+                placeholder="SEEK BY NAME OR CYPHER..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full bg-primary/5 border border-primary/5 rounded-2xl py-2.5 pl-12 pr-4 text-[10px] font-black tracking-widest text-primary placeholder:text-primary/20 focus:outline-none focus:ring-4 focus:ring-primary/5 transition-all"
+               />
+            </div>
+            
             <button
-              onClick={() => {
-                if (selectedCustomers.length > 0) {
-                  // Open modal for bulk send
-                  setSelectedCustomer('bulk'); // Use a dummy ID to open the modal
-                }
-              }}
-              disabled={selectedCustomers.length === 0}
-              className="px-4 py-2 bg-burgundy text-hanji-light rounded-lg text-sm font-bold disabled:opacity-50 transition-colors flex items-center shadow-sm"
+               onClick={() => {
+                 if (customers.length === 0) return;
+                 setIsMultiSelectMode(!isMultiSelectMode);
+                 setSelectedCustomers([]);
+               }}
+               className={`flex items-center space-x-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${isMultiSelectMode ? 'bg-burgundy text-white border-burgundy shadow-xl shadow-burgundy/20' : 'bg-white text-primary/40 border-primary/10 hover:border-primary/30'}`}
             >
-              <Send className="w-4 h-4 mr-1.5" />
-              선택 전송
+              <Filter className="w-4 h-4" />
+              <span>{isMultiSelectMode ? 'ABORT BATCH' : 'BATCH BROADCAST'}</span>
             </button>
           </div>
-        )}
-      </div>
+        </header>
 
-      {/* Customer List */}
-      <div className="p-4 space-y-4">
-        {filteredCustomers.length === 0 ? (
-          <div className="text-center py-12 text-ink-light/50 dark:text-ink-dark/50 bg-white dark:bg-hanji-dark rounded-3xl border border-ink-light/10 dark:border-ink-dark/10 shadow-sm mt-4">
-            검색 결과가 없습니다.
+        <div className="flex-1 flex flex-col min-h-0 overflow-y-auto no-scrollbar p-6 md:p-10">
+          <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
+            <div>
+               <h2 className="text-4xl font-serif font-black text-primary tracking-tight italic">Guest Heritage</h2>
+               <p className="text-primary/40 text-[10px] font-black uppercase tracking-[0.3em] mt-2">Overseeing the loyal citizens of {currentUser.restaurantName || 'The Atelier'}</p>
+            </div>
+            
+            <div className="flex bg-primary/5 p-1 rounded-2xl overflow-x-auto no-scrollbar">
+              {['all', 'VIP', '다이아', '골드', '실버', '브론즈', '일반'].map(tier => (
+                <button
+                  key={tier}
+                  onClick={() => {
+                    setFilterTier(tier);
+                    setSelectedCustomers([]);
+                  }}
+                  className={`px-5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${
+                    filterTier === tier 
+                      ? 'bg-primary text-white shadow-xl' 
+                      : 'text-primary/30 hover:text-primary hover:bg-white/50'
+                  }`}
+                >
+                  {tier === 'all' ? 'All Tiers' : getTierCustomName(tier, currentUser?.tierNames)}
+                </button>
+              ))}
+            </div>
           </div>
-        ) : (
-          filteredCustomers.map(customer => {
-            const stats = getCustomerStats(customer.id);
-            const isSelected = selectedCustomers.includes(customer.id);
-            return (
-              <div 
-                key={customer.id} 
-                className={`bg-hanji-light dark:bg-hanji-dark rounded-[2rem] p-6 shadow-sm border transition-all relative overflow-hidden ${
-                  isMultiSelectMode && isSelected ? 'border-burgundy ring-2 ring-burgundy/50' : 'border-ink-light/10 dark:border-ink-dark/10 hover:border-ink-light/20 dark:hover:border-ink-dark/20'
-                }`}
-                onClick={() => isMultiSelectMode && toggleCustomerSelection(customer.id)}
-              >
-                {/* Top Color Blocks (Decorative) */}
-                <div className="flex gap-1.5 mb-6">
-                  <div className="h-6 w-16 bg-burgundy rounded-md"></div>
-                  <div className="h-6 w-16 bg-espresso rounded-md"></div>
-                  <div className="h-6 w-16 bg-olive rounded-md"></div>
-                  <div className="h-6 w-16 bg-mustard/20 rounded-md"></div>
-                  <div className="h-6 w-16 bg-white/50 rounded-md"></div>
-                </div>
 
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    {/* VIP Badge & Name */}
-                    <div className="flex items-center gap-3 mb-1">
-                      <div className="relative group">
-                        <select
-                          value={stats.isManualTier ? stats.tier : 'auto'}
-                          onChange={(e) => {
-                            e.stopPropagation();
-                            setCustomerTier(customer.id, currentUser.id, e.target.value);
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                          className={`appearance-none px-3 py-1 pr-6 rounded-full text-xs font-bold border-none cursor-pointer focus:ring-2 focus:ring-burgundy/50 outline-none text-white ${getTierColor(stats.tier)}`}
-                        >
-                          <option value="auto">자동 ({getTierCustomName(stats.autoTier, currentUser?.tierNames)})</option>
-                          <option value="일반">{getTierCustomName('일반', currentUser?.tierNames)}</option>
-                          <option value="브론즈">{getTierCustomName('브론즈', currentUser?.tierNames)}</option>
-                          <option value="실버">{getTierCustomName('실버', currentUser?.tierNames)}</option>
-                          <option value="골드">{getTierCustomName('골드', currentUser?.tierNames)}</option>
-                          <option value="다이아">{getTierCustomName('다이아', currentUser?.tierNames)}</option>
-                          <option value="VIP">{getTierCustomName('VIP', currentUser?.tierNames)}</option>
-                        </select>
-                        <ChevronDown className="w-3 h-3 text-ink-light dark:text-ink-dark absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-50" />
-                      </div>
-                      <h3 className="font-serif font-bold text-ink-light dark:text-ink-dark text-2xl">{customer.name}</h3>
+          {isMultiSelectMode && (
+             <div className="mb-8 flex justify-between items-center bg-burgundy/5 p-6 rounded-[2rem] border border-burgundy/10 animate-in fade-in slide-in-from-top-4">
+                <button 
+                  onClick={toggleSelectAll}
+                  className="flex items-center space-x-3 text-burgundy font-black text-[10px] uppercase tracking-widest"
+                >
+                  {selectedCustomers.length === filteredCustomers.length && filteredCustomers.length > 0 ? (
+                    <CheckSquare className="w-6 h-6" />
+                  ) : (
+                    <Square className="w-6 h-6" />
+                  )}
+                  <span>Select All ({selectedCustomers.length}/{filteredCustomers.length})</span>
+                </button>
+                <button
+                  onClick={() => {
+                    if (selectedCustomers.length > 0) {
+                      setSelectedCustomer('bulk');
+                    }
+                  }}
+                  disabled={selectedCustomers.length === 0}
+                  className="px-8 py-3 bg-burgundy text-white rounded-2xl text-[10px] font-black uppercase tracking-widest disabled:opacity-30 shadow-xl shadow-burgundy/20 hover:scale-105 active:scale-95 transition-all flex items-center space-x-2"
+                >
+                  <Send className="w-4 h-4" />
+                  <span>Transmit to Selection</span>
+                </button>
+             </div>
+          )}
+
+          {/* Customer Registry Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {filteredCustomers.length === 0 ? (
+               <div className="col-span-full py-32 text-center space-y-4 opacity-20">
+                  <span className="material-symbols-outlined text-8xl">person_search</span>
+                  <p className="font-black uppercase tracking-[0.4em] text-xs">No Records Found in Archive</p>
+               </div>
+            ) : (
+              filteredCustomers.map(customer => {
+                const stats = getCustomerStats(customer.id);
+                const isSelected = selectedCustomers.includes(customer.id);
+                return (
+                  <div 
+                    key={customer.id} 
+                    className={`bg-white rounded-[2.5rem] p-8 shadow-sm border transition-all duration-500 relative group overflow-hidden ${
+                      isMultiSelectMode && isSelected ? 'border-burgundy ring-4 ring-burgundy/5' : 'border-primary/5 hover:border-primary/20 hover:shadow-xl'
+                    }`}
+                    onClick={() => isMultiSelectMode && toggleCustomerSelection(customer.id)}
+                  >
+                    <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                       <button onClick={(e) => { e.stopPropagation(); setHistoryCustomer(customer.id); }} className="p-3 bg-primary/5 rounded-2xl hover:bg-primary text-primary/40 hover:text-white transition-all shadow-sm">
+                          <History className="w-4 h-4" />
+                       </button>
                     </div>
-                    <p className="text-ink-light/60 dark:text-ink-dark/60 text-sm font-medium mt-1">{customer.phone}</p>
-                  </div>
 
-                  {/* Multi-select Checkbox */}
-                  {isMultiSelectMode && (
-                    <div className="mt-2">
-                      {isSelected ? (
-                        <CheckSquare className="w-6 h-6 text-burgundy" />
-                      ) : (
-                        <Square className="w-6 h-6 text-ink-light/20 dark:text-ink-dark/20" />
+                    <div className="flex items-start justify-between mb-8">
+                      <div className="flex items-center space-x-5">
+                         <div className="w-16 h-16 rounded-3xl bg-primary/5 flex items-center justify-center border-2 border-primary/5">
+                            <span className="text-2xl font-serif italic font-black text-primary">{customer.name.charAt(0)}</span>
+                         </div>
+                         <div>
+                            <div className="flex items-center space-x-3 mb-1">
+                               <h3 className="text-xl font-serif font-black text-primary tracking-tight">{customer.name}</h3>
+                               <div className="relative">
+                                  <select
+                                    value={stats.isManualTier ? stats.tier : 'auto'}
+                                    onChange={(e) => {
+                                      e.stopPropagation();
+                                      setCustomerTier(customer.id, currentUser.id, e.target.value);
+                                    }}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className={`appearance-none pl-3 pr-8 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest border-none cursor-pointer focus:ring-4 focus:ring-primary/5 outline-none text-white transition-all ${getTierColor(stats.tier)}`}
+                                  >
+                                    <option value="auto">AUTO ({getTierCustomName(stats.autoTier, currentUser?.tierNames)})</option>
+                                    <option value="일반">{getTierCustomName('일반', currentUser?.tierNames)}</option>
+                                    <option value="브론즈">{getTierCustomName('브론즈', currentUser?.tierNames)}</option>
+                                    <option value="실버">{getTierCustomName('실버', currentUser?.tierNames)}</option>
+                                    <option value="골드">{getTierCustomName('골드', currentUser?.tierNames)}</option>
+                                    <option value="다이아">{getTierCustomName('다이아', currentUser?.tierNames)}</option>
+                                    <option value="VIP">{getTierCustomName('VIP', currentUser?.tierNames)}</option>
+                                  </select>
+                                  <ChevronDown className="w-3 h-3 text-white absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                               </div>
+                            </div>
+                            <p className="text-[10px] font-black text-primary/30 uppercase tracking-widest">{customer.phone}</p>
+                         </div>
+                      </div>
+                      
+                      {isMultiSelectMode && (
+                        <div className="pt-2">
+                          {isSelected ? (
+                            <CheckSquare className="w-7 h-7 text-burgundy animate-in zoom-in duration-300" />
+                          ) : (
+                            <Square className="w-7 h-7 text-primary/10" />
+                          )}
+                        </div>
                       )}
                     </div>
-                  )}
-                </div>
-                
-                {/* Stats Grid */}
-                <div className="grid grid-cols-2 gap-3 mb-6">
-                  <div className="bg-white dark:bg-black/20 rounded-2xl p-4 border border-ink-light/5 dark:border-ink-dark/5">
-                    <p className="text-ink-light/50 dark:text-ink-dark/50 text-xs font-medium mb-1">최근 30일</p>
-                    <p className="text-ink-light dark:text-ink-dark font-bold text-lg">{stats.recentVisits}회</p>
-                  </div>
-                  <div className="bg-white dark:bg-black/20 rounded-2xl p-4 border border-ink-light/5 dark:border-ink-dark/5">
-                    <p className="text-ink-light/50 dark:text-ink-dark/50 text-xs font-medium mb-1">마지막 방문</p>
-                    <p className="text-ink-light dark:text-ink-dark font-bold text-lg">{stats.daysSinceLastVisit !== null ? `${stats.daysSinceLastVisit}일 전` : '없음'}</p>
-                  </div>
-                </div>
 
-                {/* Memo Display */}
-                {customer.memo && (
-                  <div className="mb-6 bg-white/50 dark:bg-black/10 p-4 rounded-2xl border border-ink-light/10 dark:border-ink-dark/10 relative group">
-                    <p className="text-sm text-ink-light/80 dark:text-ink-dark/80 whitespace-pre-wrap font-medium leading-relaxed">
-                      {formatMemoDisplay(customer.memo)}
-                    </p>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (confirm('메모를 삭제하시겠습니까?')) {
-                          updateUserMemo(customer.id, currentUser.id, '');
-                        }
-                      }}
-                      className="absolute top-2 right-2 p-1.5 bg-white dark:bg-black/40 rounded-full text-ink-light/40 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all shadow-sm"
-                      title="메모 삭제"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="grid grid-cols-2 gap-4 mb-8">
+                       <div className="p-5 bg-primary/2 rounded-3xl border border-primary/5">
+                          <p className="text-[8px] font-black text-primary/20 uppercase tracking-widest mb-1 flex items-center"><TrendingUp className="w-3 h-3 mr-1" /> Frequency</p>
+                          <p className="text-lg font-black text-primary">{stats.recentVisits} <span className="text-[10px] font-medium text-primary/40 uppercase tracking-tighter">Attends</span></p>
+                       </div>
+                       <div className="p-5 bg-primary/2 rounded-3xl border border-primary/5">
+                          <p className="text-[8px] font-black text-primary/20 uppercase tracking-widest mb-1 flex items-center"><Clock className="w-3 h-3 mr-1" /> Last Present</p>
+                          <p className="text-lg font-black text-primary">{stats.daysSinceLastVisit !== null ? stats.daysSinceLastVisit : '0'} <span className="text-[10px] font-medium text-primary/40 uppercase tracking-tighter">Days Ago</span></p>
+                       </div>
+                    </div>
+
+                    {customer.memo && (
+                      <div className="mb-8 p-6 bg-surface-bright rounded-3xl border border-primary/5 relative">
+                         <div className="absolute transform rotate-45 top-0 right-0 -mr-1 -mt-1 w-4 h-4 bg-primary/10 rounded-full"></div>
+                         <p className="text-xs text-primary/70 leading-relaxed font-serif italic serif">
+                            {formatMemoDisplay(customer.memo)}
+                         </p>
+                      </div>
+                    )}
+
+                    <div className="flex items-center space-x-3">
+                       <button 
+                        onClick={(e) => { e.stopPropagation(); setEditingMemoCustomer(customer.id); }}
+                        className="flex-1 bg-primary text-white py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-primary-container transition-all shadow-xl shadow-primary/10"
+                       >
+                         Heritage Note
+                       </button>
+                       <button 
+                        onClick={(e) => { e.stopPropagation(); setSelectedCustomer(customer.id); }}
+                        className="p-3.5 bg-primary/5 text-primary border border-primary/5 rounded-2xl hover:bg-primary/10 transition-all group"
+                       >
+                         <ArrowUpRight className="w-5 h-5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                       </button>
+                    </div>
                   </div>
-                )}
+                );
+              })
+            )}
+          </div>
+        </div>
+      </main>
 
-                {/* Action Buttons */}
-                <div className="flex flex-col gap-2">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setEditingMemoCustomer(customer.id);
-                    }}
-                    className="w-full bg-burgundy text-hanji-light py-4 rounded-2xl font-bold text-base hover:bg-burgundy/90 transition-colors shadow-md flex items-center justify-center"
-                  >
-                    {customer.memo ? '메모 수정하기' : '메모 저장하기'}
-                  </button>
-                  
-                  <div className="flex justify-center mt-2">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedCustomer(customer.id);
-                      }}
-                      className="text-ink-light/60 dark:text-ink-dark/60 text-sm font-medium hover:text-ink-light dark:hover:text-ink-dark transition-colors flex items-center"
-                    >
-                      서비스쿠폰 / 문자메세지 제공 <span className="ml-1 text-xs">↗</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
-
-      {/* Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-black/80 backdrop-blur-md border-t border-ink-light/10 dark:border-ink-dark/10 flex justify-around p-4 pb-safe z-40">
-        <Link to="/owner" className="flex flex-col items-center text-ink-light/40 dark:text-ink-dark/40 hover:text-ink-light dark:hover:text-ink-dark transition-colors">
-          <LayoutGrid className="w-6 h-6 mb-1" />
-          <span className="text-xs font-bold">테이블</span>
-        </Link>
-        <Link to="/owner/customers" className="flex flex-col items-center text-burgundy dark:text-burgundy-light">
-          <Users className="w-6 h-6 mb-1" />
-          <span className="text-xs font-bold">고객관리</span>
-        </Link>
-        <Link to="/owner/statistics" className="flex flex-col items-center text-ink-light/40 dark:text-ink-dark/40 hover:text-ink-light dark:hover:text-ink-dark transition-colors">
-          <BarChart3 className="w-6 h-6 mb-1" />
-          <span className="text-xs font-bold">통계</span>
-        </Link>
-      </div>
-
-      {/* Send Modal */}
+      {/* Transmit Modal (Service/Message) */}
       {selectedCustomer && (isMultiSelectMode || activeCustomer) && (
-        <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-in fade-in duration-200">
-          <div className="bg-hanji-light dark:bg-hanji-dark w-full sm:max-w-md rounded-t-[2rem] sm:rounded-[2rem] p-6 pb-12 sm:pb-6 relative shadow-2xl animate-in slide-in-from-bottom-full sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200 border border-ink-light/10 dark:border-ink-dark/10">
+        <div className="fixed inset-0 bg-primary/40 backdrop-blur-xl z-[200] flex items-center justify-center p-6 animate-in fade-in duration-500">
+          <div className="bg-white w-full max-w-md rounded-[3rem] p-12 shadow-3xl border border-primary/10 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16"></div>
+            
             <button 
               onClick={() => {
-                if (!isMultiSelectMode) setSelectedCustomer(null);
-                else setSelectedCustomer(null); // Just close modal, keep selection
+                setSelectedCustomer(null);
                 setSelectedPredefinedCoupon('');
                 setContent('');
               }}
-              className="absolute top-4 right-4 p-2 bg-transparent rounded-full hover:bg-ink-light/5 dark:hover:bg-ink-dark/10 transition-colors"
+              className="absolute top-8 right-8 p-3 hover:bg-primary/5 rounded-2xl transition-colors"
             >
-              <X className="w-5 h-5 text-ink-light/40 dark:text-ink-dark/40" />
+              <X className="w-6 h-6 text-primary/30" />
             </button>
 
-            <h2 className="text-2xl font-serif font-bold text-ink-light dark:text-ink-dark mb-2">
-              {isMultiSelectMode ? `${selectedCustomers.length}명에게 일괄 전송` : `${activeCustomer?.name}님에게 보내기`}
-            </h2>
+            <h2 className="text-3xl font-serif font-black text-primary tracking-tighter mb-2 italic">Broadcast</h2>
+            <p className="text-[10px] font-black text-primary/30 uppercase tracking-[0.3em] mb-10">
+              {isMultiSelectMode ? `Transmitting to ${selectedCustomers.length} Citizens` : `Personal Cypher for ${activeCustomer?.name}`}
+            </p>
             
-            <div className="flex border-b border-ink-light/10 dark:border-ink-dark/10 mb-6 mt-4">
+            <div className="flex space-x-2 bg-primary/5 p-1 rounded-2xl mb-8">
               <button 
-                className={`flex-1 py-3 font-bold text-sm transition-colors flex items-center justify-center ${sendType === 'coupon' ? 'text-burgundy dark:text-burgundy-light border-b-2 border-burgundy dark:border-burgundy-light' : 'text-ink-light/40 dark:text-ink-dark/40 hover:text-ink-light/60 dark:hover:text-ink-dark/60'}`}
+                className={`flex-1 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${sendType === 'coupon' ? 'bg-primary text-white shadow-xl' : 'text-primary/30 hover:text-primary'}`}
                 onClick={() => setSendType('coupon')}
               >
-                <Ticket className="w-4 h-4 mr-2" />
-                서비스 쿠폰
+                Heritage Coupon
               </button>
               <button 
-                className={`flex-1 py-3 font-bold text-sm transition-colors flex items-center justify-center ${sendType === 'message' ? 'text-burgundy dark:text-burgundy-light border-b-2 border-burgundy dark:border-burgundy-light' : 'text-ink-light/40 dark:text-ink-dark/40 hover:text-ink-light/60 dark:hover:text-ink-dark/60'}`}
+                className={`flex-1 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${sendType === 'message' ? 'bg-primary text-white shadow-xl' : 'text-primary/30 hover:text-primary'}`}
                 onClick={() => setSendType('message')}
               >
-                <MessageSquare className="w-4 h-4 mr-2" />
-                문자 메시지
+                Text Script
               </button>
             </div>
 
-            <form onSubmit={handleSend} className="space-y-4">
-              <div>
-                <label className="block text-sm font-bold text-ink-light/70 dark:text-ink-dark/70 mb-2">
-                  {sendType === 'coupon' ? '서비스 내용' : '메시지 내용'}
-                </label>
-                {sendType === 'coupon' ? (
-                  <div className="space-y-3">
-                    <div className="relative">
-                      <select
-                        value={selectedPredefinedCoupon}
-                        onChange={(e) => {
-                          setSelectedPredefinedCoupon(e.target.value);
-                          if (e.target.value !== 'custom') {
-                            const selected = predefinedCoupons.find(c => c.id === e.target.value);
-                            if (selected) setContent(selected.title);
-                          } else {
-                            setContent('');
-                          }
-                        }}
-                        className="w-full px-4 py-3 rounded-xl border border-ink-light/10 dark:border-ink-dark/10 focus:border-burgundy focus:ring-2 focus:ring-burgundy/20 transition-colors bg-white dark:bg-black/20 text-ink-light dark:text-ink-dark appearance-none"
-                        required
-                      >
-                        <option value="" disabled>서비스 선택</option>
-                        {predefinedCoupons.map(coupon => (
-                          <option key={coupon.id} value={coupon.id}>{coupon.title}</option>
-                        ))}
-                      </select>
-                      <ChevronDown className="absolute right-4 top-1/2 transform -translate-y-1/2 w-5 h-5 pointer-events-none text-ink-light/40 dark:text-ink-dark/40" />
-                    </div>
-                    
-                    {selectedPredefinedCoupon === 'custom' && (
-                      <input 
-                        type="text" 
-                        value={content}
-                        onChange={(e) => setContent(e.target.value)}
-                        placeholder="예: 계란찜 1개 서비스"
-                        className="w-full px-4 py-3 rounded-xl border border-ink-light/10 dark:border-ink-dark/10 focus:border-burgundy focus:ring-2 focus:ring-burgundy/20 transition-colors bg-white dark:bg-black/20 text-ink-light dark:text-ink-dark"
-                        required
-                      />
-                    )}
+            <form onSubmit={handleSend} className="space-y-6">
+              {sendType === 'coupon' ? (
+                <div className="space-y-4">
+                  <div className="relative">
+                    <select
+                      value={selectedPredefinedCoupon}
+                      onChange={(e) => {
+                        setSelectedPredefinedCoupon(e.target.value);
+                        if (e.target.value !== 'custom') {
+                          const selected = predefinedCoupons.find(c => c.id === e.target.value);
+                          if (selected) setContent(selected.title);
+                        } else {
+                          setContent('');
+                        }
+                      }}
+                      className="w-full bg-primary/5 border border-primary/5 rounded-2xl py-4 pl-6 pr-12 text-[10px] font-black uppercase tracking-widest text-primary focus:outline-none focus:ring-4 focus:ring-primary/5 appearance-none"
+                      required
+                    >
+                      <option value="" disabled>Select Protocol</option>
+                      {predefinedCoupons.map(coupon => (
+                        <option key={coupon.id} value={coupon.id}>{coupon.title.toUpperCase()}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-primary/30" />
                   </div>
-                ) : (
-                  <textarea 
-                    value={content}
-                    onChange={(e) => setContent(e.target.value)}
-                    placeholder="고객님께 보낼 메시지를 입력하세요."
-                    rows={4}
-                    className="w-full px-4 py-3 rounded-xl border border-ink-light/10 dark:border-ink-dark/10 focus:border-burgundy focus:ring-2 focus:ring-burgundy/20 transition-colors resize-none bg-white dark:bg-black/20 text-ink-light dark:text-ink-dark"
-                    required
-                  />
-                )}
-              </div>
+                  
+                  {selectedPredefinedCoupon === 'custom' && (
+                    <input 
+                      type="text" 
+                      value={content}
+                      onChange={(e) => setContent(e.target.value)}
+                      placeholder="CUSTOM PROTOCOL..."
+                      className="w-full bg-primary/5 border border-primary/5 rounded-2xl py-4 px-6 text-[10px] font-black uppercase tracking-widest text-primary focus:outline-none focus:ring-4 focus:ring-primary/5"
+                      required
+                    />
+                  )}
+                </div>
+              ) : (
+                <textarea 
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  placeholder="ENGRAVE MESSAGE SCRIPT..."
+                  rows={4}
+                  className="w-full bg-primary/5 border border-primary/5 rounded-2xl py-6 px-6 text-[10px] font-black uppercase tracking-widest text-primary focus:outline-none focus:ring-4 focus:ring-primary/5 resize-none"
+                  required
+                />
+              )}
 
               <button 
                 type="submit"
                 disabled={isSending}
-                className="w-full bg-burgundy hover:bg-burgundy/90 disabled:bg-burgundy/50 text-hanji-light font-bold py-4 rounded-xl transition-colors flex items-center justify-center shadow-sm"
+                className="w-full bg-burgundy hover:scale-[1.02] active:scale-[0.98] disabled:opacity-30 text-white font-black py-5 rounded-2xl transition-all shadow-2xl shadow-burgundy/20 flex items-center justify-center space-x-3 text-[10px] uppercase tracking-widest"
               >
-                {isSending ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Send className="w-5 h-5 mr-2" />}
-                {isSending ? '전송 중...' : '전송하기'}
+                {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                <span>{isSending ? 'Transmitting...' : 'Execute Transmission'}</span>
               </button>
             </form>
           </div>
         </div>
       )}
 
-      {/* History Modal */}
+      {/* History Archive Modal */}
       {historyCustomer && activeHistoryCustomer && (
-        <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 animate-in fade-in duration-200">
-          <div className="bg-hanji-light dark:bg-hanji-dark w-full sm:max-w-md rounded-t-[2rem] sm:rounded-[2rem] p-6 pb-12 sm:pb-6 relative shadow-2xl animate-in slide-in-from-bottom-full sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200 max-h-[80vh] flex flex-col border border-ink-light/10 dark:border-ink-dark/10">
+        <div className="fixed inset-0 bg-primary/40 backdrop-blur-xl z-[200] flex items-center justify-center p-6 animate-in fade-in duration-500">
+          <div className="bg-white w-full max-w-lg rounded-[3rem] p-12 shadow-3xl border border-primary/10 relative overflow-hidden flex flex-col max-h-[85vh]">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16"></div>
+            
             <button 
               onClick={() => setHistoryCustomer(null)}
-              className="absolute top-4 right-4 p-2 bg-transparent rounded-full hover:bg-ink-light/5 dark:hover:bg-ink-dark/10 transition-colors"
+              className="absolute top-8 right-8 p-3 hover:bg-primary/5 rounded-2xl transition-colors"
             >
-              <X className="w-5 h-5 text-ink-light/40 dark:text-ink-dark/40" />
+              <X className="w-6 h-6 text-primary/30" />
             </button>
 
-            <h2 className="text-2xl font-serif font-bold text-ink-light dark:text-ink-dark mb-6 flex items-center">
-              <History className="w-6 h-6 mr-2 text-ink-light/60 dark:text-ink-dark/60" />
-              {activeHistoryCustomer.name}님 전송 기록
-            </h2>
+            <h2 className="text-3xl font-serif font-black text-primary tracking-tighter mb-2 italic">Archives</h2>
+            <p className="text-[10px] font-black text-primary/30 uppercase tracking-[0.3em] mb-10">Historical Record for {activeHistoryCustomer.name}</p>
             
-            <div className="overflow-y-auto flex-1 pr-2 space-y-3">
+            <div className="overflow-y-auto flex-1 pr-4 space-y-6 no-scrollbar">
               {customerHistory.length === 0 ? (
-                <div className="text-center py-8 text-ink-light/60 dark:text-ink-dark/60 bg-white dark:bg-black/20 rounded-2xl border border-ink-light/10 dark:border-ink-dark/10">
-                  전송된 기록이 없습니다.
+                <div className="text-center py-24 opacity-20 space-y-4">
+                   <span className="material-symbols-outlined text-6xl">history_toggle_off</span>
+                   <p className="font-black uppercase tracking-widest text-[10px]">No Timeline Recorded</p>
                 </div>
               ) : (
                 customerHistory.map(comm => (
-                  <div key={comm.id} className={`bg-white dark:bg-black/20 p-4 rounded-2xl border ${comm.senderRole === 'customer' ? 'border-blue-400/30 ring-1 ring-blue-400/10' : 'border-ink-light/10 dark:border-ink-dark/10'}`}>
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="flex gap-2">
-                        <span className={`px-2 py-1 rounded-md text-xs font-bold flex items-center ${comm.type === 'coupon' ? 'bg-burgundy/10 text-burgundy dark:bg-burgundy-light/20 dark:text-burgundy-light' : 'bg-olive/10 text-olive dark:bg-olive/20 dark:text-olive-light'}`}>
-                          {comm.type === 'coupon' ? <Ticket className="w-3 h-3 mr-1" /> : <MessageSquare className="w-3 h-3 mr-1" />}
-                          {comm.type === 'coupon' ? '서비스 쿠폰' : '메시지'}
+                  <div key={comm.id} className={`p-8 rounded-[2rem] border relative overflow-hidden ${comm.senderRole === 'customer' ? 'bg-primary/5 border-primary/10' : 'bg-surface-bright border-primary/5'}`}>
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="flex space-x-3">
+                        <span className={`px-4 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest shadow-sm ${comm.type === 'coupon' ? 'bg-burgundy text-white' : 'bg-primary text-white'}`}>
+                          {comm.type === 'coupon' ? 'Coupon' : 'Cypher'}
                         </span>
                         {comm.senderRole === 'customer' && (
-                          <span className="px-2 py-1 rounded-md text-xs font-bold bg-blue-500 text-white flex items-center">
-                            고객 발신
+                          <span className="px-4 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest bg-emerald-500 text-white shadow-sm">
+                            Citizens Response
                           </span>
                         )}
                       </div>
-                      <span className="text-xs text-ink-light/40 dark:text-ink-dark/40">
-                        {new Date(comm.date).toLocaleDateString('ko-KR')} {new Date(comm.date).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
+                      <span className="text-[9px] font-black text-primary/20 uppercase tracking-widest">
+                        {new Date(comm.date).toLocaleDateString('ko-KR')}
                       </span>
                     </div>
-                    <p className={`text-sm font-medium ${comm.senderRole === 'customer' ? 'text-blue-700 dark:text-blue-300' : 'text-ink-light/80 dark:text-ink-dark/80'}`}>{comm.content}</p>
+                    <p className={`text-sm font-serif italic serif leading-relaxed ${comm.senderRole === 'customer' ? 'text-primary' : 'text-primary/70'}`}>{comm.content}</p>
                   </div>
                 ))
               )}
@@ -587,7 +626,7 @@ export default function OwnerCustomers() {
         </div>
       )}
 
-      {/* Memo Modal */}
+      {/* Heritage Note Modal */}
       <MemoModal
         isOpen={!!editingMemoCustomer}
         onClose={() => setEditingMemoCustomer(null)}
