@@ -125,9 +125,14 @@ const startSync = (database: any, colls: any) => {
     }, (err) => {
       console.error(`Error syncing ${collName}:`, err);
       let userMessage = err.message;
+      
+      // 구체적인 에러 원인 분석 및 사용자 친화적 메시징
       if (err.code === 'permission-denied') {
-        userMessage = `[권한 오류] Firebase 보안 규칙이 업데이트되지 않았습니다. (${collName})`;
+        userMessage = `[권한 차단] 데이터베이스는 존재하나 접근 권한이 없습니다 (보안 규칙 문제).`;
+      } else if (err.code === 'not-found' || err.message.includes('not found')) {
+        userMessage = `[DB 미생성] Firebase 프로젝트 내에 Firestore 데이터베이스가 아직 만들어지지 않았습니다.`;
       }
+      
       globalFirebaseStatus = 'error';
       globalFirebaseError = userMessage;
       globalIsReady = true;
