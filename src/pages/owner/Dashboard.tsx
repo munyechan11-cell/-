@@ -178,8 +178,8 @@ export default function OwnerDashboard() {
               <Store className="text-white w-6 h-6" strokeWidth={1.5} />
             </div>
             <div className="overflow-hidden">
-              <p className="text-white font-serif italic text-sm truncate">{currentUser.restaurantName || 'My Atelier'}</p>
-              <p className="font-black uppercase tracking-widest text-[9px] text-white/40">Owner Oversight</p>
+              <p className="text-white font-serif italic text-sm truncate">{currentUser.restaurantName || '나의 공방'}</p>
+              <p className="font-black uppercase tracking-widest text-[9px] text-white/40">장인 관리자</p>
             </div>
           </div>
         </div>
@@ -190,7 +190,7 @@ export default function OwnerDashboard() {
             className="w-full flex items-center space-x-4 px-6 md:px-8 py-3.5 transition-all duration-300 bg-primary-container text-white border-l-4 border-white"
           >
             <LayoutGrid className="w-5 h-5 flex-shrink-0" />
-            <span className="font-black uppercase tracking-widest text-[10px] hidden md:block">Floor Plan</span>
+            <span className="font-black uppercase tracking-widest text-[10px] hidden md:block">매장 전도</span>
           </Link>
           
           <Link 
@@ -198,7 +198,7 @@ export default function OwnerDashboard() {
             className="w-full flex items-center space-x-4 px-6 md:px-8 py-3.5 transition-all duration-300 text-white/60 hover:text-white hover:bg-white/5"
           >
             <Users className="w-5 h-5 flex-shrink-0" />
-            <span className="font-black uppercase tracking-widest text-[10px] hidden md:block">Guest Book</span>
+            <span className="font-black uppercase tracking-widest text-[10px] hidden md:block">단골 장부</span>
           </Link>
           
           <Link 
@@ -206,7 +206,7 @@ export default function OwnerDashboard() {
             className="w-full flex items-center space-x-4 px-6 md:px-8 py-3.5 transition-all duration-300 text-white/60 hover:text-white hover:bg-white/5"
           >
             <BarChart3 className="w-5 h-5 flex-shrink-0" />
-            <span className="font-black uppercase tracking-widest text-[10px] hidden md:block">Insights</span>
+            <span className="font-black uppercase tracking-widest text-[10px] hidden md:block">분석 및 통계</span>
           </Link>
 
           <Link 
@@ -214,14 +214,14 @@ export default function OwnerDashboard() {
             className="w-full flex items-center space-x-4 px-6 md:px-8 py-3.5 transition-all duration-300 text-white/60 hover:text-white hover:bg-white/5"
           >
             <Settings className="w-5 h-5 flex-shrink-0" />
-            <span className="font-black uppercase tracking-widest text-[10px] hidden md:block">Heritage Settings</span>
+            <span className="font-black uppercase tracking-widest text-[10px] hidden md:block">브랜드 설정</span>
           </Link>
         </nav>
         
         <div className="px-4 md:px-8 mt-auto pt-8 space-y-4 border-t border-white/5">
           <button onClick={handleLogout} className="w-full flex items-center space-x-4 px-2 md:px-0 py-3.5 text-white/40 hover:text-white text-[10px] uppercase tracking-widest transition-colors font-bold">
             <LogOut className="w-4 h-4 flex-shrink-0" />
-            <span className="hidden md:block">Sign Out</span>
+            <span className="hidden md:block">로그아웃</span>
           </button>
         </div>
       </aside>
@@ -231,12 +231,12 @@ export default function OwnerDashboard() {
         {/* Header */}
         <header className="bg-white/80 backdrop-blur-md sticky top-0 z-40 flex justify-between items-center w-full px-6 md:px-10 py-5 border-b border-primary/5">
           <div className="flex items-center space-x-4 md:space-x-12">
-            <div className="font-serif text-xl md:text-2xl font-black text-primary tracking-tighter">Floor Governance</div>
+            <div className="font-serif text-xl md:text-2xl font-black text-primary tracking-tighter">매장 관리 (전도)</div>
             <div className="h-6 w-px bg-primary/10 hidden md:block"></div>
             <div className="hidden lg:flex items-center space-x-6">
               <div className="flex items-center space-x-2 text-emerald-600">
                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                <span className="text-[10px] font-black uppercase tracking-widest">Live Flow</span>
+                <span className="text-[10px] font-black uppercase tracking-widest">실시간 유입</span>
               </div>
               <div className="text-primary/40 text-[10px] font-black uppercase tracking-widest">
                 {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
@@ -255,7 +255,7 @@ export default function OwnerDashboard() {
               className={`flex items-center justify-center w-10 h-10 md:w-auto md:px-5 md:py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${isLayoutMode ? 'bg-burgundy text-white border-burgundy shadow-xl shadow-burgundy/20' : 'bg-white text-primary/40 border-primary/10 hover:border-primary/30'}`}
             >
               {isLayoutMode ? <Check className="w-4 h-4" /> : <Settings className="w-4 h-4" />}
-              <span className="hidden md:block ml-2">{isLayoutMode ? 'FINISH' : 'EDIT MAP'}</span>
+              <span className="hidden md:block ml-2">{isLayoutMode ? '수정 완료' : '배치 수정'}</span>
             </button>
             
             <div className="h-6 w-px bg-primary/10"></div>
@@ -277,7 +277,7 @@ export default function OwnerDashboard() {
                 onClick={() => setActiveSectionId('all')}
                 className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all whitespace-nowrap ${activeSectionId === 'all' ? 'bg-primary text-white shadow-lg' : 'text-primary/40 hover:text-primary hover:bg-primary/5'}`}
               >
-                Overview
+                전체보기
               </button>
               {currentStoreSections.map(section => (
                 <button 
@@ -292,7 +292,7 @@ export default function OwnerDashboard() {
                 onClick={() => setActiveSectionId('unassigned')}
                 className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all whitespace-nowrap ${activeSectionId === 'unassigned' ? 'bg-primary text-white shadow-lg' : 'text-primary/40 hover:text-primary hover:bg-primary/5'}`}
               >
-                Unallocated
+                미지정
               </button>
               <button onClick={() => setIsEditingSections(true)} className="p-2 text-primary/20 hover:text-burgundy transition-colors"><Plus className="w-4 h-4" /></button>
             </div>
@@ -303,14 +303,14 @@ export default function OwnerDashboard() {
                     <button 
                       onClick={() => setIsMoveOnlyMode(!isMoveOnlyMode)} 
                       className={`p-1.5 rounded-lg transition-all ${isMoveOnlyMode ? 'bg-white shadow-sm text-primary' : 'text-primary/30'}`}
-                      title="Toggle Drag Move"
+                      title="드래그 이동 토글"
                     >
                       <Move className="w-4 h-4" />
                     </button>
                  </div>
                )}
                <div className="flex items-center space-x-2 text-[10px] font-black uppercase tracking-widest text-primary/30">
-                  <span>Zoom: {Math.round(zoom * 100)}%</span>
+                  <span>비율: {Math.round(zoom * 100)}%</span>
                </div>
             </div>
           </div>
@@ -404,7 +404,7 @@ export default function OwnerDashboard() {
                       {!isOccupied && table.status === 'dirty' && (
                         <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-burgundy text-white px-3 py-1 rounded-full text-[9px] font-black shadow-xl border border-white/20 whitespace-nowrap z-50 flex items-center space-x-1.5 animate-in fade-in slide-in-from-bottom-1">
                           <AlertCircle className="w-3 h-3" /> 
-                          <span className="uppercase tracking-widest">Needs Care</span>
+                          <span className="uppercase tracking-widest">정리 필요</span>
                         </div>
                       )}
 
@@ -485,15 +485,15 @@ export default function OwnerDashboard() {
                              <p className="text-2xl font-serif font-black tracking-tight">{customer.name}</p>
                              <div className="flex items-center space-x-2 opacity-60">
                                <Users className="w-4 h-4" />
-                               <span className="text-xs font-bold uppercase tracking-widest">{table.seats || 4} Guests</span>
+                               <span className="text-xs font-bold uppercase tracking-widest">{table.seats || 4}인석</span>
                              </div>
                           </>
                         ) : (
                           <>
                              <p className={`text-xl font-serif font-black tracking-tight ${table.status === 'dirty' ? 'text-burgundy' : 'text-primary'}`}>
-                               {table.status === 'dirty' ? 'Maintenance' : 'Ready for Service'}
+                               {table.status === 'dirty' ? '청소 정비 중' : '영업 준비 완료'}
                              </p>
-                             <p className="text-[10px] font-black opacity-30 uppercase tracking-[0.2em]">Table Tier: Standard</p>
+                             <p className="text-[10px] font-black opacity-30 uppercase tracking-[0.2em]">탁자 등급: 일반</p>
                           </>
                         )}
                      </div>
@@ -512,27 +512,27 @@ export default function OwnerDashboard() {
                     className="w-14 h-14 flex flex-col items-center justify-center space-y-1 text-white/40 hover:text-white transition-all group"
                   >
                     <Plus className="w-6 h-6 group-hover:scale-110 transition-transform" />
-                    <span className="text-[8px] font-black uppercase tracking-widest">Store</span>
+                    <span className="text-[8px] font-black uppercase tracking-widest">탁자</span>
                   </button>
                   <button 
                     onClick={() => addTable(currentUser.id, 'room', activeSectionId !== 'all' ? activeSectionId : undefined)}
                     className="w-14 h-14 flex flex-col items-center justify-center space-y-1 text-white/40 hover:text-white transition-all group"
                   >
                     <Square className="w-6 h-6 group-hover:scale-110 transition-transform" />
-                    <span className="text-[8px] font-black uppercase tracking-widest">Priv</span>
+                    <span className="text-[8px] font-black uppercase tracking-widest">공간</span>
                   </button>
                   <button 
                     onClick={() => addTable(currentUser.id, 'corridor', activeSectionId !== 'all' ? activeSectionId : undefined)}
                     className="w-14 h-14 flex flex-col items-center justify-center space-y-1 text-white/40 hover:text-white transition-all group"
                   >
                     <Layers className="w-6 h-6 group-hover:scale-110 transition-transform" />
-                    <span className="text-[8px] font-black uppercase tracking-widest">Expan</span>
+                    <span className="text-[8px] font-black uppercase tracking-widest">배치</span>
                   </button>
                </div>
                
                <button 
                 onClick={() => {
-                  if (window.confirm('Notice: This will restore the palace layout to its original 12-atelier configuration. Proceed?')) {
+                  if (window.confirm('알림: 매장 배치를 초기 12개 테이블 구성으로 복구하시겠습니까?')) {
                     initTables(currentUser.id);
                   }
                 }}
@@ -557,9 +557,9 @@ export default function OwnerDashboard() {
                   {selectedTable}
                 </div>
                 <div>
-                  <h2 className="text-2xl font-serif font-black text-primary tracking-tighter italic">Atelier {selectedTable}</h2>
-                  <p className="text-[10px] font-black text-primary/30 uppercase tracking-[0.3em] mt-1">
-                    {activeTable.sectionId ? (currentStoreSections.find(s => s.id === activeTable.sectionId)?.name) : 'Central Court'}
+                  <h2 className="text-2xl font-serif font-black text-primary tracking-tighter italic">공방 {selectedTable}</h2>
+                  <p className="text-[10px] font-black text-primary/40 uppercase tracking-[0.3em] mt-1">
+                    {activeTable.sectionId ? (currentStoreSections.find(s => s.id === activeTable.sectionId)?.name) : '중앙 홀'}
                   </p>
                 </div>
               </div>
@@ -597,45 +597,45 @@ export default function OwnerDashboard() {
 
                         <div className="grid grid-cols-3 gap-6 pt-10 border-t border-white/5 relative z-10">
                           <div className="text-center">
-                            <p className="text-[9px] font-black text-white/30 uppercase tracking-widest mb-2">Visits</p>
+                            <p className="text-[9px] font-black text-white/30 uppercase tracking-widest mb-2">방문</p>
                             <p className="text-2xl font-serif font-black">{stats.totalVisits}</p>
                           </div>
                           <div className="text-center border-x border-white/10 px-2">
-                            <p className="text-[9px] font-black text-white/30 uppercase tracking-widest mb-2">Loyalty</p>
+                            <p className="text-[9px] font-black text-white/30 uppercase tracking-widest mb-2">충성도</p>
                             <p className="text-2xl font-serif font-black text-emerald-400">84%</p>
                           </div>
                           <div className="text-center">
-                            <p className="text-[9px] font-black text-white/30 uppercase tracking-widest mb-2">Frequency</p>
-                            <p className="text-2xl font-serif font-black text-burgundy">{stats.frequencyPerMonth}x</p>
+                            <p className="text-[9px] font-black text-white/30 uppercase tracking-widest mb-2">빈도</p>
+                            <p className="text-2xl font-serif font-black text-burgundy">{stats.frequencyPerMonth}회</p>
                           </div>
                         </div>
                       </div>
                       
                       {/* Detailed Insights */}
                       <div className="space-y-6">
-                        <span className="font-black uppercase tracking-[0.3em] text-[10px] text-primary/30">Guest Heritage</span>
+                        <span className="font-black uppercase tracking-[0.3em] text-[10px] text-primary/40">손님 유산기록</span>
                         
                         <div className="grid grid-cols-2 gap-4">
-                           <div className="p-6 bg-primary/5 rounded-3xl border border-primary/5">
+                           <div className="p-6 bg-primary/10 rounded-3xl border border-primary/10">
                               <Calendar className="w-5 h-5 text-primary mb-3 opacity-30" />
-                              <p className="text-[9px] font-black text-primary/30 uppercase mb-2">Last Presence</p>
+                              <p className="text-[9px] font-black text-primary/40 uppercase mb-2">마지막 방문</p>
                               <p className="text-sm font-bold text-primary">
-                                {stats.daysSinceLastVisit !== null ? (stats.daysSinceLastVisit === 0 ? 'Solar Day' : `${stats.daysSinceLastVisit} Days Past`) : 'None Recorded'}
+                                {stats.daysSinceLastVisit !== null ? (stats.daysSinceLastVisit === 0 ? '오늘' : `${stats.daysSinceLastVisit}일 전`) : '기록 없음'}
                               </p>
                            </div>
-                           <div className="p-6 bg-primary/5 rounded-3xl border border-primary/5">
+                           <div className="p-6 bg-primary/10 rounded-3xl border border-primary/10">
                               <Heart className="w-5 h-5 text-burgundy mb-3 opacity-30" />
-                              <p className="text-[9px] font-black text-primary/30 uppercase mb-2">Social Bond</p>
-                              <p className="text-sm font-bold text-primary">Traditional</p>
+                              <p className="text-[9px] font-black text-primary/40 uppercase mb-2">소셜 관계</p>
+                              <p className="text-sm font-bold text-primary">기존 고객</p>
                            </div>
                         </div>
 
                         {activeCustomer.memo && (
-                          <div className="p-8 bg-surface-bright rounded-3xl border border-primary/5 relative overflow-hidden">
+                          <div className="p-8 bg-surface-bright rounded-3xl border border-primary/10 relative overflow-hidden">
                             <div className="absolute top-0 right-0 p-4 opacity-10">
                                <Edit2 className="w-12 h-12 text-primary" />
                             </div>
-                            <p className="text-[9px] font-black text-primary/30 uppercase tracking-[0.2em] mb-4">Master's Note</p>
+                            <p className="text-[10px] font-black text-primary/40 uppercase tracking-[0.2em] mb-4">장인의 메모</p>
                             <p className="text-sm text-primary leading-relaxed font-serif italic serif">
                               {formatMemoDisplay(activeCustomer.memo)}
                             </p>
@@ -651,9 +651,9 @@ export default function OwnerDashboard() {
                       <QRCodeSVG value={`${window.location.origin}/customer/store/${currentUser.id}/table/${selectedTable}`} size={200} level="H" />
                    </div>
                    <div className="space-y-4 max-w-[240px]">
-                      <h3 className="text-2xl font-serif font-black text-primary italic">Assign Citizen</h3>
-                      <p className="text-[10px] font-black text-primary/30 uppercase tracking-[0.2em] leading-relaxed">
-                        Scanning this cipher will bind a citizen record to this atelier.
+                      <h3 className="text-2xl font-serif font-black text-primary italic">시민 배정</h3>
+                      <p className="text-[10px] font-black text-primary/40 uppercase tracking-[0.2em] leading-relaxed">
+                        이 QR 코드를 스캔하면 해당 테이블에 시민(손님) 정보가 등록됩니다.
                       </p>
                    </div>
                 </div>
@@ -670,23 +670,23 @@ export default function OwnerDashboard() {
                   }} 
                   className="w-full bg-burgundy text-white font-black py-5 rounded-[2rem] transition-all hover:scale-[1.02] active:scale-[0.98] shadow-2xl shadow-burgundy/20 uppercase tracking-[0.2em] text-xs"
                 >
-                  Terminate Session
+                  이용 종료
                 </button>
               ) : (
                 <div className="grid grid-cols-2 gap-4">
                    <button 
                     onClick={() => { updateTableStatus(currentUser.id, selectedTable, 'available'); setSelectedTable(null); }}
-                    className={`flex flex-col items-center justify-center space-y-3 p-6 rounded-3xl border-2 transition-all ${activeTable.status === 'available' ? 'border-primary bg-primary text-white shadow-xl' : 'border-primary/5 text-primary opacity-30 hover:opacity-100'}`}
+                    className={`flex flex-col items-center justify-center space-y-3 p-6 rounded-3xl border-2 transition-all ${activeTable.status === 'available' ? 'border-primary bg-primary text-white shadow-xl' : 'border-primary/10 text-primary opacity-40 hover:opacity-100'}`}
                    >
                      <CheckCircle2 className="w-8 h-8" />
-                     <span className="text-[9px] font-black uppercase tracking-[0.2em]">Operational</span>
+                     <span className="text-[10px] font-black uppercase tracking-[0.2em]">사용 가능</span>
                    </button>
                    <button 
                     onClick={() => { updateTableStatus(currentUser.id, selectedTable, 'dirty'); setSelectedTable(null); }}
-                    className={`flex flex-col items-center justify-center space-y-3 p-6 rounded-3xl border-2 transition-all ${activeTable.status === 'dirty' ? 'border-burgundy bg-burgundy/10 text-burgundy shadow-xl shadow-burgundy/5' : 'border-primary/5 text-primary opacity-30 hover:opacity-100'}`}
+                    className={`flex flex-col items-center justify-center space-y-3 p-6 rounded-3xl border-2 transition-all ${activeTable.status === 'dirty' ? 'border-burgundy bg-burgundy/10 text-burgundy shadow-xl shadow-burgundy/5' : 'border-primary/10 text-primary opacity-40 hover:opacity-100'}`}
                    >
                      <AlertCircle className="w-8 h-8" />
-                     <span className="text-[9px] font-black uppercase tracking-[0.2em]">Care Required</span>
+                     <span className="text-[10px] font-black uppercase tracking-[0.2em]">청소 정비</span>
                    </button>
                 </div>
               )}
@@ -694,11 +694,11 @@ export default function OwnerDashboard() {
           </>
         ) : (
           <div className="h-full flex flex-col items-center justify-center p-20 text-center space-y-6">
-             <div className="w-24 h-24 rounded-full bg-primary/5 flex items-center justify-center border border-primary/5 opacity-40">
+             <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center border border-primary/10 opacity-40">
                 <LayoutGrid className="w-10 h-10 text-primary" />
              </div>
-             <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/20 max-w-[200px] leading-relaxed">
-               Select an atelier on the governance map to view its current state.
+             <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/40 max-w-[200px] leading-relaxed">
+               매장 전도에서 공방(테이블)을 선택하시면 상세 정보를 볼 수 있습니다.
              </p>
           </div>
         )}
@@ -711,7 +711,7 @@ export default function OwnerDashboard() {
             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16"></div>
             
             <div className="flex justify-between items-center mb-10 relative z-10">
-              <h2 className="text-3xl font-serif font-black text-primary tracking-tighter">District Protocols</h2>
+              <h2 className="text-3xl font-serif font-black text-primary tracking-tighter">구역 관리</h2>
               <button 
                 onClick={() => { setIsEditingSections(false); setEditingSectionId(null); }}
                 className="p-3 bg-primary/5 rounded-2xl hover:bg-primary/10 transition-colors"
@@ -744,8 +744,8 @@ export default function OwnerDashboard() {
             <div className="mt-10 pt-8 border-t border-primary/5 relative z-10">
               <div className="flex space-x-3">
                 <input 
-                  className="flex-1 bg-primary/5 border border-primary/5 px-6 py-4 rounded-2xl focus:outline-none focus:ring-4 focus:ring-primary/5 font-black text-primary placeholder:text-primary/20 text-sm"
-                  placeholder="NEW DISTRICT NAME..."
+                  className="flex-1 bg-primary/5 border border-primary/10 px-6 py-4 rounded-2xl focus:outline-none focus:ring-4 focus:ring-primary/5 font-black text-primary placeholder:text-primary/20 text-sm"
+                  placeholder="새 구역 이름 입력..."
                   value={newSectionName}
                   onChange={(e) => setNewSectionName(e.target.value)}
                 />
@@ -758,7 +758,7 @@ export default function OwnerDashboard() {
                   }}
                   className="px-8 bg-primary text-white font-black rounded-2xl hover:bg-primary/90 transition-all shadow-xl shadow-primary/20 uppercase tracking-widest text-[10px]"
                 >
-                  Append
+                  추가
                 </button>
               </div>
             </div>

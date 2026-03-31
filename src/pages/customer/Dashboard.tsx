@@ -37,8 +37,8 @@ export default function CustomerDashboard() {
       <div className="min-h-screen bg-surface-bright flex items-center justify-center p-6 hanji-texture relative overflow-hidden">
         <div className="lattice-overlay absolute inset-0 pointer-events-none opacity-10"></div>
         <div className="max-w-md w-full bg-white rounded-[3.5rem] shadow-3xl border border-primary/5 p-12 text-center relative z-10">
-          <p className="text-primary/40 text-[10px] font-black uppercase tracking-[0.3em] mb-8">Registry Not Found</p>
-          <Link to="/scan" className="text-burgundy font-black uppercase tracking-widest text-[10px] hover:underline underline-offset-8">Return to Cipher Scanner</Link>
+          <p className="text-primary/40 text-[10px] font-black uppercase tracking-[0.3em] mb-8">매장을 찾을 수 없습니다</p>
+          <Link to="/scan" className="text-burgundy font-black uppercase tracking-widest text-[10px] hover:underline underline-offset-8">스캐너로 돌아가기</Link>
         </div>
       </div>
     );
@@ -82,10 +82,10 @@ export default function CustomerDashboard() {
       await recordCommunication(currentUser.id, storeId!, 'message', messageContent.trim(), 'customer');
       setMessageContent('');
       setSendingMessage(false);
-      import('../../store').then(({ showToast }) => showToast('Cypher transmitted to the Atelier owner.', 'success')).catch(console.error);
+      import('../../store').then(({ showToast }) => showToast('장인에게 소식이 전달되었습니다.', 'success')).catch(console.error);
     } catch (err) {
       console.error(err);
-      import('../../store').then(({ showToast }) => showToast('Transmission failed.', 'error')).catch(console.error);
+      import('../../store').then(({ showToast }) => showToast('전송에 실패했습니다.', 'error')).catch(console.error);
     } finally {
       setIsSending(false);
     }
@@ -101,14 +101,14 @@ export default function CustomerDashboard() {
       {/* Header Profile Section */}
       <div className="bg-white/80 backdrop-blur-xl p-8 pt-12 border-b border-primary/5 sticky top-0 z-40 animate-in slide-in-from-top-12 duration-700">
         <div className="flex justify-between items-center mb-10 relative">
-          <Link to="/scan" className="p-3 hover:bg-primary/5 rounded-2xl text-primary/30 hover:text-primary transition-all">
+          <Link to="/scan" className="p-3 hover:bg-primary/10 rounded-2xl text-primary/30 hover:text-primary transition-all">
             <ArrowLeft className="w-6 h-6" />
           </Link>
           <div className="text-center">
              <h1 className="text-8xl font-serif font-black text-primary leading-none tracking-tighter italic select-none">결</h1>
              <p className="text-[8px] font-black text-primary/30 uppercase tracking-[0.4em] mt-2 italic">{restaurantName}</p>
           </div>
-          <button onClick={handleLogout} className="p-3 hover:bg-primary/5 rounded-2xl text-primary/30 hover:text-primary transition-all">
+          <button onClick={handleLogout} className="p-3 hover:bg-primary/10 rounded-2xl text-primary/30 hover:text-primary transition-all">
             <LogOut className="w-6 h-6" />
           </button>
         </div>
@@ -129,15 +129,15 @@ export default function CustomerDashboard() {
           
           <div className="text-center w-full">
             <h2 className="text-3xl font-serif font-black text-primary italic tracking-tight">{currentUser.name}</h2>
-            <p className="text-[10px] font-black text-primary/30 uppercase tracking-[0.3em] mt-1">Honored Citizen</p>
+            <p className="text-[10px] font-black text-primary/40 uppercase tracking-[0.3em] mt-1">귀한 시민</p>
             
-            <div className="mt-8 bg-surface-bright rounded-[2.5rem] p-6 border border-primary/5 relative group overflow-hidden">
+            <div className="mt-8 bg-surface-bright rounded-[2.5rem] p-6 border border-primary/10 relative group overflow-hidden">
                <div className="absolute -inset-0 bg-primary/[0.01] opacity-0 group-hover:opacity-100 transition-opacity"></div>
                <div className="flex items-center justify-between relative z-10">
                   <div className="flex-1 text-left px-2">
-                    <p className="text-[8px] font-black text-primary/20 uppercase tracking-widest mb-1">Heritage Memo</p>
+                    <p className="text-[8px] font-black text-primary/20 uppercase tracking-widest mb-1">유산 기록</p>
                     <p className="text-xs text-primary/70 font-serif italic serif leading-relaxed italic">
-                      {currentUser.memo ? formatMemoDisplay(currentUser.memo) : "Awaiting your first inscription..."}
+                      {currentUser.memo ? formatMemoDisplay(currentUser.memo) : "첫 기록을 기다리고 있습니다..."}
                     </p>
                   </div>
                   <button 
@@ -151,8 +151,8 @@ export default function CustomerDashboard() {
 
             {currentTable && (
               <div className="flex items-center justify-center space-x-3 mt-8">
-                <span className="text-[9px] font-black text-burgundy bg-burgundy/5 px-6 py-2 rounded-full border border-burgundy/10 uppercase tracking-widest">
-                  Assigned Table {currentTable.number}
+                <span className="text-[9px] font-black text-burgundy bg-burgundy/10 px-6 py-2 rounded-full border border-burgundy/10 uppercase tracking-widest">
+                  배정된 테이블 {currentTable.number}
                 </span>
                 <button 
                   onClick={handleLeaveStore}
@@ -169,17 +169,17 @@ export default function CustomerDashboard() {
         <div className="grid grid-cols-3 gap-4 mt-12">
           <div className="text-center p-4 bg-primary/[0.02] rounded-3xl border border-primary/5 group hover:bg-primary/[0.04] transition-all">
             <p className="text-2xl font-serif font-black text-primary group-hover:scale-110 transition-transform">{recentVisitsCount}</p>
-            <p className="text-[8px] font-black text-primary/20 uppercase tracking-widest mt-1">Visits</p>
+            <p className="text-[8px] font-black text-primary/20 uppercase tracking-widest mt-1">방문</p>
           </div>
           <div className="text-center p-4 bg-primary/[0.02] rounded-3xl border border-primary/5 group hover:bg-primary/[0.04] transition-all">
             <p className="text-2xl font-serif font-black text-primary group-hover:scale-110 transition-transform">{myCoupons.length}</p>
-            <p className="text-[8px] font-black text-primary/20 uppercase tracking-widest mt-1">Ciphers</p>
+            <p className="text-[8px] font-black text-primary/20 uppercase tracking-widest mt-1">유산</p>
           </div>
           <div className="text-center p-4 bg-burgundy/[0.02] rounded-3xl border border-burgundy/5 group hover:bg-burgundy/[0.04] transition-all">
             <p className="text-2xl font-serif font-black text-burgundy group-hover:scale-110 transition-transform truncate px-1">
               {getTierCustomName(currentTier, owner?.tierNames)}
             </p>
-            <p className="text-[8px] font-black text-burgundy/20 uppercase tracking-widest mt-1">Tier</p>
+            <p className="text-[8px] font-black text-burgundy/20 uppercase tracking-widest mt-1">등급</p>
           </div>
         </div>
       </div>
@@ -197,9 +197,9 @@ export default function CustomerDashboard() {
             <div>
                <h3 className="text-xl font-serif font-black text-primary tracking-tight italic flex items-center">
                  <span className="w-2 h-2 bg-burgundy rounded-full mr-3 animate-pulse"></span>
-                 Ascension
+                 등급 승급
                </h3>
-               <p className="text-[8px] font-black text-primary/30 uppercase tracking-[0.2em] mt-1">Lineage Progression</p>
+               <p className="text-[8px] font-black text-primary/30 uppercase tracking-[0.2em] mt-1">활동 내역</p>
             </div>
             <span className={`px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-white shadow-lg ${getTierColor(currentTier)}`}>
               {getTierCustomName(currentTier, owner?.tierNames)}
@@ -208,18 +208,18 @@ export default function CustomerDashboard() {
           
           <div className="relative z-10">
             {override ? (
-              <div className="bg-primary/5 p-6 rounded-2xl border border-primary/5 text-center">
+              <div className="bg-primary/10 p-6 rounded-2xl border border-primary/10 text-center">
                  <p className="text-[10px] font-black text-primary/40 uppercase tracking-widest leading-relaxed">
-                   Grandmaster's Decree<br/><span className="text-primary/20 italic font-serif serif">Universal Tier Manifested</span>
+                   장인의 특별 승인<br/><span className="text-primary/20 italic font-serif serif">특별 등급이 부여되었습니다</span>
                  </p>
               </div>
             ) : (
               <div className="space-y-6">
                 <div className="flex justify-between items-end mb-2">
-                  <p className="text-[10px] font-black text-primary/40 uppercase tracking-widest">30-Day Devotion</p>
-                  <p className="text-2xl font-serif font-black text-primary">{recentVisitsCount} <span className="text-[10px] font-medium text-primary/20 uppercase">Units</span></p>
+                  <p className="text-[10px] font-black text-primary/40 uppercase tracking-widest">최근 30일 활동</p>
+                  <p className="text-2xl font-serif font-black text-primary">{recentVisitsCount} <span className="text-[10px] font-medium text-primary/20 uppercase">회</span></p>
                 </div>
-                <div className="w-full bg-primary/5 rounded-full h-4 overflow-hidden p-1 border border-primary/5 shadow-inner relative">
+                <div className="w-full bg-primary/5 rounded-full h-4 overflow-hidden p-1 border border-primary/10 shadow-inner relative">
                   <div 
                     className="bg-primary h-full rounded-full transition-all duration-1000 ease-out shadow-lg shadow-primary/20 relative" 
                     style={{ 
@@ -233,8 +233,8 @@ export default function CustomerDashboard() {
                 </div>
                 <p className="text-[9px] font-black text-primary/30 uppercase tracking-widest text-right italic font-serif serif">
                   {recentVisitsCount >= 12 
-                    ? '🏆 Zenith of Lineage Attained'
-                    : `Next Ascension in ${getNextTierVisits(recentVisitsCount)} Devotions`
+                    ? '🏆 최고 등급에 도달했습니다'
+                    : `승급까지 ${getNextTierVisits(recentVisitsCount)}회 남음`
                   }
                 </p>
               </div>
@@ -245,7 +245,7 @@ export default function CustomerDashboard() {
         {/* Ciphers (Coupons) */}
         <div className="space-y-6">
           <div className="flex justify-between items-center px-2">
-             <h3 className="text-xl font-serif font-black text-primary tracking-tight italic">Heritage Ciphers</h3>
+             <h3 className="text-xl font-serif font-black text-primary tracking-tight italic">보유한 유산 (쿠폰)</h3>
              <Ticket className="w-5 h-5 text-burgundy opacity-20" />
           </div>
           
@@ -254,8 +254,8 @@ export default function CustomerDashboard() {
               <div className="w-16 h-16 bg-primary/[0.02] rounded-full flex items-center justify-center mx-auto mb-6 opacity-20 group-hover:scale-110 transition-transform">
                 <Ticket className="w-8 h-8 text-primary" strokeWidth={1} />
               </div>
-              <p className="text-[9px] font-black text-primary/20 uppercase tracking-[0.3em] leading-relaxed">No Ciphers in Archive</p>
-              <p className="text-xs text-primary/40 font-serif italic serif mt-4 px-8">Deepen your devotion at the atelier to unlock heritage rewards.</p>
+              <p className="text-[9px] font-black text-primary/30 uppercase tracking-[0.3em] leading-relaxed">보유한 유산이 없습니다</p>
+              <p className="text-xs text-primary/40 font-serif italic serif mt-4 px-8">공방에서의 활동을 통해 새로운 유산을 획득하세요.</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -275,7 +275,7 @@ export default function CustomerDashboard() {
                   <div className="flex justify-between items-start relative z-10">
                     <div className="space-y-4 pr-12">
                       <span className={`px-4 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest shadow-sm ${coupon.status === 'pending' ? 'bg-white text-burgundy' : 'bg-primary text-white'}`}>
-                        {coupon.status === 'pending' ? 'PENDING APPROVAL' : 'LEGACY CIPHER'}
+                        {coupon.status === 'pending' ? '사용 대기 중' : '보유 중인 유산'}
                       </span>
                       <h4 className="text-xl font-serif font-black text-primary tracking-tight italic group-hover:translate-x-1 transition-transform">{coupon.description}</h4>
                     </div>
@@ -293,7 +293,7 @@ export default function CustomerDashboard() {
         {myCommunications.length > 0 && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-500">
              <div className="flex justify-between items-center px-2">
-                <h3 className="text-xl font-serif font-black text-primary tracking-tight italic">Governance Archive</h3>
+                <h3 className="text-xl font-serif font-black text-primary tracking-tight italic">소통 기록</h3>
                 <MessageSquare className="w-5 h-5 text-primary opacity-20" />
              </div>
              <div className="space-y-4">
@@ -301,7 +301,7 @@ export default function CustomerDashboard() {
                   <div key={comm.id} className="bg-white rounded-[2rem] p-6 shadow-sm border border-primary/5 group hover:shadow-md transition-all">
                     <div className="flex justify-between items-start mb-4">
                       <span className={`px-3 py-1 rounded-md text-[8px] font-black uppercase tracking-widest ${comm.type === 'coupon' ? 'bg-burgundy/10 text-burgundy' : 'bg-primary/10 text-primary'}`}>
-                        {comm.type === 'coupon' ? 'CIPHER' : 'DECREE'}
+                        {comm.type === 'coupon' ? '유산' : '소식'}
                       </span>
                       <span className="text-[8px] font-black text-primary/20 uppercase tracking-widest">
                         {new Date(comm.date).toLocaleDateString('ko-KR')}
@@ -319,11 +319,11 @@ export default function CustomerDashboard() {
       {selectedCoupon && activeCoupon && (
         <div className="fixed inset-0 bg-primary/40 backdrop-blur-xl flex items-center justify-center p-8 z-50 animate-in fade-in duration-500">
           <div className="bg-white rounded-[3.5rem] p-12 max-w-sm w-full text-center relative shadow-3xl border border-primary/10 overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16"></div>
+            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full -mr-16 -mt-16"></div>
             
             <button 
               onClick={() => setSelectedCoupon(null)}
-              className="absolute top-8 right-8 p-3 hover:bg-primary/5 rounded-2xl transition-colors"
+              className="absolute top-8 right-8 p-3 hover:bg-primary/10 rounded-2xl transition-colors"
             >
               <X className="w-6 h-6 text-primary/30" />
             </button>
@@ -332,13 +332,13 @@ export default function CustomerDashboard() {
               <Ticket className="w-8 h-8 text-white" />
             </div>
             
-            <h3 className="text-3xl font-serif font-black text-primary mb-2 italic tracking-tighter">Honorable Intent</h3>
-            <p className="text-primary/40 text-[9px] font-black uppercase tracking-[0.3em] mb-12">Universal Reward Activation</p>
+            <h3 className="text-3xl font-serif font-black text-primary mb-2 italic tracking-tighter">유산 사용 확인</h3>
+            <p className="text-primary/40 text-[9px] font-black uppercase tracking-[0.3em] mb-12">보상 활성화</p>
             
-            <div className="bg-surface-bright p-8 rounded-[2rem] border border-primary/5 mb-12">
+            <div className="bg-surface-bright p-8 rounded-[2rem] border border-primary/10 mb-12">
                <p className="text-xl font-serif font-black text-burgundy italic mb-2 tracking-tight">"{activeCoupon.description}"</p>
-               <p className="text-[10px] font-black text-primary/30 uppercase tracking-widest leading-relaxed">
-                 By activating this cipher, the Master of the Atelier will be notified of your request.
+               <p className="text-[10px] font-black text-primary/40 uppercase tracking-widest leading-relaxed">
+                 이 유산을 활성화하면 공방의 장인(사장님)에게 사용 요청이 전달됩니다.
                </p>
             </div>
             
@@ -347,7 +347,7 @@ export default function CustomerDashboard() {
                 onClick={() => setSelectedCoupon(null)}
                 className="flex-1 py-4 text-[9px] font-black uppercase tracking-widest text-primary/30 hover:text-primary transition-colors"
               >
-                Abort
+                취소
               </button>
               <button
                 onClick={() => {
@@ -356,12 +356,12 @@ export default function CustomerDashboard() {
                     setSelectedCoupon(null);
                   } else {
                     setSelectedCoupon(null);
-                    import('../../store').then(({ showToast }) => showToast('Protocol requires table assignment.', 'error')).catch(console.error);
+                    import('../../store').then(({ showToast }) => showToast('테이블 배정이 필요합니다.', 'error')).catch(console.error);
                   }
                 }}
                 className="flex-[2] py-5 bg-burgundy text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-2xl shadow-burgundy/20 hover:scale-[1.05] active:scale-[0.95] transition-all"
               >
-                Declare Use
+                사용하기
               </button>
             </div>
           </div>
@@ -374,20 +374,20 @@ export default function CustomerDashboard() {
           <div className="bg-white rounded-[3.5rem] p-12 max-w-sm w-full text-center relative shadow-3xl border border-primary/10 overflow-hidden">
             <button 
               onClick={() => setCancelingCoupon(null)}
-              className="absolute top-8 right-8 p-3 hover:bg-primary/5 rounded-2xl transition-colors"
+              className="absolute top-8 right-8 p-3 hover:bg-primary/10 rounded-2xl transition-colors"
             >
               <X className="w-6 h-6 text-primary/30" />
             </button>
             
-            <h3 className="text-3xl font-serif font-black text-primary mb-2 italic tracking-tighter">Retract Cypher</h3>
-            <p className="text-primary/40 text-[10px] font-black uppercase tracking-[0.3em] mb-12 italic">Pending Protocol Cancellation</p>
+            <h3 className="text-3xl font-serif font-black text-primary mb-2 italic tracking-tighter">유산 회수</h3>
+            <p className="text-primary/40 text-[10px] font-black uppercase tracking-[0.3em] mb-12 italic">사용 요청 취소</p>
             
             <div className="flex gap-4">
               <button
                 onClick={() => setCancelingCoupon(null)}
                 className="flex-1 py-4 text-[9px] font-black uppercase tracking-widest text-primary/30 hover:text-primary transition-colors"
               >
-                Preserve
+                유지하기
               </button>
               <button
                 onClick={() => {
@@ -396,7 +396,7 @@ export default function CustomerDashboard() {
                 }}
                 className="flex-[2] py-5 bg-burgundy text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-2xl shadow-burgundy/20 hover:scale-[1.05] active:scale-[0.95] transition-all"
               >
-                Abort Ritual
+                요청 취소
               </button>
             </div>
           </div>
@@ -407,28 +407,28 @@ export default function CustomerDashboard() {
       {sendingMessage && (
         <div className="fixed inset-0 bg-primary/40 backdrop-blur-xl flex items-end sm:items-center justify-center z-[100] p-0 sm:p-8 animate-in fade-in duration-500">
           <div className="bg-white w-full sm:max-w-md rounded-t-[3rem] sm:rounded-[3rem] p-10 pb-12 sm:pb-10 relative shadow-3xl border border-primary/10 overflow-hidden">
-             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16"></div>
+             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full -mr-16 -mt-16"></div>
              
              <button 
               onClick={() => {
                 setSendingMessage(false);
                 setMessageContent('');
               }}
-              className="absolute top-8 right-8 p-3 hover:bg-primary/5 rounded-2xl transition-colors"
+              className="absolute top-8 right-8 p-3 hover:bg-primary/10 rounded-2xl transition-colors"
             >
               <X className="w-6 h-6 text-primary/30" />
             </button>
 
-            <h2 className="text-3xl font-serif font-black text-primary mb-2 italic tracking-tighter">Transmit decree</h2>
-            <p className="text-primary/40 text-[9px] font-black uppercase tracking-[0.3em] mb-10">Direct link to the Atelier Master</p>
+            <h2 className="text-3xl font-serif font-black text-primary mb-2 italic tracking-tighter">장인에게 전할 말</h2>
+            <p className="text-primary/40 text-[9px] font-black uppercase tracking-[0.3em] mb-10">공방 장인에게 직접 메시지를 보냅니다.</p>
             
             <form onSubmit={handleSendMessage} className="space-y-8">
               <textarea 
                 value={messageContent}
                 onChange={(e) => setMessageContent(e.target.value)}
-                placeholder="ENGRAVE SCRIPT HERE..."
+                placeholder="이곳에 내용을 적어주세요..."
                 rows={4}
-                className="w-full bg-primary/[0.02] border border-primary/5 rounded-[2rem] p-8 text-[10px] font-black uppercase tracking-widest text-primary focus:outline-none focus:ring-4 focus:ring-primary/5 transition-all shadow-inner focus:bg-white resize-none"
+                className="w-full bg-primary/[0.02] border border-primary/10 rounded-[2rem] p-8 text-[10px] font-black uppercase tracking-widest text-primary focus:outline-none focus:ring-4 focus:ring-primary/5 transition-all shadow-inner focus:bg-white resize-none"
                 required
                 autoFocus
               />
@@ -439,7 +439,7 @@ export default function CustomerDashboard() {
                 className="w-full bg-burgundy hover:scale-[1.02] active:scale-[0.98] disabled:opacity-30 text-white font-black py-6 rounded-[2rem] transition-all shadow-2xl shadow-burgundy/20 flex items-center justify-center space-x-3 text-[10px] uppercase tracking-widest"
               >
                 {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                <span>{isSending ? 'Transmitting...' : 'Send Decree'}</span>
+                <span>{isSending ? '전송 중...' : '메시지 보내기'}</span>
               </button>
             </form>
           </div>

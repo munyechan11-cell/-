@@ -48,7 +48,7 @@ export default function Master() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-hanji-light flex items-center justify-center p-4 hanji-texture relative overflow-hidden">
+      <div className="min-h-screen bg-surface-bright flex items-center justify-center p-4 hanji-texture relative overflow-hidden font-sans">
         <div className="lattice-overlay absolute inset-0 pointer-events-none opacity-5"></div>
         <div className="max-w-md w-full bg-white/80 backdrop-blur-xl rounded-[2.5rem] shadow-2xl border border-primary/10 overflow-hidden p-10 text-center relative z-10 transition-all duration-700 animate-in fade-in zoom-in-95">
           <Link 
@@ -57,11 +57,11 @@ export default function Master() {
           >
             <ArrowLeft className="w-5 h-5" />
           </Link>
-          <div className="w-24 h-24 rounded-3xl bg-primary/5 flex items-center justify-center mx-auto mb-6 rotate-3 transform-gpu transition-transform hover:rotate-0">
-            <Lock className="w-12 h-12 text-primary" strokeWidth={1.5} />
+          <div className="w-24 h-24 rounded-3xl bg-primary/5 flex items-center justify-center mx-auto mb-6 rotate-3 transform-gpu transition-transform hover:rotate-0 border-2 border-primary/5">
+            <ShieldCheck className="w-12 h-12 text-primary" strokeWidth={1.5} />
           </div>
-          <h2 className="text-3xl font-serif font-black mb-2 tracking-tighter text-primary">마스터 관리자</h2>
-          <p className="text-primary/40 mb-10 text-sm font-medium leading-relaxed tracking-tight">전용 관리 페이지입니다.<br/>비밀번호를 입력하여 입장하세요.</p>
+          <h2 className="text-3xl font-serif font-black mb-2 tracking-tighter text-primary italic">결 총괄 관리자</h2>
+          <p className="text-primary/40 mb-10 text-[11px] font-black uppercase tracking-widest leading-relaxed">Palace Governance Oversight</p>
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="relative group">
@@ -79,16 +79,16 @@ export default function Master() {
             </div>
 
             {error && (
-              <p className="text-red-500 text-xs font-black bg-red-50 py-3 rounded-xl border border-red-100 flex items-center justify-center animate-shake">
+              <p className="text-burgundy text-[10px] font-black bg-burgundy/5 py-3 rounded-xl border border-burgundy/10 flex items-center justify-center animate-shake">
                 <X className="w-3 h-3 mr-1" /> {error}
               </p>
             )}
 
             <button
               type="submit"
-              className="w-full bg-primary hover:bg-primary/90 text-white font-black py-4 rounded-2xl transition-all text-sm uppercase tracking-[0.2em] shadow-xl shadow-primary/20 active:scale-98"
+              className="w-full bg-primary hover:bg-primary-container text-white font-black py-4 rounded-2xl transition-all text-[11px] uppercase tracking-[0.2em] shadow-xl shadow-primary/20 active:scale-95"
             >
-              Enter Dashboard
+              대시보드 입장 (Enter)
             </button>
           </form>
           
@@ -130,7 +130,7 @@ export default function Master() {
       <div className="lattice-overlay absolute inset-0 pointer-events-none opacity-5"></div>
       
       {/* SideNavBar */}
-      <aside className="h-screen w-64 border-r border-primary/5 bg-primary shadow-2xl flex flex-col py-8 z-50">
+      <aside className="h-screen w-64 border-r border-primary/5 bg-primary shadow-2xl flex flex-col py-8 z-50 transition-all duration-500">
         <div className="px-8 mb-12">
           <h1 className="text-surface-bright font-serif italic text-3xl tracking-tighter">결 (Gyeol)</h1>
           <div className="mt-8 flex items-center space-x-3">
@@ -138,7 +138,7 @@ export default function Master() {
               <ShieldCheck className="text-white w-6 h-6" strokeWidth={1.5} />
             </div>
             <div>
-              <p className="text-white font-serif italic text-sm">Master Admin</p>
+              <p className="text-white font-serif italic text-sm">총괄 관리자</p>
               <p className="font-black uppercase tracking-widest text-[9px] text-white/40">Palace Oversight</p>
             </div>
           </div>
@@ -150,7 +150,7 @@ export default function Master() {
             className={`w-full flex items-center space-x-4 px-8 py-3.5 transition-all duration-300 group ${activeTab === 'owners' ? 'bg-primary-container text-white border-l-4 border-white' : 'text-white/60 hover:text-white hover:bg-white/5'}`}
           >
             <LayoutDashboard className="w-5 h-5" />
-            <span className="font-black uppercase tracking-widest text-[10px]">Governance</span>
+            <span className="font-black uppercase tracking-widest text-[10px]">가맹점 거버넌스</span>
           </button>
           
           <button 
@@ -158,38 +158,38 @@ export default function Master() {
             className={`w-full flex items-center space-x-4 px-8 py-3.5 transition-all duration-300 group ${activeTab === 'customers' ? 'bg-primary-container text-white border-l-4 border-white' : 'text-white/60 hover:text-white hover:bg-white/5'}`}
           >
             <Users className="w-5 h-5" />
-            <span className="font-black uppercase tracking-widest text-[10px]">Craftsmen</span>
+            <span className="font-black uppercase tracking-widest text-[10px]">시민명부 관리</span>
           </button>
           
           <button className="w-full flex items-center space-x-4 px-8 py-3.5 text-white/40 cursor-not-allowed">
             <History className="w-5 h-5" />
-            <span className="font-black uppercase tracking-widest text-[10px]">Archive</span>
+            <span className="font-black uppercase tracking-widest text-[10px]">전통 기록소</span>
           </button>
         </nav>
         
         <div className="px-8 mt-auto pt-8 space-y-4 border-t border-white/5">
           <button className="w-full py-3.5 bg-surface-bright text-primary rounded-xl font-black uppercase tracking-[0.2em] text-[10px] shadow-lg hover:scale-102 transition-all">
-            System Reset
+            시스템 초기화
           </button>
           <div className="flex flex-col space-y-3">
             <button className="flex items-center space-x-4 text-white/40 hover:text-white text-[10px] uppercase tracking-widest transition-colors font-bold">
               <HelpCircle className="w-4 h-4" />
-              <span>Support</span>
+              <span>기술 지원</span>
             </button>
             <button onClick={() => setIsAuthenticated(false)} className="flex items-center space-x-4 text-white/40 hover:text-white text-[10px] uppercase tracking-widest transition-colors font-bold">
               <LogOut className="w-4 h-4" />
-              <span>Exit Admin</span>
+              <span>관리자 종료</span>
             </button>
           </div>
         </div>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col h-screen overflow-hidden overflow-y-auto bg-surface-bright/50 backdrop-blur-sm">
+      <main className="flex-1 flex flex-col h-screen overflow-hidden overflow-y-auto bg-surface-bright/50 backdrop-blur-sm no-scrollbar">
         {/* Header */}
         <header className="bg-white/80 backdrop-blur-md sticky top-0 z-40 flex justify-between items-center w-full px-10 py-5 border-b border-primary/5">
           <div className="flex items-center space-x-12">
-            <div className="font-serif text-2xl font-black text-primary tracking-tighter">결 Governance</div>
+            <div className="font-serif text-2xl font-black text-primary tracking-tighter italic">결 메인 거버넌스</div>
             <nav className="hidden md:flex space-x-8">
               <a href="#" className="font-serif text-sm tracking-widest text-primary border-b-2 border-primary pb-1">CENTRAL</a>
               <a href="#" className="font-serif text-sm tracking-widest text-primary/40 hover:text-primary transition-colors">INSIGHTS</a>
@@ -206,7 +206,7 @@ export default function Master() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="가맹점 또는 손님 검색..." 
-                className="bg-primary/5 border-none rounded-full pl-10 pr-5 py-2 text-xs focus:ring-1 focus:ring-primary w-64 transition-all font-bold placeholder:text-primary/20"
+                className="bg-primary/5 border-none rounded-2xl pl-10 pr-5 py-2.5 text-[10px] focus:ring-4 focus:ring-primary/5 w-64 transition-all font-black uppercase tracking-widest placeholder:text-primary/20"
               />
             </div>
             <div className="flex items-center space-x-4">
@@ -222,49 +222,49 @@ export default function Master() {
                 <Settings className="w-5 h-5" />
               </button>
               <div className="h-6 w-px bg-primary/10"></div>
-              <div className="w-8 h-8 rounded-full bg-primary-container text-white flex items-center justify-center text-[10px] font-black font-sans ring-2 ring-primary/5">M</div>
+              <div className="w-8 h-8 rounded-full bg-primary-container text-white flex items-center justify-center text-[10px] font-black font-sans ring-2 ring-primary/5 shadow-lg">M</div>
             </div>
           </div>
         </header>
 
-        <div className="p-12 max-w-7xl w-full mx-auto space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="p-12 max-w-7xl w-full mx-auto space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-32">
           {/* Hero Section */}
           <section className="flex justify-between items-end">
             <div className="max-w-2xl space-y-4">
               <span className="font-black uppercase tracking-[0.4em] text-[10px] text-primary/40 block">Empire Management</span>
-              <h2 className="font-serif text-6xl text-primary font-black leading-none tracking-tighter">
-                {activeTab === 'owners' ? 'Store Governance' : 'Citizen Records'}
+              <h2 className="font-serif text-6xl text-primary font-black leading-none tracking-tighter italic">
+                {activeTab === 'owners' ? '가맹점 통제전도' : '전체 시민명부'}
               </h2>
-              <p className="text-primary/60 text-lg leading-relaxed font-medium max-w-xl">
+              <p className="text-primary/60 text-lg leading-relaxed font-serif italic serif max-w-xl">
                 {activeTab === 'owners' 
-                  ? "가맹점 네트워크의 모든 정보를 한눈에 관리합니다. 각 상점의 운영 현황과 가치를 극대화하는 정밀한 관리를 시작하세요." 
+                  ? "가맹점 네트워크의 모든 정보를 한눈에 관리합니다. 각 공방의 운영 현황과 가치를 극대화하는 정밀한 거버넌스를 시작하세요." 
                   : "결의 모든 이용자 기록입니다. 개개인의 소중한 방문 데이터와 혜택 정보를 투명하게 확인하고 관리할 수 있습니다."}
               </p>
             </div>
             <div className="flex space-x-4">
-              <div className="p-8 bg-white rounded-3xl shadow-sm border border-primary/5 text-right space-y-1 min-w-[160px]">
-                <p className="font-black uppercase tracking-widest text-[9px] text-primary/30">Total Active</p>
+              <div className="p-8 bg-white rounded-[2.5rem] shadow-sm border border-primary/5 text-right space-y-1 min-w-[180px] hover:shadow-xl transition-all">
+                <p className="font-black uppercase tracking-widest text-[9px] text-primary/30">활성 시민 수</p>
                 <p className="font-serif text-4xl text-primary font-black">
                   {activeTab === 'owners' ? owners.length : customersList.length}
                 </p>
               </div>
-              <div className="p-8 bg-white rounded-3xl shadow-sm border border-primary/5 text-right space-y-1 min-w-[160px]">
-                <p className="font-black uppercase tracking-widest text-[9px] text-primary/30">Net Flow</p>
-                <p className="font-serif text-4xl text-primary font-black">₩3.2B</p>
+              <div className="p-8 bg-white rounded-[2.5rem] shadow-sm border border-primary/5 text-right space-y-1 min-w-[180px] hover:shadow-xl transition-all">
+                <p className="font-black uppercase tracking-widest text-[9px] text-primary/30">총 유동 자산</p>
+                <p className="font-serif text-4xl text-primary font-black italic">₩3.2B</p>
               </div>
             </div>
           </section>
 
           {/* Filters & Navigation */}
-          <section className="flex flex-wrap items-center gap-4 bg-primary/5 p-4 rounded-3xl border border-primary/5">
+          <section className="flex flex-wrap items-center gap-4 bg-primary/10 p-4 rounded-3xl border border-primary/5">
             <div className="flex items-center space-x-3 px-5 py-2.5 bg-white rounded-2xl border border-primary/5 shadow-sm">
-              <span className="font-black text-[9px] text-primary/40 uppercase tracking-widest">Priority Index</span>
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-              <span className="text-xs font-black text-primary">Normal</span>
+              <span className="font-black text-[9px] text-primary/40 uppercase tracking-widest">거버넌스 지수</span>
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+              <span className="text-[10px] font-black text-primary uppercase tracking-widest">Normal</span>
             </div>
             <div className="flex items-center space-x-3 px-5 py-2.5 bg-white rounded-2xl border border-primary/5 shadow-sm">
-              <span className="font-black text-[9px] text-primary/40 uppercase tracking-widest">View Mode</span>
-              <span className="text-xs font-black text-primary">High Fidelity</span>
+              <span className="font-black text-[9px] text-primary/40 uppercase tracking-widest">데이터 정밀도</span>
+              <span className="text-[10px] font-black text-primary uppercase tracking-widest">High Fidelity</span>
             </div>
             
             <div className="ml-auto flex items-center space-x-2">
@@ -275,15 +275,15 @@ export default function Master() {
           </section>
 
           {/* Data Table Area */}
-          <div className="bg-white rounded-[2.5rem] shadow-xl shadow-primary/5 overflow-hidden border border-primary/5">
+          <div className="bg-white rounded-[3rem] shadow-xl shadow-primary/5 overflow-hidden border border-primary/5">
             {activeTab === 'owners' ? (
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-primary/5">
-                    <th className="px-10 py-6 font-black uppercase tracking-[0.2em] text-[10px] text-primary/40">Store Identity</th>
-                    <th className="px-10 py-6 font-black uppercase tracking-[0.2em] text-[10px] text-primary/40">Ownership</th>
-                    <th className="px-10 py-6 font-black uppercase tracking-[0.2em] text-[10px] text-primary/40">Status</th>
-                    <th className="px-10 py-6 font-black uppercase tracking-[0.2em] text-[10px] text-primary/40 text-right">Performance</th>
+                    <th className="px-10 py-6 font-black uppercase tracking-[0.2em] text-[10px] text-primary/40">장인(가맹점) 정보</th>
+                    <th className="px-10 py-6 font-black uppercase tracking-[0.2em] text-[10px] text-primary/40">관리자(사장님)</th>
+                    <th className="px-10 py-6 font-black uppercase tracking-[0.2em] text-[10px] text-primary/40">운영 상태</th>
+                    <th className="px-10 py-6 font-black uppercase tracking-[0.2em] text-[10px] text-primary/40 text-right">성과 지표</th>
                     <th className="px-10 py-6"></th>
                   </tr>
                 </thead>
@@ -294,33 +294,33 @@ export default function Master() {
                       <tr key={owner.id} className="hover:bg-primary/[0.02] transition-colors group">
                         <td className="px-10 py-8">
                           <div className="flex items-center space-x-6">
-                            <div className="w-14 h-14 rounded-2xl overflow-hidden bg-primary/5 flex-shrink-0 flex items-center justify-center text-primary/20 group-hover:bg-primary group-hover:text-white transition-all duration-500">
+                            <div className="w-14 h-14 rounded-2xl overflow-hidden bg-primary/5 flex-shrink-0 flex items-center justify-center text-primary/20 group-hover:bg-primary group-hover:text-white transition-all duration-500 border border-primary/5">
                               <Store className="w-7 h-7" strokeWidth={1} />
                             </div>
                             <div>
-                              <p className="font-serif text-xl text-primary font-black tracking-tight">{owner.restaurantName || 'Unnamed Atelier'}</p>
+                              <p className="font-serif text-xl text-primary font-black tracking-tight italic">{owner.restaurantName || '이름 없는 공방'}</p>
                               <p className="text-[10px] font-black text-primary/40 uppercase tracking-widest mt-1">ID: {owner.id}</p>
                             </div>
                           </div>
                         </td>
                         <td className="px-10 py-8 text-sm">
                           <div className="flex items-center space-x-3">
-                            <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                            <span className="font-bold text-primary">{owner.name} 사장님</span>
+                            <div className="w-2 h-2 rounded-full bg-primary/20"></div>
+                            <span className="font-black text-primary text-[11px] uppercase tracking-widest">{owner.name} 장인</span>
                           </div>
                         </td>
                         <td className="px-10 py-8">
-                          <span className="px-4 py-1 bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase tracking-[0.1em] rounded-full border border-emerald-100">Operational</span>
+                          <span className="px-4 py-1.5 bg-emerald-50 text-emerald-600 text-[9px] font-black uppercase tracking-[0.2em] rounded-lg border border-emerald-100">Operational</span>
                         </td>
                         <td className="px-10 py-8 text-right">
                           <p className="font-serif text-xl text-primary font-black tracking-tight">₩{(stats.revenue/10000).toFixed(1)}M</p>
-                          <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-widest mt-1">Upward Flow</p>
+                          <p className="text-[9px] text-emerald-600 font-black uppercase tracking-widest mt-1 italic">Upward Flow</p>
                         </td>
                         <td className="px-10 py-8 text-right">
                           <div className="flex justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button 
                               onClick={() => handleDeleteUser(owner.id, 'owner', owner.name)}
-                              className="p-2.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                              className="p-2.5 text-burgundy hover:text-white hover:bg-burgundy rounded-xl transition-all border border-burgundy/10"
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -335,10 +335,10 @@ export default function Master() {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-primary/5">
-                    <th className="px-10 py-6 font-black uppercase tracking-[0.2em] text-[10px] text-primary/40">Citizen Record</th>
-                    <th className="px-10 py-6 font-black uppercase tracking-[0.2em] text-[10px] text-primary/40">Status</th>
-                    <th className="px-10 py-6 font-black uppercase tracking-[0.2em] text-[10px] text-primary/40">Affiliation</th>
-                    <th className="px-10 py-6 font-black uppercase tracking-[0.2em] text-[10px] text-primary/40 text-right">Engagement</th>
+                    <th className="px-10 py-6 font-black uppercase tracking-[0.2em] text-[10px] text-primary/40">시민 기록 (Citizen)</th>
+                    <th className="px-10 py-6 font-black uppercase tracking-[0.2em] text-[10px] text-primary/40">상태</th>
+                    <th className="px-10 py-6 font-black uppercase tracking-[0.2em] text-[10px] text-primary/40">소속 공방</th>
+                    <th className="px-10 py-6 font-black uppercase tracking-[0.2em] text-[10px] text-primary/40 text-right">참여도</th>
                     <th className="px-10 py-6"></th>
                   </tr>
                 </thead>
@@ -350,7 +350,7 @@ export default function Master() {
                       <tr key={customer.id} className="hover:bg-primary/[0.02] transition-colors group">
                         <td className="px-10 py-8">
                           <div className="flex items-center space-x-6">
-                            <div className="w-14 h-14 rounded-full overflow-hidden bg-primary/5 flex-shrink-0 flex items-center justify-center text-primary/20 group-hover:bg-primary group-hover:text-white transition-all duration-500">
+                            <div className="w-14 h-14 rounded-3xl overflow-hidden bg-primary/5 flex-shrink-0 flex items-center justify-center text-primary/20 group-hover:bg-primary group-hover:text-white transition-all duration-500 border border-primary/5">
                               <Users className="w-7 h-7" strokeWidth={1} />
                             </div>
                             <div>
@@ -360,25 +360,25 @@ export default function Master() {
                           </div>
                         </td>
                         <td className="px-10 py-8">
-                          <span className="px-3 py-1 bg-primary/5 text-primary/60 text-[10px] font-black uppercase tracking-widest rounded-full border border-primary/10">Active</span>
+                          <span className="px-4 py-1.5 bg-primary/5 text-primary/60 text-[9px] font-black uppercase tracking-widest rounded-lg border border-primary/10">Active</span>
                         </td>
                         <td className="px-10 py-8">
-                          <div className="flex items-center space-x-2">
-                             <div className="w-4 h-4 rounded bg-primary/10 flex items-center justify-center overflow-hidden">
-                                <Store className="w-2 h-2 text-primary" />
+                          <div className="flex items-center space-x-3">
+                             <div className="w-6 h-6 rounded-lg bg-primary/5 flex items-center justify-center border border-primary/5">
+                                <Store className="w-3 h-3 text-primary/40" />
                              </div>
-                             <span className="text-xs font-bold text-primary">{store?.restaurantName || 'Floating Guest'}</span>
+                             <span className="text-[11px] font-black text-primary uppercase tracking-widest">{store?.restaurantName || '방랑 시민'}</span>
                           </div>
                         </td>
                         <td className="px-10 py-8 text-right">
-                          <p className="font-serif text-xl text-primary font-black tracking-tight tracking-tight">{customerVisits.length} Visits</p>
-                          <p className="text-[10px] text-primary/30 font-black uppercase tracking-widest mt-1">Loyalty Tier</p>
+                          <p className="font-serif text-xl text-primary font-black tracking-tight">{customerVisits.length}회 방문</p>
+                          <p className="text-[9px] text-primary/30 font-black uppercase tracking-widest mt-1">Loyalty Tier</p>
                         </td>
                         <td className="px-10 py-8 text-right">
                           <div className="flex justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button 
                               onClick={() => handleDeleteUser(customer.id, 'customer', customer.name)}
-                              className="p-2.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-xl transition-all"
+                              className="p-2.5 text-burgundy hover:text-white hover:bg-burgundy rounded-xl transition-all border border-burgundy/10"
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -397,7 +397,7 @@ export default function Master() {
                 <button className="w-10 h-10 flex items-center justify-center rounded-xl border border-primary/10 text-primary/20 hover:bg-white hover:text-primary transition-all">
                   <ArrowLeft className="w-4 h-4" />
                 </button>
-                <button className="w-10 h-10 flex items-center justify-center rounded-xl bg-primary text-white text-xs font-black ring-4 ring-primary/10">1</button>
+                <button className="w-10 h-10 flex items-center justify-center rounded-xl bg-primary text-white text-[10px] font-black ring-4 ring-primary/10 transition-all">1</button>
                 <button className="w-10 h-10 flex items-center justify-center rounded-xl border border-primary/10 text-primary/20 hover:bg-white hover:text-primary transition-all">
                    <ChevronRight className="w-4 h-4" />
                 </button>
@@ -405,9 +405,9 @@ export default function Master() {
             </div>
           </div>
 
-          <footer className="pt-20 pb-10 text-center flex flex-col items-center space-y-4">
-             <div className="w-12 h-px bg-primary/10"></div>
-             <p className="font-serif italic text-sm text-primary/20 italic">Refining heritage through digital precision.</p>
+          <footer className="pt-20 pb-10 text-center flex flex-col items-center space-y-4 opacity-30">
+             <div className="w-12 h-px bg-primary"></div>
+             <p className="font-serif italic text-sm text-primary italic">Refining heritage through digital precision.</p>
           </footer>
         </div>
       </main>
@@ -415,14 +415,14 @@ export default function Master() {
       {/* Security Settings Modal */}
       {isChangingPassword && (
         <div className="fixed inset-0 bg-primary/40 backdrop-blur-md z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
-          <div className="bg-white rounded-[2.5rem] w-full max-w-md p-10 shadow-3xl border border-primary/10 relative overflow-hidden">
+          <div className="bg-white rounded-[3rem] w-full max-w-md p-10 shadow-3xl border border-primary/10 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16"></div>
             <div className="relative z-10">
               <div className="flex justify-between items-center mb-10">
-                <h3 className="text-2xl font-serif font-black text-primary tracking-tighter">Security Protocols</h3>
+                <h3 className="text-2xl font-serif font-black text-primary tracking-tighter italic">관리자 보안 설정</h3>
                 <button 
                   onClick={() => { setIsChangingPassword(false); setNewPassword(''); setError(''); }}
-                  className="p-2 hover:bg-primary/5 rounded-full text-primary/20 transition-colors"
+                  className="p-3 hover:bg-primary/5 rounded-2xl text-primary/20 transition-colors"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -430,25 +430,25 @@ export default function Master() {
               
               <form onSubmit={handleChangePassword} className="space-y-6">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-primary/40 uppercase tracking-[0.2em] ml-1">New Administrative Key</label>
+                  <label className="text-[10px] font-black text-primary/40 uppercase tracking-[0.2em] ml-1">새로운 마스터 키 (New Password)</label>
                   <input
                     type="password"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     placeholder="최소 3자리 이상 입력"
-                    className="w-full bg-primary/5 border border-primary/5 rounded-2xl px-5 py-4 text-primary font-black placeholder:text-primary/10 focus:outline-none focus:bg-white focus:border-primary/20 transition-all"
+                    className="w-full bg-primary/5 border border-primary/5 rounded-2xl px-6 py-4 text-primary font-black placeholder:text-primary/10 focus:outline-none focus:bg-white focus:border-primary/20 transition-all text-center text-lg"
                   />
                 </div>
                 
                 {error && (
-                   <p className="text-red-500 text-[10px] font-black bg-red-50 py-2 rounded-lg text-center border border-red-100">{error}</p>
+                   <p className="text-burgundy text-[10px] font-black bg-burgundy/5 py-2 rounded-lg text-center border border-burgundy/10">{error}</p>
                 )}
 
                 <button
                   type="submit"
-                  className="w-full bg-primary text-white font-black py-4 rounded-2xl transition-all shadow-xl shadow-primary/20 hover:scale-102 uppercase tracking-widest text-xs"
+                  className="w-full bg-primary text-white font-black py-4 rounded-2xl transition-all shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] uppercase tracking-widest text-[11px]"
                 >
-                  Authorize Changes
+                  변경 승인 (Authorize)
                 </button>
               </form>
             </div>
@@ -459,21 +459,22 @@ export default function Master() {
       {/* Deletion Protocol Modal */}
       {deletingUser && (
         <div className="fixed inset-0 bg-burgundy/20 backdrop-blur-md z-[100] flex items-center justify-center p-6 animate-in fade-in zoom-in-95 duration-300">
-          <div className="bg-white rounded-[2.5rem] w-full max-w-sm p-10 shadow-3xl border border-burgundy/10 text-center">
-            <div className="w-20 h-20 bg-burgundy/5 rounded-3xl flex items-center justify-center mx-auto mb-6">
+          <div className="bg-white rounded-[3rem] w-full max-w-sm p-10 shadow-3xl border border-burgundy/10 text-center relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-burgundy/5 rounded-full -mr-12 -mt-12"></div>
+            <div className="w-20 h-20 bg-burgundy/5 rounded-3xl flex items-center justify-center mx-auto mb-6 border-2 border-burgundy/5">
               <Trash2 className="w-10 h-10 text-burgundy" strokeWidth={1} />
             </div>
-            <h3 className="text-2xl font-serif font-black text-primary tracking-tighter mb-2">Notice of Exclusion</h3>
-            <p className="text-primary/60 text-sm leading-relaxed mb-10 font-medium">
-               <span className="text-burgundy font-black">{deletingUser.name}</span> 사장님을 시스템에서 영구히 제명하시겠습니까? 관련한 모든 방문 기록과 데이터가 소멸됩니다.
+            <h3 className="text-2xl font-serif font-black text-primary tracking-tighter mb-2 italic">영구 제명 고지</h3>
+            <p className="text-primary/60 text-[11px] leading-relaxed mb-10 font-bold uppercase tracking-wide">
+               <span className="text-burgundy font-black">{deletingUser.name}</span> 사장님을 시스템에서 영구히 제명하시겠습니까? 관련한 모든 방문 기록과 데이터가 완전히 소멸됩니다.
             </p>
             
             <div className="flex gap-4">
               <button
                 onClick={() => setDeletingUser(null)}
-                className="flex-1 py-4 bg-primary/5 text-primary/40 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-primary/10 transition-colors"
+                className="flex-1 py-4 bg-primary/5 text-primary/40 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-primary/10 transition-colors"
               >
-                Retreat
+                취소 (Retreat)
               </button>
               <button
                 onClick={() => {
@@ -481,9 +482,9 @@ export default function Master() {
                   showToast('데이터가 영구히 소멸되었습니다.', 'info');
                   setDeletingUser(null);
                 }}
-                className="flex-1 py-4 bg-burgundy text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-burgundy/20 active:scale-95 transition-all"
+                className="flex-1 py-4 bg-burgundy text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-burgundy/20 active:scale-95 transition-all"
               >
-                Execute
+                제명 실행 (Execute)
               </button>
             </div>
           </div>

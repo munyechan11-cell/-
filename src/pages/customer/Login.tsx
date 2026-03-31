@@ -304,23 +304,23 @@ export default function CustomerLogin() {
     return (
       <div className="min-h-screen bg-surface-bright flex flex-col items-center justify-center p-6 hanji-texture relative overflow-hidden">
         <div className="lattice-overlay absolute inset-0 pointer-events-none opacity-10"></div>
-        <div className="max-w-md w-full bg-white rounded-[3.5rem] shadow-3xl border border-primary/5 p-12 text-center relative z-10 animate-in fade-in zoom-in duration-700">
+        <div className="max-w-md w-full bg-white rounded-[3.5rem] shadow-3xl border border-primary/10 p-12 text-center relative z-10 animate-in fade-in zoom-in duration-700">
           <Link 
             to="/" 
-            className="absolute top-8 left-8 p-3 hover:bg-primary/5 rounded-2xl text-primary/30 hover:text-primary transition-all"
+            className="absolute top-8 left-8 p-3 hover:bg-primary/10 rounded-2xl text-primary/30 hover:text-primary transition-all"
           >
             <ArrowLeft className="w-6 h-6" />
           </Link>
-          <div className="w-24 h-24 rounded-[2rem] bg-burgundy/5 flex items-center justify-center mx-auto mb-10 rotate-3 animate-pulse">
+          <div className="w-24 h-24 rounded-[2rem] bg-burgundy/10 flex items-center justify-center mx-auto mb-10 rotate-3 animate-pulse">
             <UserCircle className="w-12 h-12 text-burgundy" strokeWidth={1} />
           </div>
-          <h2 className="text-3xl font-serif font-black text-primary mb-4 tracking-tighter italic">Scan Required</h2>
+          <h2 className="text-3xl font-serif font-black text-primary mb-4 tracking-tighter italic">QR 스캔 필요</h2>
           <p className="text-primary/40 text-[10px] font-black uppercase tracking-[0.3em] mb-12 leading-relaxed">
-            Please scan the cipher at your table to begin your journey.
+            시작하려면 테이블에 비치된 QR 코드를 먼저 스캔해 주세요.
           </p>
           <div className="space-y-4">
-            <Link to="/scan" className="w-full flex items-center justify-center bg-burgundy text-white px-8 py-5 rounded-[2rem] font-black uppercase tracking-widest text-[10px] shadow-2xl shadow-burgundy/20 hover:scale-[1.02] active:scale-[0.98] transition-all">Scan Legacy Cipher</Link>
-            <Link to="/" className="w-full flex items-center justify-center text-primary/30 hover:text-primary px-8 py-4 rounded-[2.5rem] font-black uppercase tracking-widest text-[9px] transition-colors">Return to Portal</Link>
+            <Link to="/scan" className="w-full flex items-center justify-center bg-burgundy text-white px-8 py-5 rounded-[2rem] font-black uppercase tracking-widest text-[10px] shadow-2xl shadow-burgundy/20 hover:scale-[1.02] active:scale-[0.98] transition-all">QR 코드 스캔하기</Link>
+            <Link to="/" className="w-full flex items-center justify-center text-primary/30 hover:text-primary px-8 py-4 rounded-[2.5rem] font-black uppercase tracking-widest text-[9px] transition-colors">홈으로 돌아가기</Link>
           </div>
         </div>
       </div>
@@ -334,23 +334,23 @@ export default function CustomerLogin() {
       {/* Decorative Circles */}
       <div className="absolute top-0 left-0 w-96 h-96 bg-primary/5 rounded-full -ml-48 -mt-48 blur-3xl opacity-30"></div>
       
-      <div className="max-w-md w-full bg-white rounded-[4rem] shadow-3xl border border-primary/5 overflow-hidden relative z-10 animate-in fade-in slide-in-from-bottom-12 duration-1000">
+      <div className="max-w-md w-full bg-white rounded-[4rem] shadow-3xl border border-primary/10 overflow-hidden relative z-10 animate-in fade-in slide-in-from-bottom-12 duration-1000">
         <Link 
           to="/" 
-          className="absolute top-8 left-8 p-3 hover:bg-primary/5 rounded-2xl text-primary/30 hover:text-primary transition-all z-20"
+          className="absolute top-8 left-8 p-3 hover:bg-primary/10 rounded-2xl text-primary/30 hover:text-primary transition-all z-20"
         >
           <ArrowLeft className="w-6 h-6" />
         </Link>
         
         <div className="p-12 pb-8 text-center">
           <div className="inline-block relative mb-8">
-             <div className="absolute -inset-4 bg-primary/5 rounded-full blur-xl"></div>
+             <div className="absolute -inset-4 bg-primary/10 rounded-full blur-xl"></div>
              <h1 className="text-8xl font-serif font-black text-primary leading-none tracking-tighter italic relative">결</h1>
           </div>
           <h1 className="text-2xl font-serif font-black text-primary tracking-tight mb-2 italic">
-            {pendingOAuthUser ? `${pendingOAuthUser.provider} Initialization` : (isLogin ? 'Citizen Access' : 'Begin Heritage')}
+            {pendingOAuthUser ? `${pendingOAuthUser.provider} 초기화 및 연동` : (isLogin ? '시민 접속 (로그인)' : '유산 시작 (회원가입)')}
           </h1>
-          <p className="text-primary/40 text-[9px] font-black uppercase tracking-[0.3em]">{store?.restaurantName || 'Imperial Registry'}</p>
+          <p className="text-primary/40 text-[10px] font-black uppercase tracking-[0.3em]">{store?.restaurantName || '매장 시스템'}</p>
         </div>
         
         <div className="px-12 pb-12 space-y-10">
@@ -360,22 +360,22 @@ export default function CustomerLogin() {
             </div>
           )}
 
-          <div className="flex bg-primary/5 p-1.5 rounded-[2rem]">
+          <div className="flex bg-primary/10 p-1.5 rounded-[2rem]">
             <button
               onClick={() => { setIsLogin(true); setError(''); setPendingOAuthUser(null); }}
-              className={`flex-1 py-3.5 text-[9px] font-black uppercase tracking-widest rounded-3xl transition-all ${
-                isLogin ? 'bg-primary text-white shadow-xl' : 'text-primary/30 hover:text-primary'
+              className={`flex-1 py-3.5 text-[10px] font-black uppercase tracking-widest rounded-3xl transition-all ${
+                isLogin ? 'bg-primary text-white shadow-xl' : 'text-primary/40 hover:text-primary'
               }`}
             >
-              Access
+              로그인
             </button>
             <button
               onClick={() => { setIsLogin(false); setError(''); }}
-              className={`flex-1 py-3.5 text-[9px] font-black uppercase tracking-widest rounded-3xl transition-all ${
-                !isLogin ? 'bg-primary text-white shadow-xl' : 'text-primary/30 hover:text-primary'
+              className={`flex-1 py-3.5 text-[10px] font-black uppercase tracking-widest rounded-3xl transition-all ${
+                !isLogin ? 'bg-primary text-white shadow-xl' : 'text-primary/40 hover:text-primary'
               }`}
             >
-              Join
+              회원가입
             </button>
           </div>
 
@@ -383,52 +383,52 @@ export default function CustomerLogin() {
             {!isLogin && (
               <div className="space-y-8 animate-in fade-in slide-in-from-top-4 duration-500">
                 <div className="space-y-3">
-                  <label className="text-[9px] font-black text-primary/30 uppercase tracking-[0.2em] ml-1">Identity Name</label>
+                  <label className="text-[10px] font-black text-primary/40 uppercase tracking-[0.2em] ml-1">성함 (본명)</label>
                   <input
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full px-8 py-5 bg-primary/[0.02] border border-primary/5 rounded-[2rem] text-primary font-black uppercase tracking-widest text-[10px] focus:outline-none focus:ring-4 focus:ring-primary/5 transition-all shadow-inner focus:bg-white"
-                    placeholder="Enter your name"
+                    className="w-full px-8 py-5 bg-primary/[0.02] border border-primary/10 rounded-[2rem] text-primary font-black uppercase tracking-widest text-[11px] focus:outline-none focus:ring-4 focus:ring-primary/5 transition-all shadow-inner focus:bg-white"
+                    placeholder="성함을 입력하세요"
                   />
                 </div>
                 
                 <div className="space-y-3">
-                  <label className="text-[9px] font-black text-primary/30 uppercase tracking-[0.2em] ml-1">District Lineage</label>
+                  <label className="text-[10px] font-black text-primary/40 uppercase tracking-[0.2em] ml-1">지역 거주 여부</label>
                   <div className="flex gap-4">
                     <button
                       type="button"
                       onClick={() => setIsPohangResident(true)}
-                      className={`flex-1 py-4 border rounded-[2rem] text-[9px] font-black uppercase tracking-widest transition-all ${isPohangResident === true ? 'bg-primary text-white shadow-xl' : 'bg-primary/[0.02] border-primary/5 text-primary/30 hover:bg-white hover:text-primary'}`}
+                      className={`flex-1 py-4 border rounded-[2rem] text-[10px] font-black uppercase tracking-widest transition-all ${isPohangResident === true ? 'bg-primary text-white shadow-xl' : 'bg-primary/[0.02] border-primary/10 text-primary/40 hover:bg-white hover:text-primary'}`}
                     >
-                      Pohang Native
+                      포항 시민
                     </button>
                     <button
                       type="button"
                       onClick={() => setIsPohangResident(false)}
-                      className={`flex-1 py-4 border rounded-[2rem] text-[9px] font-black uppercase tracking-widest transition-all ${isPohangResident === false ? 'bg-primary text-white shadow-xl' : 'bg-primary/[0.02] border-primary/5 text-primary/30 hover:bg-white hover:text-primary'}`}
+                      className={`flex-1 py-4 border rounded-[2rem] text-[10px] font-black uppercase tracking-widest transition-all ${isPohangResident === false ? 'bg-primary text-white shadow-xl' : 'bg-primary/[0.02] border-primary/10 text-primary/40 hover:bg-white hover:text-primary'}`}
                     >
-                      District Guest
+                      타지역 방문객
                     </button>
                   </div>
                 </div>
 
                 <div className="space-y-3">
-                  <label className="text-[9px] font-black text-primary/30 uppercase tracking-[0.2em] ml-1">Essence</label>
+                  <label className="text-[10px] font-black text-primary/40 uppercase tracking-[0.2em] ml-1">성별</label>
                   <div className="flex gap-4">
                     <button
                       type="button"
                       onClick={() => setGender('male')}
-                      className={`flex-1 py-4 border rounded-[2rem] text-[9px] font-black uppercase tracking-widest transition-all ${gender === 'male' ? 'bg-primary text-white shadow-xl' : 'bg-primary/[0.02] border-primary/5 text-primary/30 hover:bg-white hover:text-primary'}`}
+                      className={`flex-1 py-4 border rounded-[2rem] text-[10px] font-black uppercase tracking-widest transition-all ${gender === 'male' ? 'bg-primary text-white shadow-xl' : 'bg-primary/[0.02] border-primary/10 text-primary/40 hover:bg-white hover:text-primary'}`}
                     >
-                      Male
+                      남성
                     </button>
                     <button
                       type="button"
                       onClick={() => setGender('female')}
-                      className={`flex-1 py-4 border rounded-[2rem] text-[9px] font-black uppercase tracking-widest transition-all ${gender === 'female' ? 'bg-primary text-white shadow-xl' : 'bg-primary/[0.02] border-primary/5 text-primary/30 hover:bg-white hover:text-primary'}`}
+                      className={`flex-1 py-4 border rounded-[2rem] text-[10px] font-black uppercase tracking-widest transition-all ${gender === 'female' ? 'bg-primary text-white shadow-xl' : 'bg-primary/[0.02] border-primary/10 text-primary/40 hover:bg-white hover:text-primary'}`}
                     >
-                      Female
+                      여성
                     </button>
                   </div>
                 </div>
@@ -436,7 +436,7 @@ export default function CustomerLogin() {
             )}
 
             <div className="space-y-3">
-              <label className="text-[9px] font-black text-primary/30 uppercase tracking-[0.2em] ml-1">Comm Cypher</label>
+              <label className="text-[10px] font-black text-primary/40 uppercase tracking-[0.2em] ml-1">연락처 (암호)</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none">
                   <Phone className="h-4 w-4 text-primary/20" />
@@ -445,7 +445,7 @@ export default function CustomerLogin() {
                   type="tel"
                   value={phone}
                   onChange={(e) => setPhone(formatPhoneNumber(e.target.value))}
-                  className="w-full pl-14 pr-8 py-5 bg-primary/[0.02] border border-primary/5 rounded-[2rem] text-primary font-black uppercase tracking-widest text-[10px] focus:outline-none focus:ring-4 focus:ring-primary/5 transition-all shadow-inner focus:bg-white"
+                  className="w-full pl-14 pr-8 py-5 bg-primary/[0.02] border border-primary/10 rounded-[2rem] text-primary font-black uppercase tracking-widest text-[11px] focus:outline-none focus:ring-4 focus:ring-primary/5 transition-all shadow-inner focus:bg-white"
                   placeholder="010-0000-0000"
                   maxLength={13}
                 />
@@ -457,7 +457,7 @@ export default function CustomerLogin() {
               disabled={isLoading || phone.replace(/[^0-9]/g, '').length < 10 || (!isLogin && (!name || isPohangResident === null || gender === null))}
               className="w-full bg-burgundy hover:scale-[1.02] active:scale-[0.98] disabled:opacity-30 text-white font-black py-6 rounded-[2.5rem] transition-all shadow-2xl shadow-burgundy/20 flex items-center justify-center space-x-3 text-[10px] uppercase tracking-widest mt-4"
             >
-              {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : (isLogin ? 'Grant Access' : 'Commit to Archive')}
+              {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : (isLogin ? '입장하기' : '등록하기')}
             </button>
           </form>
 
@@ -465,10 +465,10 @@ export default function CustomerLogin() {
             <div className="space-y-10">
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-primary/5"></div>
+                  <div className="w-full border-t border-primary/10"></div>
                 </div>
-                <div className="relative flex justify-center text-[8px] font-black text-primary/20 uppercase tracking-[0.5em]">
-                  <span className="px-6 bg-white">OR PORTAL VIA</span>
+                <div className="relative flex justify-center text-[10px] font-black text-primary/30 uppercase tracking-[0.5em]">
+                  <span className="px-6 bg-white">또는 다음으로 접속</span>
                 </div>
               </div>
 
@@ -477,7 +477,7 @@ export default function CustomerLogin() {
                   type="button"
                   onClick={handleGoogleLogin}
                   disabled={isLoading}
-                  className="w-full bg-white border border-primary/5 hover:border-primary/20 py-5 rounded-[2rem] text-[9px] font-black uppercase tracking-widest text-primary/60 flex items-center justify-center space-x-4 transition-all"
+                  className="w-full bg-white border border-primary/10 hover:border-primary/20 py-5 rounded-[2rem] text-[10px] font-black uppercase tracking-widest text-primary/60 flex items-center justify-center space-x-4 transition-all"
                 >
                    <svg className="w-4 h-4 opacity-70" viewBox="0 0 24 24">
                       <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -485,7 +485,7 @@ export default function CustomerLogin() {
                       <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
                       <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
                    </svg>
-                   <span>Google Authority</span>
+                   <span>구글 로그인</span>
                 </button>
 
                 <div className="grid grid-cols-2 gap-4">

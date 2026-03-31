@@ -221,8 +221,8 @@ export default function OwnerCustomers() {
               <StoreIcon className="text-white w-6 h-6" strokeWidth={1.5} />
             </div>
             <div className="overflow-hidden">
-              <p className="text-white font-serif italic text-sm truncate">{currentUser.restaurantName || 'My Atelier'}</p>
-              <p className="font-black uppercase tracking-widest text-[9px] text-white/40">Owner Oversight</p>
+              <p className="text-white font-serif italic text-sm truncate">{currentUser.restaurantName || '나의 공방'}</p>
+              <p className="font-black uppercase tracking-widest text-[9px] text-white/40">장인 관리자</p>
             </div>
           </div>
         </div>
@@ -233,7 +233,7 @@ export default function OwnerCustomers() {
             className="w-full flex items-center space-x-4 px-6 md:px-8 py-3.5 transition-all duration-300 text-white/60 hover:text-white hover:bg-white/5"
           >
             <LayoutGrid className="w-5 h-5 flex-shrink-0" />
-            <span className="font-black uppercase tracking-widest text-[10px] hidden md:block">Floor Plan</span>
+            <span className="font-black uppercase tracking-widest text-[10px] hidden md:block">매장 전도</span>
           </Link>
           
           <Link 
@@ -241,7 +241,7 @@ export default function OwnerCustomers() {
             className="w-full flex items-center space-x-4 px-6 md:px-8 py-3.5 transition-all duration-300 bg-primary-container text-white border-l-4 border-white"
           >
             <Users className="w-5 h-5 flex-shrink-0" />
-            <span className="font-black uppercase tracking-widest text-[10px] hidden md:block">Guest Book</span>
+            <span className="font-black uppercase tracking-widest text-[10px] hidden md:block">단골 장부</span>
           </Link>
           
           <Link 
@@ -249,7 +249,7 @@ export default function OwnerCustomers() {
             className="w-full flex items-center space-x-4 px-6 md:px-8 py-3.5 transition-all duration-300 text-white/60 hover:text-white hover:bg-white/5"
           >
             <BarChart3 className="w-5 h-5 flex-shrink-0" />
-            <span className="font-black uppercase tracking-widest text-[10px] hidden md:block">Insights</span>
+            <span className="font-black uppercase tracking-widest text-[10px] hidden md:block">분석 및 통계</span>
           </Link>
 
           <Link 
@@ -257,14 +257,14 @@ export default function OwnerCustomers() {
             className="w-full flex items-center space-x-4 px-6 md:px-8 py-3.5 transition-all duration-300 text-white/60 hover:text-white hover:bg-white/5"
           >
             <Settings className="w-5 h-5 flex-shrink-0" />
-            <span className="font-black uppercase tracking-widest text-[10px] hidden md:block">Heritage Settings</span>
+            <span className="font-black uppercase tracking-widest text-[10px] hidden md:block">브랜드 설정</span>
           </Link>
         </nav>
         
         <div className="px-4 md:px-8 mt-auto pt-8 space-y-4 border-t border-white/5">
           <button onClick={handleLogout} className="w-full flex items-center space-x-4 px-2 md:px-0 py-3.5 text-white/40 hover:text-white text-[10px] uppercase tracking-widest transition-colors font-bold">
             <LogOut className="w-4 h-4 flex-shrink-0" />
-            <span className="hidden md:block">Sign Out</span>
+            <span className="hidden md:block">로그아웃</span>
           </button>
         </div>
       </aside>
@@ -274,15 +274,15 @@ export default function OwnerCustomers() {
         {/* Header */}
         <header className="bg-white/80 backdrop-blur-md sticky top-0 z-40 flex justify-between items-center w-full px-6 md:px-10 py-5 border-b border-primary/5">
           <div className="flex items-center space-x-4 md:space-x-12">
-            <div className="font-serif text-xl md:text-2xl font-black text-primary tracking-tighter italic">Citizen Registry</div>
+            <div className="font-serif text-xl md:text-2xl font-black text-primary tracking-tighter italic">시민 명부 (고객 관리)</div>
             <div className="h-6 w-px bg-primary/10 hidden md:block"></div>
             <div className="hidden lg:flex items-center space-x-4">
                <button 
                 onClick={handleExportData}
-                className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-primary/5 text-primary text-[10px] font-black uppercase tracking-widest hover:bg-primary/10 transition-all border border-primary/5"
+                className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-primary/10 text-primary text-[10px] font-black uppercase tracking-widest hover:bg-primary/20 transition-all border border-primary/10"
                >
                  <Download className="w-4 h-4" />
-                 <span>Archive Stats</span>
+                 <span>데이터 추출</span>
                </button>
             </div>
           </div>
@@ -292,10 +292,10 @@ export default function OwnerCustomers() {
                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-primary/30" />
                <input 
                 type="text" 
-                placeholder="SEEK BY NAME OR CYPHER..."
+                placeholder="이름 또는 연락처로 검색..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-primary/5 border border-primary/5 rounded-2xl py-2.5 pl-12 pr-4 text-[10px] font-black tracking-widest text-primary placeholder:text-primary/20 focus:outline-none focus:ring-4 focus:ring-primary/5 transition-all"
+                className="w-full bg-primary/10 border border-primary/10 rounded-2xl py-2.5 pl-12 pr-4 text-[10px] font-black tracking-widest text-primary placeholder:text-primary/20 focus:outline-none focus:ring-4 focus:ring-primary/5 transition-all"
                />
             </div>
             
@@ -308,7 +308,7 @@ export default function OwnerCustomers() {
                className={`flex items-center space-x-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${isMultiSelectMode ? 'bg-burgundy text-white border-burgundy shadow-xl shadow-burgundy/20' : 'bg-white text-primary/40 border-primary/10 hover:border-primary/30'}`}
             >
               <Filter className="w-4 h-4" />
-              <span>{isMultiSelectMode ? 'ABORT BATCH' : 'BATCH BROADCAST'}</span>
+              <span>{isMultiSelectMode ? '발송 취소' : '일괄 발송'}</span>
             </button>
           </div>
         </header>
@@ -316,11 +316,11 @@ export default function OwnerCustomers() {
         <div className="flex-1 flex flex-col min-h-0 overflow-y-auto no-scrollbar p-6 md:p-10">
           <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
             <div>
-               <h2 className="text-4xl font-serif font-black text-primary tracking-tight italic">Guest Heritage</h2>
-               <p className="text-primary/40 text-[10px] font-black uppercase tracking-[0.3em] mt-2">Overseeing the loyal citizens of {currentUser.restaurantName || 'The Atelier'}</p>
+               <h2 className="text-4xl font-serif font-black text-primary tracking-tight italic">단골 장부</h2>
+               <p className="text-primary/40 text-[10px] font-black uppercase tracking-[0.3em] mt-2">{currentUser.restaurantName || '공방'}의 소중한 시민(고객)들을 관리합니다.</p>
             </div>
             
-            <div className="flex bg-primary/5 p-1 rounded-2xl overflow-x-auto no-scrollbar">
+            <div className="flex bg-primary/10 p-1 rounded-2xl overflow-x-auto no-scrollbar">
               {['all', 'VIP', '다이아', '골드', '실버', '브론즈', '일반'].map(tier => (
                 <button
                   key={tier}
@@ -331,10 +331,10 @@ export default function OwnerCustomers() {
                   className={`px-5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${
                     filterTier === tier 
                       ? 'bg-primary text-white shadow-xl' 
-                      : 'text-primary/30 hover:text-primary hover:bg-white/50'
+                      : 'text-primary/40 hover:text-primary hover:bg-white/50'
                   }`}
                 >
-                  {tier === 'all' ? 'All Tiers' : getTierCustomName(tier, currentUser?.tierNames)}
+                  {tier === 'all' ? '전체 등급' : getTierCustomName(tier, currentUser?.tierNames)}
                 </button>
               ))}
             </div>
@@ -351,7 +351,7 @@ export default function OwnerCustomers() {
                   ) : (
                     <Square className="w-6 h-6" />
                   )}
-                  <span>Select All ({selectedCustomers.length}/{filteredCustomers.length})</span>
+                  <span>전체 선택 ({selectedCustomers.length}/{filteredCustomers.length})</span>
                 </button>
                 <button
                   onClick={() => {
@@ -363,7 +363,7 @@ export default function OwnerCustomers() {
                   className="px-8 py-3 bg-burgundy text-white rounded-2xl text-[10px] font-black uppercase tracking-widest disabled:opacity-30 shadow-xl shadow-burgundy/20 hover:scale-105 active:scale-95 transition-all flex items-center space-x-2"
                 >
                   <Send className="w-4 h-4" />
-                  <span>Transmit to Selection</span>
+                  <span>선택한 시민에게 발송</span>
                 </button>
              </div>
           )}
@@ -373,7 +373,7 @@ export default function OwnerCustomers() {
             {filteredCustomers.length === 0 ? (
                <div className="col-span-full py-32 text-center space-y-4 opacity-20">
                   <span className="material-symbols-outlined text-8xl">person_search</span>
-                  <p className="font-black uppercase tracking-[0.4em] text-xs">No Records Found in Archive</p>
+                  <p className="font-black uppercase tracking-[0.4em] text-xs">검색된 기록이 없습니다.</p>
                </div>
             ) : (
               filteredCustomers.map(customer => {
@@ -388,7 +388,7 @@ export default function OwnerCustomers() {
                     onClick={() => isMultiSelectMode && toggleCustomerSelection(customer.id)}
                   >
                     <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                       <button onClick={(e) => { e.stopPropagation(); setHistoryCustomer(customer.id); }} className="p-3 bg-primary/5 rounded-2xl hover:bg-primary text-primary/40 hover:text-white transition-all shadow-sm">
+                       <button onClick={(e) => { e.stopPropagation(); setHistoryCustomer(customer.id); }} className="p-3 bg-primary/10 rounded-2xl hover:bg-primary text-primary/40 hover:text-white transition-all shadow-sm">
                           <History className="w-4 h-4" />
                        </button>
                     </div>
@@ -411,7 +411,7 @@ export default function OwnerCustomers() {
                                     onClick={(e) => e.stopPropagation()}
                                     className={`appearance-none pl-3 pr-8 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest border-none cursor-pointer focus:ring-4 focus:ring-primary/5 outline-none text-white transition-all ${getTierColor(stats.tier)}`}
                                   >
-                                    <option value="auto">AUTO ({getTierCustomName(stats.autoTier, currentUser?.tierNames)})</option>
+                                    <option value="auto">자동 ({getTierCustomName(stats.autoTier, currentUser?.tierNames)})</option>
                                     <option value="일반">{getTierCustomName('일반', currentUser?.tierNames)}</option>
                                     <option value="브론즈">{getTierCustomName('브론즈', currentUser?.tierNames)}</option>
                                     <option value="실버">{getTierCustomName('실버', currentUser?.tierNames)}</option>
@@ -438,18 +438,18 @@ export default function OwnerCustomers() {
                     </div>
 
                     <div className="grid grid-cols-2 gap-4 mb-8">
-                       <div className="p-5 bg-primary/2 rounded-3xl border border-primary/5">
-                          <p className="text-[8px] font-black text-primary/20 uppercase tracking-widest mb-1 flex items-center"><TrendingUp className="w-3 h-3 mr-1" /> Frequency</p>
-                          <p className="text-lg font-black text-primary">{stats.recentVisits} <span className="text-[10px] font-medium text-primary/40 uppercase tracking-tighter">Attends</span></p>
+                       <div className="p-5 bg-primary/5 rounded-3xl border border-primary/10">
+                          <p className="text-[10px] font-black text-primary/40 uppercase tracking-widest mb-1 flex items-center"><TrendingUp className="w-3 h-3 mr-1" /> 방문 빈도</p>
+                          <p className="text-lg font-black text-primary">{stats.recentVisits} <span className="text-[11px] font-medium text-primary/40 uppercase tracking-tighter">회</span></p>
                        </div>
-                       <div className="p-5 bg-primary/2 rounded-3xl border border-primary/5">
-                          <p className="text-[8px] font-black text-primary/20 uppercase tracking-widest mb-1 flex items-center"><Clock className="w-3 h-3 mr-1" /> Last Present</p>
-                          <p className="text-lg font-black text-primary">{stats.daysSinceLastVisit !== null ? stats.daysSinceLastVisit : '0'} <span className="text-[10px] font-medium text-primary/40 uppercase tracking-tighter">Days Ago</span></p>
+                       <div className="p-5 bg-primary/5 rounded-3xl border border-primary/10">
+                          <p className="text-[10px] font-black text-primary/40 uppercase tracking-widest mb-1 flex items-center"><Clock className="w-3 h-3 mr-1" /> 마지막 방문</p>
+                          <p className="text-lg font-black text-primary">{stats.daysSinceLastVisit !== null ? stats.daysSinceLastVisit : '0'} <span className="text-[11px] font-medium text-primary/40 uppercase tracking-tighter">일 전</span></p>
                        </div>
                     </div>
 
                     {customer.memo && (
-                      <div className="mb-8 p-6 bg-surface-bright rounded-3xl border border-primary/5 relative">
+                      <div className="mb-8 p-6 bg-surface-bright rounded-3xl border border-primary/10 relative">
                          <div className="absolute transform rotate-45 top-0 right-0 -mr-1 -mt-1 w-4 h-4 bg-primary/10 rounded-full"></div>
                          <p className="text-xs text-primary/70 leading-relaxed font-serif italic serif">
                             {formatMemoDisplay(customer.memo)}
@@ -462,11 +462,11 @@ export default function OwnerCustomers() {
                         onClick={(e) => { e.stopPropagation(); setEditingMemoCustomer(customer.id); }}
                         className="flex-1 bg-primary text-white py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-primary-container transition-all shadow-xl shadow-primary/10"
                        >
-                         Heritage Note
+                         장인의 메모
                        </button>
                        <button 
                         onClick={(e) => { e.stopPropagation(); setSelectedCustomer(customer.id); }}
-                        className="p-3.5 bg-primary/5 text-primary border border-primary/5 rounded-2xl hover:bg-primary/10 transition-all group"
+                        className="p-3.5 bg-primary/10 text-primary border border-primary/10 rounded-2xl hover:bg-primary/20 transition-all group"
                        >
                          <ArrowUpRight className="w-5 h-5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
                        </button>
@@ -496,23 +496,23 @@ export default function OwnerCustomers() {
               <X className="w-6 h-6 text-primary/30" />
             </button>
 
-            <h2 className="text-3xl font-serif font-black text-primary tracking-tighter mb-2 italic">Broadcast</h2>
-            <p className="text-[10px] font-black text-primary/30 uppercase tracking-[0.3em] mb-10">
-              {isMultiSelectMode ? `Transmitting to ${selectedCustomers.length} Citizens` : `Personal Cypher for ${activeCustomer?.name}`}
+            <h2 className="text-3xl font-serif font-black text-primary tracking-tighter mb-2 italic">알림 발송</h2>
+            <p className="text-[10px] font-black text-primary/40 uppercase tracking-[0.3em] mb-10">
+              {isMultiSelectMode ? `${selectedCustomers.length}명의 시민에게 발송 중` : `${activeCustomer?.name}님을 위한 개별 알림`}
             </p>
             
             <div className="flex space-x-2 bg-primary/5 p-1 rounded-2xl mb-8">
               <button 
-                className={`flex-1 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${sendType === 'coupon' ? 'bg-primary text-white shadow-xl' : 'text-primary/30 hover:text-primary'}`}
+                className={`flex-1 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${sendType === 'coupon' ? 'bg-primary text-white shadow-xl' : 'text-primary/40 hover:text-primary'}`}
                 onClick={() => setSendType('coupon')}
               >
-                Heritage Coupon
+                전통 쿠폰 (서비스)
               </button>
               <button 
-                className={`flex-1 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${sendType === 'message' ? 'bg-primary text-white shadow-xl' : 'text-primary/30 hover:text-primary'}`}
+                className={`flex-1 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${sendType === 'message' ? 'bg-primary text-white shadow-xl' : 'text-primary/40 hover:text-primary'}`}
                 onClick={() => setSendType('message')}
               >
-                Text Script
+                문자 메시지
               </button>
             </div>
 
@@ -531,10 +531,10 @@ export default function OwnerCustomers() {
                           setContent('');
                         }
                       }}
-                      className="w-full bg-primary/5 border border-primary/5 rounded-2xl py-4 pl-6 pr-12 text-[10px] font-black uppercase tracking-widest text-primary focus:outline-none focus:ring-4 focus:ring-primary/5 appearance-none"
+                      className="w-full bg-primary/10 border border-primary/10 rounded-2xl py-4 pl-6 pr-12 text-[10px] font-black uppercase tracking-widest text-primary focus:outline-none focus:ring-4 focus:ring-primary/5 appearance-none"
                       required
                     >
-                      <option value="" disabled>Select Protocol</option>
+                      <option value="" disabled>항목 선택</option>
                       {predefinedCoupons.map(coupon => (
                         <option key={coupon.id} value={coupon.id}>{coupon.title.toUpperCase()}</option>
                       ))}
@@ -547,8 +547,8 @@ export default function OwnerCustomers() {
                       type="text" 
                       value={content}
                       onChange={(e) => setContent(e.target.value)}
-                      placeholder="CUSTOM PROTOCOL..."
-                      className="w-full bg-primary/5 border border-primary/5 rounded-2xl py-4 px-6 text-[10px] font-black uppercase tracking-widest text-primary focus:outline-none focus:ring-4 focus:ring-primary/5"
+                      placeholder="직접 입력..."
+                      className="w-full bg-primary/10 border border-primary/10 rounded-2xl py-4 px-6 text-[10px] font-black uppercase tracking-widest text-primary focus:outline-none focus:ring-4 focus:ring-primary/5"
                       required
                     />
                   )}
@@ -557,9 +557,9 @@ export default function OwnerCustomers() {
                 <textarea 
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  placeholder="ENGRAVE MESSAGE SCRIPT..."
+                  placeholder="보낼 메시지 내용을 입력하세요..."
                   rows={4}
-                  className="w-full bg-primary/5 border border-primary/5 rounded-2xl py-6 px-6 text-[10px] font-black uppercase tracking-widest text-primary focus:outline-none focus:ring-4 focus:ring-primary/5 resize-none"
+                  className="w-full bg-primary/10 border border-primary/10 rounded-2xl py-6 px-6 text-[10px] font-black uppercase tracking-widest text-primary focus:outline-none focus:ring-4 focus:ring-primary/5 resize-none"
                   required
                 />
               )}
@@ -570,7 +570,7 @@ export default function OwnerCustomers() {
                 className="w-full bg-burgundy hover:scale-[1.02] active:scale-[0.98] disabled:opacity-30 text-white font-black py-5 rounded-2xl transition-all shadow-2xl shadow-burgundy/20 flex items-center justify-center space-x-3 text-[10px] uppercase tracking-widest"
               >
                 {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                <span>{isSending ? 'Transmitting...' : 'Execute Transmission'}</span>
+                <span>{isSending ? '발송 중...' : '발송 하기'}</span>
               </button>
             </form>
           </div>
@@ -590,14 +590,14 @@ export default function OwnerCustomers() {
               <X className="w-6 h-6 text-primary/30" />
             </button>
 
-            <h2 className="text-3xl font-serif font-black text-primary tracking-tighter mb-2 italic">Archives</h2>
-            <p className="text-[10px] font-black text-primary/30 uppercase tracking-[0.3em] mb-10">Historical Record for {activeHistoryCustomer.name}</p>
+            <h2 className="text-3xl font-serif font-black text-primary tracking-tighter mb-2 italic">기록 보관소</h2>
+            <p className="text-[10px] font-black text-primary/40 uppercase tracking-[0.3em] mb-10">{activeHistoryCustomer.name}님의 활동 기록</p>
             
             <div className="overflow-y-auto flex-1 pr-4 space-y-6 no-scrollbar">
               {customerHistory.length === 0 ? (
                 <div className="text-center py-24 opacity-20 space-y-4">
                    <span className="material-symbols-outlined text-6xl">history_toggle_off</span>
-                   <p className="font-black uppercase tracking-widest text-[10px]">No Timeline Recorded</p>
+                   <p className="font-black uppercase tracking-widest text-[10px]">기록된 활동이 없습니다.</p>
                 </div>
               ) : (
                 customerHistory.map(comm => (
@@ -605,11 +605,11 @@ export default function OwnerCustomers() {
                     <div className="flex justify-between items-start mb-4">
                       <div className="flex space-x-3">
                         <span className={`px-4 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest shadow-sm ${comm.type === 'coupon' ? 'bg-burgundy text-white' : 'bg-primary text-white'}`}>
-                          {comm.type === 'coupon' ? 'Coupon' : 'Cypher'}
+                          {comm.type === 'coupon' ? '쿠폰' : '메시지'}
                         </span>
                         {comm.senderRole === 'customer' && (
                           <span className="px-4 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest bg-emerald-500 text-white shadow-sm">
-                            Citizens Response
+                            시민의 응답
                           </span>
                         )}
                       </div>

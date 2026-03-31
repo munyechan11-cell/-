@@ -47,8 +47,8 @@ export default function TableEntry() {
     <div className="min-h-screen bg-surface-bright flex flex-col items-center justify-center p-6 hanji-texture relative overflow-hidden">
       <div className="lattice-overlay absolute inset-0 pointer-events-none opacity-10"></div>
       
-      <div className="max-w-sm w-full bg-white rounded-[3.5rem] shadow-3xl border border-primary/5 p-12 text-center relative z-10 animate-in fade-in zoom-in duration-700">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16"></div>
+      <div className="max-w-sm w-full bg-white rounded-[3.5rem] shadow-3xl border border-primary/10 p-12 text-center relative z-10 animate-in fade-in zoom-in duration-700">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full -mr-16 -mt-16"></div>
         
         <div className="relative mb-10">
            <div className="absolute -inset-4 bg-primary/5 rounded-full blur-xl animate-pulse"></div>
@@ -57,18 +57,18 @@ export default function TableEntry() {
            </div>
         </div>
 
-        <h2 className="text-2xl font-serif font-black text-primary mb-2 italic tracking-tighter">Protocol Activation</h2>
-        <p className="text-primary/40 text-[9px] font-black uppercase tracking-[0.3em] mb-4">Verifying Table Assignment</p>
+        <h2 className="text-2xl font-serif font-black text-primary mb-2 italic tracking-tighter">시스템 연동 중</h2>
+        <p className="text-primary/40 text-[10px] font-black uppercase tracking-[0.3em] mb-4">테이블 정보를 확인하는 중입니다</p>
         
         <div className="flex items-center justify-center space-x-3 text-burgundy opacity-50">
            <Loader2 className="w-4 h-4 animate-spin" />
-           <span className="text-[10px] font-black uppercase tracking-widest text-primary/40">Synchronizing...</span>
+           <span className="text-[10px] font-black uppercase tracking-widest text-primary/40">동기화 중...</span>
         </div>
       </div>
 
-      <div className="mt-16 flex flex-col items-center opacity-10">
+      <div className="mt-16 flex flex-col items-center opacity-20">
          <ShieldCheck className="w-8 h-8 text-primary mb-4" fill="currentColor" />
-         <p className="text-[8px] font-black uppercase tracking-[0.5em]">Identity Ledger Secure</p>
+         <p className="text-[10px] font-black uppercase tracking-[0.5em]">보안 시스템 작동 중</p>
       </div>
     </div>
   );

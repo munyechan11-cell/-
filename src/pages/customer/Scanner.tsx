@@ -117,27 +117,27 @@ export default function CustomerScanner() {
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-xl p-8 pt-12 border-b border-primary/5 sticky top-0 z-40 animate-in slide-in-from-top-12 duration-700">
         <div className="flex justify-between items-center relative">
-          <Link to="/" className="p-3 hover:bg-primary/5 rounded-2xl text-primary/30 hover:text-primary transition-all">
+          <Link to="/" className="p-3 hover:bg-primary/10 rounded-2xl text-primary/30 hover:text-primary transition-all">
             <ArrowLeft className="w-6 h-6" />
           </Link>
           <div className="text-center">
              <h1 className="text-5xl font-serif font-black text-primary leading-none tracking-tighter italic select-none">결</h1>
-             <p className="text-[10px] font-black text-primary/30 uppercase tracking-[0.4em] mt-1 italic">Cipher Registry</p>
+             <p className="text-[10px] font-black text-primary/40 uppercase tracking-[0.4em] mt-1 italic">매장 찾기</p>
           </div>
           <div className="w-12"></div> {/* Spacer for symmetry */}
         </div>
       </header>
 
       <main className="flex-1 p-8 flex flex-col items-center justify-center relative z-10 animate-in fade-in zoom-in duration-1000">
-        <div className="w-full max-w-lg bg-white rounded-[4rem] p-12 shadow-3xl border border-primary/5 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16"></div>
+        <div className="w-full max-w-lg bg-white rounded-[4rem] p-12 shadow-3xl border border-primary/10 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full -mr-16 -mt-16"></div>
           
           <div className="text-center mb-12 relative z-10">
-            <div className="w-20 h-20 rounded-[2rem] bg-burgundy/5 flex items-center justify-center mx-auto mb-8 rotate-3 hover:rotate-0 transition-transform">
+            <div className="w-20 h-20 rounded-[2rem] bg-burgundy/10 flex items-center justify-center mx-auto mb-8 rotate-3 hover:rotate-0 transition-transform">
               <ScanLine className="w-10 h-10 text-burgundy" strokeWidth={1} />
             </div>
-            <h2 className="text-2xl font-serif font-black text-primary mb-2 italic tracking-tighter">Cipher Decoding</h2>
-            <p className="text-primary/40 text-[9px] font-black uppercase tracking-[0.3em]">Align your focus with the table's mark</p>
+            <h2 className="text-2xl font-serif font-black text-primary mb-2 italic tracking-tighter">암호 해독 (스캔)</h2>
+            <p className="text-primary/40 text-[10px] font-black uppercase tracking-[0.3em]">테이블의 QR 코드를 사각형 안에 맞춰주세요</p>
           </div>
 
           {/* Scanner Container */}
@@ -165,8 +165,8 @@ export default function CustomerScanner() {
                   <p className="text-xs font-serif italic text-burgundy leading-relaxed">{error}</p>
                </div>
                <div className="h-px bg-burgundy/10 w-full mb-4"></div>
-               <p className="text-[9px] font-black text-burgundy/40 uppercase tracking-widest leading-relaxed">
-                  Tip: Use the <span className="text-burgundy">manual cipher link</span> below if the visual sensor fails.
+               <p className="text-[10px] font-black text-burgundy/40 uppercase tracking-widest leading-relaxed">
+                  팁: 스캔이 안 될 경우 아래의 <span className="text-burgundy">직접 코드 입력</span> 기능을 이용하세요.
                </p>
             </div>
           )}
@@ -174,31 +174,31 @@ export default function CustomerScanner() {
           <div className="flex gap-4">
             <button 
               onClick={toggleCamera}
-              className="flex-1 bg-primary/5 hover:bg-primary/10 border border-primary/5 text-primary/40 hover:text-primary py-5 rounded-2xl font-black uppercase tracking-widest text-[9px] transition-all flex items-center justify-center space-x-3"
+              className="flex-1 bg-primary/10 hover:bg-primary/20 border border-primary/10 text-primary/50 hover:text-primary py-5 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all flex items-center justify-center space-x-3"
             >
               <RefreshCw className="w-4 h-4" />
-              <span>Rotate Sensor</span>
+              <span>카메라 전환</span>
             </button>
             <button 
               onClick={() => {
-                const urlInput = prompt('Enter the Heritage Link cypher:');
+                const urlInput = prompt('매장 링크나 암호를 입력하세요:');
                 if (urlInput) {
                   const match = urlInput.match(/(\/customer\/store\/[^/]+\/table\/\d+)/);
                   if (match && match[1]) navigate(match[1]);
-                  else setError('Invalid lineage format detected.');
+                  else setError('잘못된 형식의 암호입니다.');
                 }
               }}
-              className="flex-[1.5] bg-burgundy text-white py-5 rounded-2xl font-black uppercase tracking-widest text-[9px] transition-all shadow-2xl shadow-burgundy/20 hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center space-x-3"
+              className="flex-[1.5] bg-burgundy text-white py-5 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all shadow-2xl shadow-burgundy/20 hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center space-x-3"
             >
               <ArrowUpRight className="w-4 h-4" />
-              <span>Enter Manual Cypher</span>
+              <span>직접 코드 입력</span>
             </button>
           </div>
         </div>
 
-        <div className="mt-16 flex flex-col items-center opacity-10">
+        <div className="mt-16 flex flex-col items-center opacity-20">
            <Zap className="w-8 h-8 text-primary mb-4" fill="currentColor" />
-           <p className="text-[8px] font-black uppercase tracking-[0.5em]">Governance Protocol Active</p>
+           <p className="text-[10px] font-black uppercase tracking-[0.5em]">시스템 보안 작동 중</p>
         </div>
       </main>
     </div>

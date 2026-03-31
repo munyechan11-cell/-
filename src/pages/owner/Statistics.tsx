@@ -89,8 +89,8 @@ export default function OwnerStatistics() {
               <StoreIcon className="text-white w-6 h-6" strokeWidth={1.5} />
             </div>
             <div className="overflow-hidden">
-              <p className="text-white font-serif italic text-sm truncate">{currentUser.restaurantName || 'My Atelier'}</p>
-              <p className="font-black uppercase tracking-widest text-[9px] text-white/40">Owner Oversight</p>
+              <p className="text-white font-serif italic text-sm truncate">{currentUser.restaurantName || '나의 공방'}</p>
+              <p className="font-black uppercase tracking-widest text-[9px] text-white/40">장인 관리자</p>
             </div>
           </div>
         </div>
@@ -101,7 +101,7 @@ export default function OwnerStatistics() {
             className="w-full flex items-center space-x-4 px-6 md:px-8 py-3.5 transition-all duration-300 text-white/60 hover:text-white hover:bg-white/5"
           >
             <LayoutGrid className="w-5 h-5 flex-shrink-0" />
-            <span className="font-black uppercase tracking-widest text-[10px] hidden md:block">Floor Plan</span>
+            <span className="font-black uppercase tracking-widest text-[10px] hidden md:block">매장 전도</span>
           </Link>
           
           <Link 
@@ -109,7 +109,7 @@ export default function OwnerStatistics() {
             className="w-full flex items-center space-x-4 px-6 md:px-8 py-3.5 transition-all duration-300 text-white/60 hover:text-white hover:bg-white/5"
           >
             <Users className="w-5 h-5 flex-shrink-0" />
-            <span className="font-black uppercase tracking-widest text-[10px] hidden md:block">Guest Book</span>
+            <span className="font-black uppercase tracking-widest text-[10px] hidden md:block">단골 장부</span>
           </Link>
           
           <Link 
@@ -117,7 +117,7 @@ export default function OwnerStatistics() {
             className="w-full flex items-center space-x-4 px-6 md:px-8 py-3.5 transition-all duration-300 bg-primary-container text-white border-l-4 border-white"
           >
             <BarChart3 className="w-5 h-5 flex-shrink-0" />
-            <span className="font-black uppercase tracking-widest text-[10px] hidden md:block">Insights</span>
+            <span className="font-black uppercase tracking-widest text-[10px] hidden md:block">분석 및 통계</span>
           </Link>
 
           <Link 
@@ -125,14 +125,14 @@ export default function OwnerStatistics() {
             className="w-full flex items-center space-x-4 px-6 md:px-8 py-3.5 transition-all duration-300 text-white/60 hover:text-white hover:bg-white/5"
           >
             <Settings className="w-5 h-5 flex-shrink-0" />
-            <span className="font-black uppercase tracking-widest text-[10px] hidden md:block">Heritage Settings</span>
+            <span className="font-black uppercase tracking-widest text-[10px] hidden md:block">브랜드 설정</span>
           </Link>
         </nav>
         
         <div className="px-4 md:px-8 mt-auto pt-8 space-y-4 border-t border-white/5">
           <button onClick={handleLogout} className="w-full flex items-center space-x-4 px-2 md:px-0 py-3.5 text-white/40 hover:text-white text-[10px] uppercase tracking-widest transition-colors font-bold">
             <LogOut className="w-4 h-4 flex-shrink-0" />
-            <span className="hidden md:block">Sign Out</span>
+            <span className="hidden md:block">로그아웃</span>
           </button>
         </div>
       </aside>
@@ -142,15 +142,15 @@ export default function OwnerStatistics() {
         {/* Header */}
         <header className="bg-white/80 backdrop-blur-md sticky top-0 z-40 flex justify-between items-center w-full px-6 md:px-10 py-5 border-b border-primary/5">
           <div className="flex items-center space-x-4 md:space-x-12">
-            <div className="font-serif text-xl md:text-2xl font-black text-primary tracking-tighter italic">Atelier Insights</div>
+            <div className="font-serif text-xl md:text-2xl font-black text-primary tracking-tighter italic">공방 통찰 (Analytics)</div>
             <div className="h-6 w-px bg-primary/10 hidden md:block"></div>
             <div className="hidden lg:flex items-center space-x-4">
-               <span className="text-[10px] font-black text-primary/30 uppercase tracking-[0.3em]">Governance Analytics</span>
+               <span className="text-[10px] font-black text-primary/30 uppercase tracking-[0.3em]">거버넌스 데이터 분석</span>
             </div>
           </div>
           
           <div className="flex items-center space-x-4">
-             <div className="flex bg-primary/5 p-1 rounded-2xl">
+             <div className="flex bg-primary/10 p-1 rounded-2xl">
                {rangeOptions.map(range => (
                  <button
                    key={range}
@@ -170,8 +170,8 @@ export default function OwnerStatistics() {
 
         <div className="flex-1 flex flex-col min-h-0 overflow-y-auto no-scrollbar p-6 md:p-10">
           <div className="mb-12">
-             <h2 className="text-4xl font-serif font-black text-primary tracking-tight italic">Performance Heritage</h2>
-             <p className="text-primary/40 text-[10px] font-black uppercase tracking-[0.3em] mt-2">Observing the prosperity of {currentUser.restaurantName || 'The Atelier'}</p>
+             <h2 className="text-4xl font-serif font-black text-primary tracking-tight italic">성과의 기록 (Performance)</h2>
+             <p className="text-primary/40 text-[10px] font-black uppercase tracking-[0.3em] mt-2">{currentUser.restaurantName || '공방'}의 번영을 관찰합니다.</p>
           </div>
 
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-10">
@@ -183,12 +183,12 @@ export default function OwnerStatistics() {
                
                <div className="flex justify-between items-start mb-12 relative z-10">
                   <div>
-                     <h3 className="text-2xl font-serif font-black text-primary tracking-tight">Citizen Traffic</h3>
-                     <p className="text-[9px] font-black text-primary/30 uppercase tracking-widest mt-1">Growth progression in {selectedRange}</p>
+                     <h3 className="text-2xl font-serif font-black text-primary tracking-tight">방문 시민 추이</h3>
+                     <p className="text-[9px] font-black text-primary/30 uppercase tracking-widest mt-1">{selectedRange} 동안의 성장 흐름</p>
                   </div>
                   <div className="text-right">
                      <p className="text-3xl font-serif font-black text-burgundy">{totalVisitsInRange}</p>
-                     <p className="text-[9px] font-black text-primary/30 uppercase tracking-widest mt-1">Total Attendance</p>
+                     <p className="text-[9px] font-black text-primary/30 uppercase tracking-widest mt-1">총 방문 횟수</p>
                   </div>
                </div>
 
@@ -223,22 +223,22 @@ export default function OwnerStatistics() {
                <div className="bg-white rounded-[3rem] p-10 shadow-sm border border-primary/5 relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16"></div>
                   <Ticket className="w-10 h-10 text-burgundy mb-8 opacity-20" />
-                  <h3 className="text-xl font-serif font-black text-primary tracking-tight mb-6 italic">Heritage Rewards</h3>
+                  <h3 className="text-xl font-serif font-black text-primary tracking-tight mb-6 italic">혜택 집계 (Rewards)</h3>
                   
                   <div className="grid grid-cols-2 gap-4 mb-8">
-                    <div className="p-6 bg-primary/2 rounded-3xl border border-primary/5">
-                      <p className="text-[8px] font-black text-primary/20 uppercase tracking-widest mb-1">Issued</p>
+                    <div className="p-6 bg-primary/5 rounded-3xl border border-primary/10">
+                      <p className="text-[8px] font-black text-primary/20 uppercase tracking-widest mb-1">발행됨</p>
                       <p className="text-2xl font-black text-primary">{storeCoupons.length}</p>
                     </div>
-                    <div className="p-6 bg-burgundy/5 rounded-3xl border border-burgundy/5">
-                      <p className="text-[8px] font-black text-burgundy/40 uppercase tracking-widest mb-1">Honored</p>
+                    <div className="p-6 bg-burgundy/5 rounded-3xl border border-burgundy/10">
+                      <p className="text-[8px] font-black text-burgundy/40 uppercase tracking-widest mb-1">사용됨</p>
                       <p className="text-2xl font-black text-burgundy">{usedCouponsCount}</p>
                     </div>
                   </div>
                   
                   <div className="space-y-4">
                     <div className="flex justify-between items-end">
-                      <p className="text-[9px] font-black text-primary/30 uppercase tracking-widest">Utility Rate</p>
+                      <p className="text-[9px] font-black text-primary/30 uppercase tracking-widest">사용 효율</p>
                       <p className="text-lg font-serif font-black text-primary">
                         {storeCoupons.length > 0 ? Math.round((usedCouponsCount / storeCoupons.length) * 100) : 0}%
                       </p>
@@ -255,14 +255,14 @@ export default function OwnerStatistics() {
                {/* Quick Insights */}
                <div className="bg-primary p-10 rounded-[3rem] shadow-2xl relative overflow-hidden group">
                   <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full -mr-24 -mt-24 group-hover:scale-110 transition-transform duration-1000"></div>
-                  <h3 className="text-xl font-serif font-black text-white tracking-tight mb-8 relative z-10 italic">Executive Summary</h3>
+                  <h3 className="text-xl font-serif font-black text-white tracking-tight mb-8 relative z-10 italic">핵심 요약 (Executive)</h3>
                   <div className="space-y-6 relative z-10">
                      <div className="flex justify-between items-center bg-white/5 p-5 rounded-2xl border border-white/10">
-                        <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">Retention Rate</span>
+                        <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">시민 유지율</span>
                         <span className="text-lg font-serif font-black text-white italic">84.2%</span>
                      </div>
                      <div className="flex justify-between items-center bg-white/5 p-5 rounded-2xl border border-white/10">
-                        <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">Growth Velocity</span>
+                        <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">성장 속도</span>
                         <span className="text-lg font-serif font-black text-emerald-400 italic">+12.4%</span>
                      </div>
                   </div>
@@ -273,10 +273,10 @@ export default function OwnerStatistics() {
           {/* Secondary Details */}
           <div className="mt-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
              {[
-               { icon: Users, label: 'Active Citizens', value: '1,284', trend: '+5.2%', color: 'text-primary' },
-               { icon: Clock, label: 'Dwell Protocol', value: '54m', trend: '-2.1%', color: 'text-primary' },
-               { icon: Heart, label: 'Affinity Score', value: '4.9', trend: '+0.1', color: 'text-burgundy' },
-               { icon: MapPin, label: 'District Reach', value: '18', trend: 'STABLE', color: 'text-primary' }
+               { icon: Users, label: '활동 시민', value: '1,284', trend: '+5.2%', color: 'text-primary' },
+               { icon: Clock, label: '평균 머무름', value: '54분', trend: '-2.1%', color: 'text-primary' },
+               { icon: Heart, label: '공감 점수', value: '4.9', trend: '+0.1', color: 'text-burgundy' },
+               { icon: MapPin, label: '지역 도달', value: '18', trend: '안정', color: 'text-primary' }
              ].map((stat, idx) => (
                <div key={idx} className="bg-white p-8 rounded-[2rem] border border-primary/5 shadow-sm hover:shadow-md transition-all">
                   <stat.icon className={`w-8 h-8 ${stat.color} opacity-20 mb-6`} />
