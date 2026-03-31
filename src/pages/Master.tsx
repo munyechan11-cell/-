@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useStore, getEffectiveTier, getTierColor } from '../store';
+import { useStore, getEffectiveTier, getTierColor, showToast } from '../store';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Store, Users, Ticket, Calendar, Lock, KeyRound, Trash2, ChevronDown, ChevronUp, Search } from 'lucide-react';
 
@@ -35,7 +35,7 @@ export default function Master() {
     setIsChangingPassword(false);
     setNewPassword('');
     setError('');
-    import('../store').then(({ showToast }) => showToast('비밀번호가 성공적으로 변경되었습니다.', 'success')).catch(console.error);
+    showToast('비밀번호가 성공적으로 변경되었습니다.', 'success');
   };
 
   const handleDeleteUser = (userId: string, role: 'owner' | 'customer', name: string) => {
@@ -403,7 +403,7 @@ export default function Master() {
               <button
                 onClick={() => {
                   deleteUser(deletingUser.id, deletingUser.role);
-                  import('../store').then(({ showToast }) => showToast('삭제되었습니다.', 'info')).catch(console.error);
+                  showToast('삭제되었습니다.', 'info');
                   setDeletingUser(null);
                 }}
                 className="flex-1 py-3 bg-red-500 dark:bg-red-600 text-white rounded-xl font-bold hover:bg-red-600 dark:hover:bg-red-700 transition-colors shadow-sm"

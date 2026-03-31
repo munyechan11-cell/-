@@ -20,6 +20,8 @@ export default function OwnerLogin() {
   const [phone, setPhone] = useState(() => sessionStorage.getItem('ownerLogin_phone') || '');
   const [name, setName] = useState(() => sessionStorage.getItem('ownerLogin_name') || '');
   const [restaurantName, setRestaurantName] = useState(() => sessionStorage.getItem('ownerLogin_restaurantName') || '');
+  const [isPohangResident, setIsPohangResident] = useState<boolean | null>(null);
+  const [gender, setGender] = useState<'male' | 'female' | null>(null);
   const [pendingOAuthUser, setPendingOAuthUser] = useState<{ uid: string, provider: string, displayName: string | null } | null>(null);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -80,7 +82,7 @@ export default function OwnerLogin() {
               setIsLogin(true);
             }
           } else {
-            await login(cleanPhone, name, 'owner', restaurantName, undefined, pendingOAuthUser?.uid);
+            await login(cleanPhone, name, 'owner', restaurantName, undefined, pendingOAuthUser?.uid, isPohangResident || false, gender || 'male');
             sessionStorage.clear();
             setPendingOAuthUser(null);
             navigate('/owner');
@@ -327,6 +329,34 @@ export default function OwnerLogin() {
               </div>
 
               <div>
+                <label className="block text-sm font-bold text-ink-light/80 dark:text-ink-dark/80 mb-2">포항 거주 여부</label>
+                <div className="flex gap-3">
+                  <label className={`flex-1 flex items-center justify-center p-3.5 border rounded-xl cursor-pointer transition-colors ${isPohangResident === true ? 'border-burgundy bg-burgundy/5 dark:bg-burgundy/10' : 'border-ink-light/10 dark:border-ink-dark/10 bg-white dark:bg-black/20 hover:bg-ink-light/5 dark:hover:bg-ink-dark/10'}`}>
+                    <input type="radio" name="pohang" checked={isPohangResident === true} onChange={() => setIsPohangResident(true)} className="sr-only" />
+                    <span className={`font-bold text-sm ${isPohangResident === true ? 'text-burgundy dark:text-burgundy-light' : 'text-ink-light/60 dark:text-ink-dark/60'}`}>포항 거주</span>
+                  </label>
+                  <label className={`flex-1 flex items-center justify-center p-3.5 border rounded-xl cursor-pointer transition-colors ${isPohangResident === false ? 'border-burgundy bg-burgundy/5 dark:bg-burgundy/10' : 'border-ink-light/10 dark:border-ink-dark/10 bg-white dark:bg-black/20 hover:bg-ink-light/5 dark:hover:bg-ink-dark/10'}`}>
+                    <input type="radio" name="pohang" checked={isPohangResident === false} onChange={() => setIsPohangResident(false)} className="sr-only" />
+                    <span className={`font-bold text-sm ${isPohangResident === false ? 'text-burgundy dark:text-burgundy-light' : 'text-ink-light/60 dark:text-ink-dark/60'}`}>타지역 거주</span>
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-ink-light/80 dark:text-ink-dark/80 mb-2">성별</label>
+                <div className="flex gap-3">
+                  <label className={`flex-1 flex items-center justify-center p-3.5 border rounded-xl cursor-pointer transition-colors ${gender === 'male' ? 'border-burgundy bg-burgundy/5 dark:bg-burgundy/10' : 'border-ink-light/10 dark:border-ink-dark/10 bg-white dark:bg-black/20 hover:bg-ink-light/5 dark:hover:bg-ink-dark/10'}`}>
+                    <input type="radio" name="gender" checked={gender === 'male'} onChange={() => setGender('male')} className="sr-only" />
+                    <span className={`font-bold text-sm ${gender === 'male' ? 'text-burgundy dark:text-burgundy-light' : 'text-ink-light/60 dark:text-ink-dark/60'}`}>남성</span>
+                  </label>
+                  <label className={`flex-1 flex items-center justify-center p-3.5 border rounded-xl cursor-pointer transition-colors ${gender === 'female' ? 'border-burgundy bg-burgundy/5 dark:bg-burgundy/10' : 'border-ink-light/10 dark:border-ink-dark/10 bg-white dark:bg-black/20 hover:bg-ink-light/5 dark:hover:bg-ink-dark/10'}`}>
+                    <input type="radio" name="gender" checked={gender === 'female'} onChange={() => setGender('female')} className="sr-only" />
+                    <span className={`font-bold text-sm ${gender === 'female' ? 'text-burgundy dark:text-burgundy-light' : 'text-ink-light/60 dark:text-ink-dark/60'}`}>여성</span>
+                  </label>
+                </div>
+              </div>
+
+              <div>
                 <label className="block text-sm font-bold text-ink-light/80 dark:text-ink-dark/80 mb-2">가게 이름</label>
                 <input 
                   type="text" 
@@ -343,7 +373,7 @@ export default function OwnerLogin() {
 
           <button 
             type="submit"
-            disabled={isLoading || phone.replace(/[^0-9]/g, '').length < 10 || (!isLogin && (!name || !restaurantName))}
+            disabled={isLoading || phone.replace(/[^0-9]/g, '').length < 10 || (!isLogin && (!name || !restaurantName || isPohangResident === null || gender === null))}
             className="w-full bg-burgundy hover:bg-burgundy/90 disabled:bg-burgundy/50 text-hanji-light font-bold py-3.5 rounded-xl transition-colors text-base flex items-center justify-center shadow-sm mt-2"
           >
             {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : (isLogin ? '로그인' : (pendingOAuthUser ? `${pendingOAuthUser.provider} 계정으로 가입 완료` : '회원가입 및 시작하기'))}
