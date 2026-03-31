@@ -58,6 +58,7 @@ export interface Table {
   seats: number;
   isRoom?: boolean;
   type?: 'table' | 'room' | 'corridor';
+  shape?: 'square' | 'circle';
 }
 
 export interface Communication {
@@ -349,7 +350,7 @@ export const useStore = () => {
           const y = Math.floor((i - 1) / 4) * 80 + 20;
           batch.set(tableRef, { 
             number: i, storeId: user.id, currentCustomerId: null, sessionStartTime: null,
-            x, y, width: 70, height: 70, isRoom: false, seats: 4
+            x, y, width: 70, height: 70, isRoom: false, seats: 4, shape: 'square'
           });
         }
         await batch.commit();
@@ -459,7 +460,8 @@ export const useStore = () => {
     const tableId = `${storeId}_${nextNum}`;
     const newTable = { 
       number: nextNum, storeId, currentCustomerId: null, sessionStartTime: null,
-      x: 100, y: 100, width: 70, height: 70, isRoom: type === 'room', type, seats: type === 'table' ? 4 : 0
+      x: 100, y: 100, width: 70, height: 70, isRoom: type === 'room', type, seats: type === 'table' ? 4 : 0,
+      shape: 'square'
     };
     await updateFirestoreDoc('tables', tableId, newTable);
     showToast(`${type === 'corridor' ? '복도' : '테이블'}가 추가되었습니다.`, 'success');
