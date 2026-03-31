@@ -27,6 +27,8 @@ export default function OwnerDashboard() {
   const [zoom, setZoom] = useState(1); // Zoom state for large maps
   const [isMoveOnlyMode, setIsMoveOnlyMode] = useState(false); // New: Move Only Mode
   const [dragPosition, setDragPosition] = useState<{x: number, y: number} | null>(null); // New: Live drag position
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 }); // New: Initial click offset within table
+  const mapContainerRef = useRef<HTMLDivElement>(null);
   
   // Section Management
   const currentStoreSections = sections.filter(s => s.storeId === currentUser?.id);
@@ -119,29 +121,39 @@ export default function OwnerDashboard() {
     }
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
+  const handlePointerDown = (e: React.PointerEvent, table: any) => {
+    if (!isLayoutMode) return;
+    
     const rect = e.currentTarget.getBoundingClientRect();
-    if (rect && draggedTable !== null) {
-      const draggedT = myTables.find(t => t.number === draggedTable);
-      if (draggedT) {
-        // Calculate relative position within the zoomed container, accounting for scroll
-        const scrollX = e.currentTarget.scrollLeft;
-        const scrollY = e.currentTarget.scrollTop;
-        const rawX = (e.clientX - rect.left + scrollX) / zoom - (draggedT.width || 80) / 2;
-        const rawY = (e.clientY - rect.top + scrollY) / zoom - (draggedT.height || 80) / 2;
-        
-        // 10px Grid Snapping
-        const x = Math.round(rawX / 10) * 10;
-        const y = Math.round(rawY / 10) * 10;
-        
-        setDragPosition({ x, y });
-      }
-    }
+    const offsetX = (e.clientX - rect.left) / zoom;
+    const offsetY = (e.clientY - rect.top) / zoom;
+    
+    setDraggedTable(table.number);
+    setDragOffset({ x: offsetX, y: offsetY });
+    setDragPosition({ x: table.x, y: table.y });
+    
+    e.currentTarget.setPointerCapture(e.pointerId);
   };
 
-  const handleDragDrop = (e: React.DragEvent, tableNumber: number) => {
-    e.preventDefault();
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (draggedTable === null || !mapContainerRef.current) return;
+    
+    const rect = mapContainerRef.current.getBoundingClientRect();
+    const scrollX = mapContainerRef.current.scrollLeft;
+    const scrollY = mapContainerRef.current.scrollTop;
+    
+    // Calculate new position based on pointer and initial offset
+    const rawX = (e.clientX - rect.left + scrollX) / zoom - dragOffset.x;
+    const rawY = (e.clientY - rect.top + scrollY) / zoom - dragOffset.y;
+    
+    // 10px Grid Snapping
+    const x = Math.round(rawX / 10) * 10;
+    const y = Math.round(rawY / 10) * 10;
+    
+    setDragPosition({ x, y });
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
     if (draggedTable !== null && dragPosition) {
       updateTableLayout(currentUser.id, draggedTable, { x: dragPosition.x, y: dragPosition.y });
     }
@@ -230,12 +242,9 @@ export default function OwnerDashboard() {
         <div className="flex-1 relative overflow-hidden bg-hanji-light dark:bg-hanji-dark p-6">
           {viewMode === 'map' ? (
             <div 
+                ref={mapContainerRef}
                 className="relative w-full h-full bg-white dark:bg-black/20 rounded-[3rem] border border-ink-light/10 shadow-inner overflow-auto no-scrollbar"
-                onDragOver={handleDragOver}
-                onDrop={(e) => {
-                  const tableNum = e.dataTransfer.getData('tableNumber');
-                  if (tableNum) handleDragDrop(e as any, parseInt(tableNum));
-                }}
+                onPointerMove={handlePointerMove}
               >
                 {/* Zoom Controls */}
                 <div className="sticky top-4 right-4 z-[60] flex flex-col gap-2 float-right mr-4">
@@ -270,19 +279,8 @@ export default function OwnerDashboard() {
                   return (
                     <div
                       key={table.number}
-                      draggable={isLayoutMode}
-                      onDragStart={(e) => {
-                        if (!isLayoutMode) return;
-                        e.dataTransfer.setData('tableNumber', table.number.toString());
-                        setDraggedTable(table.number);
-                        const img = new Image();
-                        img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-                        e.dataTransfer.setDragImage(img, 0, 0);
-                      }}
-                      onDragEnd={() => {
-                        setDraggedTable(null);
-                        setDragPosition(null);
-                      }}
+                      onPointerDown={(e) => handlePointerDown(e, table)}
+                      onPointerUp={handlePointerUp}
                       onClick={() => (!isCorridor && !isMoveOnlyMode) && setSelectedTable(table.number)}
                       className={`absolute flex flex-col items-center justify-center p-3 shadow-sm border-2 transition-all transition-shadow group ${table.shape === 'circle' ? 'rounded-full' : (table.isRoom ? 'rounded-[2.5rem]' : (isCorridor ? 'rounded-lg border-dashed opacity-40' : 'rounded-3xl'))} ${getStatusColor(currentStatus, isOccupied)} ${(selectedTable === table.number && !isMoveOnlyMode) ? 'ring-4 ring-burgundy/20 border-burgundy' : ''} ${draggedTable === table.number ? 'opacity-20 bg-burgundy/5 border-burgundy/20 scale-[0.98]' : ''} ${isLayoutMode ? 'cursor-grab active:cursor-grabbing hover:shadow-lg hover:border-burgundy/30' : 'cursor-pointer'}`}
                       style={{ 
@@ -290,7 +288,8 @@ export default function OwnerDashboard() {
                         top: `${table.y}px`, 
                         width: `${table.width || 80}px`, 
                         height: `${table.height || 80}px`,
-                        zIndex: (draggedTable === table.number) ? 100 : (table.isRoom ? 1 : 10)
+                        zIndex: (draggedTable === table.number) ? 100 : (table.isRoom ? 1 : 10),
+                        touchAction: 'none' // Essential for pointer events
                       }}
                     >
 
@@ -331,8 +330,8 @@ export default function OwnerDashboard() {
                         </div>
                       )}
 
-                      {/* Layout Mode Controls */}
-                      {isLayoutMode && (
+                      {/* Layout Mode Controls (Hidden during drag) */}
+                      {isLayoutMode && draggedTable !== table.number && (
                         <div className="absolute inset-0 bg-white/80 dark:bg-black/60 rounded-inherit flex flex-wrap items-center justify-center gap-1 p-1 z-20 overflow-hidden opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-[2px]">
                           <div className="flex gap-0.5">
                             <button onClick={(e) => { e.stopPropagation(); updateTableLayout(currentUser.id, table.number, { width: (table.width || 80) + 10, height: (table.height || 80) + 10 }); }} className="p-1 bg-white rounded shadow-sm hover:bg-burgundy hover:text-white transition-colors" title="크기 키우기"><Maximize2 className="w-2.5 h-2.5" /></button>
@@ -363,7 +362,7 @@ export default function OwnerDashboard() {
                   if (draggedT && dragPosition) {
                     return (
                       <div 
-                        className={`absolute pointer-events-none flex flex-col items-center justify-center p-4 shadow-[0_20px_50px_rgba(0,0,0,0.1)] border-2 border-burgundy bg-white dark:bg-black/60 z-[100] backdrop-blur-md ${draggedT.shape === 'circle' ? 'rounded-full' : (draggedT.isRoom ? 'rounded-[2.5rem]' : (draggedT.type === 'corridor' ? 'rounded-lg border-dashed border-burgundy/50' : 'rounded-[2rem]'))}`}
+                        className={`absolute pointer-events-none flex flex-col items-center justify-center p-4 shadow-[0_30px_60px_-12px_rgba(0,0,0,0.25)] border-2 border-burgundy/30 bg-white/90 dark:bg-black/80 z-[100] backdrop-blur-md scale-110 transition-transform duration-200 ${draggedT.shape === 'circle' ? 'rounded-full' : (draggedT.isRoom ? 'rounded-[2.5rem]' : (draggedT.type === 'corridor' ? 'rounded-lg border-dashed border-burgundy/50' : 'rounded-[2rem]'))}`}
                         style={{ 
                           left: `${dragPosition.x}px`, 
                           top: `${dragPosition.y}px`, 
@@ -371,7 +370,7 @@ export default function OwnerDashboard() {
                           height: `${draggedT.height || 80}px`,
                         }}
                       >
-                         <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-burgundy text-white text-[8px] font-black px-2 py-0.5 rounded-full shadow-lg border border-white/20 whitespace-nowrap">SNAPPING TO GRID</div>
+                         <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-burgundy text-white text-[8px] font-black px-2 py-0.5 rounded-full shadow-lg border border-white/20 whitespace-nowrap animate-bounce">MOVING...</div>
                          <span className="text-xl font-black tracking-tighter leading-none text-burgundy">{draggedT.number}</span>
                          <div className="flex items-center gap-1 mt-1 opacity-40 text-burgundy">
                             <Users className="w-2.5 h-2.5" />
