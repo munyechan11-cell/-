@@ -5,7 +5,7 @@ import {
   Settings, Map as MapIcon, List, Move, Plus, 
   Minus, Trash2, Layers, Clock, Maximize2,
   TrendingUp, Calendar, History, Store,
-  Utensils, Hourglass, GripVertical
+  Utensils, Hourglass, GripVertical, Monitor
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
@@ -179,8 +179,14 @@ export default function OwnerDashboard() {
           <Link to="/owner" className="bg-white/10 text-white rounded-l-full ml-4 pl-4 py-3 flex items-center gap-4">
             <LayoutGrid className="w-5 h-5" /><span className="text-xs hidden lg:block">대시보드</span>
           </Link>
-          <Link to="/owner/customers" className="text-white/60 hover:text-white px-8 py-3 flex items-center gap-4 hover:bg-white/5">
+          <Link to="/owner/customers" className="text-white/60 hover:text-white px-8 py-3 flex items-center gap-4 hover:bg-white/5 transition-all">
             <Users className="w-5 h-5" /><span className="text-xs hidden lg:block">단골 관리</span>
+          </Link>
+          <Link to="/owner/statistics" className="text-white/60 hover:text-white px-8 py-3 flex items-center gap-4 hover:bg-white/5 transition-all">
+            <BarChart3 className="w-5 h-5" /><span className="text-xs hidden lg:block">매장 통계</span>
+          </Link>
+          <Link to="/owner/brand-settings" className="text-white/60 hover:text-white px-8 py-3 flex items-center gap-4 hover:bg-white/5 transition-all">
+            <Settings className="w-5 h-5" /><span className="text-xs hidden lg:block">매장 설정</span>
           </Link>
         </nav>
         <button onClick={handleLogout} className="px-8 mt-auto text-white/40 hover:text-white text-[10px] flex items-center gap-2">
@@ -251,13 +257,24 @@ export default function OwnerDashboard() {
                               top: isBeingDragged ? dragPosition?.y : table.y,
                               width: table.width || 80,
                               height: table.height || 80,
-                              backgroundColor: isOccupied ? '#261c1a' : (table.status === 'dirty' ? '#fdf2f2' : (isBeingDragged ? '#ffffff' : '#ffffff')),
-                              border: isOccupied ? 'none' : `3px solid ${selectedTable === table.number ? '#261c1a' : (isBeingDragged ? '#4285F4' : '#e5dcd3')}`,
-                              borderRadius: table.shape === 'circle' ? '50%' : '1.5rem',
+                              backgroundColor: table.type === 'room' ? 'transparent' : (isOccupied ? '#261c1a' : (table.status === 'dirty' ? '#fdf2f2' : (isBeingDragged ? '#ffffff' : '#ffffff'))),
+                              border: table.type === 'room' 
+                                ? `4px solid ${isBeingDragged ? '#4285F4' : '#261c1a'}` 
+                                : (isOccupied ? 'none' : `3px solid ${selectedTable === table.number ? '#261c1a' : (isBeingDragged ? '#4285F4' : '#e5dcd3')}`),
+                              borderRadius: table.shape === 'circle' ? '50%' : (table.type === 'room' ? '3rem' : '1.5rem'),
                               zIndex: isBeingDragged ? 100 : (selectedTable === table.number ? 40 : 10),
-                              touchAction: 'none'
+                              touchAction: 'none',
+                              borderStyle: table.type === 'corridor' ? 'dashed' : 'solid',
+                              opacity: table.type === 'corridor' ? 0.4 : 1
                             }}
                           >
+                            {table.type === 'pos' && <div className="text-primary/20"><Monitor className="w-10 h-10" /></div>}
+                            {table.type === 'door' && <div className="text-primary/20"><LogOut className="w-10 h-10 rotate-90" /></div>}
+                            {table.type === 'room' && <div className="absolute top-4 left-8 text-[11px] font-black uppercase text-primary/30 tracking-widest">프라이빗 룸</div>}
+                            
+                            {table.type === 'table' && <span className={`text-xl font-serif font-black italic ${isOccupied ? 'text-white' : 'text-primary'}`}>{table.number}</span>}
+                            {isOccupied && <div className="absolute top-2 right-2 w-2 h-2 bg-emerald-400 rounded-full"></div>}
+
                             {isLayoutMode && !isOccupied && (
                                <>
                                   <div className="absolute top-2 left-1/2 -translate-x-1/2 opacity-40 group-hover:opacity-100 transition-opacity">
@@ -268,14 +285,14 @@ export default function OwnerDashboard() {
                                         <button 
                                           onPointerDown={(e) => e.stopPropagation()}
                                           onClick={(e) => { e.stopPropagation(); deleteTable(currentUser.id, table.number); }} 
-                                          className="absolute top-2 left-2 p-2 bg-burgundy/10 text-burgundy rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-burgundy hover:text-white z-20"
+                                          className="absolute top-2 left-2 p-2 bg-burgundy/10 text-burgundy rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-burgundy hover:text-white z-20 shadow-sm"
                                         >
                                           <Trash2 className="w-3.5 h-3.5" />
                                         </button>
                                         <button 
                                           onPointerDown={(e) => e.stopPropagation()}
                                           onClick={(e) => { e.stopPropagation(); setSelectedTable(table.number); }} 
-                                          className={`absolute top-2 right-2 p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-20 ${selectedTable === table.number ? 'bg-primary text-white opacity-100' : 'bg-primary/10 text-primary hover:bg-primary hover:text-white'}`}
+                                          className={`absolute top-2 right-2 p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-20 shadow-sm ${selectedTable === table.number ? 'bg-primary text-white opacity-100' : 'bg-primary/10 text-primary hover:bg-primary hover:text-white'}`}
                                         >
                                           <Settings className="w-3.5 h-3.5" />
                                         </button>
@@ -283,8 +300,6 @@ export default function OwnerDashboard() {
                                   )}
                                </>
                             )}
-                            <span className={`text-xl font-serif font-black italic ${isOccupied ? 'text-white' : 'text-primary'}`}>{table.number}</span>
-                            {isOccupied && <div className="absolute top-2 right-2 w-2 h-2 bg-emerald-400 rounded-full"></div>}
                           </div>
                         );
                       })}
@@ -305,9 +320,18 @@ export default function OwnerDashboard() {
              )}
 
              {isLayoutMode && (
-                <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-primary p-4 rounded-2xl shadow-3xl z-50">
-                   <button onClick={() => addTable(currentUser.id, 'table')} className="flex items-center gap-2 px-6 py-2 bg-white text-primary rounded-xl font-black text-[10px] uppercase"><Plus className="w-4 h-4" /> 테이블 추가</button>
-                   <button onClick={() => initTables(currentUser.id)} className="p-2 bg-white/10 text-white rounded-xl"><History className="w-5 h-5" /></button>
+                <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-primary p-3 rounded-[2.5rem] shadow-3xl z-50 animate-in fade-in slide-in-from-bottom-8">
+                   <div className="flex items-center bg-white/10 rounded-2xl p-1">
+                      <button onClick={() => addTable(currentUser.id, 'table')} className="px-5 py-2.5 text-white hover:bg-white/10 rounded-xl flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all"><Utensils className="w-4 h-4" /> 테이블</button>
+                      <div className="w-[1px] h-4 bg-white/10"></div>
+                      <button onClick={() => addTable(currentUser.id, 'room')} className="px-5 py-2.5 text-white hover:bg-white/10 rounded-xl flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all"><Maximize2 className="w-4 h-4" /> 룸</button>
+                      <div className="w-[1px] h-4 bg-white/10"></div>
+                      <button onClick={() => addTable(currentUser.id, 'door')} className="px-5 py-2.5 text-white hover:bg-white/10 rounded-xl flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all"><LogOut className="w-4 h-4 rotate-90" /> 문</button>
+                      <div className="w-[1px] h-4 bg-white/10"></div>
+                      <button onClick={() => addTable(currentUser.id, 'pos')} className="px-5 py-2.5 text-white hover:bg-white/10 rounded-xl flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all"><Monitor className="w-4 h-4" /> 포스기</button>
+                   </div>
+                   <div className="w-[1px] h-8 bg-white/20 mx-1"></div>
+                   <button onClick={() => initTables(currentUser.id)} className="p-3 bg-burgundy/10 text-white hover:bg-burgundy/20 rounded-[1.25rem] transition-all" title="초기화"><History className="w-5 h-5" /></button>
                 </div>
              )}
           </div>

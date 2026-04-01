@@ -63,44 +63,31 @@ export default function BrandSettings() {
     <div className="flex h-screen overflow-hidden bg-surface-bright font-sans text-on-surface selection:bg-primary/20">
       
       {/* Sidebar - Consistent */}
-      <aside className="h-screen w-20 lg:w-64 fixed left-0 border-r-0 bg-sidebar-bg shadow-2xl flex flex-col py-8 z-50">
+      <aside className="h-screen w-20 lg:w-64 fixed left-0 bg-sidebar-bg shadow-2xl flex flex-col py-8 z-50">
         <div className="px-8 mb-12">
-          <Link to="/" className="text-[#fcfcfc] font-serif italic text-2xl tracking-tighter block">결</Link>
-          <div className="mt-8 hidden lg:flex items-center gap-3">
-             <div className="w-10 h-10 rounded-full bg-white/10 border border-white/20 overflow-hidden">
-                <StoreIcon className="w-full h-full p-2 text-white/40" />
-             </div>
-             <div>
-                <p className="text-[#fcfcfc] font-serif italic text-sm truncate">{currentUser.restaurantName || '나의 매장'}</p>
-                <p className="text-[#fcfcfc]/50 font-sans uppercase tracking-widest text-[10px]">사장님 관리 시스템</p>
-             </div>
+          <Link to="/" className="text-[#fcfcfc] font-serif italic text-2xl">결</Link>
+          <div className="mt-8 hidden lg:block">
+            <p className="text-[#fcfcfc] font-serif italic text-sm">{currentUser.restaurantName}</p>
+            <p className="text-[#fcfcfc]/50 uppercase tracking-widest text-[10px]">실시간 매장 관리</p>
           </div>
         </div>
-
         <nav className="flex-1 space-y-2">
-          <Link to="/owner" className="text-[#fcfcfc]/60 hover:text-white px-8 py-3 flex items-center gap-4 hover:bg-white/5 transition-all duration-300">
-            <LayoutGrid className="w-5 h-5 flex-shrink-0" />
-            <span className="font-sans uppercase tracking-widest text-xs hidden lg:block">대시보드</span>
+          <Link to="/owner" className="text-white/60 hover:text-white px-8 py-3 flex items-center gap-4 hover:bg-white/5 transition-all">
+            <LayoutGrid className="w-5 h-5 flex-shrink-0" /><span className="text-xs hidden lg:block">대시보드</span>
           </Link>
-          <Link to="/owner/customers" className="text-[#fcfcfc]/60 hover:text-white px-8 py-3 flex items-center gap-4 hover:bg-white/5 transition-all duration-300">
-            <Users className="w-5 h-5 flex-shrink-0" />
-            <span className="font-sans uppercase tracking-widest text-xs hidden lg:block">단골 관리</span>
+          <Link to="/owner/customers" className="text-white/60 hover:text-white px-8 py-3 flex items-center gap-4 hover:bg-white/5 transition-all">
+            <Users className="w-5 h-5 flex-shrink-0" /><span className="text-xs hidden lg:block">단골 관리</span>
           </Link>
-          <Link to="/owner/statistics" className="text-[#fcfcfc]/60 hover:text-white px-8 py-3 flex items-center gap-4 hover:bg-white/5 transition-all duration-300">
-            <BarChart3 className="w-5 h-5 flex-shrink-0" />
-            <span className="font-sans uppercase tracking-widest text-xs hidden lg:block">매장 통계</span>
+          <Link to="/owner/statistics" className="text-white/60 hover:text-white px-8 py-3 flex items-center gap-4 hover:bg-white/5 transition-all">
+            <BarChart3 className="w-5 h-5 flex-shrink-0" /><span className="text-xs hidden lg:block">매장 통계</span>
           </Link>
-          <Link to="/owner/brand-settings" className="bg-white/10 text-white rounded-l-full ml-4 pl-4 py-3 flex items-center gap-4 transition-transform ease-in-out">
-            <Settings className="w-5 h-5 flex-shrink-0" />
-            <span className="font-sans uppercase tracking-widest text-xs hidden lg:block">매장 설정</span>
+          <Link to="/owner/brand-settings" className="bg-white/10 text-white rounded-l-full ml-4 pl-4 py-3 flex items-center gap-4 transition-all">
+            <Settings className="w-5 h-5 flex-shrink-0" /><span className="text-xs hidden lg:block">매장 설정</span>
           </Link>
         </nav>
-
-        <div className="px-8 mt-auto pt-6 border-t border-white/10">
-          <button onClick={handleLogout} className="text-[#fcfcfc]/40 hover:text-white text-[10px] uppercase tracking-widest flex items-center gap-2">
-            <LogOut className="w-4 h-4" /> <span className="hidden lg:block">로그아웃</span>
-          </button>
-        </div>
+        <button onClick={handleLogout} className="px-8 mt-auto text-white/40 hover:text-white text-[10px] flex items-center gap-2 uppercase tracking-widest">
+          <LogOut className="w-4 h-4" /> <span className="hidden lg:block">로그아웃</span>
+        </button>
       </aside>
 
       {/* Main Workspace */}

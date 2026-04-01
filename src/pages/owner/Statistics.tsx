@@ -11,11 +11,50 @@ import { Link, useNavigate } from 'react-router-dom';
 type DateRange = '7일' | '30일' | '전체';
 
 export default function OwnerStatistics() {
-  const { currentUser, visits, coupons } = useStore();
-  const [selectedRange, setSelectedRange] = useState<DateRange>('7일');
-  const navigate = useNavigate();
+   const { currentUser, visits, coupons, tables, users } = useStore();
+   const [selectedRange, setSelectedRange] = useState<DateRange>('7일');
+   const navigate = useNavigate();
 
-  if (!currentUser) return null;
+   if (!currentUser) return null;
+
+   const myTables = tables.filter(t => t.storeId === currentUser.id);
+
+   // Real-time calculation for Stats Cards
+   const { newCustomersInWeek, avgUsageTime, peakTimeString, occupancyRate } = useMemo(() => {
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    
+    // 1. 신규 단골 (Last 7 days)
+    const newCustomers = users.filter(u => 
+      u.role === 'customer' && 
+      u.storeId === currentUser.id && 
+      visits.some(v => v.customerId === u.id && new Date(v.date) >= weekAgo)
+    ).length;
+
+    // 2. 평균 이용시간
+    const occupiedTables = myTables.filter(t => t.currentCustomerId && t.sessionStartTime);
+    const currentDurations = occupiedTables.map(t => (Date.now() - new Date(t.sessionStartTime!).getTime()) / 60000);
+    const avgUsage = currentDurations.length > 0 ? Math.round(currentDurations.reduce((a, b) => a + b, 0) / currentDurations.length) : 45;
+
+    // 3. 피크 시간대
+    const storeVisits = visits.filter(v => v.storeId === currentUser.id);
+    const hourCounts: Record<number, number> = {};
+    storeVisits.forEach(v => {
+      const hour = new Date(v.date).getHours();
+      hourCounts[hour] = (hourCounts[hour] || 0) + 1;
+    });
+    const peakHour = Object.entries(hourCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || '12';
+
+    // 4. 가동률
+    const occupancy = myTables.length > 0 ? Math.round((occupiedTables.length / myTables.length) * 100) : 0;
+
+    return { 
+      newCustomersInWeek: newCustomers, 
+      avgUsageTime: avgUsage, 
+      peakTimeString: `${peakHour}:30`, 
+      occupancyRate: occupancy 
+    };
+   }, [users, visits, tables, currentUser.id]);
 
   const handleLogout = () => {
     navigate('/');
@@ -72,44 +111,31 @@ export default function OwnerStatistics() {
     <div className="flex h-screen overflow-hidden bg-surface-bright font-sans text-on-surface selection:bg-primary/20">
       
       {/* Sidebar - Consistent */}
-      <aside className="h-screen w-20 lg:w-64 fixed left-0 border-r-0 bg-sidebar-bg shadow-2xl flex flex-col py-8 z-50">
+      <aside className="h-screen w-20 lg:w-64 fixed left-0 bg-sidebar-bg shadow-2xl flex flex-col py-8 z-50">
         <div className="px-8 mb-12">
-          <Link to="/" className="text-[#fcfcfc] font-serif italic text-2xl tracking-tighter block">결</Link>
-          <div className="mt-8 hidden lg:flex items-center gap-3">
-             <div className="w-10 h-10 rounded-full bg-white/10 border border-white/20 overflow-hidden">
-                <StoreIcon className="w-full h-full p-2 text-white/40" />
-             </div>
-             <div>
-                <p className="text-[#fcfcfc] font-serif italic text-sm truncate">{currentUser.restaurantName || '나의 매장'}</p>
-                <p className="text-[#fcfcfc]/50 font-sans uppercase tracking-widest text-[10px]">사장님 관리 시스템</p>
-             </div>
+          <Link to="/" className="text-[#fcfcfc] font-serif italic text-2xl">결</Link>
+          <div className="mt-8 hidden lg:block">
+            <p className="text-[#fcfcfc] font-serif italic text-sm">{currentUser.restaurantName}</p>
+            <p className="text-[#fcfcfc]/50 uppercase tracking-widest text-[10px]">실시간 매장 관리</p>
           </div>
         </div>
-
         <nav className="flex-1 space-y-2">
-          <Link to="/owner" className="text-[#fcfcfc]/60 hover:text-white px-8 py-3 flex items-center gap-4 hover:bg-white/5 transition-all duration-300">
-            <LayoutGrid className="w-5 h-5 flex-shrink-0" />
-            <span className="font-sans uppercase tracking-widest text-xs hidden lg:block">대시보드</span>
+          <Link to="/owner" className="text-white/60 hover:text-white px-8 py-3 flex items-center gap-4 hover:bg-white/5 transition-all">
+            <LayoutGrid className="w-5 h-5 flex-shrink-0" /><span className="text-xs hidden lg:block">대시보드</span>
           </Link>
-          <Link to="/owner/customers" className="text-[#fcfcfc]/60 hover:text-white px-8 py-3 flex items-center gap-4 hover:bg-white/5 transition-all duration-300">
-            <Users className="w-5 h-5 flex-shrink-0" />
-            <span className="font-sans uppercase tracking-widest text-xs hidden lg:block">단골 관리</span>
+          <Link to="/owner/customers" className="text-white/60 hover:text-white px-8 py-3 flex items-center gap-4 hover:bg-white/5 transition-all">
+            <Users className="w-5 h-5 flex-shrink-0" /><span className="text-xs hidden lg:block">단골 관리</span>
           </Link>
-          <Link to="/owner/statistics" className="bg-white/10 text-white rounded-l-full ml-4 pl-4 py-3 flex items-center gap-4 transition-transform ease-in-out">
-            <BarChart3 className="w-5 h-5 flex-shrink-0" />
-            <span className="font-sans uppercase tracking-widest text-xs hidden lg:block">매장 통계</span>
+          <Link to="/owner/statistics" className="bg-white/10 text-white rounded-l-full ml-4 pl-4 py-3 flex items-center gap-4 transition-all">
+            <BarChart3 className="w-5 h-5 flex-shrink-0" /><span className="text-xs hidden lg:block">매장 통계</span>
           </Link>
-          <Link to="/owner/brand-settings" className="text-[#fcfcfc]/60 hover:text-white px-8 py-3 flex items-center gap-4 hover:bg-white/5 transition-all duration-300">
-            <Settings className="w-5 h-5 flex-shrink-0" />
-            <span className="font-sans uppercase tracking-widest text-xs hidden lg:block">매장 설정</span>
+          <Link to="/owner/brand-settings" className="text-white/60 hover:text-white px-8 py-3 flex items-center gap-4 hover:bg-white/5 transition-all">
+            <Settings className="w-5 h-5 flex-shrink-0" /><span className="text-xs hidden lg:block">매장 설정</span>
           </Link>
         </nav>
-
-        <div className="px-8 mt-auto pt-6 border-t border-white/10">
-          <button onClick={handleLogout} className="text-[#fcfcfc]/40 hover:text-white text-[10px] uppercase tracking-widest flex items-center gap-2">
-            <LogOut className="w-4 h-4" /> <span className="hidden lg:block">로그아웃</span>
-          </button>
-        </div>
+        <button onClick={handleLogout} className="px-8 mt-auto text-white/40 hover:text-white text-[10px] flex items-center gap-2 uppercase tracking-widest">
+          <LogOut className="w-4 h-4" /> <span className="hidden lg:block">로그아웃</span>
+        </button>
       </aside>
 
       {/* Main Workspace Area */}
@@ -219,16 +245,16 @@ export default function OwnerStatistics() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
              {[
-               { icon: Users, label: '신규 단골', value: '42명', trend: '최근' },
-               { icon: Clock, label: '평균 이용시간', value: '52분', trend: '안정' },
-               { icon: MapPin, label: '피크 시간대', value: '19:30', trend: '예측' },
-               { icon: Activity, label: '매장 가동률', value: '68%', trend: '양호' }
+               { icon: Users, label: '신규 단골', value: `${newCustomersInWeek}명`, trend: '최근' },
+               { icon: Clock, label: '평균 이용시간', value: `${avgUsageTime}분`, trend: '안정' },
+               { icon: MapPin, label: '피크 시간대', value: peakTimeString, trend: '예측' },
+               { icon: Activity, label: '매장 가동률', value: `${occupancyRate}%`, icon2: Activity, trend: '양호' }
              ].map((item, idx) => (
-               <div key={idx} className="bg-white p-8 rounded-2xl border border-outline-variant/30 shadow-sm flex flex-col">
-                  <item.icon className="w-8 h-8 text-primary opacity-20 mb-6" />
+               <div key={idx} className="bg-white p-8 rounded-2xl border border-outline-variant/30 shadow-sm flex flex-col group hover:border-primary transition-all duration-500">
+                  <item.icon className="w-8 h-8 text-primary opacity-20 group-hover:opacity-100 transition-opacity mb-6" />
                   <p className="text-[9px] font-bold text-on-surface-variant/40 uppercase mb-2">{item.label}</p>
                   <div className="flex items-end justify-between">
-                     <p className="text-2xl font-serif font-black text-primary">{item.value}</p>
+                     <p className="text-2xl font-serif font-black text-primary italic">{item.value}</p>
                      <p className={`text-[10px] font-bold text-on-surface-variant/40`}>{item.trend}</p>
                   </div>
                </div>
