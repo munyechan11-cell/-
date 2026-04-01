@@ -1,14 +1,14 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { useStore, getEffectiveTier, getTierColor, showToast } from '../store';
 import { Link } from 'react-router-dom';
 import { 
-  ArrowLeft, Store, Users, Ticket, Calendar, Lock, KeyRound, Trash2, 
-  ChevronRight, Search, Bell, Settings, HelpCircle, LogOut, CheckCircle2,
-  LayoutDashboard, CreditCard, History, ShieldCheck, X
+  ArrowLeft, Store, Users, Ticket, Trash2, 
+  ChevronRight, Search, LogOut, ShieldCheck, X,
+  LayoutDashboard
 } from 'lucide-react';
 
 export default function Master() {
-  const { users, visits, coupons, tierOverrides, masterPassword, setMasterPassword, deleteUser } = useStore();
+  const { users, visits, coupons, tables, tierOverrides, masterPassword, setMasterPassword, deleteUser } = useStore();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const [error, setError] = useState('');
@@ -169,31 +169,94 @@ export default function Master() {
                         </td>
                      </tr>,
                      selectedOwnerId === owner.id && (
-                       <tr key={`${owner.id}-customers`} className="bg-surface-bright/50">
-                         <td colSpan={4} className="px-10 py-8 border-b border-outline-variant/30">
-                           <div className="animate-in slide-in-from-top-2 duration-300">
-                             <div className="flex items-center justify-between mb-6">
-                               <h4 className="font-serif font-black text-primary/60 text-lg italic">[{owner.restaurantName}] 단골 명부</h4>
-                               <span className="text-[9px] font-bold text-on-surface-variant/40 uppercase tracking-widest">{users.filter(u => u.role === 'customer' && u.storeId === owner.id).length}명의 손님</span>
-                             </div>
-                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                               {users.filter(u => u.role === 'customer' && u.storeId === owner.id).map(customer => (
-                                 <div key={customer.id} className="bg-white p-4 rounded-2xl border border-outline-variant/30 shadow-sm flex items-center gap-4">
-                                   <div className="w-10 h-10 bg-surface-container rounded-xl flex items-center justify-center text-primary/30 font-serif font-bold">{customer.name.charAt(0)}</div>
-                                   <div>
-                                     <p className="text-sm font-serif font-black text-primary">{customer.name}</p>
-                                     <p className="text-[9px] font-bold text-on-surface-variant/40">{customer.phone}</p>
-                                   </div>
+                        <tr key={`${owner.id}-customers`} className="bg-surface-bright/50">
+                          <td colSpan={4} className="px-10 py-12 border-b border-outline-variant/30">
+                            <div className="animate-in slide-in-from-top-4 duration-500 space-y-12">
+                              {/* Live Store Status Summary */}
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                 <div className="bg-white p-6 rounded-3xl border border-primary/10 shadow-sm flex items-center justify-between">
+                                    <div>
+                                       <p className="text-[10px] font-black uppercase tracking-widest text-primary opacity-40 mb-1">현재 이용 테이블</p>
+                                       <p className="text-3xl font-serif font-black text-primary italic">{tables.filter(t => t.storeId === owner.id && t.currentCustomerId).length} / {tables.filter(t => t.storeId === owner.id).length || 12}</p>
+                                    </div>
+                                    <div className="w-12 h-12 bg-primary/5 rounded-2xl flex items-center justify-center text-primary"><Store className="w-6 h-6" /></div>
                                  </div>
-                               ))}
-                               {users.filter(u => u.role === 'customer' && u.storeId === owner.id).length === 0 && (
-                                 <p className="col-span-full py-8 text-center text-xs font-serif italic text-on-surface-variant/40">기록된 손님이 없습니다.</p>
-                               )}
-                             </div>
-                           </div>
-                         </td>
-                       </tr>
-                     )
+                                 <div className="bg-white p-6 rounded-3xl border border-primary/10 shadow-sm flex items-center justify-between">
+                                    <div>
+                                       <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600 opacity-40 mb-1">총 단골 수</p>
+                                       <p className="text-3xl font-serif font-black text-emerald-600 italic">{users.filter(u => u.role === 'customer' && u.storeId === owner.id).length}명</p>
+                                    </div>
+                                    <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600"><Users className="w-6 h-6" /></div>
+                                 </div>
+                                 <div className="bg-white p-6 rounded-3xl border border-primary/10 shadow-sm flex items-center justify-between">
+                                    <div>
+                                       <p className="text-[10px] font-black uppercase tracking-widest text-burgundy opacity-40 mb-1">미사용 쿠폰</p>
+                                       <p className="text-3xl font-serif font-black text-burgundy italic">{coupons.filter(c => c.storeId === owner.id && c.status === 'available').length}개</p>
+                                    </div>
+                                    <div className="w-12 h-12 bg-burgundy/5 rounded-2xl flex items-center justify-center text-burgundy"><Ticket className="w-6 h-6" /></div>
+                                 </div>
+                              </div>
+
+                              <div className="grid grid-cols-1 xl:grid-cols-2 gap-12">
+                                 {/* Left: Active Sessions */}
+                                 <div className="space-y-6">
+                                    <div className="flex items-center gap-3">
+                                       <div className="w-2 h-2 bg-emerald-500 rounded-full animate-ping"></div>
+                                       <h4 className="font-serif font-black text-primary text-xl italic">실시간 좌석 점유 현황</h4>
+                                    </div>
+                                    <div className="space-y-3">
+                                       {tables.filter(t => t.storeId === owner.id && t.currentCustomerId).map(table => {
+                                          const customer = users.find(u => u.id === table.currentCustomerId);
+                                          const startTime = table.sessionStartTime ? new Date(table.sessionStartTime) : null;
+                                          const elapsed = startTime ? Math.floor((new Date().getTime() - startTime.getTime()) / 60000) : 0;
+                                          return (
+                                             <div key={table.number} className="bg-white p-5 rounded-2xl border border-outline-variant/30 flex items-center justify-between group hover:border-primary/30 transition-all">
+                                                <div className="flex items-center gap-6">
+                                                   <div className="w-12 h-12 bg-primary text-white rounded-xl flex items-center justify-center font-serif font-black text-lg">{table.number}</div>
+                                                   <div>
+                                                      <div className="flex items-center gap-2">
+                                                         <p className="text-sm font-serif font-black text-primary">{customer?.name || '미표기'}</p>
+                                                         <span className="text-[8px] font-black px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded-full uppercase tracking-widest">이용 중</span>
+                                                      </div>
+                                                      <p className="text-[10px] font-bold text-on-surface-variant/40 mt-1">{customer?.phone}</p>
+                                                   </div>
+                                                </div>
+                                                <div className="text-right">
+                                                   <p className="text-[10px] font-black text-primary uppercase tracking-widest">이용 시간</p>
+                                                   <p className="text-sm font-black text-primary">{elapsed}분 경과</p>
+                                                </div>
+                                             </div>
+                                          );
+                                       })}
+                                       {tables.filter(t => t.storeId === owner.id && t.currentCustomerId).length === 0 && (
+                                          <div className="py-12 border-2 border-dashed border-outline-variant/20 rounded-3xl flex flex-col items-center justify-center gap-3">
+                                             <Store className="w-8 h-8 text-on-surface-variant/20" />
+                                             <p className="text-xs font-serif italic text-on-surface-variant/40">현재 매장에 손님이 없습니다.</p>
+                                          </div>
+                                       )}
+                                    </div>
+                                 </div>
+
+                                 {/* Right: Customer Directory (Recent) */}
+                                 <div className="space-y-6">
+                                    <h4 className="font-serif font-black text-primary/40 text-xl italic">전체 매장 단골 기록</h4>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[400px] overflow-y-auto no-scrollbar pr-4">
+                                       {users.filter(u => u.role === 'customer' && u.storeId === owner.id).map(customer => (
+                                          <div key={customer.id} className="bg-white p-4 rounded-2xl border border-outline-variant/20 flex items-center gap-4 hover:shadow-md transition-all group">
+                                             <div className="w-10 h-10 bg-surface-container group-hover:bg-primary/5 rounded-xl flex items-center justify-center text-primary/30 group-hover:text-primary font-serif font-bold transition-all">{customer.name.charAt(0)}</div>
+                                             <div>
+                                                <p className="text-sm font-serif font-black text-primary">{customer.name}</p>
+                                                <p className="text-[9px] font-bold text-on-surface-variant/40">{customer.phone}</p>
+                                             </div>
+                                          </div>
+                                       ))}
+                                    </div>
+                                 </div>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )
                    ]) : filteredCustomersList.map(customer => (
                      <tr key={customer.id} className="hover:bg-surface-container transition-colors group">
                         <td className="px-10 py-8">
