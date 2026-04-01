@@ -6,7 +6,7 @@ import {
   ScanLine, ArrowLeft, RefreshCw, Sparkles, 
   ShieldCheck, Heart, Star, Award, ChevronRight, 
   LayoutGrid, Zap, Store as StoreIcon, ArrowUpRight,
-  Maximize, Camera
+  Maximize, Camera, QrCode
 } from 'lucide-react';
 
 export default function CustomerScanner() {
@@ -34,7 +34,6 @@ export default function CustomerScanner() {
       }
 
       const config = { fps: 10, qrbox: { width: 280, height: 280 } };
-      
       const onScanSuccess = (decodedText: string) => {
         try {
           if (decodedText.includes('/customer/store/')) {
@@ -45,7 +44,7 @@ export default function CustomerScanner() {
           if (data.storeId && data.tableNumber) {
             navigate(`/customer/store/${data.storeId}/table/${data.tableNumber}`);
           }
-        } catch (e) { setError('The cipher could not be decrypted.'); }
+        } catch (e) { setError('QR 코드를 인식할 수 없습니다.'); }
       };
 
       if (scannerRef.current.isScanning) {
@@ -60,26 +59,10 @@ export default function CustomerScanner() {
     } catch (err: any) {
       console.error("Scanner start error:", err);
       const errorMessage = String(err);
-      
       if (errorMessage.includes("NotAllowedError") || errorMessage.includes("Permission denied")) {
-        setError("Camera access is required for decryption. Please enable access in your settings.");
-      } else if (errorMessage.includes("NotFoundError") || errorMessage.includes("Requested device not found") || errorMessage.includes("OverconstrainedError")) {
-        if (mode === "environment") {
-          setFacingMode("user");
-          return;
-        }
-        setError("No visual sensor detected.");
-      } else if (errorMessage.includes("NotReadableError") || errorMessage.includes("Could not start video source")) {
-        setError("The sensor is currently occupied by another process.");
+        setError("카메라 권한이 필요합니다. 설정에서 권한을 허용해 주세요.");
       } else {
-        setError(`Sensor Initialization Error: ${errorMessage}`);
-      }
-
-      if (!errorMessage.includes("NotAllowedError") && !errorMessage.includes("NotFoundError") && retryCountRef.current < 2) {
-        retryCountRef.current += 1;
-        setTimeout(() => {
-          if (scannerRef.current) startScanner(mode);
-        }, 1500);
+        setError(`스캐너 초기화 오류: ${errorMessage}`);
       }
     } finally {
       isTransitioningRef.current = false;
@@ -93,114 +76,100 @@ export default function CustomerScanner() {
       await startScanner(facingMode);
     };
     const timer = setTimeout(initScanner, 300);
-
     return () => {
       isMounted = false;
       clearTimeout(timer);
       if (scannerRef.current && scannerRef.current.isScanning && !isTransitioningRef.current) {
         isTransitioningRef.current = true;
-        scannerRef.current.stop().catch(console.error).finally(() => {
-          isTransitioningRef.current = false;
-        });
+        scannerRef.current.stop().catch(console.error).finally(() => { isTransitioningRef.current = false; });
       }
     };
   }, [facingMode]);
 
-  const toggleCamera = () => {
-    setFacingMode(prev => prev === "environment" ? "user" : "environment");
-  };
+  const toggleCamera = () => setFacingMode(prev => prev === "environment" ? "user" : "environment");
 
   return (
-    <div className="min-h-screen bg-surface-bright flex flex-col hanji-texture relative overflow-hidden">
-      <div className="lattice-overlay absolute inset-0 pointer-events-none opacity-10"></div>
+    <div className="min-h-screen bg-[#fdfaf7] text-[#261c1a] font-sans selection:bg-primary/10 flex flex-col items-center">
       
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-xl p-8 pt-12 border-b border-primary/5 sticky top-0 z-40 animate-in slide-in-from-top-12 duration-700">
-        <div className="flex justify-between items-center relative">
-          <Link to="/" className="p-3 hover:bg-primary/10 rounded-2xl text-primary/30 hover:text-primary transition-all">
-            <ArrowLeft className="w-6 h-6" />
-          </Link>
-          <div className="text-center">
-             <h1 className="text-5xl font-serif font-black text-primary leading-none tracking-tighter italic select-none">결</h1>
-             <p className="text-[10px] font-black text-primary/40 uppercase tracking-[0.4em] mt-1 italic">매장 찾기</p>
-          </div>
-          <div className="w-12"></div> {/* Spacer for symmetry */}
+      <header className="w-full max-w-md p-6 flex justify-between items-center bg-white/80 backdrop-blur-md sticky top-0 z-40 border-b border-[#e5dcd3]">
+        <Link to="/" className="p-2.5 bg-surface-container rounded-full text-on-surface-variant/40 hover:text-primary transition-all">
+          <ArrowLeft className="w-5 h-5" />
+        </Link>
+        <div className="text-center">
+           <h1 className="font-serif font-black text-xl italic tracking-tight">QR 스캔</h1>
+           <p className="text-[9px] font-bold uppercase tracking-widest text-on-surface-variant/50">매장 입장하기</p>
         </div>
+        <div className="w-10"></div>
       </header>
 
-      <main className="flex-1 p-8 flex flex-col items-center justify-center relative z-10 animate-in fade-in zoom-in duration-1000">
-        <div className="w-full max-w-lg bg-white rounded-[4rem] p-12 shadow-3xl border border-primary/10 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full -mr-16 -mt-16"></div>
-          
-          <div className="text-center mb-12 relative z-10">
-            <div className="w-20 h-20 rounded-[2rem] bg-burgundy/10 flex items-center justify-center mx-auto mb-8 rotate-3 hover:rotate-0 transition-transform">
-              <ScanLine className="w-10 h-10 text-burgundy" strokeWidth={1} />
-            </div>
-            <h2 className="text-2xl font-serif font-black text-primary mb-2 italic tracking-tighter">암호 해독 (스캔)</h2>
-            <p className="text-primary/40 text-[10px] font-black uppercase tracking-[0.3em]">테이블의 QR 코드를 사각형 안에 맞춰주세요</p>
-          </div>
+      <main className="w-full max-w-md p-6 flex-1 flex flex-col gap-10 py-12">
+        <section className="text-center space-y-4">
+           <div className="w-20 h-20 bg-primary rounded-3xl mx-auto flex items-center justify-center text-white shadow-xl rotate-3"><QrCode className="w-10 h-10" /></div>
+           <h2 className="text-2xl font-serif font-black italic">매장 QR 스캔</h2>
+           <p className="text-sm opacity-60 px-8 leading-relaxed">테이블에 비치된 QR 코드를 사각형 안에 맞춰주세요. 자동으로 매장 페이지로 이동합니다.</p>
+        </section>
 
-          {/* Scanner Container */}
-          <div className="relative rounded-[3rem] overflow-hidden bg-black/90 aspect-square mb-12 shadow-2xl border-4 border-primary/5 group">
-            <div id="reader" className="w-full h-full"></div>
-            
-            {/* Custom Scan Overlay */}
-            <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-               <div className="w-64 h-64 border-2 border-white/20 rounded-[2.5rem] relative">
-                  <div className="absolute top-0 left-0 w-12 h-12 border-t-4 border-l-4 border-burgundy rounded-tl-[1.5rem]"></div>
-                  <div className="absolute top-0 right-0 w-12 h-12 border-t-4 border-r-4 border-burgundy rounded-tr-[1.5rem]"></div>
-                  <div className="absolute bottom-0 left-0 w-12 h-12 border-b-4 border-l-4 border-burgundy rounded-bl-[1.5rem]"></div>
-                  <div className="absolute bottom-0 right-0 w-12 h-12 border-b-4 border-r-4 border-burgundy rounded-br-[1.5rem]"></div>
-                  
-                  {/* Scanning Animation Line */}
-                  <div className="absolute left-0 right-0 top-0 h-0.5 bg-burgundy/50 shadow-[0_0_20px_2px_rgba(159,18,57,0.5)] animate-scan-line"></div>
-               </div>
-            </div>
-          </div>
-
-          {error && (
-            <div className="bg-burgundy/5 p-8 rounded-[2.5rem] border border-burgundy/10 mb-10 animate-in slide-in-from-bottom-4 transition-all">
-               <div className="flex items-start space-x-4 mb-4">
-                  <ShieldCheck className="w-6 h-6 text-burgundy shrink-0" />
-                  <p className="text-xs font-serif italic text-burgundy leading-relaxed">{error}</p>
-               </div>
-               <div className="h-px bg-burgundy/10 w-full mb-4"></div>
-               <p className="text-[10px] font-black text-burgundy/40 uppercase tracking-widest leading-relaxed">
-                  팁: 스캔이 안 될 경우 아래의 <span className="text-burgundy">직접 코드 입력</span> 기능을 이용하세요.
-               </p>
-            </div>
-          )}
-
-          <div className="flex gap-4">
-            <button 
-              onClick={toggleCamera}
-              className="flex-1 bg-primary/10 hover:bg-primary/20 border border-primary/10 text-primary/50 hover:text-primary py-5 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all flex items-center justify-center space-x-3"
-            >
-              <RefreshCw className="w-4 h-4" />
-              <span>카메라 전환</span>
-            </button>
-            <button 
-              onClick={() => {
-                const urlInput = prompt('매장 링크나 암호를 입력하세요:');
-                if (urlInput) {
-                  const match = urlInput.match(/(\/customer\/store\/[^/]+\/table\/\d+)/);
-                  if (match && match[1]) navigate(match[1]);
-                  else setError('잘못된 형식의 암호입니다.');
-                }
-              }}
-              className="flex-[1.5] bg-burgundy text-white py-5 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all shadow-2xl shadow-burgundy/20 hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center space-x-3"
-            >
-              <ArrowUpRight className="w-4 h-4" />
-              <span>직접 코드 입력</span>
-            </button>
-          </div>
+        {/* Scanner Body */}
+        <div className="relative aspect-square w-full max-w-sm mx-auto bg-black rounded-[3rem] overflow-hidden shadow-2xl border-4 border-white">
+           <div id="reader" className="w-full h-full"></div>
+           
+           {/* Custom Overlay */}
+           <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+              <div className="w-64 h-64 border-2 border-white/20 rounded-3xl relative">
+                 <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-primary rounded-tl-2xl"></div>
+                 <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-primary rounded-tr-2xl"></div>
+                 <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-primary rounded-bl-2xl"></div>
+                 <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-primary rounded-br-2xl"></div>
+                 
+                 {/* Animation Scan Line */}
+                 <div className="absolute left-0 right-0 top-0 h-0.5 bg-primary/40 shadow-[0_0_15px_rgba(74,14,14,0.5)] animate-scan"></div>
+              </div>
+           </div>
         </div>
 
-        <div className="mt-16 flex flex-col items-center opacity-20">
-           <Zap className="w-8 h-8 text-primary mb-4" fill="currentColor" />
-           <p className="text-[10px] font-black uppercase tracking-[0.5em]">시스템 보안 작동 중</p>
+        {error && (
+          <div className="bg-burgundy/5 p-6 rounded-2xl border border-burgundy/10 text-center space-y-2">
+             <ShieldCheck className="w-6 h-6 text-burgundy mx-auto opacity-40" />
+             <p className="text-xs font-bold text-burgundy">{error}</p>
+          </div>
+        )}
+
+        <div className="flex gap-4">
+           <button onClick={toggleCamera} className="flex-1 py-4 bg-white border border-[#e5dcd3] rounded-2xl flex items-center justify-center gap-3 text-[10px] font-bold uppercase tracking-widest text-[#261c1a]/60 hover:border-primary/30 transition-all">
+              <RefreshCw className="w-4 h-4" />
+              카메라 전환
+           </button>
+           <button 
+             onClick={() => {
+               const code = prompt('매장 링크나 암호를 입력하세요:');
+               if (code) {
+                 const match = code.match(/(\/customer\/store\/[^/]+\/table\/\d+)/);
+                 if (match) navigate(match[1]);
+                 else setError('잘못된 형식입니다.');
+               }
+             }}
+             className="flex-[1.5] py-4 bg-primary text-white rounded-2xl flex items-center justify-center gap-3 text-[10px] font-bold uppercase tracking-widest shadow-xl shadow-primary/20 hover:bg-accent-burgundy transition-all"
+           >
+              <ArrowUpRight className="w-4 h-4" />
+              직접 입력
+           </button>
         </div>
       </main>
+
+      <footer className="p-8 opacity-20 text-center">
+         <p className="text-[8px] font-black uppercase tracking-[0.5em]">결 SECURE SCAN SYSTEM</p>
+      </footer>
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes scan {
+          0% { top: 0; }
+          100% { top: 100%; }
+        }
+        .animate-scan {
+          animation: scan 2s linear infinite;
+        }
+      `}} />
     </div>
   );
 }
