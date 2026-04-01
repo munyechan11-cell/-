@@ -6,7 +6,8 @@ import {
   Send, Loader2, Star, ShieldCheck, Heart, 
   TrendingUp, Clock, MapPin, Search, Filter,
   ChevronRight, Activity, Zap, Store as StoreIcon,
-  ArrowUpRight, QrCode
+  ArrowUpRight, QrCode, User, Settings as SettingsIcon,
+  ShieldAlert, Trash2, Mail
 } from 'lucide-react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import MemoModal, { formatMemoDisplay } from '../../components/MemoModal';
@@ -19,8 +20,11 @@ export default function CustomerDashboard() {
   const [cancelingCoupon, setCancelingCoupon] = useState<string | null>(null);
   const [editingMemo, setEditingMemo] = useState(false);
   const [sendingMessage, setSendingMessage] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [messageContent, setMessageContent] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const { linkSocialAccount, deleteAccount } = useStore();
 
   useEffect(() => {
     if (currentUser && storeId && currentUser.storeId !== storeId) {
@@ -92,7 +96,7 @@ export default function CustomerDashboard() {
           </div>
           <div className="flex items-center gap-2">
              <button onClick={() => setSendingMessage(true)} className="p-2.5 bg-surface-container rounded-full text-primary hover:bg-primary/5 transition-all"><MessageSquare className="w-5 h-5" /></button>
-             <button onClick={handleLogout} className="p-2.5 bg-surface-container rounded-full text-on-surface-variant/40 hover:text-burgundy transition-all"><LogOut className="w-5 h-5" /></button>
+             <button onClick={() => setIsSettingsOpen(true)} className="p-2.5 bg-surface-container rounded-full text-on-surface-variant/40 hover:text-primary transition-all"><SettingsIcon className="w-5 h-5" /></button>
           </div>
         </header>
 
@@ -298,6 +302,110 @@ export default function CustomerDashboard() {
           initialMemo={currentUser.memo || ''}
           onSave={memo => updateUserMemo(currentUser.id, storeId!, memo)}
         />
+
+        {/* Profile Settings Modal */}
+        {isSettingsOpen && (
+          <div className="fixed inset-0 bg-primary/20 backdrop-blur-md z-[110] flex items-end sm:items-center justify-center p-0 sm:p-8 animate-in slide-in-from-bottom full duration-500">
+             <div className="bg-white w-full max-w-md rounded-t-[3rem] sm:rounded-[3rem] p-10 shadow-3xl flex flex-col gap-8 max-h-[90vh] overflow-y-auto">
+                <div className="flex justify-between items-center">
+                   <h3 className="text-2xl font-serif font-black text-primary italic">프로필 설정</h3>
+                   <button onClick={() => setIsSettingsOpen(false)} className="p-3 bg-surface-container rounded-full"><X className="w-5 h-5 text-on-surface-variant/40" /></button>
+                </div>
+
+                <div className="space-y-6">
+                   <div className="bg-surface-container p-6 rounded-3xl flex items-center gap-6">
+                      <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-primary shadow-sm"><User className="w-8 h-8" /></div>
+                      <div>
+                         <p className="text-xl font-serif font-black text-primary">{currentUser.name}</p>
+                         <p className="text-xs font-bold text-on-surface-variant/40">{currentUser.phone || '소셜 계정 전용'}</p>
+                      </div>
+                   </div>
+
+                   <div className="space-y-4">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-primary opacity-40">연동된 계정</p>
+                      <div className="grid grid-cols-1 gap-3">
+                         <div className="flex items-center justify-between p-4 bg-white border border-outline-variant/30 rounded-2xl">
+                            <div className="flex items-center gap-3">
+                               <Mail className="w-4 h-4 text-on-surface-variant/40" />
+                               <span className="text-xs font-bold">전화번호</span>
+                            </div>
+                            <span className="text-[10px] font-black text-primary uppercase bg-primary/5 px-3 py-1 rounded-full">ACTIVE</span>
+                         </div>
+                         
+                         {/* Google Link */}
+                         <button 
+                           onClick={() => !currentUser.linkedProviders?.includes('google') && linkSocialAccount('google')}
+                           className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${currentUser.linkedProviders?.includes('google') ? 'bg-white border-outline-variant/30' : 'bg-surface-container border-transparent hover:border-primary'}`}
+                         >
+                            <div className="flex items-center gap-3">
+                               <svg className="w-4 h-4" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+                               <span className="text-xs font-bold">Google</span>
+                            </div>
+                            {currentUser.linkedProviders?.includes('google') ? (
+                              <span className="text-[10px] font-black text-primary uppercase bg-primary/5 px-3 py-1 rounded-full">LINKED</span>
+                            ) : (
+                              <span className="text-[10px] font-black text-on-surface-variant/20 uppercase">계정 연동</span>
+                            )}
+                         </button>
+
+                         {/* Kakao Link */}
+                         <button 
+                           onClick={() => !currentUser.linkedProviders?.includes('kakao') && linkSocialAccount('kakao')}
+                           className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${currentUser.linkedProviders?.includes('kakao') ? 'bg-white border-outline-variant/30' : 'bg-[#FEE500]/10 border-transparent hover:border-[#3c1e1e]/20'}`}
+                         >
+                            <div className="flex items-center gap-3">
+                               <div className="w-4 h-4 bg-[#3c1e1e] rounded-full flex items-center justify-center text-[6px] text-[#FEE500] font-black">K</div>
+                               <span className="text-xs font-bold text-[#3c1e1e]">Kakao</span>
+                            </div>
+                            {currentUser.linkedProviders?.includes('kakao') ? (
+                              <span className="text-[10px] font-black text-[#3c1e1e] uppercase bg-[#FEE500] px-3 py-1 rounded-full">LINKED</span>
+                            ) : (
+                              <span className="text-[10px] font-black text-[#3c1e1e]/40 uppercase text-xs">계정 연동</span>
+                            )}
+                         </button>
+                      </div>
+                   </div>
+                </div>
+
+                <div className="pt-6 border-t border-outline-variant/10 flex flex-col gap-3">
+                   <button 
+                     onClick={handleLogout}
+                     className="w-full py-4 text-burgundy font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2 hover:bg-burgundy/5 rounded-2xl transition-all"
+                   >
+                      <LogOut className="w-4 h-4" /> 로그아웃
+                   </button>
+                   <button 
+                     onClick={() => setIsDeletingAccount(true)}
+                     className="w-full py-4 text-on-surface-variant/30 font-bold uppercase tracking-widest text-[10px] hover:text-burgundy transition-colors"
+                   >
+                      계정 삭제 (방문 기록 포함)
+                   </button>
+                </div>
+             </div>
+          </div>
+        )}
+
+        {/* Account Deletion Confirmation */}
+        {isDeletingAccount && (
+          <div className="fixed inset-0 bg-burgundy/10 backdrop-blur-md z-[120] flex items-center justify-center p-8 animate-in fade-in zoom-in-95">
+             <div className="bg-white rounded-[2.5rem] p-10 w-full max-w-sm text-center shadow-3xl border border-burgundy/20">
+                <div className="w-20 h-20 bg-burgundy/5 rounded-3xl flex items-center justify-center text-burgundy mx-auto mb-8 shadow-inner"><Trash2 className="w-10 h-10" /></div>
+                <h3 className="text-2xl font-serif font-black text-primary italic mb-2">계정 삭제 확인</h3>
+                <p className="text-xs text-on-surface-variant/60 leading-relaxed mb-10">계정을 삭제하시겠습니까? 방문 기록과 쿠폰은 통계 데이터로 남지만, 개인 정보는 모두 파기되며 되돌릴 수 없습니다.</p>
+                <div className="flex gap-4">
+                   <button onClick={() => setIsDeletingAccount(false)} className="flex-1 py-4 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/40">취소</button>
+                   <button 
+                     onClick={() => {
+                        deleteAccount();
+                        setIsDeletingAccount(false);
+                        setIsSettingsOpen(false);
+                     }}
+                     className="flex-[2] py-4 bg-burgundy text-white rounded-xl font-bold uppercase tracking-widest text-[10px] shadow-lg active:scale-95 transition-all"
+                   >삭제 실행</button>
+                </div>
+             </div>
+          </div>
+        )}
       </div>
     </div>
   );

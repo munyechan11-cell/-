@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { useStore, getEffectiveTier, getTierColor, showToast } from '../store';
+import { useStore, getEffectiveTier, getTierColor, showToast, formatPhoneNumber } from '../store';
 import { Link } from 'react-router-dom';
 import { 
   ArrowLeft, Store, Users, Ticket, Trash2, 
   ChevronRight, Search, LogOut, ShieldCheck, X,
-  LayoutDashboard
+  LayoutDashboard, Phone, Settings
 } from 'lucide-react';
 
 export default function Master() {
@@ -18,6 +18,8 @@ export default function Master() {
   const [searchTerm, setSearchTerm] = useState('');
   const [deletingUser, setDeletingUser] = useState<{ id: string; role: 'owner' | 'customer'; name: string } | null>(null);
   const [selectedOwnerId, setSelectedOwnerId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'deleted'>('all');
+  const [authFilter, setAuthFilter] = useState<'all' | 'phone' | 'google' | 'kakao'>('all');
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,8 +74,26 @@ export default function Master() {
 
   const owners = users.filter(u => u.role === 'owner');
   const customersList = users.filter(u => u.role === 'customer');
-  const filteredOwners = owners.filter(o => (o.restaurantName || '').toLowerCase().includes(searchTerm.toLowerCase()) || (o.name || '').toLowerCase().includes(searchTerm.toLowerCase()));
-  const filteredCustomersList = customersList.filter(c => (c.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || (c.phone || '').includes(searchTerm));
+  
+  const applyFilters = (list: any[]) => {
+    return list.filter(u => {
+      const matchSearch = (u.restaurantName || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          (u.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          (u.phone || '').includes(searchTerm);
+      const matchStatus = statusFilter === 'all' || u.status === statusFilter;
+      const matchAuth = authFilter === 'all' || u.authType === authFilter;
+      return matchSearch && matchStatus && matchAuth;
+    });
+  };
+
+  const filteredOwners = applyFilters(owners);
+  const filteredCustomersList = applyFilters(customersList);
+
+  const activeCount = users.filter(u => u.status !== 'deleted').length;
+  const deletedCount = users.filter(u => u.status === 'deleted').length;
+  const googleCount = users.filter(u => u.authType === 'google').length;
+  const kakaoCount = users.filter(u => u.authType === 'kakao').length;
+  const phoneCount = users.filter(u => u.authType === 'phone').length;
 
   return (
     <div className="flex h-screen overflow-hidden bg-surface-bright font-sans text-on-surface selection:bg-primary/20">
@@ -141,6 +161,7 @@ export default function Master() {
                   <tr className="bg-surface-container/50 border-b border-outline-variant/30">
                     <th className="px-10 py-6 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/60">{activeTab === 'owners' ? '매장 정보' : '손님 정보'}</th>
                     <th className="px-10 py-6 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/60">{activeTab === 'owners' ? '사장님' : '가입 매장'}</th>
+                    <th className="px-10 py-6 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/60">가입 수단</th>
                     <th className="px-10 py-6 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/60">상태</th>
                     <th className="px-10 py-6 text-right text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/60">관리</th>
                   </tr>
@@ -162,7 +183,14 @@ export default function Master() {
                            </div>
                         </td>
                         <td className="px-10 py-8 text-sm font-bold text-primary">{owner.name} 사장님</td>
-                        <td className="px-10 py-8"><span className="text-[10px] font-bold uppercase text-primary bg-primary/5 px-3 py-1 rounded-full border border-primary/10">운영 중</span></td>
+                        <td className="px-10 py-8">
+                           <div className="flex gap-2">
+                              {(!owner.authType || owner.authType === 'phone') && <div className="w-6 h-6 bg-surface-container rounded-lg flex items-center justify-center text-on-surface-variant/40" title="전화번호"><Phone className="w-3.5 h-3.5" /></div>}
+                              {owner.linkedProviders?.includes('google') && <div className="w-6 h-6 bg-white border border-outline-variant/30 rounded-lg flex items-center justify-center" title="구글"><svg className="w-3 h-3" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg></div>}
+                              {owner.linkedProviders?.includes('kakao') && <div className="w-6 h-6 bg-[#FEE500] rounded-lg flex items-center justify-center text-[#3c1e1e]" title="카카오"><div className="text-[7px] font-black">K</div></div>}
+                           </div>
+                        </td>
+                        <td className="px-10 py-8"><span className="text-[10px] font-bold uppercase text-primary bg-primary/5 px-3 py-1 rounded-full border border-primary/10">{owner.status === 'deleted' ? '해지됨' : '운영 중'}</span></td>
                         <td className="px-10 py-8 text-right flex justify-end gap-2">
                            <button onClick={(e) => { e.stopPropagation(); handleDeleteUser(owner.id, 'owner', owner.name); }} className="p-3 bg-burgundy/5 text-burgundy rounded-xl hover:bg-burgundy hover:text-white transition-all"><Trash2 className="w-5 h-5" /></button>
                            <ChevronRight className={`w-5 h-5 text-on-surface-variant/20 transition-transform ${selectedOwnerId === owner.id ? 'rotate-90' : ''}`} />
@@ -271,7 +299,14 @@ export default function Master() {
                         <td className="px-10 py-8 text-sm font-bold text-primary">
                            {owners.find(o => o.id === customer.storeId)?.restaurantName || '무소속'}
                         </td>
-                        <td className="px-10 py-8"><span className="text-[10px] font-bold uppercase text-primary/40 bg-surface-container px-3 py-1 rounded-full border border-outline-variant/30">활동 중</span></td>
+                        <td className="px-10 py-8">
+                           <div className="flex gap-2">
+                              {(!customer.authType || customer.authType === 'phone') && <div className="w-6 h-6 bg-surface-container rounded-lg flex items-center justify-center text-on-surface-variant/40" title="전화번호"><Phone className="w-3.5 h-3.5" /></div>}
+                              {customer.linkedProviders?.includes('google') && <div className="w-6 h-6 bg-white border border-outline-variant/30 rounded-lg flex items-center justify-center" title="구글"><svg className="w-3 h-3" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg></div>}
+                              {customer.linkedProviders?.includes('kakao') && <div className="w-6 h-6 bg-[#FEE500] rounded-lg flex items-center justify-center text-[#3c1e1e]" title="카카오"><div className="text-[7px] font-black">K</div></div>}
+                           </div>
+                        </td>
+                        <td className="px-10 py-8"><span className="text-[10px] font-bold uppercase text-primary/40 bg-surface-container px-3 py-1 rounded-full border border-outline-variant/30">{customer.status === 'deleted' ? '탈퇴함' : '활동 중'}</span></td>
                         <td className="px-10 py-8 text-right flex justify-end gap-2">
                            <button onClick={() => handleDeleteUser(customer.id, 'customer', customer.name)} className="p-3 bg-burgundy/5 text-burgundy rounded-xl hover:bg-burgundy hover:text-white transition-all"><Trash2 className="w-5 h-5" /></button>
                         </td>

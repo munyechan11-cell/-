@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { useStore } from '../../store';
-import { QrCode, ArrowLeft, Heart, Sparkles, UserCircle, Phone } from 'lucide-react';
+import { useStore, formatPhoneNumber } from '../../store';
+import { QrCode, ArrowLeft, Heart, Sparkles, UserCircle, Phone, Loader2 } from 'lucide-react';
 
 export default function CustomerLogin() {
   const { storeId } = useParams();
@@ -76,9 +76,10 @@ export default function CustomerLogin() {
                        <input
                          type="tel"
                          className="w-full h-14 bg-surface-container border-none rounded-2xl px-6 font-bold text-primary placeholder:text-on-surface-variant/30 focus:ring-1 focus:ring-primary shadow-inner"
-                         placeholder="전화번호 (-) 없이 입력"
+                         placeholder="전화번호 (010-xxxx-xxxx)"
                          value={phone}
-                         onChange={e => setPhone(e.target.value)}
+                         onChange={e => setPhone(formatPhoneNumber(e.target.value))}
+                         maxLength={13}
                          required
                        />
                        

@@ -5,7 +5,9 @@ import {
   Settings, Map as MapIcon, List, Move, Plus, 
   Minus, Trash2, Layers, Clock, Maximize2,
   TrendingUp, Calendar, History, Store,
-  Utensils, Hourglass, GripVertical, Monitor
+  Utensils, Hourglass, GripVertical, Monitor,
+  User, Mail, Settings as SettingsIcon, ShieldAlert,
+  Send, ChevronRight
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
@@ -16,7 +18,7 @@ export default function OwnerDashboard() {
     currentUser, tables, users, visits, coupons, sections, logout, leaveTable, 
     initTables, tierOverrides, approveCouponUse, rejectCouponUse, 
     updateTableLayout, addTable, deleteTable, addSection, updateSection, 
-    deleteSection, updateTableStatus
+    deleteSection, updateTableStatus, linkSocialAccount, deleteAccount
   } = useStore();
   
   const navigate = useNavigate();
@@ -38,6 +40,13 @@ export default function OwnerDashboard() {
   const [isEditingSections, setIsEditingSections] = useState(false);
   const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
   const [newSectionName, setNewSectionName] = useState('');
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [localNotifications, setLocalNotifications] = useState<{id: string, name: string, time: string, table: number, avatar?: string, tier: string}[]>([]);
+  const processedVisitIds = useRef<Set<string>>(new Set());
+  const isInitialLoad = useRef(true);
+  const [highlightedTable, setHighlightedTable] = useState<number | null>(null);
+  const [confirmDeleteText, setConfirmDeleteText] = useState('');
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
@@ -52,6 +61,63 @@ export default function OwnerDashboard() {
       }
     }
   }, [currentUser]);
+
+  // Entrance Notifications Logic
+  useEffect(() => {
+    if (!currentUser || currentUser.role !== 'owner') return;
+
+    const myVisits = visits.filter(v => v.storeId === currentUser.id);
+    
+    if (isInitialLoad.current) {
+      if (myVisits.length > 0) {
+        myVisits.forEach(v => processedVisitIds.current.add(v.id));
+        isInitialLoad.current = false;
+      }
+      return;
+    }
+
+    const newVisits = myVisits.filter(v => !processedVisitIds.current.has(v.id));
+    
+    if (newVisits.length > 0) {
+      newVisits.forEach(v => {
+        processedVisitIds.current.add(v.id);
+        const customer = users.find(u => u.id === v.customerId);
+        const customerName = customer?.name || '신규 고객';
+        
+        // Trigger Premium Feedback
+        setHighlightedTable(v.tableNumber);
+        setTimeout(() => setHighlightedTable(null), 8000);
+        
+        // Play Chime (Royalty-free subtle chime)
+        try {
+          const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+          audio.volume = 0.4;
+          audio.play();
+        } catch (e) {}
+
+        // Trigger Toast
+        window.dispatchEvent(new CustomEvent('show-toast', { 
+          detail: { 
+            message: `${customerName}님이 ${v.tableNumber}번 테이블에 입장하셨습니다!`, 
+            type: 'info' 
+          } 
+        }));
+
+        // Add to local notification history
+        setLocalNotifications(prev => [
+          { 
+            id: v.id, 
+            name: customerName, 
+            avatar: customer?.avatarUrl,
+            tier: getCustomerStats(v.customerId).tier,
+            time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+            table: v.tableNumber 
+          },
+          ...prev
+        ].slice(0, 10)); // Keep last 10
+      });
+    }
+  }, [visits, currentUser, users]);
 
   if (!currentUser) return null;
 
@@ -185,18 +251,21 @@ export default function OwnerDashboard() {
           </div>
         </div>
         <nav className="flex-1 space-y-2">
-          <Link to="/owner" className="bg-white/10 text-white rounded-l-full ml-4 pl-4 py-3 flex items-center gap-4">
-            <LayoutGrid className="w-5 h-5" /><span className="text-xs hidden lg:block">대시보드</span>
+          <Link to="/owner" className="bg-white/10 text-white rounded-l-full ml-4 pl-4 py-3 flex items-center gap-4 transition-all">
+            <LayoutGrid className="w-5 h-5 flex-shrink-0" /><span className="text-xs hidden lg:block">대시보드</span>
           </Link>
           <Link to="/owner/customers" className="text-white/60 hover:text-white px-8 py-3 flex items-center gap-4 hover:bg-white/5 transition-all">
-            <Users className="w-5 h-5" /><span className="text-xs hidden lg:block">단골 관리</span>
+            <Users className="w-5 h-5 flex-shrink-0" /><span className="text-xs hidden lg:block">단골 관리</span>
           </Link>
           <Link to="/owner/statistics" className="text-white/60 hover:text-white px-8 py-3 flex items-center gap-4 hover:bg-white/5 transition-all">
-            <BarChart3 className="w-5 h-5" /><span className="text-xs hidden lg:block">매장 통계</span>
+            <BarChart3 className="w-5 h-5 flex-shrink-0" /><span className="text-xs hidden lg:block">매장 통계</span>
           </Link>
           <Link to="/owner/brand-settings" className="text-white/60 hover:text-white px-8 py-3 flex items-center gap-4 hover:bg-white/5 transition-all">
-            <Settings className="w-5 h-5" /><span className="text-xs hidden lg:block">매장 설정</span>
+            <SettingsIcon className="w-5 h-5 flex-shrink-0" /><span className="text-xs hidden lg:block">매장 설정</span>
           </Link>
+          <button onClick={() => setIsSettingsOpen(true)} className="w-full text-white/60 hover:text-white px-8 py-3 flex items-center gap-4 hover:bg-white/5 transition-all">
+            <User className="w-5 h-5 flex-shrink-0" /><span className="text-xs hidden lg:block">프로필 설정</span>
+          </button>
         </nav>
         <button onClick={handleLogout} className="px-8 mt-auto text-white/40 hover:text-white text-[10px] flex items-center gap-2">
           <LogOut className="w-4 h-4" /> <span className="hidden lg:block">로그아웃</span>
@@ -219,6 +288,58 @@ export default function OwnerDashboard() {
             </nav>
           </div>
           <div className="flex items-center gap-4">
+             {/* Notification Bell */}
+             <div className="relative">
+                <button 
+                  onClick={() => setShowNotifications(!showNotifications)}
+                  className={`p-3 rounded-full transition-all relative ${showNotifications ? 'bg-primary text-white' : 'bg-surface-container text-primary hover:bg-primary/5'}`}
+                >
+                   <Bell className="w-5 h-5" />
+                   {localNotifications.length > 0 && (
+                      <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-burgundy rounded-full border-2 border-white animate-bounce"></span>
+                   )}
+                </button>
+
+                {showNotifications && (
+                   <div className="absolute top-16 right-0 w-80 bg-white rounded-[2rem] shadow-3xl border border-outline-variant/30 overflow-hidden z-[100] animate-in fade-in slide-in-from-top-4">
+                      <div className="p-6 border-b border-outline-variant/10 flex justify-between items-center">
+                         <h4 className="text-[10px] font-black uppercase tracking-widest text-primary opacity-40">실시간 알림</h4>
+                         {localNotifications.length > 0 && (
+                            <button onClick={() => setLocalNotifications([])} className="text-[10px] font-bold text-burgundy opacity-60 hover:opacity-100">모두 삭제</button>
+                         )}
+                      </div>
+                      <div className="max-h-96 overflow-y-auto no-scrollbar">
+                         {localNotifications.length > 0 ? (
+                            localNotifications.map(notification => (
+                               <div key={notification.id} onClick={() => { setHighlightedTable(notification.table); setShowNotifications(false); }} className="p-5 border-b border-outline-variant/5 hover:bg-surface-container transition-colors flex items-center gap-4 cursor-pointer group">
+                                  <div className="w-12 h-12 bg-primary/5 rounded-2xl flex items-center justify-center text-primary overflow-hidden shadow-inner border border-primary/5">
+                                     {notification.avatar ? (
+                                        <img src={notification.avatar} className="w-full h-full object-cover" alt="" />
+                                     ) : (
+                                        <Users className="w-6 h-6 opacity-40" />
+                                     )}
+                                  </div>
+                                  <div className="flex-1">
+                                     <div className="flex items-center gap-2 mb-0.5">
+                                        <p className="text-xs font-black text-primary">{notification.name}님</p>
+                                        <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-full border ${getTierColor(notification.tier)} opacity-80 uppercase tracking-tighter`}>{notification.tier}</span>
+                                     </div>
+                                     <p className="text-[9px] font-bold text-on-surface-variant/40">{notification.table}번 테이블에 입장하였습니다 • {notification.time}</p>
+                                  </div>
+                                  <ChevronRight className="w-4 h-4 text-primary opacity-0 group-hover:opacity-40 -translate-x-2 group-hover:translate-x-0 transition-all" />
+                               </div>
+                            ))
+                         ) : (
+                            <div className="p-12 text-center">
+                               <Bell className="w-8 h-8 text-on-surface-variant/10 mx-auto mb-3" />
+                               <p className="text-[10px] font-bold text-on-surface-variant/30 uppercase tracking-widest">새로운 알림이 없습니다</p>
+                            </div>
+                         )}
+                      </div>
+                   </div>
+                )}
+             </div>
+
              <button onClick={() => setIsLayoutMode(!isLayoutMode)} className={`px-8 py-3 rounded-full font-serif text-sm shadow-xl ${isLayoutMode ? 'bg-primary text-white' : 'bg-surface-container-highest text-primary hover:shadow-2xl transition-all active:scale-[0.98]'}`}>
                 {isLayoutMode ? '배치 저장 (완료)' : '테이블 배치변경 (이동)'}
              </button>
@@ -415,6 +536,123 @@ export default function OwnerDashboard() {
            </aside>
         )}
       </main>
+
+      {/* Profile Settings Modal */}
+      {isSettingsOpen && (
+        <div className="fixed inset-0 bg-primary/20 backdrop-blur-md z-[110] flex items-center justify-center p-8 animate-in fade-in zoom-in-95">
+           <div className="bg-white w-full max-w-md rounded-[3rem] p-10 shadow-3xl flex flex-col gap-8 max-h-[90vh] overflow-y-auto">
+              <div className="flex justify-between items-center">
+                 <h3 className="text-2xl font-serif font-black text-primary italic">사장님 프로필 설정</h3>
+                 <button onClick={() => setIsSettingsOpen(false)} className="p-3 bg-surface-container rounded-full"><X className="w-5 h-5 text-on-surface-variant/40" /></button>
+              </div>
+
+              <div className="space-y-6">
+                 <div className="bg-surface-container p-6 rounded-3xl flex items-center gap-6">
+                    <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-primary shadow-sm"><User className="w-8 h-8" /></div>
+                    <div>
+                       <p className="text-xl font-serif font-black text-primary">{currentUser.name}</p>
+                       <p className="text-xs font-bold text-on-surface-variant/40">{currentUser.phone || '소셜 계정 전용'}</p>
+                       <p className="text-[10px] font-bold text-primary/40 uppercase tracking-widest mt-1">{currentUser.restaurantName}</p>
+                    </div>
+                 </div>
+
+                 <div className="space-y-4">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-primary opacity-40">연동된 계정</p>
+                    <div className="grid grid-cols-1 gap-3">
+                       <div className="flex items-center justify-between p-4 bg-white border border-outline-variant/30 rounded-2xl">
+                          <div className="flex items-center gap-3">
+                             <Mail className="w-4 h-4 text-on-surface-variant/40" />
+                             <span className="text-xs font-bold">기본 로그인</span>
+                          </div>
+                          <span className="text-[10px] font-black text-primary uppercase bg-primary/5 px-3 py-1 rounded-full">ACTIVE</span>
+                       </div>
+                       
+                       <button 
+                         onClick={() => !currentUser.linkedProviders?.includes('google') && linkSocialAccount('google')}
+                         className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${currentUser.linkedProviders?.includes('google') ? 'bg-white border-outline-variant/30' : 'bg-surface-container border-transparent hover:border-primary'}`}
+                       >
+                          <div className="flex items-center gap-3">
+                             <svg className="w-4 h-4" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+                             <span className="text-xs font-bold">Google</span>
+                          </div>
+                          {currentUser.linkedProviders?.includes('google') ? (
+                            <span className="text-[10px] font-black text-primary uppercase bg-primary/5 px-3 py-1 rounded-full">LINKED</span>
+                          ) : (
+                            <span className="text-[10px] font-black text-on-surface-variant/20 uppercase">계정 연동</span>
+                          )}
+                       </button>
+
+                       <button 
+                         onClick={() => !currentUser.linkedProviders?.includes('kakao') && linkSocialAccount('kakao')}
+                         className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${currentUser.linkedProviders?.includes('kakao') ? 'bg-white border-outline-variant/30' : 'bg-[#FEE500]/10 border-transparent hover:border-[#3c1e1e]/20'}`}
+                       >
+                          <div className="flex items-center gap-3">
+                             <div className="w-4 h-4 bg-[#3c1e1e] rounded-full flex items-center justify-center text-[6px] text-[#FEE500] font-black">K</div>
+                             <span className="text-xs font-bold text-[#3c1e1e]">Kakao</span>
+                          </div>
+                          {currentUser.linkedProviders?.includes('kakao') ? (
+                            <span className="text-[10px] font-black text-[#3c1e1e] uppercase bg-[#FEE500] px-3 py-1 rounded-full">LINKED</span>
+                          ) : (
+                            <span className="text-[10px] font-black text-[#3c1e1e]/40 uppercase text-xs">계정 연동</span>
+                          )}
+                       </button>
+                    </div>
+                 </div>
+              </div>
+
+              <div className="pt-6 border-t border-outline-variant/10 flex flex-col gap-3">
+                 <button 
+                   onClick={handleLogout}
+                   className="w-full py-4 text-burgundy font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2 hover:bg-burgundy/5 rounded-2xl transition-all"
+                 >
+                    <LogOut className="w-4 h-4" /> 로그아웃
+                 </button>
+                 <button 
+                   onClick={() => setIsDeletingAccount(true)}
+                   className="w-full py-4 text-on-surface-variant/30 font-bold uppercase tracking-widest text-[10px] hover:text-burgundy transition-colors"
+                 >
+                    사장님 계정 해지 (매장 데이터 유지)
+                 </button>
+              </div>
+           </div>
+        </div>
+      )}
+
+      {/* Account Deletion Confirmation */}
+      {isDeletingAccount && (
+        <div className="fixed inset-0 bg-burgundy/10 backdrop-blur-md z-[120] flex items-center justify-center p-8 animate-in fade-in zoom-in-95">
+           <div className="bg-white rounded-[2.5rem] p-10 w-full max-w-sm text-center shadow-3xl border border-burgundy/20">
+              <div className="w-20 h-20 bg-burgundy/5 rounded-3xl flex items-center justify-center text-burgundy mx-auto mb-8 shadow-inner"><Trash2 className="w-10 h-10" /></div>
+              <h3 className="text-2xl font-serif font-black text-primary italic mb-2">프랜차이즈 해지 확인</h3>
+              <p className="text-xs text-on-surface-variant/60 leading-relaxed mb-6">결 플랫폼 가맹을 해지하시겠습니까? 데이터는 보존되지만 개인 정보는 즉시 파기됩니다.</p>
+              
+              <div className="mb-10 text-left">
+                 <p className="text-[10px] font-black text-primary/40 uppercase mb-2 ml-2">해지 승인 코드 입력</p>
+                 <input 
+                   type="text" 
+                   placeholder='"DELETE" 라고 입력하세요'
+                   value={confirmDeleteText}
+                   onChange={(e) => setConfirmDeleteText(e.target.value)}
+                   className="w-full px-5 py-4 bg-surface-container rounded-2xl border border-outline-variant/30 text-xs font-black placeholder:text-on-surface-variant/20 focus:border-burgundy transition-all"
+                 />
+              </div>
+
+              <div className="flex gap-4">
+                 <button onClick={() => { setIsDeletingAccount(false); setConfirmDeleteText(''); }} className="flex-1 py-4 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/40">취소</button>
+                 <button 
+                   disabled={confirmDeleteText !== 'DELETE'}
+                   onClick={() => {
+                      deleteAccount();
+                      setIsDeletingAccount(false);
+                      setIsSettingsOpen(false);
+                      setConfirmDeleteText('');
+                   }}
+                   className={`flex-[2] py-4 rounded-xl font-bold uppercase tracking-widest text-[10px] shadow-lg active:scale-95 transition-all ${confirmDeleteText === 'DELETE' ? 'bg-burgundy text-white' : 'bg-surface-container text-on-surface-variant/20 cursor-not-allowed'}`}
+                 >해지 실행</button>
+              </div>
+           </div>
+        </div>
+      )}
     </div>
   );
 }

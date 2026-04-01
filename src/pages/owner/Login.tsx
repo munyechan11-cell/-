@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useStore } from '../../store';
-import { Store, ArrowLeft, ShieldCheck, Heart, Sparkles } from 'lucide-react';
+import { useStore, formatPhoneNumber } from '../../store';
+import { Store, ArrowLeft, ShieldCheck, Heart, Sparkles, Loader2 } from 'lucide-react';
 
 export default function OwnerLogin() {
   const [isLogin, setIsLogin] = useState(true);
@@ -67,9 +67,10 @@ export default function OwnerLogin() {
                  <input
                    type="tel"
                    className="w-full h-14 bg-surface-container border-none rounded-2xl px-6 font-bold text-primary placeholder:text-on-surface-variant/30 focus:ring-1 focus:ring-primary shadow-inner"
-                   placeholder="전화번호 (-) 없이 입력"
+                   placeholder="전화번호 (010-xxxx-xxxx)"
                    value={phone}
-                   onChange={e => setPhone(e.target.value)}
+                   onChange={e => setPhone(formatPhoneNumber(e.target.value))}
+                   maxLength={13}
                    required
                  />
                  {!isLogin && (

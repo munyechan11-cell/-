@@ -4,9 +4,18 @@ import {
   doc, onSnapshot, setDoc, updateDoc, addDoc, deleteDoc, 
   query, where, getDocs, writeBatch, getDoc 
 } from 'firebase/firestore';
+import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 
 // 타임스탬프 + 랜덤 조합으로 ID 충돌 위험을 최소화하는 고유 ID 생성기
 const generateId = () => `${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 7)}`;
+
+// 전화번호 자동 하이픈 및 유효성 검사
+export const formatPhoneNumber = (value: string) => {
+  const nums = value.replace(/[^0-9]/g, '');
+  if (nums.length <= 3) return nums;
+  if (nums.length <= 7) return `${nums.slice(0, 3)}-${nums.slice(3)}`;
+  return `${nums.slice(0, 3)}-${nums.slice(3, 7)}-${nums.slice(7, 11)}`;
+};
 
 export type Role = 'customer' | 'owner';
 
@@ -18,12 +27,17 @@ export interface User {
   restaurantName?: string;
   storeId?: string;
   googleId?: string;
+  kakaoId?: string;
   socialIds?: string[];
+  authType?: 'phone' | 'google' | 'kakao';
+  status?: 'active' | 'deleted';
+  linkedProviders?: ('google' | 'kakao')[];
   isPohangResident?: boolean;
   gender?: 'male' | 'female';
   memo?: string;
   tierNames?: Record<string, string>; // { 'VIP': '단골마스터', ... }
   tierRewards?: Record<string, string>; // { 'VIP': '특별 서비스 제공', ... }
+  avatarUrl?: string; // New: social profile image
 }
 
 export interface Visit {
@@ -376,27 +390,89 @@ export const useStore = () => {
     }
   };
 
-  const login = async (phone: string, name: string, role: Role, restaurantName?: string, storeId?: string, socialId?: string, isPohangResident?: boolean, gender?: 'male' | 'female') => {
+  const login = async (phone: string, name: string, role: Role, restaurantName?: string, storeId?: string, socialProvider?: 'google' | 'kakao', isPohangResident?: boolean, gender?: 'male' | 'female') => {
+    let socialId = '';
+    let socialEmail = '';
+    let socialName = '';
+    let socialAvatar = '';
+
+    if (socialProvider === 'google') {
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth!, provider);
+      socialId = result.user.uid;
+      socialEmail = result.user.email || '';
+      socialName = result.user.displayName || '';
+      socialAvatar = result.user.photoURL || '';
+    } else if (socialProvider === 'kakao') {
+      const kakaoData: any = await new Promise((resolve, reject) => {
+        if (!(window as any).Kakao) return reject(new Error('카카오 SDK가 로드되지 않았습니다.'));
+        (window as any).Kakao.Auth.login({
+          success: (authObj: any) => {
+            (window as any).Kakao.API.request({
+              url: '/v2/user/me',
+              success: (res: any) => resolve(res),
+              fail: reject
+            });
+          },
+          fail: reject
+        });
+      });
+      socialId = kakaoData.id.toString();
+      socialName = kakaoData.kakao_account?.profile?.nickname || '';
+      socialAvatar = kakaoData.kakao_account?.profile?.thumbnail_image_url || '';
+    }
+
     const cleanPhone = phone ? phone.replace(/[^0-9]/g, '') : '';
-    let user = users.find(u => (u.phone.replace(/[^0-9]/g, '') === cleanPhone || (socialId && (u.googleId === socialId || u.socialIds?.includes(socialId)))) && u.role === role && (role === 'owner' || u.storeId === storeId));
     
+    // 1. 소셜 ID로 먼저 검색
+    let user = users.find(u => 
+      (socialId && (u.googleId === socialId || u.kakaoId === socialId || u.socialIds?.includes(socialId))) && 
+      u.role === role && 
+      (role === 'owner' || u.storeId === storeId)
+    );
+
+    // 2. 소셜 ID가 없으면 전화번호로 검색
+    if (!user && cleanPhone) {
+      user = users.find(u => 
+        u.phone.replace(/[^0-9]/g, '') === cleanPhone && 
+        u.role === role && 
+        (role === 'owner' || u.storeId === storeId)
+      );
+    }
+
     if (user) {
-      if (socialId && !user.socialIds?.includes(socialId)) {
-        user = { ...user, socialIds: [...(user.socialIds || []), socialId] };
-        await updateFirestoreDoc('users', user.id, user);
+      // 이미 탈퇴한 계정인 경우 복구 또는 에러 처리 (여기서는 복구로 처리)
+      const updates: Partial<User> = { status: 'active' };
+      if (socialId) {
+        if (socialProvider === 'google' && user.googleId !== socialId) updates.googleId = socialId;
+        if (socialProvider === 'kakao' && user.kakaoId !== socialId) updates.kakaoId = socialId;
+        if (!user.socialIds?.includes(socialId)) updates.socialIds = [...(user.socialIds || []), socialId];
+        if (!user.linkedProviders?.includes(socialProvider!)) updates.linkedProviders = [...(user.linkedProviders || []), socialProvider!];
+        if (socialAvatar) updates.avatarUrl = socialAvatar;
+      }
+      
+      if (Object.keys(updates).length > 1) {
+        user = { ...user, ...updates };
+        await updateFirestoreDoc('users', user.id, updates);
       }
     } else {
+      // 신규 생성
       user = {
         id: generateId(),
         role,
-        name,
+        name: socialName || name || '익명',
         phone: cleanPhone,
         restaurantName,
         storeId,
-        googleId: socialId,
+        googleId: socialProvider === 'google' ? socialId : undefined,
+        kakaoId: socialProvider === 'kakao' ? socialId : undefined,
         socialIds: socialId ? [socialId] : [],
+        authType: socialProvider || 'phone',
+        status: 'active',
+        linkedProviders: socialProvider ? [socialProvider] : [],
         isPohangResident,
-        gender
+        gender,
+        avatarUrl: socialAvatar
       };
       await updateFirestoreDoc('users', user.id, user);
       
@@ -417,8 +493,73 @@ export const useStore = () => {
     
     setLocalStorage('currentUser', user);
     setCurrentUser(user);
-    showToast(`${name}님 환영합니다!`, 'success');
+    showToast(`${user.name}님 환영합니다!`, 'success');
     return user;
+  };
+
+  const linkSocialAccount = async (provider: 'google' | 'kakao') => {
+    if (!currentUser) throw new Error('로그인이 필요합니다.');
+    
+    let socialId = '';
+    if (provider === 'google') {
+      const authProvider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth!, authProvider);
+      socialId = result.user.uid;
+    } else if (provider === 'kakao') {
+      socialId = await new Promise((resolve, reject) => {
+        (window as any).Kakao.Auth.login({
+          success: () => {
+            (window as any).Kakao.API.request({
+              url: '/v2/user/me',
+              success: (res: any) => resolve(res.id.toString()),
+              fail: reject
+            });
+          },
+          fail: reject
+        });
+      });
+    }
+
+    // 이미 다른 계정에 연결되어 있는지 확인
+    const existingUser = users.find(u => 
+      (u.googleId === socialId || u.kakaoId === socialId || u.socialIds?.includes(socialId)) && 
+      u.id !== currentUser.id && u.role === currentUser.role
+    );
+
+    if (existingUser) {
+      throw new Error('이미 등록된 계정입니다.');
+    }
+
+    const updates: Partial<User> = {
+      socialIds: [...(currentUser.socialIds || []), socialId],
+      linkedProviders: [...(currentUser.linkedProviders || []), provider]
+    };
+    if (provider === 'google') updates.googleId = socialId;
+    if (provider === 'kakao') updates.kakaoId = socialId;
+
+    await updateFirestoreDoc('users', currentUser.id, updates);
+    const updatedUser = { ...currentUser, ...updates };
+    setCurrentUser(updatedUser);
+    setLocalStorage('currentUser', updatedUser);
+    showToast(`${provider === 'google' ? '구글' : '카카오'} 계정이 연동되었습니다.`, 'success');
+  };
+
+  const deleteAccount = async () => {
+    if (!currentUser) return;
+    
+    // Soft Delete: 정보 익명화 및 상태 변경
+    const updates = {
+      name: '삭제된 계정',
+      phone: '',
+      status: 'deleted',
+      googleId: null,
+      kakaoId: null,
+      socialIds: []
+    };
+    
+    await updateFirestoreDoc('users', currentUser.id, updates);
+    showToast('계정이 정상적으로 삭제되었습니다.', 'info');
+    logout();
   };
 
   const logout = () => {
@@ -650,7 +791,8 @@ export const useStore = () => {
     initTables, setCustomerTier, setMasterPassword, deleteUser, updateUserMemo, 
     recordCommunication, bulkIssueCoupon, bulkRecordCommunication,
     updateTableLayout, updateBrandSettings, addTable, deleteTable,
-    addSection, updateSection, deleteSection, updateTableStatus
+    addSection, updateSection, deleteSection, updateTableStatus,
+    linkSocialAccount, deleteAccount
   };
 };
 
