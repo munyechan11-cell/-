@@ -246,14 +246,14 @@ export default function OwnerDashboard() {
                             onPointerMove={handlePointerMove}
                             onPointerUp={handlePointerUp}
                             onClick={() => setSelectedTable(table.number)}
-                            className={`absolute flex flex-col items-center justify-center transition-all group cursor-pointer ${isOccupied ? 'shadow-lg shadow-primary/20' : 'hover:shadow-xl'} ${isBeingDragged ? 'scale-[1.05] shadow-3xl z-[100] cursor-grabbing' : 'duration-300'}`}
+                            className={`absolute flex flex-col items-center justify-center group cursor-pointer ${isOccupied ? 'shadow-lg shadow-primary/20' : 'hover:shadow-xl'} ${isBeingDragged ? 'scale-[1.05] shadow-3xl z-[100] cursor-grabbing !transition-none' : 'duration-300 transition-all'}`}
                             style={{
                               left: isBeingDragged ? dragPosition?.x : table.x,
                               top: isBeingDragged ? dragPosition?.y : table.y,
                               width: table.width || 80,
                               height: table.height || 80,
                               backgroundColor: isOccupied ? '#261c1a' : (table.status === 'dirty' ? '#fdf2f2' : (isBeingDragged ? '#ffffff' : '#ffffff')),
-                              border: isOccupied ? 'none' : `2px solid ${selectedTable === table.number ? '#261c1a' : (isBeingDragged ? '#261c1a' : '#e5dcd3')}`,
+                              border: isOccupied ? 'none' : `3px solid ${selectedTable === table.number ? '#261c1a' : (isBeingDragged ? '#4285F4' : '#e5dcd3')}`,
                               borderRadius: table.shape === 'circle' ? '50%' : '1.5rem',
                               zIndex: isBeingDragged ? 100 : (selectedTable === table.number ? 40 : 10),
                               touchAction: 'none'
