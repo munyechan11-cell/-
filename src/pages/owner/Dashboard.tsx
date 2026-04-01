@@ -61,12 +61,16 @@ export default function OwnerDashboard() {
   };
 
   const myTables = tables.filter(t => t.storeId === currentUser.id);
+  const actualTables = myTables.filter(t => t.type === 'table');
+  const actualRoomsCount = myTables.filter(t => t.type === 'room').length;
+  
   const activeTable = myTables.find(t => t.number === selectedTable);
   const activeCustomer = activeTable?.currentCustomerId 
     ? users.find(u => u.id === activeTable.currentCustomerId) 
     : null;
 
   const filteredTables = myTables.filter(t => {
+    if (viewMode === 'grid' && t.type !== 'table' && t.type !== 'room') return false; 
     if (activeSectionId === 'all') return true;
     if (activeSectionId === 'unassigned') return !t.sectionId;
     return t.sectionId === activeSectionId;
@@ -149,20 +153,25 @@ export default function OwnerDashboard() {
     weekAgo.setDate(weekAgo.getDate() - 7);
     const newCustomers = new Set(visits.filter(v => v.storeId === currentUser.id && new Date(v.date) >= weekAgo).map(v => v.customerId)).size;
     
-    const occupiedTables = myTables.filter(t => t.currentCustomerId);
-    const occupancyRate = myTables.length > 0 ? Math.round((occupiedTables.length / myTables.length) * 100) : 0;
+    const occupiedTables = actualTables.filter(t => t.currentCustomerId);
+    const occupancyRate = actualTables.length > 0 ? Math.round((occupiedTables.length / actualTables.length) * 100) : 0;
     
-    const counts: Record<number, number> = {};
+    const hourCounts: Record<number, number> = {};
     visits.filter(v => v.storeId === currentUser.id).forEach(v => {
       const hour = new Date(v.date).getHours();
-      counts[hour] = (counts[hour] || 0) + 1;
+      hourCounts[hour] = (hourCounts[hour] || 0) + 1;
     });
-    const peakHour = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || '12';
+    const peakHour = Object.entries(hourCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || '12';
     
     const currentDurations = occupiedTables.map(t => (currentTime.getTime() - new Date(t.sessionStartTime!).getTime()) / 60000);
     const avgUsage = currentDurations.length > 0 ? Math.round(currentDurations.reduce((a, b) => a + b, 0) / currentDurations.length) : 45;
 
-    return { newCustomers, occupancyRate, peakTime: `${peakHour}:00`, avgUsage };
+    return { 
+      newCustomers, 
+      occupancyRate, 
+      peakTime: `${peakHour}:00`, 
+      avgUsage 
+    };
   })();
 
   return (
@@ -250,8 +259,8 @@ export default function OwnerDashboard() {
                             onPointerDown={(e) => handlePointerDown(e, table)}
                             onPointerMove={handlePointerMove}
                             onPointerUp={handlePointerUp}
-                            onClick={() => setSelectedTable(table.number)}
-                            className={`absolute flex flex-col items-center justify-center group cursor-pointer ${isOccupied ? 'shadow-lg shadow-primary/20' : 'hover:shadow-xl'} ${isBeingDragged ? 'scale-[1.05] shadow-3xl z-[100] cursor-grabbing !transition-none' : 'duration-300 transition-all'}`}
+                            onClick={() => (isLayoutMode || table.type === 'table' || table.type === 'room') && setSelectedTable(table.number)}
+                            className={`absolute flex flex-col items-center justify-center group cursor-pointer ${isOccupied ? 'shadow-lg shadow-primary/20' : 'hover:shadow-xl'} ${isBeingDragged ? 'scale-[1.05] shadow-3xl z-[100] cursor-grabbing !transition-none' : 'duration-300 transition-all'} ${table.type !== 'table' && table.type !== 'room' && !isLayoutMode ? 'pointer-events-none opacity-60' : ''}`}
                             style={{
                               left: isBeingDragged ? dragPosition?.x : table.x,
                               top: isBeingDragged ? dragPosition?.y : table.y,
@@ -341,8 +350,8 @@ export default function OwnerDashboard() {
            <aside className="fixed inset-y-0 right-0 w-96 bg-white shadow-[-30px_0_60px_rgba(0,0,0,0.1)] z-[60] p-10 flex flex-col border-l border-outline-variant/20 animate-in slide-in-from-right duration-500">
               <div className="flex justify-between items-start mb-10">
                  <div>
-                    <h2 className="text-3xl font-serif font-black text-primary italic mb-1">{selectedTable}번 테이블</h2>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant/40">상태: {activeTable?.currentCustomerId ? '이용 중' : '사용 가능'}</p>
+                    <h2 className="text-3xl font-serif font-black text-primary italic mb-1">{activeTable?.type === 'room' ? '프라이빗 룸' : (activeTable?.type === 'table' ? `${selectedTable}번 테이블` : '실내 인테리어')}</h2>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant/40">상태: {activeTable?.currentCustomerId ? '이용 중' : (activeTable?.type === 'table' || activeTable?.type === 'room' ? '사용 가능' : '인테리어 요소')}</p>
                  </div>
                  <button onClick={() => setSelectedTable(null)} className="p-2 hover:bg-surface-container rounded-full"><X className="w-6 h-6 text-on-surface-variant/30" /></button>
               </div>
@@ -364,7 +373,7 @@ export default function OwnerDashboard() {
                        {isLayoutMode ? (
                           <div className="space-y-6">
                              <div className="bg-surface-container p-8 rounded-[2.5rem] space-y-6">
-                                <h4 className="text-[10px] font-black uppercase tracking-widest text-primary/40">테이블 커스터마이징</h4>
+                                <h4 className="text-[10px] font-black uppercase tracking-widest text-primary/40">레이아웃 및 설정</h4>
                                 <div className="space-y-4">
                                    {[
                                       { label: '가로 크기', field: 'width', val: activeTable?.width || 80 },

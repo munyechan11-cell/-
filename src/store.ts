@@ -57,7 +57,7 @@ export interface Table {
   height?: number;
   seats: number;
   isRoom?: boolean;
-  type?: 'table' | 'room' | 'corridor';
+  type?: 'table' | 'room' | 'corridor' | 'pos' | 'door';
   shape?: 'square' | 'circle';
   sectionId?: string; // New: Section association
   status?: 'available' | 'occupied' | 'paid' | 'dirty'; // New: Toast POS status
@@ -558,7 +558,7 @@ export const useStore = () => {
     }
   };
 
-  const addTable = async (storeId: string, type: 'table' | 'room' | 'corridor' = 'table', sectionId?: string) => {
+  const addTable = async (storeId: string, type: 'table' | 'room' | 'corridor' | 'pos' | 'door' = 'table', sectionId?: string) => {
     const storeTables = globalState.tables.filter((t: any) => t.storeId === storeId);
     const nextNum = storeTables.length > 0 ? Math.max(...storeTables.map((t: any) => t.number)) + 1 : 1;
     const tableId = `${storeId}_${nextNum}`;

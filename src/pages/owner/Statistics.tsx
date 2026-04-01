@@ -18,6 +18,7 @@ export default function OwnerStatistics() {
    if (!currentUser) return null;
 
    const myTables = tables.filter(t => t.storeId === currentUser.id);
+   const actualTables = myTables.filter(t => t.type === 'table');
 
    // Real-time calculation for Stats Cards
    const { newCustomersInWeek, avgUsageTime, peakTimeString, occupancyRate } = useMemo(() => {
@@ -32,7 +33,7 @@ export default function OwnerStatistics() {
     ).length;
 
     // 2. 평균 이용시간
-    const occupiedTables = myTables.filter(t => t.currentCustomerId && t.sessionStartTime);
+    const occupiedTables = actualTables.filter(t => t.currentCustomerId && t.sessionStartTime);
     const currentDurations = occupiedTables.map(t => (Date.now() - new Date(t.sessionStartTime!).getTime()) / 60000);
     const avgUsage = currentDurations.length > 0 ? Math.round(currentDurations.reduce((a, b) => a + b, 0) / currentDurations.length) : 45;
 
@@ -46,7 +47,7 @@ export default function OwnerStatistics() {
     const peakHour = Object.entries(hourCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || '12';
 
     // 4. 가동률
-    const occupancy = myTables.length > 0 ? Math.round((occupiedTables.length / myTables.length) * 100) : 0;
+    const occupancy = actualTables.length > 0 ? Math.round((occupiedTables.length / actualTables.length) * 100) : 0;
 
     return { 
       newCustomersInWeek: newCustomers, 
@@ -54,7 +55,7 @@ export default function OwnerStatistics() {
       peakTimeString: `${peakHour}:30`, 
       occupancyRate: occupancy 
     };
-   }, [users, visits, tables, currentUser.id]);
+   }, [users, visits, tables, currentUser.id, actualTables]);
 
   const handleLogout = () => {
     navigate('/');
@@ -98,14 +99,13 @@ export default function OwnerStatistics() {
       const slice = visitsPerDay.slice(i, i + bucketSize);
       const count = slice.reduce((a, b) => a + b, 0);
       const date = new Date(chartDays[i]);
-      const label = `${date.getMonth() + 1}/${date.getDate()}`;
-      buckets.push({ label, count });
+      buckets.push({
+        label: `${date.getMonth() + 1}/${date.getDate()}`,
+        count
+      });
     }
     return buckets;
   }, [chartDays, visitsPerDay]);
-
-  const maxBucketCount = useMemo(() => Math.max(...chartBuckets.map(b => b.count), 1), [chartBuckets]);
-  const rangeOptions: DateRange[] = ['7일', '30일', '전체'];
 
   return (
     <div className="flex h-screen overflow-hidden bg-surface-bright font-sans text-on-surface selection:bg-primary/20">
@@ -140,109 +140,27 @@ export default function OwnerStatistics() {
 
       {/* Main Workspace Area */}
       <main className="ml-20 lg:ml-64 flex-1 h-screen flex flex-col overflow-hidden">
-        {/* Header */}
         <header className="bg-white/90 backdrop-blur-md sticky top-0 z-40 flex justify-between items-center w-full px-8 py-4 border-b border-outline-variant/30">
-          <div className="flex items-center gap-12">
-            <span className="font-serif text-2xl font-bold text-primary">매장 통계</span>
-            <div className="flex bg-surface-container p-1 rounded-xl">
-              {rangeOptions.map(range => (
-                <button
-                  key={range}
-                  onClick={() => setSelectedRange(range)}
-                  className={`px-6 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${selectedRange === range ? 'bg-white text-primary shadow-sm' : 'text-on-surface-variant/40 hover:text-primary'}`}
-                >
-                  {range}
-                </button>
-              ))}
-            </div>
+          <div className="flex items-center gap-4">
+             <span className="font-serif text-2xl font-bold text-primary">매장 비즈니스 리포트</span>
+             <div className="hidden sm:flex bg-surface-container p-1 rounded-lg ml-6">
+                {['7일', '30일', '전체'].map(range => (
+                   <button
+                     key={range}
+                     onClick={() => setSelectedRange(range as DateRange)}
+                     className={`px-4 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest transition-all ${selectedRange === range ? 'bg-white text-primary shadow-sm' : 'text-on-surface-variant/40 hover:text-primary'}`}
+                   >
+                      {range}
+                   </button>
+                ))}
+             </div>
           </div>
+          <button className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-primary/60 hover:text-primary transition-colors">
+            보고서 추출 <ChevronRight className="w-4 h-4" />
+          </button>
         </header>
 
-        <div className="p-8 space-y-12 flex-1 overflow-y-auto no-scrollbar">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-            <div>
-               <h2 className="text-4xl font-serif font-black text-primary tracking-tight italic">성과의 기록</h2>
-               <p className="text-on-surface-variant/60 text-[11px] font-bold uppercase tracking-widest mt-2">{currentUser.restaurantName}의 비즈니스 인사이트입니다.</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-10">
-            {/* Main Bar Chart */}
-            <div className="xl:col-span-2 bg-white rounded-[2rem] p-10 shadow-sm border border-outline-variant/30 relative overflow-hidden group">
-               <div className="flex justify-between items-start mb-12">
-                  <div>
-                     <h3 className="text-2xl font-serif font-black text-primary italic">손님 방문 추이</h3>
-                     <p className="text-[10px] font-bold text-on-surface-variant/40 uppercase tracking-widest mt-1">{selectedRange}간의 방문 횟수 집계</p>
-                  </div>
-                  <div className="text-right">
-                     <p className="text-3xl font-serif font-black text-primary">{totalVisitsInRange}</p>
-                     <p className="text-[10px] font-bold text-on-surface-variant/40 uppercase tracking-widest mt-1">총 방문</p>
-                  </div>
-               </div>
-
-               <div className="flex items-end justify-between h-64 gap-4 mt-6">
-                 {chartBuckets.map((bucket, i) => {
-                   const heightPercentage = Math.round((bucket.count / maxBucketCount) * 100);
-                   return (
-                     <div key={i} className="flex flex-col items-center flex-1 h-full group">
-                       <div className="w-full relative flex justify-center items-end flex-1 bg-surface-container rounded-2xl overflow-hidden hover:bg-surface-container-highest transition-colors">
-                         <div 
-                           className="w-full bg-primary transition-all duration-1000 ease-out"
-                           style={{ height: bucket.count > 0 ? `${heightPercentage}%` : '4px' }}
-                         ></div>
-                         {bucket.count > 0 && (
-                           <div className="absolute top-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <span className="text-[9px] font-black text-primary/40">{bucket.count}</span>
-                           </div>
-                         )}
-                       </div>
-                       <span className="text-[9px] font-bold text-on-surface-variant/40 uppercase tracking-widest mt-4">{bucket.label}</span>
-                     </div>
-                   );
-                 })}
-               </div>
-            </div>
-
-            {/* Side Stats */}
-            <div className="space-y-8">
-               <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-outline-variant/30 flex flex-col justify-between">
-                  <div>
-                    <Ticket className="w-10 h-10 text-primary opacity-20 mb-6" />
-                    <h3 className="text-xl font-serif font-black text-primary italic mb-6">쿠폰 이용률</h3>
-                    <div className="grid grid-cols-2 gap-4 mb-6">
-                      <div className="p-4 bg-surface-container rounded-2xl border border-outline-variant/30">
-                        <p className="text-[9px] font-bold text-on-surface-variant/40 uppercase mb-1">발급</p>
-                        <p className="text-2xl font-serif font-black text-primary">{storeCoupons.length}</p>
-                      </div>
-                      <div className="p-4 bg-surface-container rounded-2xl border border-outline-variant/30">
-                        <p className="text-[9px] font-bold text-on-surface-variant/40 uppercase mb-1">사용</p>
-                        <p className="text-2xl font-serif font-black text-primary">{usedCouponsCount}</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-[10px] font-bold text-on-surface-variant/40 uppercase">
-                      <span>전환 효율</span>
-                      <span>{storeCoupons.length > 0 ? Math.round((usedCouponsCount / storeCoupons.length) * 100) : 0}%</span>
-                    </div>
-                    <div className="h-2 bg-surface-container rounded-full overflow-hidden">
-                       <div className="h-full bg-primary" style={{ width: `${storeCoupons.length > 0 ? (usedCouponsCount / storeCoupons.length) * 100 : 0}%` }}></div>
-                    </div>
-                  </div>
-               </div>
-
-               <div className="bg-primary p-8 rounded-[2rem] shadow-xl text-white relative overflow-hidden group">
-                  <div className="relative z-10">
-                    <h3 className="text-xl font-serif font-black italic mb-6">사장님을 위한 제안</h3>
-                    <p className="text-sm font-sans leading-relaxed opacity-80">
-                      최근 7일간 단골 손님의 방문 비율이 12% 증가했습니다. 저녁 시간대의 회전율을 높여보세요.
-                    </p>
-                  </div>
-                  <div className="absolute top-0 right-0 w-32 h-16 bg-white/5 rounded-full -mr-16 -mt-16 group-hover:scale-110 transition-transform duration-700"></div>
-               </div>
-            </div>
-          </div>
-
+        <div className="flex-1 overflow-y-auto no-scrollbar p-8 space-y-12 pb-24">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
              {[
                { icon: Users, label: '신규 단골', value: `${newCustomersInWeek}명`, trend: '최근' },
@@ -259,6 +177,73 @@ export default function OwnerStatistics() {
                   </div>
                </div>
              ))}
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+             <div className="lg:col-span-2 bg-white p-10 rounded-[2.5rem] border border-outline-variant/30 shadow-sm space-y-10">
+                <div className="flex justify-between items-start">
+                   <div>
+                      <h3 className="text-2xl font-serif font-black text-primary italic">방문 트렌드</h3>
+                      <p className="text-[10px] font-bold text-on-surface-variant/40 uppercase tracking-widest mt-1">최근 요일별 방문자 현황</p>
+                   </div>
+                   <div className="text-right">
+                      <p className="text-xs font-bold text-primary">{totalVisitsInRange} Visits</p>
+                      <p className="text-[9px] font-bold text-emerald-500 uppercase tracking-tighter">Growth: +12.4%</p>
+                   </div>
+                </div>
+                
+                <div className="h-64 flex items-end justify-between gap-2 px-2">
+                   {chartBuckets.map((bucket, idx) => (
+                      <div key={idx} className="flex-1 flex flex-col items-center gap-4 group">
+                         <div className="relative w-full flex flex-col items-center justify-end h-48">
+                            <div 
+                              className="w-full bg-surface-container group-hover:bg-primary/20 rounded-t-xl transition-all duration-500 relative"
+                              style={{ 
+                                height: totalVisitsInRange > 0 ? `${(bucket.count / Math.max(...chartBuckets.map(b => b.count))) * 100}%` : '4px' 
+                              }}
+                            >
+                               <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-primary text-white text-[9px] font-black px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                                  {bucket.count}명
+                               </div>
+                            </div>
+                         </div>
+                         <span className="text-[9px] font-bold text-on-surface-variant/40 uppercase tracking-widest">{bucket.label}</span>
+                      </div>
+                   ))}
+                </div>
+             </div>
+
+             <div className="bg-primary p-12 rounded-[2.5rem] text-white flex flex-col gap-10 shadow-2xl relative overflow-hidden group">
+                <div className="relative z-10">
+                   <h3 className="text-3xl font-serif font-black italic">Marketing Effect</h3>
+                   <p className="text-sm opacity-60 mt-2 font-serif">쿠폰 발행을 통한 방문 유도 효과</p>
+                </div>
+                
+                <div className="relative z-10 flex-1 flex flex-col justify-center gap-12">
+                   <div className="space-y-4">
+                      <p className="text-[10px] font-bold uppercase tracking-widest opacity-40">쿠폰 회수 현황</p>
+                      <div className="flex items-end gap-3">
+                         <span className="text-6xl font-serif font-black italic">{usedCouponsCount}</span>
+                         <span className="text-sm font-serif mb-2 opacity-60">Collects</span>
+                      </div>
+                   </div>
+                   
+                   <div className="space-y-6">
+                      <div className="h-1 bg-white/10 rounded-full overflow-hidden">
+                         <div 
+                           className="h-full bg-white transition-all duration-1000 ease-out" 
+                           style={{ width: `${Math.min(100, (usedCouponsCount / Math.max(1, storeCoupons.length)) * 100)}%` }}
+                         />
+                      </div>
+                      <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest opacity-40">
+                         <span>Active Potential</span>
+                         <span>{Math.round((usedCouponsCount / Math.max(1, storeCoupons.length)) * 100)}%</span>
+                      </div>
+                   </div>
+                </div>
+
+                <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-32 -mt-32 group-hover:scale-110 transition-transform duration-1000"></div>
+             </div>
           </div>
         </div>
       </main>
