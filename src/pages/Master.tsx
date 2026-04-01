@@ -142,12 +142,48 @@ export default function Master() {
         </header>
 
         <div className="p-12 space-y-12 flex-1 overflow-y-auto no-scrollbar">
+           {/* Governance Summary Bar */}
+           <div className="grid grid-cols-4 gap-6">
+              {[
+                { label: '활성 계정', value: activeCount, color: 'text-emerald-500' },
+                { label: '탈퇴 계정', value: deletedCount, color: 'text-burgundy/40' },
+                { label: '구글 인증', value: googleCount, color: 'text-blue-500' },
+                { label: '카카오 인증', value: kakaoCount, color: 'text-[#3c1e1e]' }
+              ].map((stat, i) => (
+                <div key={i} className="bg-white p-6 rounded-[2rem] border border-outline-variant/30 shadow-sm flex flex-col justify-center items-center">
+                   <p className="text-[9px] font-black uppercase tracking-widest text-on-surface-variant/40 mb-1">{stat.label}</p>
+                   <p className={`text-2xl font-serif font-black italic ${stat.color}`}>{stat.value}</p>
+                </div>
+              ))}
+           </div>
+
            <div className="flex justify-between items-end">
               <div>
                  <h2 className="text-5xl font-serif font-black text-primary italic tracking-tight">{activeTab === 'owners' ? '가맹점 네트워크' : '전체 손님 기록'}</h2>
                  <p className="text-on-surface-variant/60 text-[11px] font-bold uppercase tracking-widest mt-2">{activeTab === 'owners' ? '모든 결 파트너 매장의 현황입니다.' : '플랫폼 전체 손님의 통합 데이터베이스입니다.'}</p>
               </div>
-              <div className="flex gap-4">
+              <div className="flex gap-4 items-center">
+                 <div className="flex gap-2">
+                   <select 
+                     value={statusFilter} 
+                     onChange={(e) => setStatusFilter(e.target.value as any)}
+                     className="bg-white border border-outline-variant/30 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest text-primary shadow-sm outline-none"
+                   >
+                     <option value="all">모든 상태</option>
+                     <option value="active">활성 계정</option>
+                     <option value="deleted">탈퇴 계정</option>
+                   </select>
+                   <select 
+                     value={authFilter} 
+                     onChange={(e) => setAuthFilter(e.target.value as any)}
+                     className="bg-white border border-outline-variant/30 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest text-primary shadow-sm outline-none"
+                   >
+                     <option value="all">모든 인증</option>
+                     <option value="phone">전화번호</option>
+                     <option value="google">구글</option>
+                     <option value="kakao">카카오</option>
+                   </select>
+                 </div>
                  <div className="p-8 bg-white rounded-3xl border border-outline-variant/30 text-right shadow-sm">
                     <p className="text-[9px] font-bold text-on-surface-variant/40 uppercase mb-1">{activeTab === 'owners' ? '등록 매장' : '총 손님'}</p>
                     <p className="text-4xl font-serif font-black text-primary">{activeTab === 'owners' ? owners.length : customersList.length}</p>

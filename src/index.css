@@ -67,5 +67,35 @@ body {
 }
 
 .clean-shadow {
-  box-shadow: 0 4px 20px -2px rgba(74, 14, 14, 0.08);
+  box-shadow: 0 4px 15px rgba(74, 14, 14, 0.05);
+}
+
+/* Glassmorphism Refinement */
+.glass-effect {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px) saturate(180%);
+  border: 1px solid rgba(74, 14, 14, 0.1);
+}
+
+/* Shimmer Animation (Skeleton Loaders) */
+@keyframes shimmer {
+  0% { background-position: -468px 0; }
+  100% { background-position: 468px 0; }
+}
+
+.animate-shimmer {
+  background: linear-gradient(to right, #f6f7f8 8%, #edeef1 18%, #f6f7f8 33%);
+  background-size: 800px 104px;
+  animation: shimmer 1.5s linear infinite forwards;
+}
+
+/* Pulse Highlight (Real-time Events) */
+@keyframes pulse-premium {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(74, 14, 14, 0.4); }
+  70% { transform: scale(1.05); box-shadow: 0 0 20px 10px rgba(74, 14, 14, 0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(74, 14, 14, 0); }
+}
+
+.animate-pulse-premium {
+  animation: pulse-premium 2s infinite ease-out;
 }

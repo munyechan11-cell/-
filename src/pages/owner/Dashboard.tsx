@@ -7,7 +7,7 @@ import {
   TrendingUp, Calendar, History, Store,
   Utensils, Hourglass, GripVertical, Monitor,
   User, Mail, Settings as SettingsIcon, ShieldAlert,
-  Send, ChevronRight
+  Send, ChevronRight, Activity, Zap
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
@@ -349,17 +349,20 @@ export default function OwnerDashboard() {
         <div className="flex-1 overflow-hidden flex flex-col p-8 space-y-8">
           <div className="grid grid-cols-4 gap-6">
             {[
-              { label: '신규 단골 (7일)', value: `${stats.newCustomers}명`, icon: TrendingUp },
-              { label: '평균 이용 시간', value: `${stats.avgUsage}분`, icon: Hourglass },
-              { label: '현재 가동률', value: `${stats.occupancyRate}%`, icon: BarChart3 },
-              { label: '피크 타임', value: stats.peakTime, icon: Clock }
+              { label: '실시간 가동률', value: `${stats.occupancyRate}%`, icon: Activity, sub: `${actualTables.filter(t => t.currentCustomerId).length}/${actualTables.length}` },
+              { label: '평균 체류 시간', value: `${stats.avgUsage}분`, icon: Hourglass, sub: '현재 기준' },
+              { label: '금일 신규 단골', value: `${stats.newCustomers}명`, icon: TrendingUp, sub: '최근 7일' },
+              { label: '매장 혼잡도', value: stats.occupancyRate > 80 ? '혼잡' : (stats.occupancyRate > 40 ? '여유' : '쾌적'), icon: Zap, sub: stats.peakTime }
             ].map((s, i) => (
-              <div key={i} className="bg-white p-6 rounded-[2rem] border border-outline-variant/30 flex items-center justify-between shadow-sm">
+              <div key={i} className="bg-white p-6 rounded-[2.5rem] border border-outline-variant/30 flex items-center justify-between shadow-sm group hover:border-primary transition-all">
                 <div>
                   <p className="text-[10px] font-bold text-on-surface-variant/40 uppercase mb-1">{s.label}</p>
-                  <p className="text-3xl font-serif font-black text-primary italic">{s.value}</p>
+                  <div className="flex items-baseline gap-2">
+                     <p className="text-3xl font-serif font-black text-primary italic">{s.value}</p>
+                     <p className="text-[9px] font-bold text-primary/30 uppercase">{s.sub}</p>
+                  </div>
                 </div>
-                <div className="p-4 bg-primary/5 rounded-2xl text-primary"><s.icon className="w-6 h-6" /></div>
+                <div className="p-4 bg-primary/5 rounded-2xl text-primary group-hover:bg-primary group-hover:text-white transition-all"><s.icon className="w-6 h-6" /></div>
               </div>
             ))}
           </div>
@@ -403,7 +406,20 @@ export default function OwnerDashboard() {
                             {table.type === 'room' && <div className="absolute top-4 left-8 text-[11px] font-black uppercase text-primary/30 tracking-widest">프라이빗 룸</div>}
                             
                             {table.type === 'table' && <span className={`text-xl font-serif font-black italic ${isOccupied ? 'text-white' : 'text-primary'}`}>{table.number}</span>}
-                            {isOccupied && <div className="absolute top-2 right-2 w-2 h-2 bg-emerald-400 rounded-full"></div>}
+                            {isOccupied && (
+                                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                   <div className="absolute top-2 right-2 w-2 h-2 bg-emerald-400 rounded-full"></div>
+                                   <div className="mt-8 px-2 py-1 bg-white/10 rounded-full backdrop-blur-sm border border-white/20">
+                                      <p className="text-[9px] font-black text-white/60 tracking-widest leading-none">
+                                         {(() => {
+                                            const start = new Date(table.sessionStartTime!);
+                                            const diff = Math.floor((currentTime.getTime() - start.getTime()) / 60000);
+                                            return `${diff}M`;
+                                         })()}
+                                      </p>
+                                   </div>
+                                </div>
+                             )}
 
                             {isLayoutMode && !isOccupied && (
                                <>

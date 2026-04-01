@@ -7,7 +7,7 @@ import {
   TrendingUp, Clock, MapPin, Search, Filter,
   ChevronRight, Activity, Zap, Store as StoreIcon,
   ArrowUpRight, QrCode, User, Settings as SettingsIcon,
-  ShieldAlert, Trash2, Mail
+  ShieldAlert, Trash2, Mail, History
 } from 'lucide-react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import MemoModal, { formatMemoDisplay } from '../../components/MemoModal';
@@ -103,30 +103,52 @@ export default function CustomerDashboard() {
         {/* Content */}
         <div className="p-6 space-y-8 flex-1">
           {/* Welcome Bento Card */}
-          <section className="bg-primary p-8 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden group">
+          <section className="glass-effect p-8 rounded-[3rem] text-primary shadow-2xl relative overflow-hidden group border-none">
              <div className="relative z-10 flex flex-col gap-6">
                 <div className="flex justify-between items-start">
-                   <div>
-                      <h2 className="text-2xl font-serif font-bold italic mb-1">반가워요, {currentUser.name}님!</h2>
-                      <p className="text-xs opacity-70">오늘도 결에서 좋은 시간 보내세요.</p>
+                   <div className="flex gap-4 items-center">
+                      <div className="w-16 h-16 rounded-3xl bg-primary/5 flex items-center justify-center overflow-hidden border border-primary/10 shadow-inner">
+                         {currentUser.avatarUrl ? (
+                            <img src={currentUser.avatarUrl} className="w-full h-full object-cover" alt="" />
+                         ) : (
+                            <User className="w-8 h-8 text-primary opacity-20" />
+                         )}
+                      </div>
+                      <div>
+                         <h2 className="text-2xl font-serif font-black italic mb-1">반가워요, {currentUser.name}님!</h2>
+                         <p className="text-[10px] font-bold text-primary/40 uppercase tracking-widest">오늘도 {restaurantName}에서 즐거운 시간 되세요.</p>
+                      </div>
                    </div>
-                   <div className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest shadow-lg ${getTierColor(currentTier)} text-white`}>
+                   <div className={`px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg ${getTierColor(currentTier)} text-white animate-pulse-premium`}>
                       {getTierCustomName(currentTier, owner?.tierNames)}
                    </div>
                 </div>
                 
-                <div className="flex items-center gap-4 bg-white/10 p-4 rounded-2xl border border-white/10">
-                   <div className="p-3 bg-white/10 rounded-xl"><Activity className="w-5 h-5" /></div>
+                <div className="grid grid-cols-2 gap-4">
+                   <div className="bg-white/40 backdrop-blur-sm p-6 rounded-[2rem] border border-primary/5 flex flex-col gap-1 items-center justify-center">
+                      <p className="text-4xl font-serif font-black italic">{myVisits.length}</p>
+                      <p className="text-[8px] font-black uppercase opacity-40">Total Visits</p>
+                   </div>
+                   <div className="bg-primary p-6 rounded-[2rem] text-white flex flex-col gap-1 items-center justify-center shadow-xl shadow-primary/20">
+                      <p className="text-4xl font-serif font-black italic">{myCoupons.length}</p>
+                      <p className="text-[8px] font-black uppercase opacity-40">Active Rewards</p>
+                   </div>
+                </div>
+
+                <div className="flex items-center gap-4 bg-primary/5 p-5 rounded-[2rem] border border-primary/5">
+                   <div className="p-3 bg-primary/5 rounded-2xl"><Activity className="w-5 h-5" /></div>
                    <div className="flex-1">
-                      <p className="text-[10px] font-bold uppercase tracking-widest opacity-60 mb-1">다음 등급까지</p>
-                      <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
-                         <div className="h-full bg-white" style={{ width: `${Math.min((uniqueVisitDays / (uniqueVisitDays + getNextTierVisits(uniqueVisitDays))) * 100, 100)}%` }}></div>
+                      <div className="flex justify-between items-center mb-2">
+                         <p className="text-[10px] font-black uppercase tracking-widest opacity-40">등급 성장률</p>
+                         <p className="text-[10px] font-black text-primary">{Math.min(uniqueVisitDays, (uniqueVisitDays + getNextTierVisits(uniqueVisitDays)))} / {uniqueVisitDays + getNextTierVisits(uniqueVisitDays)}일</p>
+                      </div>
+                      <div className="h-2 bg-primary/5 rounded-full overflow-hidden">
+                         <div className="h-full bg-primary transition-all duration-1000 ease-out" style={{ width: `${Math.min((uniqueVisitDays / (uniqueVisitDays + getNextTierVisits(uniqueVisitDays))) * 100, 100)}%` }}></div>
                       </div>
                    </div>
-                   <span className="text-xs font-bold">{getNextTierVisits(uniqueVisitDays)}일 남음</span>
                 </div>
              </div>
-             <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full -mr-24 -mt-24 group-hover:scale-110 transition-transform duration-1000"></div>
+             <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full -mr-32 -mt-32 group-hover:scale-110 transition-transform duration-1000"></div>
           </section>
 
           {/* Table Assignment Info */}
@@ -186,6 +208,41 @@ export default function CustomerDashboard() {
                         </div>
                      </button>
                    ))}
+                </div>
+             )}
+          </section>
+
+          {/* Visit History Log */}
+          <section className="space-y-4">
+             <div className="flex justify-between items-center">
+                <h3 className="font-serif font-black text-xl italic text-primary">방문 기록</h3>
+                <span className="text-[10px] font-bold uppercase text-primary/40 leading-none">{myVisits.length}회</span>
+             </div>
+             
+             {myVisits.length === 0 ? (
+                <div className="bg-white py-12 rounded-[2rem] border border-dashed border-[#e5dcd3] text-center">
+                   <History className="w-10 h-10 text-on-surface-variant/20 mx-auto mb-4" />
+                   <p className="text-[10px] font-bold text-on-surface-variant/40 uppercase tracking-widest">첫 방문을 기다리고 있어요!</p>
+                </div>
+             ) : (
+                <div className="bg-white rounded-[2rem] border border-[#e5dcd3] overflow-hidden shadow-sm">
+                   {myVisits.slice(0, 5).map((visit, idx) => (
+                      <div key={visit.id} className={`p-4 flex justify-between items-center ${idx !== 0 ? 'border-t border-outline-variant/10' : ''}`}>
+                         <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-primary/40"><Clock className="w-4 h-4" /></div>
+                            <div>
+                               <p className="text-xs font-bold text-primary">{new Date(visit.date).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })}</p>
+                               <p className="text-[8px] font-bold text-on-surface-variant/40 uppercase tracking-tighter">{visit.tableNumber}번 테이블 이용</p>
+                            </div>
+                         </div>
+                         <div className="text-[10px] font-black text-primary/20 italic">#{myVisits.length - idx}</div>
+                      </div>
+                   ))}
+                   {myVisits.length > 5 && (
+                      <div className="p-3 bg-surface-container/30 text-center">
+                         <p className="text-[8px] font-bold text-on-surface-variant/40 uppercase tracking-widest">최근 5개 항목만 표시됩니다</p>
+                      </div>
+                   )}
                 </div>
              )}
           </section>
@@ -358,9 +415,9 @@ export default function CustomerDashboard() {
                                <span className="text-xs font-bold text-[#3c1e1e]">Kakao</span>
                             </div>
                             {currentUser.linkedProviders?.includes('kakao') ? (
-                              <span className="text-[10px] font-black text-[#3c1e1e] uppercase bg-[#FEE500] px-3 py-1 rounded-full">LINKED</span>
+                               <span className="text-[10px] font-black text-[#3c1e1e] uppercase bg-[#FEE500] px-3 py-1 rounded-full">LINKED</span>
                             ) : (
-                              <span className="text-[10px] font-black text-[#3c1e1e]/40 uppercase text-xs">계정 연동</span>
+                               <span className="text-[10px] font-black text-[#3c1e1e]/40 uppercase text-xs">계정 연동</span>
                             )}
                          </button>
                       </div>

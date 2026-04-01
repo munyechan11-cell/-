@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useStore } from '../../store';
 import { 
   Users, LayoutGrid, BarChart3, TrendingUp, Ticket, 
@@ -166,7 +166,7 @@ export default function OwnerStatistics() {
                { icon: Users, label: '신규 단골', value: `${newCustomersInWeek}명`, trend: '최근' },
                { icon: Clock, label: '평균 이용시간', value: `${avgUsageTime}분`, trend: '안정' },
                { icon: MapPin, label: '피크 시간대', value: peakTimeString, trend: '예측' },
-               { icon: Activity, label: '매장 가동률', value: `${occupancyRate}%`, icon2: Activity, trend: '양호' }
+               { icon: Activity, label: '매장 가동률', value: `${occupancyRate}%`, trend: '양호' }
              ].map((item, idx) => (
                <div key={idx} className="bg-white p-8 rounded-2xl border border-outline-variant/30 shadow-sm flex flex-col group hover:border-primary transition-all duration-500">
                   <item.icon className="w-8 h-8 text-primary opacity-20 group-hover:opacity-100 transition-opacity mb-6" />
@@ -193,23 +193,31 @@ export default function OwnerStatistics() {
                 </div>
                 
                 <div className="h-64 flex items-end justify-between gap-2 px-2">
-                   {chartBuckets.map((bucket, idx) => (
-                      <div key={idx} className="flex-1 flex flex-col items-center gap-4 group">
-                         <div className="relative w-full flex flex-col items-center justify-end h-48">
-                            <div 
-                              className="w-full bg-surface-container group-hover:bg-primary/20 rounded-t-xl transition-all duration-500 relative"
-                              style={{ 
-                                height: totalVisitsInRange > 0 ? `${(bucket.count / Math.max(...chartBuckets.map(b => b.count))) * 100}%` : '4px' 
-                              }}
-                            >
-                               <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-primary text-white text-[9px] font-black px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                                  {bucket.count}명
-                               </div>
-                            </div>
-                         </div>
-                         <span className="text-[9px] font-bold text-on-surface-variant/40 uppercase tracking-widest">{bucket.label}</span>
-                      </div>
-                   ))}
+                   {chartBuckets.map((bucket, idx) => {
+                      const maxVal = Math.max(...chartBuckets.map(b => b.count));
+                      const heightPercent = totalVisitsInRange > 0 ? (bucket.count / maxVal) * 100 : 4;
+                      return (
+                        <div key={idx} className="flex-1 flex flex-col items-center gap-4 group h-full justify-end">
+                           <div className="relative w-full flex flex-col items-center justify-end h-48 group">
+                              <div 
+                                className={`w-full bg-surface-container rounded-t-xl transition-all duration-700 ease-out relative ${bucket.count === maxVal ? 'bg-primary/20' : 'hover:bg-primary/10'}`}
+                                style={{ height: `${heightPercent}%` }}
+                              >
+                                 <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-primary text-white text-[10px] font-black px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all shadow-xl -translate-y-2 group-hover:translate-y-0 whitespace-nowrap z-50">
+                                    <div className="mb-0.5 opacity-60 text-[7px] uppercase">{bucket.label}</div>
+                                    {bucket.count}명 방문
+                                 </div>
+                                 {bucket.count === maxVal && bucket.count > 0 && (
+                                   <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-primary animate-bounce">
+                                      <TrendingUp className="w-4 h-4" />
+                                   </div>
+                                 )}
+                              </div>
+                           </div>
+                           <span className="text-[9px] font-black text-on-surface-variant/40 uppercase tracking-widest">{bucket.label}</span>
+                        </div>
+                      );
+                   })}
                 </div>
              </div>
 
