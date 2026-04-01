@@ -235,7 +235,6 @@ export default function OwnerDashboard() {
                     className="relative origin-top-left transition-transform duration-300" 
                     style={{ minWidth: '1200px', minHeight: '1000px', transform: `scale(${zoom})` }}
                    >
-
                       {filteredTables.map(table => {
                         const isOccupied = table.currentCustomerId !== null;
                         const isBeingDragged = draggedTable === table.number;
@@ -260,18 +259,30 @@ export default function OwnerDashboard() {
                             }}
                           >
                             {isLayoutMode && !isOccupied && (
-                               <div className="absolute top-2 left-1/2 -translate-x-1/2 opacity-40 group-hover:opacity-100 transition-opacity">
-                                  <GripVertical className="w-4 h-4 text-primary" />
-                               </div>
+                               <>
+                                  <div className="absolute top-2 left-1/2 -translate-x-1/2 opacity-40 group-hover:opacity-100 transition-opacity">
+                                     <GripVertical className="w-4 h-4 text-primary" />
+                                  </div>
+                                  {!isBeingDragged && (
+                                     <>
+                                        <button 
+                                          onClick={(e) => { e.stopPropagation(); deleteTable(currentUser.id, table.number); }} 
+                                          className="absolute top-2 left-2 p-1.5 bg-burgundy/10 text-burgundy rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-burgundy hover:text-white"
+                                        >
+                                          <Trash2 className="w-3 h-3" />
+                                        </button>
+                                        <button 
+                                          onClick={(e) => { e.stopPropagation(); setSelectedTable(table.number); }} 
+                                          className={`absolute top-2 right-2 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity ${selectedTable === table.number ? 'bg-primary text-white opacity-100' : 'bg-primary/10 text-primary hover:bg-primary hover:text-white'}`}
+                                        >
+                                          <Settings className="w-3 h-3" />
+                                        </button>
+                                     </>
+                                  )}
+                               </>
                             )}
                             <span className={`text-xl font-serif font-black italic ${isOccupied ? 'text-white' : 'text-primary'}`}>{table.number}</span>
                             {isOccupied && <div className="absolute top-2 right-2 w-2 h-2 bg-emerald-400 rounded-full"></div>}
-                            {isLayoutMode && !isOccupied && !isBeingDragged && (
-                               <div className="absolute inset-0 bg-primary/90 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 rounded-inherit transition-opacity">
-                                  <button onClick={(e) => { e.stopPropagation(); deleteTable(currentUser.id, table.number); }} className="p-1.5 bg-white/10 rounded-lg"><Trash2 className="w-3 h-3 text-white" /></button>
-                                  <button onClick={(e) => { e.stopPropagation(); setSelectedTable(table.number); }} className="p-1.5 bg-white/10 text-white rounded-lg"><Settings className="w-3 h-3" /></button>
-                               </div>
-                            )}
                           </div>
                         );
                       })}
