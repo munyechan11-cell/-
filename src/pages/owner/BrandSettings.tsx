@@ -71,7 +71,7 @@ export default function BrandSettings() {
                 <StoreIcon className="w-full h-full p-2 text-white/40" />
              </div>
              <div>
-                <p className="text-[#fcfcfc] font-serif italic text-sm truncate">{currentUser.restaurantName || '나의 공방'}</p>
+                <p className="text-[#fcfcfc] font-serif italic text-sm truncate">{currentUser.restaurantName || '나의 매장'}</p>
                 <p className="text-[#fcfcfc]/50 font-sans uppercase tracking-widest text-[10px]">사장님 관리 시스템</p>
              </div>
           </div>
@@ -121,7 +121,7 @@ export default function BrandSettings() {
            <div className="max-w-4xl space-y-12">
               <section>
                  <h2 className="text-3xl font-serif font-black text-primary italic mb-2">단골 등급 체계</h2>
-                 <p className="text-on-surface-variant/60 text-sm mb-10">손님들의 등급별 명령과 혜택을 사장님만의 스타일로 정의해 보세요.</p>
+                 <p className="text-on-surface-variant/60 text-sm mb-10">손님들의 등급별 명칭과 혜택을 사장님만의 스타일로 정의해 보세요.</p>
                  
                  <div className="space-y-6">
                     {tiers.map((tier) => (

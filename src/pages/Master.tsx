@@ -17,6 +17,7 @@ export default function Master() {
   const [activeTab, setActiveTab] = useState<'owners' | 'customers'>('owners');
   const [searchTerm, setSearchTerm] = useState('');
   const [deletingUser, setDeletingUser] = useState<{ id: string; role: 'owner' | 'customer'; name: string } | null>(null);
+  const [selectedOwnerId, setSelectedOwnerId] = useState<string | null>(null);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -145,13 +146,17 @@ export default function Master() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-outline-variant/20">
-                   {activeTab === 'owners' ? filteredOwners.map(owner => (
-                     <tr key={owner.id} className="hover:bg-surface-container transition-colors group">
+                   {activeTab === 'owners' ? filteredOwners.flatMap(owner => [
+                     <tr 
+                        key={owner.id} 
+                        onClick={() => setSelectedOwnerId(selectedOwnerId === owner.id ? null : owner.id)}
+                        className={`hover:bg-surface-container transition-colors group cursor-pointer ${selectedOwnerId === owner.id ? 'bg-surface-container' : ''}`}
+                     >
                         <td className="px-10 py-8">
                            <div className="flex items-center gap-6">
-                              <div className="w-14 h-14 bg-surface-container rounded-2xl flex items-center justify-center text-primary/30 group-hover:bg-primary group-hover:text-white transition-all"><Store className="w-7 h-7" /></div>
+                              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${selectedOwnerId === owner.id ? 'bg-primary text-white' : 'bg-surface-container text-primary/30 group-hover:bg-primary group-hover:text-white'}`}><Store className="w-7 h-7" /></div>
                               <div>
-                                 <p className="text-xl font-serif font-black text-primary italic">{owner.restaurantName || '공방'}</p>
+                                 <p className="text-xl font-serif font-black text-primary italic">{owner.restaurantName || '매장'}</p>
                                  <p className="text-[10px] font-bold text-on-surface-variant/30 uppercase tracking-widest mt-1">ID: {owner.id}</p>
                               </div>
                            </div>
@@ -159,10 +164,37 @@ export default function Master() {
                         <td className="px-10 py-8 text-sm font-bold text-primary">{owner.name} 사장님</td>
                         <td className="px-10 py-8"><span className="text-[10px] font-bold uppercase text-emerald-500 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">운영 중</span></td>
                         <td className="px-10 py-8 text-right flex justify-end gap-2">
-                           <button onClick={() => handleDeleteUser(owner.id, 'owner', owner.name)} className="p-3 bg-burgundy/5 text-burgundy rounded-xl hover:bg-burgundy hover:text-white transition-all"><Trash2 className="w-5 h-5" /></button>
+                           <button onClick={(e) => { e.stopPropagation(); handleDeleteUser(owner.id, 'owner', owner.name); }} className="p-3 bg-burgundy/5 text-burgundy rounded-xl hover:bg-burgundy hover:text-white transition-all"><Trash2 className="w-5 h-5" /></button>
+                           <ChevronRight className={`w-5 h-5 text-on-surface-variant/20 transition-transform ${selectedOwnerId === owner.id ? 'rotate-90' : ''}`} />
                         </td>
-                     </tr>
-                   )) : filteredCustomersList.map(customer => (
+                     </tr>,
+                     selectedOwnerId === owner.id && (
+                       <tr key={`${owner.id}-customers`} className="bg-surface-bright/50">
+                         <td colSpan={4} className="px-10 py-8 border-b border-outline-variant/30">
+                           <div className="animate-in slide-in-from-top-2 duration-300">
+                             <div className="flex items-center justify-between mb-6">
+                               <h4 className="font-serif font-black text-primary/60 text-lg italic">[{owner.restaurantName}] 단골 명부</h4>
+                               <span className="text-[9px] font-bold text-on-surface-variant/40 uppercase tracking-widest">{users.filter(u => u.role === 'customer' && u.storeId === owner.id).length}명의 손님</span>
+                             </div>
+                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                               {users.filter(u => u.role === 'customer' && u.storeId === owner.id).map(customer => (
+                                 <div key={customer.id} className="bg-white p-4 rounded-2xl border border-outline-variant/30 shadow-sm flex items-center gap-4">
+                                   <div className="w-10 h-10 bg-surface-container rounded-xl flex items-center justify-center text-primary/30 font-serif font-bold">{customer.name.charAt(0)}</div>
+                                   <div>
+                                     <p className="text-sm font-serif font-black text-primary">{customer.name}</p>
+                                     <p className="text-[9px] font-bold text-on-surface-variant/40">{customer.phone}</p>
+                                   </div>
+                                 </div>
+                               ))}
+                               {users.filter(u => u.role === 'customer' && u.storeId === owner.id).length === 0 && (
+                                 <p className="col-span-full py-8 text-center text-xs font-serif italic text-on-surface-variant/40">기록된 손님이 없습니다.</p>
+                               )}
+                             </div>
+                           </div>
+                         </td>
+                       </tr>
+                     )
+                   ]) : filteredCustomersList.map(customer => (
                      <tr key={customer.id} className="hover:bg-surface-container transition-colors group">
                         <td className="px-10 py-8">
                            <div className="flex items-center gap-6">

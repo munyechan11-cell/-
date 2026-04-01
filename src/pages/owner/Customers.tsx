@@ -159,7 +159,7 @@ export default function OwnerCustomers() {
                 <StoreIcon className="w-full h-full p-2 text-white/40" />
              </div>
              <div className="hidden lg:block overflow-hidden">
-                <p className="text-[#fcfcfc] font-serif italic text-sm truncate">{currentUser.restaurantName || '나의 공방'}</p>
+                <p className="text-[#fcfcfc] font-serif italic text-sm truncate">{currentUser.restaurantName || '나의 매장'}</p>
                 <p className="text-[#fcfcfc]/50 font-sans uppercase tracking-widest text-[10px]">사장님 관리 시스템</p>
              </div>
           </div>

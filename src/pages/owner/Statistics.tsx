@@ -80,7 +80,7 @@ export default function OwnerStatistics() {
                 <StoreIcon className="w-full h-full p-2 text-white/40" />
              </div>
              <div>
-                <p className="text-[#fcfcfc] font-serif italic text-sm truncate">{currentUser.restaurantName || '나의 공방'}</p>
+                <p className="text-[#fcfcfc] font-serif italic text-sm truncate">{currentUser.restaurantName || '나의 매장'}</p>
                 <p className="text-[#fcfcfc]/50 font-sans uppercase tracking-widest text-[10px]">사장님 관리 시스템</p>
              </div>
           </div>
@@ -207,12 +207,12 @@ export default function OwnerStatistics() {
 
                <div className="bg-primary p-8 rounded-[2rem] shadow-xl text-white relative overflow-hidden group">
                   <div className="relative z-10">
-                    <h3 className="text-xl font-serif font-black italic mb-6">사장님을 위한 제언</h3>
+                    <h3 className="text-xl font-serif font-black italic mb-6">사장님을 위한 제안</h3>
                     <p className="text-sm font-sans leading-relaxed opacity-80">
                       최근 7일간 단골 손님의 방문 비율이 12% 증가했습니다. 저녁 시간대의 회전율을 높여보세요.
                     </p>
                   </div>
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 group-hover:scale-110 transition-transform duration-700"></div>
+                  <div className="absolute top-0 right-0 w-32 h-16 bg-white/5 rounded-full -mr-16 -mt-16 group-hover:scale-110 transition-transform duration-700"></div>
                </div>
             </div>
           </div>
@@ -220,9 +220,9 @@ export default function OwnerStatistics() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
              {[
                { icon: Users, label: '신규 단골', value: '42명', trend: '+8%' },
-               { icon: Clock, label: '평균 이용시간', value: '52분', trend: '-2%' },
-               { icon: Heart, label: '단골 만족도', value: '4.8/5', trend: '최고' },
-               { icon: TrendingUp, label: '예상 매출액', value: '₩4.2M', trend: '안정' }
+               { icon: Clock, label: '평균 이용시간', value: '52분', trend: '안정' },
+               { icon: MapPin, label: '피크 시간대', value: '19:30', trend: '예측' },
+               { icon: Activity, label: '매장 가동률', value: '68%', trend: '양호' }
              ].map((item, idx) => (
                <div key={idx} className="bg-white p-8 rounded-2xl border border-outline-variant/30 shadow-sm flex flex-col">
                   <item.icon className="w-8 h-8 text-primary opacity-20 mb-6" />

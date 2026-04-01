@@ -131,7 +131,7 @@ export default function CustomerDashboard() {
                <div className="flex items-center gap-4">
                   <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center text-white"><MapPin className="w-6 h-6" /></div>
                   <div>
-                     <p className="text-[10px] font-bold uppercase text-primary opacity-60">현재 이용 중인 공방</p>
+                     <p className="text-[10px] font-bold uppercase text-primary opacity-60">현재 이용 중인 매장</p>
                      <p className="text-lg font-serif font-black text-primary italic">{currentTable.number}번 테이블</p>
                   </div>
                </div>
@@ -148,7 +148,7 @@ export default function CustomerDashboard() {
              </button>
              <button onClick={() => navigate('/scan')} className="bg-white p-6 rounded-[2rem] border border-[#e5dcd3] shadow-sm hover:shadow-md transition-all text-left group">
                 <div className="w-10 h-10 bg-surface-container rounded-xl flex items-center justify-center text-primary mb-4 group-hover:scale-110 transition-transform"><QrCode className="w-5 h-5" /></div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/50 mb-1">공방 입장</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/50 mb-1">매장 입장</p>
                 <p className="font-serif font-black text-primary italic">QR 스캔</p>
              </button>
           </section>
@@ -161,35 +161,35 @@ export default function CustomerDashboard() {
              </div>
              
              {myCoupons.length === 0 ? (
-               <div className="bg-white py-12 rounded-[2rem] border border-dashed border-[#e5dcd3] text-center">
-                  <Ticket className="w-10 h-10 text-on-surface-variant/20 mx-auto mb-4" />
-                  <p className="text-[10px] font-bold text-on-surface-variant/40 uppercase tracking-widest">아직 보유한 혜택이 없습니다.</p>
-               </div>
+                <div className="bg-white py-12 rounded-[2rem] border border-dashed border-[#e5dcd3] text-center">
+                   <Ticket className="w-10 h-10 text-on-surface-variant/20 mx-auto mb-4" />
+                   <p className="text-[10px] font-bold text-on-surface-variant/40 uppercase tracking-widest">아직 보유한 혜택이 없습니다.</p>
+                </div>
              ) : (
-               <div className="space-y-3">
-                  {myCoupons.map(coupon => (
-                    <button 
-                      key={coupon.id} 
-                      onClick={() => coupon.status === 'available' ? setSelectedCoupon(coupon.id) : setCancelingCoupon(coupon.id)}
-                      className={`w-full p-6 rounded-2xl border transition-all flex justify-between items-center group ${coupon.status === 'pending' ? 'bg-primary/5 border-primary/20' : 'bg-white border-[#e5dcd3] shadow-sm hover:shadow-md'}`}
-                    >
-                       <div className="text-left">
-                          <p className="text-[10px] font-bold uppercase text-primary/40 mb-1">{coupon.status === 'pending' ? '사용 승인 대기 중' : '사용 가능'}</p>
-                          <p className="font-serif font-black text-primary italic">{coupon.description}</p>
-                       </div>
-                       <div className={`p-2 rounded-lg ${coupon.status === 'pending' ? 'text-burgundy' : 'bg-primary/5 text-primary group-hover:bg-primary group-hover:text-white transition-all'}`}>
-                          {coupon.status === 'pending' ? <X className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
-                       </div>
-                    </button>
-                  ))}
-               </div>
+                <div className="space-y-3">
+                   {myCoupons.map(coupon => (
+                     <button 
+                       key={coupon.id} 
+                       onClick={() => coupon.status === 'available' ? setSelectedCoupon(coupon.id) : setCancelingCoupon(coupon.id)}
+                       className={`w-full p-6 rounded-2xl border transition-all flex justify-between items-center group ${coupon.status === 'pending' ? 'bg-primary/5 border-primary/20' : 'bg-white border-[#e5dcd3] shadow-sm hover:shadow-md'}`}
+                     >
+                        <div className="text-left">
+                           <p className="text-[10px] font-bold uppercase text-primary/40 mb-1">{coupon.status === 'pending' ? '사용 승인 대기 중' : '사용 가능'}</p>
+                           <p className="font-serif font-black text-primary italic">{coupon.description}</p>
+                        </div>
+                        <div className={`p-2 rounded-lg ${coupon.status === 'pending' ? 'text-burgundy' : 'bg-primary/5 text-primary group-hover:bg-primary group-hover:text-white transition-all'}`}>
+                           {coupon.status === 'pending' ? <X className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+                        </div>
+                     </button>
+                   ))}
+                </div>
              )}
           </section>
 
           {/* Communication/News */}
           {myCommunications.length > 0 && (
             <section className="space-y-4">
-               <h3 className="font-serif font-black text-xl italic text-primary">공방 소통함</h3>
+               <h3 className="font-serif font-black text-xl italic text-primary">매장 소통함</h3>
                <div className="space-y-3">
                   {myCommunications.slice(0, 2).map(comm => (
                     <div key={comm.id} className="bg-white p-5 rounded-2xl border border-[#e5dcd3] shadow-sm">
