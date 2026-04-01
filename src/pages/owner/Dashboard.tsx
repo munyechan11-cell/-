@@ -6,7 +6,7 @@ import {
   Minus, Trash2, Circle, GripVertical, Layers, Palette, 
   MoreVertical, Edit2, CheckCircle2, AlertCircle, Clock, Maximize2,
   TrendingUp, Calendar, Heart, ShieldCheck, History, HelpCircle, Store,
-  Search, Notifications, ChairAlt, Schedule, Restaurant, HourglassBottom, WineBar, Celebration, VolumeMute
+  Search, Armchair, Utensils, Hourglass, Wine, PartyPopper, VolumeX
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
@@ -207,7 +207,7 @@ export default function OwnerDashboard() {
             </div>
             <div className="flex items-center gap-4">
               <button className="p-2 text-on-surface-variant hover:text-primary transition-colors relative">
-                <Notifications className="w-6 h-6" />
+                <Bell className="w-6 h-6" />
                 {pendingRequests.length > 0 && (
                   <span className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full"></span>
                 )}
@@ -245,7 +245,7 @@ export default function OwnerDashboard() {
                 <p className="text-xs text-on-surface-variant mt-2">{myTables.filter(t => t.currentCustomerId).length} / {myTables.length} 공방 사용중</p>
               </div>
               <div className="absolute bottom-0 right-0 w-32 h-16 opacity-5">
-                <ChairAlt className="w-32 h-32 text-primary" />
+                <Armchair className="w-32 h-32 text-primary" />
               </div>
             </div>
             <div className="bg-white p-8 rounded-xl shadow-sm border border-outline-variant/20 relative overflow-hidden group">
@@ -255,7 +255,7 @@ export default function OwnerDashboard() {
                 <p className="text-xs text-on-surface-variant mt-2">일반적인 회전율 기준</p>
               </div>
               <div className="absolute bottom-0 right-0 w-32 h-16 opacity-5">
-                <Schedule className="w-32 h-32 text-primary" />
+                <Clock className="w-32 h-32 text-primary" />
               </div>
             </div>
           </section>
@@ -471,11 +471,11 @@ export default function OwnerDashboard() {
                               </div>
                               <div className="space-y-3">
                                 <div className="flex items-center gap-3 text-xs text-on-surface-variant">
-                                  <Restaurant className="w-4 h-4 opacity-40 text-primary" />
+                                  <Utensils className="w-4 h-4 opacity-40 text-primary" />
                                   <span>단골 메모: {activeCustomer.memo ? formatMemoDisplay(activeCustomer.memo) : '기록된 메모 없음'}</span>
                                 </div>
                                 <div className="flex items-center gap-3 text-xs text-on-surface-variant">
-                                  <HourglassBottom className="w-4 h-4 opacity-40 text-primary" />
+                                  <Hourglass className="w-4 h-4 opacity-40 text-primary" />
                                   <span>방문 시간: {activeTable.sessionStartTime ? Math.floor((currentTime.getTime() - new Date(activeTable.sessionStartTime).getTime()) / 60000) : 0}분 경과</span>
                                 </div>
                                 <div className="flex items-center gap-3 text-xs text-on-surface-variant">
@@ -520,7 +520,7 @@ export default function OwnerDashboard() {
                   </div>
                 ) : (
                   <div className="h-full flex flex-col items-center justify-center text-center opacity-30 space-y-4">
-                    <ChairAlt className="w-16 h-16 text-primary" />
+                    <Armchair className="w-16 h-16 text-primary" />
                     <p className="text-[10px] font-bold uppercase tracking-widest text-primary/60">전도에서 공방을 선택해 주세요</p>
                   </div>
                 )}
