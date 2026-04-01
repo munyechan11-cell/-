@@ -130,8 +130,22 @@ export default function OwnerDashboard() {
     const rect = mapContainerRef.current.getBoundingClientRect();
     const scrollX = mapContainerRef.current.scrollLeft;
     const scrollY = mapContainerRef.current.scrollTop;
-    const rawX = (e.clientX - rect.left + scrollX) / zoom - dragOffset.x;
-    const rawY = (e.clientY - rect.top + scrollY) / zoom - dragOffset.y;
+    const zoomFactor = zoom;
+    
+    // Global shift mode logic (Batch Move)
+    if (isMoveOnlyMode && draggedTable === -1) {
+       const dx = (e.clientX - rect.left + scrollX) / zoomFactor - dragOffset.x;
+       const dy = (e.clientY - rect.top + scrollY) / zoomFactor - dragOffset.y;
+       
+       myTables.forEach(t => {
+          updateTableLayout(currentUser.id, t.number, { x: t.x + dx, y: t.y + dy });
+       });
+       setDragOffset({ x: (e.clientX - rect.left + scrollX) / zoomFactor, y: (e.clientY - rect.top + scrollY) / zoomFactor });
+       return;
+    }
+
+    const rawX = (e.clientX - rect.left + scrollX) / zoomFactor - dragOffset.x;
+    const rawY = (e.clientY - rect.top + scrollY) / zoomFactor - dragOffset.y;
     
     // Grid snapping
     let x = Math.round(rawX / 10) * 10;
@@ -158,7 +172,7 @@ export default function OwnerDashboard() {
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
-    if (draggedTable !== null && dragPosition) {
+    if (draggedTable !== null && dragPosition && draggedTable !== -1) {
       updateTableLayout(currentUser.id, draggedTable, { x: dragPosition.x, y: dragPosition.y });
     }
     setDraggedTable(null);
@@ -282,12 +296,21 @@ export default function OwnerDashboard() {
                   </div>
                 )}
               </div>
-              <button 
-                onClick={() => setIsLayoutMode(!isLayoutMode)}
-                className={`px-6 py-2 rounded-full font-serif text-sm transition-all shadow-lg ${isLayoutMode ? 'bg-primary text-white hover:bg-accent-burgundy' : 'bg-surface-container-highest text-primary hover:bg-primary hover:text-white'}`}
-              >
-                {isLayoutMode ? '배치 저장' : '테이블 배치변경'}
-              </button>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => setIsMoveOnlyMode(!isMoveOnlyMode)}
+                  className={`p-2 rounded-xl transition-all ${isMoveOnlyMode ? 'bg-primary text-white shadow-lg' : 'bg-surface-container text-on-surface-variant hover:bg-primary/10'}`}
+                  title="전체 레이아웃 이동"
+                >
+                  <Move className="w-5 h-5" />
+                </button>
+                <button 
+                  onClick={() => setIsLayoutMode(!isLayoutMode)}
+                  className={`px-6 py-2 rounded-full font-serif text-sm transition-all shadow-lg ${isLayoutMode ? 'bg-primary text-white hover:bg-accent-burgundy' : 'bg-surface-container-highest text-primary hover:bg-primary hover:text-white'}`}
+                >
+                  {isLayoutMode ? '배치 저장' : '테이블 배치변경'}
+                </button>
+              </div>
             </div>
           </div>
         </header>
@@ -313,8 +336,28 @@ export default function OwnerDashboard() {
             <div className="bg-white p-8 rounded-xl shadow-sm border border-outline-variant/20 relative overflow-hidden group">
               <div className="relative z-10">
                 <p className="font-sans uppercase tracking-widest text-[10px] text-on-surface-variant mb-2">평균 이용 시간</p>
-                <h3 className="font-serif text-4xl text-primary font-bold">54분</h3>
-                <p className="text-xs text-on-surface-variant mt-2 font-bold">회전율 양호</p>
+                <h3 className="font-serif text-4xl text-primary font-bold">
+                  {(() => {
+                    const storeVisits = visits.filter(v => v.storeId === currentUser.id);
+                    const occupiedTables = myTables.filter(t => t.currentCustomerId && t.sessionStartTime);
+                    
+                    // Current sessions duration
+                    const currentDurations = occupiedTables.map(t => 
+                      (currentTime.getTime() - new Date(t.sessionStartTime!).getTime()) / 60000
+                    );
+                    
+                    // If no data, return default estimate
+                    if (currentDurations.length === 0 && storeVisits.length === 0) return '0분';
+                    
+                    // Simple avg of current active sessions (or fallback to 50 min)
+                    const avg = currentDurations.length > 0 
+                      ? currentDurations.reduce((a, b) => a + b, 0) / currentDurations.length 
+                      : 50;
+                    
+                    return `${Math.round(avg)}분`;
+                  })()}
+                </h3>
+                <p className="text-xs text-on-surface-variant mt-2 font-bold">실시간 세션 집계</p>
               </div>
               <div className="absolute bottom-0 right-0 w-32 h-16 opacity-5">
                 <Hourglass className="w-32 h-32 text-primary" />
@@ -332,18 +375,26 @@ export default function OwnerDashboard() {
             </div>
             <div className="bg-white p-8 rounded-xl shadow-sm border border-outline-variant/20 relative overflow-hidden group">
               <div className="relative z-10">
-                <p className="font-sans uppercase tracking-widest text-[10px] text-on-surface-variant mb-2">피크 예상 시간</p>
+                <p className="font-sans uppercase tracking-widest text-[10px] text-on-surface-variant mb-2">오늘의 피크 타임</p>
                 <h3 className="font-serif text-4xl text-primary font-bold">
                   {(() => {
-                    const storeVisits = visits.filter(v => v.storeId === currentUser.id);
-                    if (storeVisits.length === 0) return '19:00';
-                    const hours = storeVisits.map(v => new Date(v.date).getHours());
+                    const today = new Date().toDateString();
+                    const todayVisits = visits.filter(v => v.storeId === currentUser.id && new Date(v.date).toDateString() === today);
+                    if (todayVisits.length === 0) {
+                      const allVisits = visits.filter(v => v.storeId === currentUser.id);
+                      if (allVisits.length === 0) return '없음';
+                      const hours = allVisits.map(v => new Date(v.date).getHours());
+                      const counts = hours.reduce((acc, h) => { acc[h] = (acc[h] || 0) + 1; return acc; }, {} as Record<number, number>);
+                      const peakHour = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+                      return `${peakHour}:00`;
+                    }
+                    const hours = todayVisits.map(v => new Date(v.date).getHours());
                     const counts = hours.reduce((acc, h) => { acc[h] = (acc[h] || 0) + 1; return acc; }, {} as Record<number, number>);
                     const peakHour = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
-                    return `${peakHour}:00 - ${parseInt(peakHour) + 1}:00`;
+                    return `${peakHour}:00`;
                   })()}
                 </h3>
-                <p className="text-xs text-on-surface-variant mt-2 font-bold">데이터 기반 예측</p>
+                <p className="text-xs text-on-surface-variant mt-2 font-bold">실시간 방문량 기준</p>
               </div>
               <div className="absolute bottom-0 right-0 w-32 h-16 opacity-5">
                 <Clock className="w-32 h-32 text-primary" />
@@ -412,6 +463,22 @@ export default function OwnerDashboard() {
                         transform: `scale(${zoom})`
                       }}
                     >
+                      {isMoveOnlyMode && (
+                        <div 
+                          onPointerDown={(e) => {
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            setDraggedTable(-1);
+                            setDragOffset({ x: (e.clientX - rect.left) / zoom, y: (e.clientY - rect.top) / zoom });
+                            e.currentTarget.setPointerCapture(e.pointerId);
+                          }}
+                          className="absolute top-0 left-0 w-full h-full cursor-move z-[100] flex items-center justify-center bg-primary/5 border-4 border-dashed border-primary/20 rounded-3xl group animate-pulse"
+                        >
+                          <div className="bg-white p-8 rounded-full shadow-2xl flex flex-col items-center gap-4">
+                            <Move className="w-12 h-12 text-primary" />
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">이곳을 드래그하여 전체 이동</p>
+                          </div>
+                        </div>
+                      )}
                       {filteredTables.map(table => {
                         const isOccupied = table.currentCustomerId !== null;
                         const customer = isOccupied ? users.find(u => u.id === table.currentCustomerId) : null;
@@ -448,11 +515,15 @@ export default function OwnerDashboard() {
                               </div>
                             )}
 
-                            {isLayoutMode && !isOccupied && (
+                            {isLayoutMode && !isOccupied && !isMoveOnlyMode && (
                               <div className="absolute inset-0 bg-primary/90 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 rounded-inherit transition-opacity">
                                 <button onClick={e => { e.stopPropagation(); deleteTable(currentUser.id, table.number); }} className="p-1.5 bg-white/10 rounded-lg hover:bg-white/30"><Trash2 className="w-3 h-3 text-white" /></button>
-                                <button onClick={e => { e.stopPropagation(); setIsMoveOnlyMode(!isMoveOnlyMode); }} className={`p-1.5 rounded-lg ${isMoveOnlyMode ? 'bg-white text-primary' : 'bg-white/10 text-white'}`}><Move className="w-3 h-3" /></button>
+                                <button onClick={e => { e.stopPropagation(); setSelectedTable(table.number); }} className="p-1.5 bg-white/10 text-white rounded-lg hover:bg-white/30"><Settings className="w-3 h-3" /></button>
                               </div>
+                            )}
+                            
+                            {isMoveOnlyMode && (
+                              <div className="absolute inset-0 border-2 border-dashed border-white/30 rounded-inherit"></div>
                             )}
                           </div>
                         );
@@ -561,23 +632,72 @@ export default function OwnerDashboard() {
                            )
                         })()
                      ) : (
-                        <div className="flex flex-col items-center gap-8 py-4">
-                           <div ref={qrRef} className="p-6 bg-white rounded-3xl border-2 border-outline-variant/30 shadow-inner qr-container">
-                              <QRCodeSVG value={`${window.location.origin}/customer/store/${currentUser.id}?table=${selectedTable}`} size={180} level="H" />
-                           </div>
-                           <div className="grid grid-cols-2 gap-3 w-full">
-                              <button onClick={copyTableLink} className="p-4 bg-surface-container hover:bg-surface-bright border border-outline-variant/30 rounded-2xl flex flex-col items-center gap-2 text-[9px] font-black uppercase tracking-widest text-primary transition-all">
-                                 <List className="w-5 h-5 opacity-40" /> 링크 복사
-                              </button>
-                              <button onClick={downloadQR} className="p-4 bg-surface-container hover:bg-surface-bright border border-outline-variant/30 rounded-2xl flex flex-col items-center gap-2 text-[9px] font-black uppercase tracking-widest text-primary transition-all">
-                                 <Plus className="w-5 h-5 opacity-40" /> QR 저장
-                              </button>
-                           </div>
-                           <div className="w-full h-px bg-outline-variant/20"></div>
-                           <div className="grid grid-cols-2 gap-4 w-full">
-                              <button onClick={() => updateTableStatus(currentUser.id, selectedTable, 'available')} className="p-4 border rounded-2xl text-[9px] font-black uppercase tracking-widest text-emerald-600 hover:bg-emerald-50 transition-colors">사용 가능</button>
-                              <button onClick={() => updateTableStatus(currentUser.id, selectedTable, 'dirty')} className="p-4 border rounded-2xl text-[9px] font-black uppercase tracking-widest text-burgundy hover:bg-burgundy/5 transition-colors">청소 중</button>
-                           </div>
+                        <div className="flex flex-col gap-6 py-4">
+                           {isLayoutMode ? (
+                              <div className="space-y-6 animate-in slide-in-from-top-4">
+                                 <div className="bg-surface-container p-6 rounded-3xl border border-outline-variant/30">
+                                    <h4 className="text-[10px] font-black uppercase tracking-widest text-primary mb-6">테이블 속성 변경</h4>
+                                    <div className="space-y-4">
+                                       <div className="flex items-center justify-between">
+                                          <span className="text-[10px] font-bold text-on-surface-variant/60">좌석 수</span>
+                                          <div className="flex items-center gap-4">
+                                             <button onClick={() => updateTableLayout(currentUser.id, selectedTable, { seats: Math.max(1, (activeTable?.seats || 4) - 1) })} className="p-2 bg-white rounded-lg shadow-sm"><Minus className="w-3 h-3" /></button>
+                                             <span className="text-sm font-black">{activeTable?.seats || 4}</span>
+                                             <button onClick={() => updateTableLayout(currentUser.id, selectedTable, { seats: (activeTable?.seats || 4) + 1 })} className="p-2 bg-white rounded-lg shadow-sm"><Plus className="w-3 h-3" /></button>
+                                          </div>
+                                       </div>
+                                       <div className="flex items-center justify-between">
+                                          <span className="text-[10px] font-bold text-on-surface-variant/60">가로 크기</span>
+                                          <div className="flex items-center gap-4">
+                                             <button onClick={() => updateTableLayout(currentUser.id, selectedTable, { width: Math.max(40, (activeTable?.width || 80) - 10) })} className="p-2 bg-white rounded-lg shadow-sm"><Minus className="w-3 h-3" /></button>
+                                             <span className="text-xs font-bold">{activeTable?.width || 80}</span>
+                                             <button onClick={() => updateTableLayout(currentUser.id, selectedTable, { width: Math.min(200, (activeTable?.width || 80) + 10) })} className="p-2 bg-white rounded-lg shadow-sm"><Plus className="w-3 h-3" /></button>
+                                          </div>
+                                       </div>
+                                       <div className="flex items-center justify-between">
+                                          <span className="text-[10px] font-bold text-on-surface-variant/60">세로 크기</span>
+                                          <div className="flex items-center gap-4">
+                                             <button onClick={() => updateTableLayout(currentUser.id, selectedTable, { height: Math.max(40, (activeTable?.height || 80) - 10) })} className="p-2 bg-white rounded-lg shadow-sm"><Minus className="w-3 h-3" /></button>
+                                             <span className="text-xs font-bold">{activeTable?.height || 80}</span>
+                                             <button onClick={() => updateTableLayout(currentUser.id, selectedTable, { height: Math.min(200, (activeTable?.height || 80) + 10) })} className="p-2 bg-white rounded-lg shadow-sm"><Plus className="w-3 h-3" /></button>
+                                          </div>
+                                       </div>
+                                    </div>
+                                 </div>
+                                 <button onClick={() => setSelectedTable(null)} className="w-full py-4 bg-primary text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg">설정 완료</button>
+                              </div>
+                           ) : (
+                              <>
+                                 <div className="bg-white p-6 rounded-[2.5rem] border-2 border-outline-variant/30 shadow-inner flex flex-col items-center gap-6">
+                                    <div ref={qrRef} className="qr-container">
+                                       <QRCodeSVG value={`${window.location.origin}/customer/store/${currentUser.id}?table=${selectedTable}`} size={160} level="H" />
+                                    </div>
+                                    <p className="text-[9px] font-bold text-on-surface-variant/40 uppercase tracking-widest">실시간 접속 고유 QR</p>
+                                 </div>
+                                 
+                                 <div className="grid grid-cols-2 gap-3">
+                                    <button onClick={copyTableLink} className="p-5 bg-surface-container hover:bg-white border border-outline-variant/30 rounded-[2rem] flex flex-col items-center gap-3 transition-all group">
+                                       <div className="w-10 h-10 bg-primary/5 rounded-full flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-colors">
+                                          <Maximize2 className="w-5 h-5" />
+                                       </div>
+                                       <span className="text-[9px] font-black uppercase tracking-widest text-primary">링크 복사</span>
+                                    </button>
+                                    <button onClick={downloadQR} className="p-5 bg-surface-container hover:bg-white border border-outline-variant/30 rounded-[2rem] flex flex-col items-center gap-3 transition-all group">
+                                       <div className="w-10 h-10 bg-primary/5 rounded-full flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-colors">
+                                          <Plus className="w-5 h-5" />
+                                       </div>
+                                       <span className="text-[9px] font-black uppercase tracking-widest text-primary">QR 저장</span>
+                                    </button>
+                                 </div>
+                                 
+                                 <div className="w-full h-px bg-outline-variant/20 my-2"></div>
+                                 
+                                 <div className="grid grid-cols-2 gap-4">
+                                    <button onClick={() => updateTableStatus(currentUser.id, selectedTable, 'available')} className="p-4 border rounded-2xl text-[9px] font-black uppercase tracking-widest text-emerald-600 hover:bg-emerald-50 transition-colors">사용 가능</button>
+                                    <button onClick={() => updateTableStatus(currentUser.id, selectedTable, 'dirty')} className="p-4 border rounded-2xl text-[9px] font-black uppercase tracking-widest text-burgundy hover:bg-burgundy/5 transition-colors">청소 중</button>
+                                 </div>
+                              </>
+                           )}
                         </div>
                      )}
                   </div>

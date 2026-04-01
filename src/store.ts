@@ -502,25 +502,35 @@ export const useStore = () => {
       showToast('데이터베이스가 아직 준비되지 않았습니다.', 'error');
       return;
     }
-    const batch = writeBatch(db);
-    const initialTables: Table[] = [];
     
-    // Create 12 tables in a 4x3 grid
-    for (let i = 1; i <= 12; i++) {
-      const x = ((i - 1) % 4) * 110 + 50;
-      const y = Math.floor((i - 1) / 4) * 110 + 100;
-      initialTables.push({ 
-        number: i, storeId, currentCustomerId: null, sessionStartTime: null, 
-        x, y, width: 80, height: 80, seats: 4, type: 'table', shape: 'square', status: 'available' 
-      });
-    }
+    try {
+      const batch = writeBatch(db);
+      
+      // 1. Find and delete existing tables first
+      const q = query(collections.tables, where('storeId', '==', storeId));
+      const existingSnaps = await getDocs(q);
+      existingSnaps.forEach(d => batch.delete(d.ref));
+      
+      // 2. Create 12 default tables in a 4x3 grid
+      for (let i = 1; i <= 12; i++) {
+        const tableId = `${storeId}_${i}`;
+        const x = ((i - 1) % 4) * 110 + 50;
+        const y = Math.floor((i - 1) / 4) * 110 + 100;
+        const tableRef = doc(db, 'tables', tableId);
+        
+        const newTable: Table = { 
+          number: i, storeId, currentCustomerId: null, sessionStartTime: null, 
+          x, y, width: 80, height: 80, seats: 4, type: 'table', shape: 'square', status: 'available' 
+        };
+        batch.set(tableRef, newTable);
+      }
 
-    notifyUpdate();
-    for (const table of initialTables) {
-      const tableId = `${storeId}_${table.number}`;
-      await updateFirestoreDoc('tables', tableId, table);
+      await batch.commit();
+      showToast('12개 기본 테이블로 초기화되었습니다.', 'success');
+    } catch (err) {
+      console.error('Error initializing tables:', err);
+      showToast('테이블 초기화 중 오류가 발생했습니다.', 'error');
     }
-    showToast('12개 기본 테이블로 초기화되었습니다.', 'success');
   };
 
   const setCustomerTier = async (customerId: string, storeId: string, tier: string) => {
