@@ -5,7 +5,7 @@ import {
   Settings, Map as MapIcon, List, Move, Plus, 
   Minus, Trash2, Layers, Clock, Maximize2,
   TrendingUp, Calendar, History, Store,
-  Utensils, Hourglass
+  Utensils, Hourglass, GripVertical
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
@@ -26,7 +26,6 @@ export default function OwnerDashboard() {
   const [draggedTable, setDraggedTable] = useState<number | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [zoom, setZoom] = useState(1);
-  const [isMoveOnlyMode, setIsMoveOnlyMode] = useState(false);
   const [dragPosition, setDragPosition] = useState<{x: number, y: number} | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [showNotifications, setShowNotifications] = useState(false);
@@ -86,7 +85,7 @@ export default function OwnerDashboard() {
   const pendingRequests = coupons.filter(c => c.storeId === currentUser.id && c.status === 'pending');
 
   const handlePointerDown = (e: React.PointerEvent, table: any) => {
-    if (!isLayoutMode || isMoveOnlyMode) return;
+    if (!isLayoutMode) return;
     const rect = e.currentTarget.getBoundingClientRect();
     setDraggedTable(table.number);
     setDragOffset({ x: (e.clientX - rect.left) / zoom, y: (e.clientY - rect.top) / zoom });
@@ -101,32 +100,19 @@ export default function OwnerDashboard() {
     const scrollY = mapContainerRef.current.scrollTop;
     const zoomFactor = zoom;
     
-    if (isMoveOnlyMode && draggedTable === -1) {
-       const dx = (e.clientX - rect.left + scrollX) / zoomFactor - dragOffset.x;
-       const dy = (e.clientY - rect.top + scrollY) / zoomFactor - dragOffset.y;
-       myTables.forEach(t => updateTableLayout(currentUser.id, t.number, { x: t.x + dx, y: t.y + dy }));
-       setDragOffset({ x: (e.clientX - rect.left + scrollX) / zoomFactor, y: (e.clientY - rect.top + scrollY) / zoomFactor });
-       return;
-    }
-
+    // Pixel-perfect drag coordinates (without snap for smoothness)
     const rawX = (e.clientX - rect.left + scrollX) / zoomFactor - dragOffset.x;
     const rawY = (e.clientY - rect.top + scrollY) / zoomFactor - dragOffset.y;
-    let x = Math.round(rawX / 10) * 10;
-    let y = Math.round(rawY / 10) * 10;
     
-    const currentTable = myTables.find(t => t.number === draggedTable);
-    if (currentTable) {
-      const isOverlapping = myTables.some(other => {
-        if (other.number === draggedTable) return false;
-        return (x < other.x + (other.width || 80) && x + (currentTable.width || 80) > other.x && y < other.y + (other.height || 80) && y + (currentTable.height || 80) > other.y);
-      });
-      if (!isOverlapping) setDragPosition({ x, y });
-    }
+    setDragPosition({ x: rawX, y: rawY });
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
-    if (draggedTable !== null && dragPosition && draggedTable !== -1) {
-      updateTableLayout(currentUser.id, draggedTable, { x: dragPosition.x, y: dragPosition.y });
+    if (draggedTable !== null && dragPosition) {
+      // Apply 10px grid snap only on release for final alignment
+      const snappedX = Math.round(dragPosition.x / 10) * 10;
+      const snappedY = Math.round(dragPosition.y / 10) * 10;
+      updateTableLayout(currentUser.id, draggedTable, { x: snappedX, y: snappedY });
     }
     setDraggedTable(null);
     setDragPosition(null);
@@ -218,9 +204,8 @@ export default function OwnerDashboard() {
             </nav>
           </div>
           <div className="flex items-center gap-4">
-             <button onClick={() => setIsMoveOnlyMode(!isMoveOnlyMode)} className={`p-3 rounded-2xl transition-all ${isMoveOnlyMode ? 'bg-primary text-white' : 'bg-surface-container'}`}><Move className="w-5 h-5" /></button>
-             <button onClick={() => setIsLayoutMode(!isLayoutMode)} className={`px-8 py-3 rounded-full font-serif text-sm shadow-lg ${isLayoutMode ? 'bg-primary text-white' : 'bg-surface-container-highest text-primary'}`}>
-                {isLayoutMode ? '배치 저장' : '테이블 배치변경'}
+             <button onClick={() => setIsLayoutMode(!isLayoutMode)} className={`px-8 py-3 rounded-full font-serif text-sm shadow-xl ${isLayoutMode ? 'bg-primary text-white' : 'bg-surface-container-highest text-primary hover:shadow-2xl transition-all active:scale-[0.98]'}`}>
+                {isLayoutMode ? '배치 저장 (완료)' : '테이블 배치변경 (이동)'}
              </button>
           </div>
         </header>
@@ -250,30 +235,10 @@ export default function OwnerDashboard() {
                     className="relative origin-top-left transition-transform duration-300" 
                     style={{ minWidth: '1200px', minHeight: '1000px', transform: `scale(${zoom})` }}
                    >
-                      {isMoveOnlyMode && (
-                        <div 
-                          onPointerDown={(e) => {
-                            const rect = e.currentTarget.getBoundingClientRect();
-                            setDraggedTable(-1);
-                            setDragOffset({ x: (e.clientX - rect.left) / zoom, y: (e.clientY - rect.top) / zoom });
-                            e.currentTarget.setPointerCapture(e.pointerId);
-                          }}
-                          className="absolute inset-0 cursor-move z-[100] flex items-center justify-center bg-primary/20 backdrop-blur-sm border-8 border-dashed border-primary/40 rounded-[4rem]"
-                        >
-                          <div className="bg-white p-12 rounded-[3.5rem] shadow-3xl flex flex-col items-center gap-6 border-2 border-primary animate-in zoom-in-75">
-                             <Move className="w-16 h-16 text-primary" />
-                             <div className="text-center">
-                                <h2 className="text-2xl font-serif font-black text-primary mb-2">전체 레이아웃 이동 모드</h2>
-                                <p className="text-xs font-bold text-on-surface-variant/60">배경을 드래그하여 전체 위치를 조정하세요</p>
-                             </div>
-                             <button onClick={() => setIsMoveOnlyMode(false)} className="px-8 py-4 bg-primary text-white rounded-2xl text-[10px] font-black uppercase">완료</button>
-                          </div>
-                        </div>
-                      )}
 
                       {filteredTables.map(table => {
                         const isOccupied = table.currentCustomerId !== null;
-                        const customer = isOccupied ? users.find(u => u.id === table.currentCustomerId) : null;
+                        const isBeingDragged = draggedTable === table.number;
                         return (
                           <div
                             key={table.number}
@@ -281,21 +246,27 @@ export default function OwnerDashboard() {
                             onPointerMove={handlePointerMove}
                             onPointerUp={handlePointerUp}
                             onClick={() => setSelectedTable(table.number)}
-                            className={`absolute flex flex-col items-center justify-center transition-all duration-300 group cursor-pointer ${isOccupied ? 'shadow-lg shadow-primary/20' : 'hover:shadow-xl'}`}
+                            className={`absolute flex flex-col items-center justify-center transition-all group cursor-pointer ${isOccupied ? 'shadow-lg shadow-primary/20' : 'hover:shadow-xl'} ${isBeingDragged ? 'scale-[1.05] shadow-3xl z-[100] cursor-grabbing' : 'duration-300'}`}
                             style={{
-                              left: draggedTable === table.number ? (dragPosition?.x || table.x) : table.x,
-                              top: draggedTable === table.number ? (dragPosition?.y || table.y) : table.y,
+                              left: isBeingDragged ? dragPosition?.x : table.x,
+                              top: isBeingDragged ? dragPosition?.y : table.y,
                               width: table.width || 80,
                               height: table.height || 80,
-                              backgroundColor: isOccupied ? '#261c1a' : (table.status === 'dirty' ? '#fdf2f2' : '#ffffff'),
-                              border: isOccupied ? 'none' : `2px solid ${selectedTable === table.number ? '#261c1a' : '#e5dcd3'}`,
+                              backgroundColor: isOccupied ? '#261c1a' : (table.status === 'dirty' ? '#fdf2f2' : (isBeingDragged ? '#ffffff' : '#ffffff')),
+                              border: isOccupied ? 'none' : `2px solid ${selectedTable === table.number ? '#261c1a' : (isBeingDragged ? '#261c1a' : '#e5dcd3')}`,
                               borderRadius: table.shape === 'circle' ? '50%' : '1.5rem',
-                              zIndex: draggedTable === table.number ? 50 : (selectedTable === table.number ? 40 : 10),
+                              zIndex: isBeingDragged ? 100 : (selectedTable === table.number ? 40 : 10),
+                              touchAction: 'none'
                             }}
                           >
+                            {isLayoutMode && !isOccupied && (
+                               <div className="absolute top-2 left-1/2 -translate-x-1/2 opacity-40 group-hover:opacity-100 transition-opacity">
+                                  <GripVertical className="w-4 h-4 text-primary" />
+                               </div>
+                            )}
                             <span className={`text-xl font-serif font-black italic ${isOccupied ? 'text-white' : 'text-primary'}`}>{table.number}</span>
                             {isOccupied && <div className="absolute top-2 right-2 w-2 h-2 bg-emerald-400 rounded-full"></div>}
-                            {isLayoutMode && !isOccupied && !isMoveOnlyMode && (
+                            {isLayoutMode && !isOccupied && !isBeingDragged && (
                                <div className="absolute inset-0 bg-primary/90 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 rounded-inherit transition-opacity">
                                   <button onClick={(e) => { e.stopPropagation(); deleteTable(currentUser.id, table.number); }} className="p-1.5 bg-white/10 rounded-lg"><Trash2 className="w-3 h-3 text-white" /></button>
                                   <button onClick={(e) => { e.stopPropagation(); setSelectedTable(table.number); }} className="p-1.5 bg-white/10 text-white rounded-lg"><Settings className="w-3 h-3" /></button>
