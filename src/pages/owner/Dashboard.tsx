@@ -27,7 +27,8 @@ export default function OwnerDashboard() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [zoom, setZoom] = useState(1);
   const [dragPosition, setDragPosition] = useState<{x: number, y: number} | null>(null);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [dragStart, setDragStart] = useState<{x: number, y: number} | null>(null);
+  const [tableStart, setTableStart] = useState<{x: number, y: number} | null>(null);
   const [showNotifications, setShowNotifications] = useState(false);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const qrRef = useRef<HTMLDivElement>(null);
@@ -86,25 +87,24 @@ export default function OwnerDashboard() {
 
   const handlePointerDown = (e: React.PointerEvent, table: any) => {
     if (!isLayoutMode) return;
-    const rect = e.currentTarget.getBoundingClientRect();
     setDraggedTable(table.number);
-    setDragOffset({ x: (e.clientX - rect.left) / zoom, y: (e.clientY - rect.top) / zoom });
+    setDragStart({ x: e.clientX, y: e.clientY });
+    setTableStart({ x: table.x, y: table.y });
     setDragPosition({ x: table.x, y: table.y });
     e.currentTarget.setPointerCapture(e.pointerId);
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
-    if (draggedTable === null || !mapContainerRef.current) return;
-    const rect = mapContainerRef.current.getBoundingClientRect();
-    const scrollX = mapContainerRef.current.scrollLeft;
-    const scrollY = mapContainerRef.current.scrollTop;
-    const zoomFactor = zoom;
+    if (draggedTable === null || !dragStart || !tableStart) return;
     
-    // Pixel-perfect drag coordinates (without snap for smoothness)
-    const rawX = (e.clientX - rect.left + scrollX) / zoomFactor - dragOffset.x;
-    const rawY = (e.clientY - rect.top + scrollY) / zoomFactor - dragOffset.y;
+    // Delta-based movement: how much the mouse has moved from start
+    const dx = (e.clientX - dragStart.x) / zoom;
+    const dy = (e.clientY - dragStart.y) / zoom;
     
-    setDragPosition({ x: rawX, y: rawY });
+    setDragPosition({ 
+      x: tableStart.x + dx, 
+      y: tableStart.y + dy 
+    });
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
