@@ -266,16 +266,18 @@ export default function OwnerDashboard() {
                                   {!isBeingDragged && (
                                      <>
                                         <button 
+                                          onPointerDown={(e) => e.stopPropagation()}
                                           onClick={(e) => { e.stopPropagation(); deleteTable(currentUser.id, table.number); }} 
-                                          className="absolute top-2 left-2 p-1.5 bg-burgundy/10 text-burgundy rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-burgundy hover:text-white"
+                                          className="absolute top-2 left-2 p-2 bg-burgundy/10 text-burgundy rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-burgundy hover:text-white z-20"
                                         >
-                                          <Trash2 className="w-3 h-3" />
+                                          <Trash2 className="w-3.5 h-3.5" />
                                         </button>
                                         <button 
+                                          onPointerDown={(e) => e.stopPropagation()}
                                           onClick={(e) => { e.stopPropagation(); setSelectedTable(table.number); }} 
-                                          className={`absolute top-2 right-2 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity ${selectedTable === table.number ? 'bg-primary text-white opacity-100' : 'bg-primary/10 text-primary hover:bg-primary hover:text-white'}`}
+                                          className={`absolute top-2 right-2 p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-20 ${selectedTable === table.number ? 'bg-primary text-white opacity-100' : 'bg-primary/10 text-primary hover:bg-primary hover:text-white'}`}
                                         >
-                                          <Settings className="w-3 h-3" />
+                                          <Settings className="w-3.5 h-3.5" />
                                         </button>
                                      </>
                                   )}
