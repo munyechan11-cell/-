@@ -219,7 +219,7 @@ export default function OwnerStatistics() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
              {[
-               { icon: Users, label: '신규 단골', value: '42명', trend: '+8%' },
+               { icon: Users, label: '신규 단골', value: '42명', trend: '최근' },
                { icon: Clock, label: '평균 이용시간', value: '52분', trend: '안정' },
                { icon: MapPin, label: '피크 시간대', value: '19:30', trend: '예측' },
                { icon: Activity, label: '매장 가동률', value: '68%', trend: '양호' }
@@ -229,7 +229,7 @@ export default function OwnerStatistics() {
                   <p className="text-[9px] font-bold text-on-surface-variant/40 uppercase mb-2">{item.label}</p>
                   <div className="flex items-end justify-between">
                      <p className="text-2xl font-serif font-black text-primary">{item.value}</p>
-                     <p className={`text-[10px] font-bold ${item.trend.startsWith('+') ? 'text-emerald-500' : 'text-on-surface-variant/40'}`}>{item.trend}</p>
+                     <p className={`text-[10px] font-bold text-on-surface-variant/40`}>{item.trend}</p>
                   </div>
                </div>
              ))}

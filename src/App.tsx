@@ -3,7 +3,6 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'r
 import { useStore } from './store';
 import { CheckCircle2, AlertCircle, Info, Loader2, WifiOff } from 'lucide-react';
 
-// Lazy load pages for better performance
 const CustomerLogin = lazy(() => import('./pages/customer/Login'));
 const CustomerDashboard = lazy(() => import('./pages/customer/Dashboard'));
 const CustomerScanner = lazy(() => import('./pages/customer/Scanner'));
@@ -37,13 +36,13 @@ function Toast() {
   if (!toast) return null;
 
   const icons = {
-    success: <CheckCircle2 className="w-5 h-5 text-emerald-500" />,
+    success: <CheckCircle2 className="w-5 h-5 text-primary" />,
     error: <AlertCircle className="w-5 h-5 text-burgundy" />,
     info: <Info className="w-5 h-5 text-primary" />
   };
 
   const bgs = {
-    success: 'bg-emerald-50 border-emerald-100 text-emerald-800',
+    success: 'bg-primary/5 border-primary/10 text-primary',
     error: 'bg-burgundy/5 border-burgundy/10 text-burgundy',
     info: 'bg-primary/5 border-primary/10 text-primary'
   };
@@ -85,14 +84,14 @@ function PrivateRoute({ children, role }: { children: React.ReactNode, role: 'cu
 
 function PageLoader() {
   return (
-    <div className="min-h-screen bg-surface-bright flex flex-col items-center justify-center p-8 text-center">
+    <div className="min-h-screen bg-surface-bright flex flex-col items-center justify-center p-8 text-center text-primary selection:bg-primary/10">
       <div className="relative mb-8">
-         <div className="w-16 h-16 rounded-3xl border-4 border-primary/5 border-t-primary animate-spin"></div>
+         <div className="w-16 h-16 rounded-[2rem] border-4 border-primary/5 border-t-primary animate-spin"></div>
          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+            <div className="text-[10px] font-serif italic font-bold">결</div>
          </div>
       </div>
-      <p className="text-primary/40 font-bold text-[10px] uppercase tracking-[0.3em]">공방 시스템 연결 중...</p>
+      <p className="text-primary/40 font-bold text-[10px] uppercase tracking-[0.3em]">매장 시스템 연결 중...</p>
     </div>
   );
 }

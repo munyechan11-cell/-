@@ -52,7 +52,7 @@ export default function Master() {
           <Link to="/" className="absolute top-8 left-8 p-3 hover:bg-surface-container rounded-full text-on-surface-variant/40"><ArrowLeft className="w-6 h-6" /></Link>
           <div className="w-24 h-24 rounded-3xl bg-primary flex items-center justify-center mx-auto mb-10 shadow-2xl rotate-3"><ShieldCheck className="w-12 h-12 text-white" /></div>
           <h2 className="text-3xl font-serif font-black text-primary italic mb-2">결 총괄 거버넌스</h2>
-          <p className="text-[10px] font-bold text-on-surface-variant/40 uppercase tracking-widest mb-10">Master Administration Access</p>
+          <p className="text-[10px] font-bold text-on-surface-variant/40 uppercase tracking-widest mb-10">중앙 관리자 전용 접속</p>
           <form onSubmit={handleLogin} className="space-y-6">
             <input
               type="password"
@@ -86,7 +86,7 @@ export default function Master() {
              <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center border border-white/20"><ShieldCheck className="text-white w-6 h-6" /></div>
              <div>
                 <p className="text-[#fcfcfc] font-serif italic text-sm">총괄 시스템</p>
-                <p className="text-[#fcfcfc]/50 font-sans uppercase tracking-widest text-[9px]">Governance Central</p>
+                <p className="text-[#fcfcfc]/50 font-sans uppercase tracking-widest text-[9px]">중앙 거버넌스</p>
              </div>
           </div>
         </div>
@@ -162,7 +162,7 @@ export default function Master() {
                            </div>
                         </td>
                         <td className="px-10 py-8 text-sm font-bold text-primary">{owner.name} 사장님</td>
-                        <td className="px-10 py-8"><span className="text-[10px] font-bold uppercase text-emerald-500 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">운영 중</span></td>
+                        <td className="px-10 py-8"><span className="text-[10px] font-bold uppercase text-primary bg-primary/5 px-3 py-1 rounded-full border border-primary/10">운영 중</span></td>
                         <td className="px-10 py-8 text-right flex justify-end gap-2">
                            <button onClick={(e) => { e.stopPropagation(); handleDeleteUser(owner.id, 'owner', owner.name); }} className="p-3 bg-burgundy/5 text-burgundy rounded-xl hover:bg-burgundy hover:text-white transition-all"><Trash2 className="w-5 h-5" /></button>
                            <ChevronRight className={`w-5 h-5 text-on-surface-variant/20 transition-transform ${selectedOwnerId === owner.id ? 'rotate-90' : ''}`} />
@@ -208,7 +208,7 @@ export default function Master() {
                         <td className="px-10 py-8 text-sm font-bold text-primary">
                            {owners.find(o => o.id === customer.storeId)?.restaurantName || '무소속'}
                         </td>
-                        <td className="px-10 py-8"><span className="text-[10px] font-bold uppercase text-primary/40 bg-surface-container px-3 py-1 rounded-full border border-outline-variant/30">Active</span></td>
+                        <td className="px-10 py-8"><span className="text-[10px] font-bold uppercase text-primary/40 bg-surface-container px-3 py-1 rounded-full border border-outline-variant/30">활동 중</span></td>
                         <td className="px-10 py-8 text-right flex justify-end gap-2">
                            <button onClick={() => handleDeleteUser(customer.id, 'customer', customer.name)} className="p-3 bg-burgundy/5 text-burgundy rounded-xl hover:bg-burgundy hover:text-white transition-all"><Trash2 className="w-5 h-5" /></button>
                         </td>
