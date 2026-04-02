@@ -2,6 +2,7 @@ import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useStore } from './store';
 import { CheckCircle2, AlertCircle, Info, Loader2, WifiOff } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 
 const CustomerLogin = lazy(() => import('./pages/customer/Login'));
 const CustomerDashboard = lazy(() => import('./pages/customer/Dashboard'));
@@ -96,6 +97,54 @@ function PageLoader() {
   );
 }
 
+function NavigationRoutes() {
+  const location = useLocation();
+  return (
+    <AnimatePresence mode="wait">
+      <Routes key={location.pathname} location={location}>
+        <Route path="/" element={<Home />} />
+        <Route path="/master" element={<Master />} />
+        <Route path="/scan" element={<CustomerScanner />} />
+        <Route path="/customer/login" element={<CustomerLogin />} />
+        <Route path="/customer/store/:storeId/login" element={<CustomerLogin />} />
+        <Route path="/customer/store/:storeId/table/:tableNumber" element={<TableEntry />} />
+        <Route path="/customer" element={
+          <PrivateRoute role="customer">
+            <CustomerDashboard />
+          </PrivateRoute>
+        } />
+        <Route path="/customer/store/:storeId" element={
+          <PrivateRoute role="customer">
+            <CustomerDashboard />
+          </PrivateRoute>
+        } />
+
+        <Route path="/owner/login" element={<OwnerLogin />} />
+        <Route path="/owner" element={
+          <PrivateRoute role="owner">
+            <OwnerDashboard />
+          </PrivateRoute>
+        } />
+        <Route path="/owner/brand-settings" element={
+          <PrivateRoute role="owner">
+            <BrandSettings />
+          </PrivateRoute>
+        } />
+        <Route path="/owner/customers" element={
+          <PrivateRoute role="owner">
+            <OwnerCustomers />
+          </PrivateRoute>
+        } />
+        <Route path="/owner/statistics" element={
+          <PrivateRoute role="owner">
+            <OwnerStatistics />
+          </PrivateRoute>
+        } />
+      </Routes>
+    </AnimatePresence>
+  );
+}
+
 export default function App() {
   const { isReady, firebaseStatus, firebaseError } = useStore();
   const [showSlowHint, setShowSlowHint] = useState(false);
@@ -164,46 +213,7 @@ export default function App() {
         <Toast />
         <div className="w-full min-h-screen relative">
           <Suspense fallback={<PageLoader />}>
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/master" element={<Master />} />
-              <Route path="/scan" element={<CustomerScanner />} />
-              <Route path="/customer/login" element={<CustomerLogin />} />
-              <Route path="/customer/store/:storeId/login" element={<CustomerLogin />} />
-              <Route path="/customer/store/:storeId/table/:tableNumber" element={<TableEntry />} />
-              <Route path="/customer" element={
-                <PrivateRoute role="customer">
-                  <CustomerDashboard />
-                </PrivateRoute>
-              } />
-              <Route path="/customer/store/:storeId" element={
-                <PrivateRoute role="customer">
-                  <CustomerDashboard />
-                </PrivateRoute>
-              } />
-
-              <Route path="/owner/login" element={<OwnerLogin />} />
-              <Route path="/owner" element={
-                <PrivateRoute role="owner">
-                  <OwnerDashboard />
-                </PrivateRoute>
-              } />
-              <Route path="/owner/brand-settings" element={
-                <PrivateRoute role="owner">
-                  <BrandSettings />
-                </PrivateRoute>
-              } />
-              <Route path="/owner/customers" element={
-                <PrivateRoute role="owner">
-                  <OwnerCustomers />
-                </PrivateRoute>
-              } />
-              <Route path="/owner/statistics" element={
-                <PrivateRoute role="owner">
-                  <OwnerStatistics />
-                </PrivateRoute>
-              } />
-            </Routes>
+            <NavigationRoutes />
           </Suspense>
         </div>
       </div>

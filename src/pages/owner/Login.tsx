@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useStore, formatPhoneNumber } from '../../store';
-import { Store, ArrowLeft, ShieldCheck, Heart, Sparkles, Loader2 } from 'lucide-react';
+import { Store, ArrowLeft, ShieldCheck, Heart, Sparkles, Loader2, Monitor, Smartphone } from 'lucide-react';
 
 export default function OwnerLogin() {
   const [isLogin, setIsLogin] = useState(true);
@@ -12,7 +12,7 @@ export default function OwnerLogin() {
   const [isLoading, setIsLoading] = useState(false);
   
   const navigate = useNavigate();
-  const { login, currentUser } = useStore();
+  const { login, currentUser, ownerViewMode, setOwnerViewMode } = useStore();
 
   const handleOAuthLogin = async (provider: 'google' | 'kakao') => {
     setIsLoading(true);
@@ -55,9 +55,26 @@ export default function OwnerLogin() {
         <Link to="/" className="absolute top-8 left-8 p-3 hover:bg-surface-container rounded-full text-on-surface-variant/40 transition-colors"><ArrowLeft className="w-6 h-6" /></Link>
         <div className="w-24 h-24 rounded-[2rem] bg-primary flex items-center justify-center mx-auto mb-10 shadow-2xl rotate-3 scale-110"><Store className="w-12 h-12 text-white" /></div>
         
-        <div className="mb-12">
+        <div className="mb-8">
            <h2 className="text-4xl font-serif font-black text-primary italic mb-2 tracking-tighter">결 사장님용</h2>
            <p className="text-[10px] font-bold text-on-surface-variant/40 uppercase tracking-[0.3em] font-sans">매장 통합 거버넌스 시스템</p>
+        </div>
+
+        <div className="flex bg-surface-container p-1 rounded-2xl mb-10 border border-outline-variant/30">
+           <button 
+             onClick={() => setOwnerViewMode('desktop')}
+             className={`flex-1 flex items-center justify-center gap-3 py-3 rounded-xl transition-all ${ownerViewMode === 'desktop' ? 'bg-white text-primary shadow-sm' : 'text-on-surface-variant/40 hover:text-primary/60'}`}
+           >
+              <Monitor className="w-4 h-4" />
+              <span className="text-[10px] font-black uppercase tracking-widest">데스크톱</span>
+           </button>
+           <button 
+             onClick={() => setOwnerViewMode('mobile')}
+             className={`flex-1 flex items-center justify-center gap-3 py-3 rounded-xl transition-all ${ownerViewMode === 'mobile' ? 'bg-white text-primary shadow-sm' : 'text-on-surface-variant/40 hover:text-primary/60'}`}
+           >
+              <Smartphone className="w-4 h-4" />
+              <span className="text-[10px] font-black uppercase tracking-widest">모바일</span>
+           </button>
         </div>
 
         <div className="space-y-10">

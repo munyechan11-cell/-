@@ -91,9 +91,9 @@ export default function Master() {
 
   const activeCount = users.filter(u => u.status !== 'deleted').length;
   const deletedCount = users.filter(u => u.status === 'deleted').length;
-  const googleCount = users.filter(u => u.authType === 'google').length;
-  const kakaoCount = users.filter(u => u.authType === 'kakao').length;
-  const phoneCount = users.filter(u => u.authType === 'phone').length;
+  const googleCount = users.filter(u => u.authType === 'google' || u.linkedProviders?.includes('google')).length;
+  const kakaoCount = users.filter(u => u.authType === 'kakao' || u.linkedProviders?.includes('kakao')).length;
+  const phoneCount = users.filter(u => u.authType === 'phone' || (!u.authType && u.phone)).length;
 
   return (
     <div className="flex h-screen overflow-hidden bg-surface-bright font-sans text-on-surface selection:bg-primary/20">
@@ -147,8 +147,8 @@ export default function Master() {
               {[
                 { label: '활성 계정', value: activeCount, color: 'text-emerald-500' },
                 { label: '탈퇴 계정', value: deletedCount, color: 'text-burgundy/40' },
-                { label: '구글 인증', value: googleCount, color: 'text-blue-500' },
-                { label: '카카오 인증', value: kakaoCount, color: 'text-[#3c1e1e]' }
+                { label: '구글 연동', value: googleCount, color: 'text-blue-500' },
+                { label: '카카오 연동', value: kakaoCount, color: 'text-[#3c1e1e]' }
               ].map((stat, i) => (
                 <div key={i} className="bg-white p-6 rounded-[2rem] border border-outline-variant/30 shadow-sm flex flex-col justify-center items-center">
                    <p className="text-[9px] font-black uppercase tracking-widest text-on-surface-variant/40 mb-1">{stat.label}</p>
@@ -335,13 +335,28 @@ export default function Master() {
                         <td className="px-10 py-8 text-sm font-bold text-primary">
                            {owners.find(o => o.id === customer.storeId)?.restaurantName || '무소속'}
                         </td>
-                        <td className="px-10 py-8">
-                           <div className="flex gap-2">
-                              {(!customer.authType || customer.authType === 'phone') && <div className="w-6 h-6 bg-surface-container rounded-lg flex items-center justify-center text-on-surface-variant/40" title="전화번호"><Phone className="w-3.5 h-3.5" /></div>}
-                              {customer.linkedProviders?.includes('google') && <div className="w-6 h-6 bg-white border border-outline-variant/30 rounded-lg flex items-center justify-center" title="구글"><svg className="w-3 h-3" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg></div>}
-                              {customer.linkedProviders?.includes('kakao') && <div className="w-6 h-6 bg-[#FEE500] rounded-lg flex items-center justify-center text-[#3c1e1e]" title="카카오"><div className="text-[7px] font-black">K</div></div>}
-                           </div>
-                        </td>
+                         <td className="px-10 py-8">
+                            <div className="flex gap-2 items-center">
+                               {(!customer.authType || customer.authType === 'phone') && (
+                                 <div className="flex items-center gap-2 bg-surface-container px-3 py-1.5 rounded-xl border border-outline-variant/30" title="Primary: 전화번호">
+                                   <Phone className="w-3.5 h-3.5 text-primary/60" />
+                                   <span className="text-[10px] font-black text-primary/40 uppercase">Phone</span>
+                                 </div>
+                               )}
+                               <div className="flex -space-x-1 ml-2">
+                                 {customer.linkedProviders?.includes('google') && (
+                                   <div className="w-8 h-8 bg-white border border-outline-variant/30 rounded-full flex items-center justify-center shadow-sm z-10" title="Linked: 구글">
+                                     <svg className="w-4 h-4" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+                                   </div>
+                                 )}
+                                 {customer.linkedProviders?.includes('kakao') && (
+                                   <div className="w-8 h-8 bg-[#FEE500] rounded-full flex items-center justify-center text-[#3c1e1e] shadow-sm" title="Linked: 카카오">
+                                     <div className="text-[10px] font-black">K</div>
+                                   </div>
+                                 )}
+                               </div>
+                            </div>
+                         </td>
                         <td className="px-10 py-8"><span className="text-[10px] font-bold uppercase text-primary/40 bg-surface-container px-3 py-1 rounded-full border border-outline-variant/30">{customer.status === 'deleted' ? '탈퇴함' : '활동 중'}</span></td>
                         <td className="px-10 py-8 text-right flex justify-end gap-2">
                            <button onClick={() => handleDeleteUser(customer.id, 'customer', customer.name)} className="p-3 bg-burgundy/5 text-burgundy rounded-xl hover:bg-burgundy hover:text-white transition-all"><Trash2 className="w-5 h-5" /></button>

@@ -11,7 +11,7 @@ import { Link, useNavigate } from 'react-router-dom';
 type DateRange = '7일' | '30일' | '전체';
 
 export default function OwnerStatistics() {
-   const { currentUser, visits, coupons, tables, users } = useStore();
+   const { currentUser, visits, coupons, tables, users, ownerViewMode } = useStore();
    const [selectedRange, setSelectedRange] = useState<DateRange>('7일');
    const navigate = useNavigate();
 
@@ -108,42 +108,65 @@ export default function OwnerStatistics() {
   }, [chartDays, visitsPerDay]);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-surface-bright font-sans text-on-surface selection:bg-primary/20">
+    <div className={`flex h-screen overflow-hidden bg-surface-bright font-sans text-on-surface selection:bg-primary/20 ${ownerViewMode === 'mobile' ? 'flex-col' : ''}`}>
       
       {/* Sidebar - Consistent */}
-      <aside className="h-screen w-20 lg:w-64 fixed left-0 bg-sidebar-bg shadow-2xl flex flex-col py-8 z-50">
-        <div className="px-8 mb-12">
-          <Link to="/" className="text-[#fcfcfc] font-serif italic text-2xl">결</Link>
-          <div className="mt-8 hidden lg:block">
-            <p className="text-[#fcfcfc] font-serif italic text-sm">{currentUser.restaurantName}</p>
-            <p className="text-[#fcfcfc]/50 uppercase tracking-widest text-[10px]">실시간 매장 관리</p>
+      {ownerViewMode === 'desktop' && (
+        <aside className="h-screen w-20 lg:w-64 fixed left-0 bg-sidebar-bg shadow-2xl flex flex-col py-8 z-50">
+          <div className="px-8 mb-12">
+            <Link to="/" className="text-[#fcfcfc] font-serif italic text-2xl">결</Link>
+            <div className="mt-8 hidden lg:block">
+              <p className="text-[#fcfcfc] font-serif italic text-sm">{currentUser.restaurantName}</p>
+              <p className="text-[#fcfcfc]/50 uppercase tracking-widest text-[10px]">실시간 매장 관리</p>
+            </div>
           </div>
-        </div>
-        <nav className="flex-1 space-y-2">
-          <Link to="/owner" className="text-white/60 hover:text-white px-8 py-3 flex items-center gap-4 hover:bg-white/5 transition-all">
-            <LayoutGrid className="w-5 h-5 flex-shrink-0" /><span className="text-xs hidden lg:block">대시보드</span>
-          </Link>
-          <Link to="/owner/customers" className="text-white/60 hover:text-white px-8 py-3 flex items-center gap-4 hover:bg-white/5 transition-all">
-            <Users className="w-5 h-5 flex-shrink-0" /><span className="text-xs hidden lg:block">단골 관리</span>
-          </Link>
-          <Link to="/owner/statistics" className="bg-white/10 text-white rounded-l-full ml-4 pl-4 py-3 flex items-center gap-4 transition-all">
-            <BarChart3 className="w-5 h-5 flex-shrink-0" /><span className="text-xs hidden lg:block">매장 통계</span>
-          </Link>
-          <Link to="/owner/brand-settings" className="text-white/60 hover:text-white px-8 py-3 flex items-center gap-4 hover:bg-white/5 transition-all">
-            <Settings className="w-5 h-5 flex-shrink-0" /><span className="text-xs hidden lg:block">매장 설정</span>
-          </Link>
+          <nav className="flex-1 space-y-2">
+            <Link to="/owner" className="text-white/60 hover:text-white px-8 py-3 flex items-center gap-4 hover:bg-white/5 transition-all">
+              <LayoutGrid className="w-5 h-5 flex-shrink-0" /><span className="text-xs hidden lg:block">대시보드</span>
+            </Link>
+            <Link to="/owner/customers" className="text-white/60 hover:text-white px-8 py-3 flex items-center gap-4 hover:bg-white/5 transition-all">
+              <Users className="w-5 h-5 flex-shrink-0" /><span className="text-xs hidden lg:block">단골 관리</span>
+            </Link>
+            <Link to="/owner/statistics" className="bg-white/10 text-white rounded-l-full ml-4 pl-4 py-3 flex items-center gap-4 transition-all">
+              <BarChart3 className="w-5 h-5 flex-shrink-0" /><span className="text-xs hidden lg:block">매장 통계</span>
+            </Link>
+            <Link to="/owner/brand-settings" className="text-white/60 hover:text-white px-8 py-3 flex items-center gap-4 hover:bg-white/5 transition-all">
+              <Settings className="w-5 h-5 flex-shrink-0" /><span className="text-xs hidden lg:block">매장 설정</span>
+            </Link>
+          </nav>
+          <button onClick={handleLogout} className="px-8 mt-auto text-white/40 hover:text-white text-[10px] flex items-center gap-2 uppercase tracking-widest">
+            <LogOut className="w-4 h-4" /> <span className="hidden lg:block">로그아웃</span>
+          </button>
+        </aside>
+      )}
+
+      {/* Mobile Bottom Navigation */}
+      {ownerViewMode === 'mobile' && (
+        <nav className="fixed bottom-0 left-0 right-0 bg-sidebar-bg/95 backdrop-blur-xl border-t border-white/5 z-[100] px-6 py-4 flex justify-between items-center safe-area-bottom">
+           {[
+             { to: '/owner', icon: LayoutGrid, label: '홈' },
+             { to: '/owner/customers', icon: Users, label: '단골' },
+             { to: '/owner/statistics', icon: BarChart3, label: '통계', active: true },
+             { to: '/owner/brand-settings', icon: Settings, label: '설정' }
+           ].map((item, idx) => (
+             <Link 
+               key={idx}
+               to={item.to} 
+               className={`flex flex-col items-center gap-1.5 transition-all ${item.active ? 'text-gold' : 'text-white/40'}`}
+             >
+               <item.icon className="w-5 h-5" />
+               <span className="text-[9px] font-black uppercase tracking-widest">{item.label}</span>
+             </Link>
+           ))}
         </nav>
-        <button onClick={handleLogout} className="px-8 mt-auto text-white/40 hover:text-white text-[10px] flex items-center gap-2 uppercase tracking-widest">
-          <LogOut className="w-4 h-4" /> <span className="hidden lg:block">로그아웃</span>
-        </button>
-      </aside>
+      )}
 
       {/* Main Workspace Area */}
-      <main className="ml-20 lg:ml-64 flex-1 h-screen flex flex-col overflow-hidden">
-        <header className="bg-white/90 backdrop-blur-md sticky top-0 z-40 flex justify-between items-center w-full px-8 py-4 border-b border-outline-variant/30">
+      <main className={`${ownerViewMode === 'desktop' ? 'ml-20 lg:ml-64' : 'flex-1 pb-24'} flex-1 h-screen flex flex-col overflow-hidden`}>
+        <header className="bg-white/90 backdrop-blur-md sticky top-0 z-40 flex justify-between items-center w-full px-6 lg:px-8 py-4 border-b border-outline-variant/30">
           <div className="flex items-center gap-4">
-             <span className="font-serif text-2xl font-bold text-primary">매장 비즈니스 리포트</span>
-             <div className="hidden sm:flex bg-surface-container p-1 rounded-lg ml-6">
+             <span className="font-serif text-xl lg:text-2xl font-bold text-primary">비즈니스 리포트</span>
+             <div className="hidden lg:flex bg-surface-container p-1 rounded-lg ml-6">
                 {['7일', '30일', '전체'].map(range => (
                    <button
                      key={range}

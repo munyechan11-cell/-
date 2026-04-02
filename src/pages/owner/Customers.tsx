@@ -5,13 +5,13 @@ import {
   History, Loader2, CheckSquare, Square, Download, ChevronDown, 
   BarChart3, LogOut, Store as StoreIcon, ShieldCheck, Heart, 
   TrendingUp, Calendar, Edit2, Filter, Trash2, Plus, ArrowUpRight,
-  Clock, MapPin, Settings
+  Clock, MapPin, Settings, Globe, Smartphone
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import MemoModal, { formatMemoDisplay } from '../../components/MemoModal';
 
 export default function OwnerCustomers() {
-  const { users, visits, issueCoupon, recordCommunication, communications, currentUser, tierOverrides, setCustomerTier, updateUserMemo, bulkIssueCoupon, bulkRecordCommunication } = useStore();
+  const { users, visits, issueCoupon, recordCommunication, communications, currentUser, tierOverrides, setCustomerTier, updateUserMemo, bulkIssueCoupon, bulkRecordCommunication, ownerViewMode } = useStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterTier, setFilterTier] = useState<string>('all');
   const [selectedCustomer, setSelectedCustomer] = useState<string | null>(null);
@@ -137,7 +137,11 @@ export default function OwnerCustomers() {
     if (!currentUser) return;
     const storeCustomers = users.filter(u => u.role === 'customer' && u.storeId === currentUser.id);
     if (storeCustomers.length === 0) return;
-    const csvContent = ['\uFEFF' + '손님 명부 (결)', '이름,전화번호,성별,방문횟수', ...storeCustomers.map(c => `${c.name},${c.phone},${c.gender || '미선택'},${visits.filter(v => v.customerId === c.id && v.storeId === currentUser.id).length}`)].join('\n');
+    const csvContent = [
+      '\uFEFF' + '손님 명부 (결)', 
+      '이름,전화번호,연동계정,성별,방문횟수', 
+      ...storeCustomers.map(c => `${c.name},${c.phone},${(c.linkedProviders || []).join('/') || '전화번호'},${c.gender || '미선택'},${visits.filter(v => v.customerId === c.id && v.storeId === currentUser.id).length}`)
+    ].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -148,42 +152,65 @@ export default function OwnerCustomers() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-surface-bright font-sans text-on-surface selection:bg-primary/20">
+    <div className={`flex h-screen overflow-hidden bg-surface-bright font-sans text-on-surface selection:bg-primary/20 ${ownerViewMode === 'mobile' ? 'flex-col' : ''}`}>
       
       {/* Sidebar - Consistent with Dashboard */}
-      <aside className="h-screen w-20 lg:w-64 fixed left-0 bg-sidebar-bg shadow-2xl flex flex-col py-8 z-50">
-        <div className="px-8 mb-12">
-          <Link to="/" className="text-[#fcfcfc] font-serif italic text-2xl">결</Link>
-          <div className="mt-8 hidden lg:block">
-            <p className="text-[#fcfcfc] font-serif italic text-sm">{currentUser.restaurantName}</p>
-            <p className="text-[#fcfcfc]/50 uppercase tracking-widest text-[10px]">실시간 매장 관리</p>
+      {ownerViewMode === 'desktop' && (
+        <aside className="h-screen w-20 lg:w-64 fixed left-0 bg-sidebar-bg shadow-2xl flex flex-col py-8 z-50">
+          <div className="px-8 mb-12">
+            <Link to="/" className="text-[#fcfcfc] font-serif italic text-2xl">결</Link>
+            <div className="mt-8 hidden lg:block">
+              <p className="text-[#fcfcfc] font-serif italic text-sm">{currentUser.restaurantName}</p>
+              <p className="text-[#fcfcfc]/50 uppercase tracking-widest text-[10px]">실시간 매장 관리</p>
+            </div>
           </div>
-        </div>
-        <nav className="flex-1 space-y-2">
-          <Link to="/owner" className="text-white/60 hover:text-white px-8 py-3 flex items-center gap-4 hover:bg-white/5 transition-all">
-            <LayoutGrid className="w-5 h-5 flex-shrink-0" /><span className="text-xs hidden lg:block">대시보드</span>
-          </Link>
-          <Link to="/owner/customers" className="bg-white/10 text-white rounded-l-full ml-4 pl-4 py-3 flex items-center gap-4 transition-all">
-            <Users className="w-5 h-5 flex-shrink-0" /><span className="text-xs hidden lg:block">단골 관리</span>
-          </Link>
-          <Link to="/owner/statistics" className="text-white/60 hover:text-white px-8 py-3 flex items-center gap-4 hover:bg-white/5 transition-all">
-            <BarChart3 className="w-5 h-5 flex-shrink-0" /><span className="text-xs hidden lg:block">매장 통계</span>
-          </Link>
-          <Link to="/owner/brand-settings" className="text-white/60 hover:text-white px-8 py-3 flex items-center gap-4 hover:bg-white/5 transition-all">
-            <Settings className="w-5 h-5 flex-shrink-0" /><span className="text-xs hidden lg:block">매장 설정</span>
-          </Link>
+          <nav className="flex-1 space-y-2">
+            <Link to="/owner" className="text-white/60 hover:text-white px-8 py-3 flex items-center gap-4 hover:bg-white/5 transition-all">
+              <LayoutGrid className="w-5 h-5 flex-shrink-0" /><span className="text-xs hidden lg:block">대시보드</span>
+            </Link>
+            <Link to="/owner/customers" className="bg-white/10 text-white rounded-l-full ml-4 pl-4 py-3 flex items-center gap-4 transition-all">
+              <Users className="w-5 h-5 flex-shrink-0" /><span className="text-xs hidden lg:block">단골 관리</span>
+            </Link>
+            <Link to="/owner/statistics" className="text-white/60 hover:text-white px-8 py-3 flex items-center gap-4 hover:bg-white/5 transition-all">
+              <BarChart3 className="w-5 h-5 flex-shrink-0" /><span className="text-xs hidden lg:block">매장 통계</span>
+            </Link>
+            <Link to="/owner/brand-settings" className="text-white/60 hover:text-white px-8 py-3 flex items-center gap-4 hover:bg-white/5 transition-all">
+              <Settings className="w-5 h-5 flex-shrink-0" /><span className="text-xs hidden lg:block">매장 설정</span>
+            </Link>
+          </nav>
+          <button onClick={handleLogout} className="px-8 mt-auto text-white/40 hover:text-white text-[10px] flex items-center gap-2 uppercase tracking-widest">
+            <LogOut className="w-4 h-4" /> <span className="hidden lg:block">로그아웃</span>
+          </button>
+        </aside>
+      )}
+
+      {/* Mobile Bottom Navigation (Consistent with Dashboard) */}
+      {ownerViewMode === 'mobile' && (
+        <nav className="fixed bottom-0 left-0 right-0 bg-sidebar-bg/95 backdrop-blur-xl border-t border-white/5 z-[100] px-6 py-4 flex justify-between items-center safe-area-bottom">
+           {[
+             { to: '/owner', icon: LayoutGrid, label: '홈' },
+             { to: '/owner/customers', icon: Users, label: '단골', active: true },
+             { to: '/owner/statistics', icon: BarChart3, label: '통계' },
+             { to: '/owner/brand-settings', icon: Settings, label: '설정' }
+           ].map((item, idx) => (
+             <Link 
+               key={idx}
+               to={item.to} 
+               className={`flex flex-col items-center gap-1.5 transition-all ${item.active ? 'text-gold' : 'text-white/40'}`}
+             >
+               <item.icon className="w-5 h-5" />
+               <span className="text-[9px] font-black uppercase tracking-widest">{item.label}</span>
+             </Link>
+           ))}
         </nav>
-        <button onClick={handleLogout} className="px-8 mt-auto text-white/40 hover:text-white text-[10px] flex items-center gap-2 uppercase tracking-widest">
-          <LogOut className="w-4 h-4" /> <span className="hidden lg:block">로그아웃</span>
-        </button>
-      </aside>
+      )}
 
       {/* Main Area */}
-      <main className="ml-20 lg:ml-64 flex-1 h-screen flex flex-col overflow-hidden">
+      <main className={`${ownerViewMode === 'desktop' ? 'ml-20 lg:ml-64' : 'flex-1 pb-24'} flex-1 h-screen flex flex-col overflow-hidden`}>
         {/* Header */}
-        <header className="bg-white/90 backdrop-blur-md sticky top-0 z-40 flex justify-between items-center w-full px-8 py-4 border-b border-outline-variant/30">
-          <div className="flex items-center gap-12">
-            <span className="font-serif text-2xl font-bold text-primary">단골 관리</span>
+        <header className="bg-white/90 backdrop-blur-md sticky top-0 z-40 flex justify-between items-center w-full px-6 lg:px-8 py-4 border-b border-outline-variant/30">
+          <div className="flex items-center gap-6 lg:gap-12">
+            <span className="font-serif text-xl lg:text-2xl font-bold text-primary">단골 관리</span>
             <button 
               onClick={handleExportData}
               className="hidden lg:flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-primary/60 hover:text-primary transition-colors"
@@ -192,15 +219,15 @@ export default function OwnerCustomers() {
             </button>
           </div>
           
-          <div className="flex items-center gap-4">
-             <div className="relative hidden md:block w-80">
+          <div className="flex items-center gap-3 lg:gap-4">
+             <div className="relative hidden md:block w-48 lg:w-80">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant/40" />
                 <input 
                   type="text" 
                   placeholder="단골 손님 검색..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full bg-surface-container border-none focus:ring-1 focus:ring-primary rounded-full pl-12 pr-4 py-2 text-sm font-body"
+                  className="w-full bg-surface-container border-none focus:ring-1 focus:ring-primary rounded-full pl-10 pr-4 py-2 text-xs lg:text-sm font-body"
                 />
              </div>
              <button
@@ -208,18 +235,18 @@ export default function OwnerCustomers() {
                   setIsMultiSelectMode(!isMultiSelectMode);
                   setSelectedCustomers([]);
                 }}
-                className={`px-6 py-2 rounded-full font-serif text-sm transition-all shadow-lg ${isMultiSelectMode ? 'bg-primary text-white' : 'bg-surface-container-highest text-primary'}`}
+                className={`px-4 lg:px-6 py-2 rounded-full font-serif text-xs lg:text-sm transition-all shadow-lg ${isMultiSelectMode ? 'bg-primary text-white' : 'bg-surface-container-highest text-primary'}`}
              >
-               {isMultiSelectMode ? '취소' : '일괄 서비스'}
+               {isMultiSelectMode ? '취소' : (ownerViewMode === 'mobile' ? '일괄' : '일괄 서비스')}
              </button>
           </div>
         </header>
 
         <div className="flex-1 overflow-y-auto no-scrollbar p-8">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-8 lg:mb-12">
             <div>
-               <h2 className="text-4xl font-serif font-black text-primary tracking-tight italic">단골 명부</h2>
-               <p className="text-on-surface-variant/60 text-[11px] font-bold uppercase tracking-widest mt-2">{currentUser.restaurantName}의 소중한 손님 기록입니다.</p>
+               <h2 className="text-3xl lg:text-4xl font-serif font-black text-primary tracking-tight italic">단골 명부</h2>
+               <p className="text-on-surface-variant/60 text-[10px] lg:text-[11px] font-bold uppercase tracking-widest mt-1 lg:mt-2">{currentUser.restaurantName}의 소중한 손님 기록입니다.</p>
             </div>
             
             <div className="flex bg-surface-container p-1 rounded-xl overflow-x-auto no-scrollbar">
@@ -272,7 +299,14 @@ export default function OwnerCustomers() {
                               {getTierCustomName(stats.tier, currentUser?.tierNames)}
                            </span>
                         </div>
-                        <p className="text-[10px] font-bold text-on-surface-variant/40 uppercase tracking-widest">{customer.phone}</p>
+                        <div className="flex items-center gap-3">
+                           <p className="text-[10px] font-bold text-on-surface-variant/40 uppercase tracking-widest">{customer.phone}</p>
+                           <div className="flex items-center gap-1.5 ml-2 border-l border-outline-variant/30 pl-3">
+                              <Smartphone className={`w-3 h-3 ${customer.phone ? 'text-primary/60' : 'text-on-surface-variant/20'}`} />
+                              {customer.linkedProviders?.includes('google') && <Globe className="w-3 h-3 text-emerald-600" />}
+                              {customer.linkedProviders?.includes('kakao') && <MessageSquare className="w-3 h-3 text-gold" />}
+                           </div>
+                        </div>
                      </div>
                   </div>
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useStore, getEffectiveTier, getTierColor, getTierCustomName } from '../../store';
+import { useStore, getEffectiveTier, getTierColor, getTierCustomName, showToast } from '../../store';
 import { 
   Users, LayoutGrid, LogOut, X, Bell, BarChart3, 
   Settings, Map as MapIcon, List, Move, Plus, 
@@ -7,18 +7,22 @@ import {
   TrendingUp, Calendar, History, Store,
   Utensils, Hourglass, GripVertical, Monitor,
   User, Mail, Settings as SettingsIcon, ShieldAlert,
-  Send, ChevronRight, Activity, Zap
+  Send, ChevronRight, Activity, Zap, Sparkles,
+  Trophy, Globe, Leaf, Target, ArrowRight, MessageSquare, Ticket
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
+import { motion, AnimatePresence } from 'motion/react';
 import { formatMemoDisplay } from '../../components/MemoModal';
+import Skeleton, { DashboardStatsSkeleton } from '../../components/Skeleton';
 
 export default function OwnerDashboard() {
   const { 
-    currentUser, tables, users, visits, coupons, sections, logout, leaveTable, 
+    isReady, currentUser, tables, users, visits, coupons, sections, logout, leaveTable, 
     initTables, tierOverrides, approveCouponUse, rejectCouponUse, 
     updateTableLayout, addTable, deleteTable, addSection, updateSection, 
-    deleteSection, updateTableStatus, linkSocialAccount, deleteAccount
+    deleteSection, updateTableStatus, linkSocialAccount, deleteAccount,
+    ownerViewMode
   } = useStore();
   
   const navigate = useNavigate();
@@ -37,16 +41,12 @@ export default function OwnerDashboard() {
   
   const currentStoreSections = sections.filter(s => s.storeId === currentUser?.id);
   const [activeSectionId, setActiveSectionId] = useState<string | 'all' | 'unassigned'>('all');
-  const [isEditingSections, setIsEditingSections] = useState(false);
-  const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
-  const [newSectionName, setNewSectionName] = useState('');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [localNotifications, setLocalNotifications] = useState<{id: string, name: string, time: string, table: number, avatar?: string, tier: string}[]>([]);
   const processedVisitIds = useRef<Set<string>>(new Set());
   const isInitialLoad = useRef(true);
   const [highlightedTable, setHighlightedTable] = useState<number | null>(null);
-  const [confirmDeleteText, setConfirmDeleteText] = useState('');
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
@@ -84,18 +84,15 @@ export default function OwnerDashboard() {
         const customer = users.find(u => u.id === v.customerId);
         const customerName = customer?.name || '신규 고객';
         
-        // Trigger Premium Feedback
         setHighlightedTable(v.tableNumber);
         setTimeout(() => setHighlightedTable(null), 8000);
         
-        // Play Chime (Royalty-free subtle chime)
         try {
           const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
           audio.volume = 0.4;
           audio.play();
         } catch (e) {}
 
-        // Trigger Toast
         window.dispatchEvent(new CustomEvent('show-toast', { 
           detail: { 
             message: `${customerName}님이 ${v.tableNumber}번 테이블에 입장하셨습니다!`, 
@@ -103,7 +100,6 @@ export default function OwnerDashboard() {
           } 
         }));
 
-        // Add to local notification history
         setLocalNotifications(prev => [
           { 
             id: v.id, 
@@ -114,12 +110,28 @@ export default function OwnerDashboard() {
             table: v.tableNumber 
           },
           ...prev
-        ].slice(0, 10)); // Keep last 10
+        ].slice(0, 10));
       });
     }
   }, [visits, currentUser, users]);
 
   if (!currentUser) return null;
+
+  if (!isReady) {
+    return (
+      <div className="flex h-screen bg-surface-bright p-12 lg:pl-80 space-y-12 flex-col">
+        <div className="flex justify-between items-center py-6">
+           <div>
+              <Skeleton width={300} height={40} />
+              <Skeleton width={150} height={20} className="mt-2" />
+           </div>
+           <Skeleton variant="circle" width={56} height={56} />
+        </div>
+        <DashboardStatsSkeleton />
+        <Skeleton height="60vh" className="rounded-[4rem]" />
+      </div>
+    );
+  }
 
   const handleLogout = () => {
     logout();
@@ -128,7 +140,6 @@ export default function OwnerDashboard() {
 
   const myTables = tables.filter(t => t.storeId === currentUser.id);
   const actualTables = myTables.filter(t => t.type === 'table');
-  const actualRoomsCount = myTables.filter(t => t.type === 'room').length;
   
   const activeTable = myTables.find(t => t.number === selectedTable);
   const activeCustomer = activeTable?.currentCustomerId 
@@ -166,20 +177,13 @@ export default function OwnerDashboard() {
 
   const handlePointerMove = (e: React.PointerEvent) => {
     if (draggedTable === null || !dragStart || !tableStart) return;
-    
-    // Delta-based movement: how much the mouse has moved from start
     const dx = (e.clientX - dragStart.x) / zoom;
     const dy = (e.clientY - dragStart.y) / zoom;
-    
-    setDragPosition({ 
-      x: tableStart.x + dx, 
-      y: tableStart.y + dy 
-    });
+    setDragPosition({ x: tableStart.x + dx, y: tableStart.y + dy });
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
     if (draggedTable !== null && dragPosition) {
-      // Apply 10px grid snap only on release for final alignment
       const snappedX = Math.round(dragPosition.x / 10) * 10;
       const snappedY = Math.round(dragPosition.y / 10) * 10;
       updateTableLayout(currentUser.id, draggedTable, { x: snappedX, y: snappedY });
@@ -188,487 +192,578 @@ export default function OwnerDashboard() {
     setDragPosition(null);
   };
 
-  const downloadQR = () => {
-    const svg = qrRef.current?.querySelector('svg');
-    if (!svg) return;
-    const svgData = new XMLSerializer().serializeToString(svg);
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-    img.onload = () => {
-      canvas.width = img.width;
-      canvas.height = img.height;
-      ctx?.drawImage(img, 0, 0);
-      const pngFile = canvas.toDataURL('image/png');
-      const downloadLink = document.createElement('a');
-      downloadLink.download = `QR_Table_${selectedTable}.png`;
-      downloadLink.href = pngFile;
-      downloadLink.click();
-    };
-    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
-  };
-
-  const copyTableLink = () => {
-    const url = `${window.location.origin}/customer/store/${currentUser.id}?table=${selectedTable}`;
-    navigator.clipboard.writeText(url);
-    window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: '링크가 복사되었습니다.', type: 'success' } }));
-  };
-
   const stats = (() => {
     const weekAgo = new Date();
     weekAgo.setDate(weekAgo.getDate() - 7);
     const newCustomers = new Set(visits.filter(v => v.storeId === currentUser.id && new Date(v.date) >= weekAgo).map(v => v.customerId)).size;
-    
     const occupiedTables = actualTables.filter(t => t.currentCustomerId);
     const occupancyRate = actualTables.length > 0 ? Math.round((occupiedTables.length / actualTables.length) * 100) : 0;
-    
-    const hourCounts: Record<number, number> = {};
-    visits.filter(v => v.storeId === currentUser.id).forEach(v => {
-      const hour = new Date(v.date).getHours();
-      hourCounts[hour] = (hourCounts[hour] || 0) + 1;
-    });
-    const peakHour = Object.entries(hourCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || '12';
-    
     const currentDurations = occupiedTables.map(t => (currentTime.getTime() - new Date(t.sessionStartTime!).getTime()) / 60000);
     const avgUsage = currentDurations.length > 0 ? Math.round(currentDurations.reduce((a, b) => a + b, 0) / currentDurations.length) : 45;
-
-    return { 
-      newCustomers, 
-      occupancyRate, 
-      peakTime: `${peakHour}:00`, 
-      avgUsage 
-    };
+    return { newCustomers, occupancyRate, avgUsage };
   })();
 
   return (
-    <div className="flex h-screen overflow-hidden bg-surface-bright font-sans text-on-surface">
-      <aside className="h-screen w-20 lg:w-64 fixed left-0 bg-sidebar-bg shadow-2xl flex flex-col py-8 z-50">
-        <div className="px-8 mb-12">
-          <Link to="/" className="text-[#fcfcfc] font-serif italic text-2xl">결</Link>
-          <div className="mt-8 hidden lg:block">
-            <p className="text-[#fcfcfc] font-serif italic text-sm">{currentUser.restaurantName}</p>
-            <p className="text-[#fcfcfc]/50 uppercase tracking-widest text-[10px]">실시간 매장 관리</p>
+    <div className={`flex h-screen overflow-hidden bg-surface-bright font-sans text-on-surface ${ownerViewMode === 'mobile' ? 'flex-col' : ''}`}>
+      {/* Elite Sidebar - Hidden on Mobile unless specifically in desktop mode */}
+      {ownerViewMode === 'desktop' && (
+        <aside className="h-screen w-20 lg:w-72 fixed left-0 bg-sidebar-bg shadow-premium flex flex-col py-10 z-50 border-r border-white/5">
+          <div className="px-10 mb-16">
+            <Link to="/" className="text-white font-serif italic text-4xl font-black tracking-tighter drop-shadow-xl">결</Link>
+            <div className="mt-6 hidden lg:block opacity-60">
+              <p className="text-white font-serif italic text-sm">{currentUser.restaurantName}</p>
+              <p className="text-gold uppercase tracking-[0.3em] text-[9px] font-black mt-1">Certified Store Hub</p>
+            </div>
           </div>
-        </div>
-        <nav className="flex-1 space-y-2">
-          <Link to="/owner" className="bg-white/10 text-white rounded-l-full ml-4 pl-4 py-3 flex items-center gap-4 transition-all">
-            <LayoutGrid className="w-5 h-5 flex-shrink-0" /><span className="text-xs hidden lg:block">대시보드</span>
-          </Link>
-          <Link to="/owner/customers" className="text-white/60 hover:text-white px-8 py-3 flex items-center gap-4 hover:bg-white/5 transition-all">
-            <Users className="w-5 h-5 flex-shrink-0" /><span className="text-xs hidden lg:block">단골 관리</span>
-          </Link>
-          <Link to="/owner/statistics" className="text-white/60 hover:text-white px-8 py-3 flex items-center gap-4 hover:bg-white/5 transition-all">
-            <BarChart3 className="w-5 h-5 flex-shrink-0" /><span className="text-xs hidden lg:block">매장 통계</span>
-          </Link>
-          <Link to="/owner/brand-settings" className="text-white/60 hover:text-white px-8 py-3 flex items-center gap-4 hover:bg-white/5 transition-all">
-            <SettingsIcon className="w-5 h-5 flex-shrink-0" /><span className="text-xs hidden lg:block">매장 설정</span>
-          </Link>
-          <button onClick={() => setIsSettingsOpen(true)} className="w-full text-white/60 hover:text-white px-8 py-3 flex items-center gap-4 hover:bg-white/5 transition-all">
-            <User className="w-5 h-5 flex-shrink-0" /><span className="text-xs hidden lg:block">프로필 설정</span>
-          </button>
-        </nav>
-        <button onClick={handleLogout} className="px-8 mt-auto text-white/40 hover:text-white text-[10px] flex items-center gap-2">
-          <LogOut className="w-4 h-4" /> <span className="hidden lg:block">로그아웃</span>
-        </button>
-      </aside>
+          
+          <nav className="flex-1 space-y-1">
+            {[
+              { to: '/owner', icon: LayoutGrid, label: '대시보드', active: true },
+              { to: '/owner/customers', icon: Users, label: '단골 관리' },
+              { to: '/owner/statistics', icon: BarChart3, label: '매장 인텔리전스' },
+              { to: '/owner/brand-settings', icon: Settings, label: '브랜드 스페이스' }
+            ].map((item, idx) => (
+              <Link 
+                key={idx}
+                to={item.to} 
+                className={`group flex items-center gap-4 px-10 py-5 transition-all relative ${item.active ? 'text-white' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
+              >
+                {item.active && <motion.div layoutId="nav-glow" className="absolute left-0 w-1.5 h-8 bg-gold rounded-r-full shadow-[0_0_15px_rgba(198,163,79,0.5)]" />}
+                <item.icon className={`w-5 h-5 flex-shrink-0 transition-transform ${item.active ? 'scale-110' : 'group-hover:scale-110'}`} />
+                <span className="text-xs font-black uppercase tracking-[0.2em] hidden lg:block">{item.label}</span>
+              </Link>
+            ))}
+          </nav>
 
-      <main className="ml-20 lg:ml-64 flex-1 h-screen flex flex-col overflow-hidden">
-        <header className="bg-white/90 backdrop-blur-md px-8 py-6 border-b border-outline-variant/30 flex justify-between items-center">
-          <div className="flex items-center gap-6">
+          <div className="px-10 mt-auto space-y-6">
+             <button onClick={() => setIsSettingsOpen(true)} className="flex items-center gap-4 text-white/40 hover:text-white transition-all group">
+                <User className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                <span className="text-[10px] font-black uppercase tracking-widest hidden lg:block">프로필 설정</span>
+             </button>
+             <button onClick={handleLogout} className="flex items-center gap-4 text-burgundy/40 hover:text-burgundy transition-all group">
+                <LogOut className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                <span className="text-[10px] font-black uppercase tracking-widest hidden lg:block">로그아웃</span>
+             </button>
+          </div>
+        </aside>
+      )}
+
+      {/* Mobile Bottom Navigation */}
+      {ownerViewMode === 'mobile' && (
+        <nav className="fixed bottom-0 left-0 right-0 bg-sidebar-bg/95 backdrop-blur-xl border-t border-white/5 z-[100] px-6 py-4 flex justify-between items-center safe-area-bottom">
+           {([
+             { to: '/owner', icon: LayoutGrid, label: '홈', active: true },
+             { to: '/owner/customers', icon: Users, label: '단골' },
+             { to: '/owner/statistics', icon: BarChart3, label: '통계' },
+             { onClick: () => setIsSettingsOpen(true), icon: Settings, label: '설정' }
+           ] as any[]).map((item, idx) => {
+             const Comp = (item.to ? Link : 'button') as any;
+             return (
+               <Comp 
+                 key={idx}
+                 {...(item.to ? { to: item.to } : { onClick: item.onClick })}
+                 className={`flex flex-col items-center gap-1.5 transition-all ${item.active ? 'text-gold' : 'text-white/40'}`}
+               >
+                 <item.icon className="w-5 h-5" />
+                 <span className="text-[9px] font-black uppercase tracking-widest">{item.label}</span>
+               </Comp>
+             );
+           })}
+        </nav>
+      )}
+
+      <main className={`${ownerViewMode === 'desktop' ? 'ml-20 lg:ml-72' : 'flex-1 pb-24'} flex-1 h-screen flex flex-col overflow-hidden`}>
+        {/* Intelligence Header */}
+        <header className="bg-white/80 backdrop-blur-xl px-6 lg:px-12 py-6 lg:py-8 border-b border-primary/5 flex justify-between items-center z-40">
+          <div className="flex items-center gap-6 lg:gap-10">
             <div>
-               <h1 className="text-3xl font-serif font-black italic text-primary mb-1">Gyeol Dashboard</h1>
-               <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-                  <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">Live Sync: {currentTime.toLocaleTimeString('ko-KR')}</span>
+               <h1 className="text-xl lg:text-3xl font-serif font-black italic text-primary mb-0.5 lg:mb-1 tracking-tight">Command Center</h1>
+               <div className="flex items-center gap-2 lg:gap-3">
+                  <div className="w-1.5 lg:w-2 h-1.5 lg:h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>
+                  <span className="text-[8px] lg:text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em]">Live Pulse • {currentTime.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</span>
                </div>
             </div>
-            <nav className="hidden xl:flex gap-6 ml-8">
-              <button onClick={() => setViewMode('map')} className={`text-sm font-bold ${viewMode === 'map' ? 'text-primary border-b-2 border-primary' : 'text-on-surface-variant'}`}>배치도</button>
-              <button onClick={() => setViewMode('grid')} className={`text-sm font-bold ${viewMode === 'grid' ? 'text-primary border-b-2 border-primary' : 'text-on-surface-variant'}`}>리스트</button>
+            
+            <nav className="hidden lg:flex gap-10">
+               <button onClick={() => setViewMode('map')} className={`text-[11px] font-black uppercase tracking-[0.3em] transition-all px-4 py-2 rounded-xl ${viewMode === 'map' ? 'text-primary bg-primary/5' : 'text-primary/30 hover:text-primary'}`}>Architectural Map</button>
+               <button onClick={() => setViewMode('grid')} className={`text-[11px] font-black uppercase tracking-[0.3em] transition-all px-4 py-2 rounded-xl ${viewMode === 'grid' ? 'text-primary bg-primary/5' : 'text-primary/30 hover:text-primary'}`}>Grid Monitor</button>
             </nav>
           </div>
-          <div className="flex items-center gap-4">
-             {/* Notification Bell */}
+
+          <div className="flex items-center gap-6">
+             {/* Notification Hub */}
              <div className="relative">
                 <button 
                   onClick={() => setShowNotifications(!showNotifications)}
-                  className={`p-3 rounded-full transition-all relative ${showNotifications ? 'bg-primary text-white' : 'bg-surface-container text-primary hover:bg-primary/5'}`}
+                  className={`p-4 rounded-2xl transition-all relative shadow-sm ${showNotifications ? 'bg-primary text-white' : 'bg-surface-bright border border-primary/5 text-primary hover:bg-primary/5'}`}
                 >
                    <Bell className="w-5 h-5" />
                    {localNotifications.length > 0 && (
-                      <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-burgundy rounded-full border-2 border-white animate-bounce"></span>
+                      <span className="absolute top-3 right-3 w-2.5 h-2.5 bg-burgundy rounded-full border-2 border-white animate-bounce shadow-lg"></span>
                    )}
                 </button>
 
-                {showNotifications && (
-                   <div className="absolute top-16 right-0 w-80 bg-white rounded-[2rem] shadow-3xl border border-outline-variant/30 overflow-hidden z-[100] animate-in fade-in slide-in-from-top-4">
-                      <div className="p-6 border-b border-outline-variant/10 flex justify-between items-center">
-                         <h4 className="text-[10px] font-black uppercase tracking-widest text-primary opacity-40">실시간 알림</h4>
-                         {localNotifications.length > 0 && (
-                            <button onClick={() => setLocalNotifications([])} className="text-[10px] font-bold text-burgundy opacity-60 hover:opacity-100">모두 삭제</button>
-                         )}
-                      </div>
-                      <div className="max-h-96 overflow-y-auto no-scrollbar">
-                         {localNotifications.length > 0 ? (
-                            localNotifications.map(notification => (
-                               <div key={notification.id} onClick={() => { setHighlightedTable(notification.table); setShowNotifications(false); }} className="p-5 border-b border-outline-variant/5 hover:bg-surface-container transition-colors flex items-center gap-4 cursor-pointer group">
-                                  <div className="w-12 h-12 bg-primary/5 rounded-2xl flex items-center justify-center text-primary overflow-hidden shadow-inner border border-primary/5">
-                                     {notification.avatar ? (
-                                        <img src={notification.avatar} className="w-full h-full object-cover" alt="" />
-                                     ) : (
-                                        <Users className="w-6 h-6 opacity-40" />
-                                     )}
-                                  </div>
-                                  <div className="flex-1">
-                                     <div className="flex items-center gap-2 mb-0.5">
-                                        <p className="text-xs font-black text-primary">{notification.name}님</p>
-                                        <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-full border ${getTierColor(notification.tier)} opacity-80 uppercase tracking-tighter`}>{notification.tier}</span>
-                                     </div>
-                                     <p className="text-[9px] font-bold text-on-surface-variant/40">{notification.table}번 테이블에 입장하였습니다 • {notification.time}</p>
-                                  </div>
-                                  <ChevronRight className="w-4 h-4 text-primary opacity-0 group-hover:opacity-40 -translate-x-2 group-hover:translate-x-0 transition-all" />
-                               </div>
-                            ))
-                         ) : (
-                            <div className="p-12 text-center">
-                               <Bell className="w-8 h-8 text-on-surface-variant/10 mx-auto mb-3" />
-                               <p className="text-[10px] font-bold text-on-surface-variant/30 uppercase tracking-widest">새로운 알림이 없습니다</p>
-                            </div>
-                         )}
-                      </div>
-                   </div>
-                )}
+                <AnimatePresence>
+                  {showNotifications && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      className="absolute top-20 right-0 w-96 bg-white rounded-[3rem] shadow-premium border border-primary/5 overflow-hidden z-[100]"
+                    >
+                        <div className="p-8 border-b border-primary/5 flex justify-between items-center bg-surface-bright/50">
+                           <h4 className="text-[11px] font-black uppercase tracking-[0.4em] text-primary/40">Portal Signals</h4>
+                           {localNotifications.length > 0 && (
+                              <button onClick={() => setLocalNotifications([])} className="text-[10px] font-black text-burgundy/40 hover:text-burgundy uppercase">Clear All</button>
+                           )}
+                        </div>
+                        <div className="max-h-[500px] overflow-y-auto no-scrollbar">
+                           {localNotifications.length > 0 ? (
+                              localNotifications.map(notification => (
+                                 <motion.div 
+                                   initial={{ opacity: 0, x: 10 }}
+                                   animate={{ opacity: 1, x: 0 }}
+                                   key={notification.id} 
+                                   onClick={() => { setHighlightedTable(notification.table); setShowNotifications(false); }} 
+                                   className="p-8 border-b border-primary/5 hover:bg-primary/5 transition-all flex items-center gap-6 cursor-pointer group"
+                                 >
+                                    <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-primary overflow-hidden shadow-premium border border-primary/5">
+                                       {notification.avatar ? (
+                                          <img src={notification.avatar} className="w-full h-full object-cover" alt="" />
+                                       ) : (
+                                          <User className="w-6 h-6 opacity-20" />
+                                       )}
+                                    </div>
+                                    <div className="flex-1">
+                                       <div className="flex items-center gap-3 mb-1">
+                                          <p className="text-sm font-black text-primary italic">{notification.name}</p>
+                                          <span className={`text-[8px] font-black px-2 py-0.5 rounded-full border shadow-sm ${getTierColor(notification.tier)} uppercase tracking-tighter opacity-80`}>{notification.tier}</span>
+                                       </div>
+                                       <p className="text-[10px] font-bold text-primary/30 uppercase tracking-widest">{notification.table}번 테이블 입장 • {notification.time}</p>
+                                    </div>
+                                    <ChevronRight className="w-4 h-4 text-primary opacity-0 group-hover:opacity-40 -translate-x-2 group-hover:translate-x-0 transition-all" />
+                                 </motion.div>
+                              ))
+                           ) : (
+                              <div className="p-16 text-center">
+                                 <Bell className="w-10 h-10 text-primary/10 mx-auto mb-6" />
+                                 <p className="text-[11px] font-black text-primary/20 uppercase tracking-[0.4em]">No active signals</p>
+                              </div>
+                           )}
+                        </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
              </div>
 
-             <button onClick={() => setIsLayoutMode(!isLayoutMode)} className={`px-8 py-3 rounded-full font-serif text-sm shadow-xl ${isLayoutMode ? 'bg-primary text-white' : 'bg-surface-container-highest text-primary hover:shadow-2xl transition-all active:scale-[0.98]'}`}>
-                {isLayoutMode ? '배치 저장 (완료)' : '테이블 배치변경 (이동)'}
-             </button>
+             <motion.button 
+               whileTap={{ scale: 0.95 }}
+               onClick={() => setIsLayoutMode(!isLayoutMode)} 
+               className={`px-10 py-4 rounded-[1.5rem] font-serif font-black italic text-sm transition-all shadow-xl ${isLayoutMode ? 'bg-primary text-white ring-8 ring-primary/10' : 'bg-surface-bright border border-primary/10 text-primary hover:shadow-premium'}`}
+             >
+                {isLayoutMode ? 'Architect Mode: Saving...' : 'Edit Architectural Map'}
+             </motion.button>
           </div>
         </header>
 
-        <div className="flex-1 overflow-hidden flex flex-col p-8 space-y-8">
-          <div className="grid grid-cols-4 gap-6">
-            {[
-              { label: '실시간 가동률', value: `${stats.occupancyRate}%`, icon: Activity, sub: `${actualTables.filter(t => t.currentCustomerId).length}/${actualTables.length}` },
-              { label: '평균 체류 시간', value: `${stats.avgUsage}분`, icon: Hourglass, sub: '현재 기준' },
-              { label: '금일 신규 단골', value: `${stats.newCustomers}명`, icon: TrendingUp, sub: '최근 7일' },
-              { label: '매장 혼잡도', value: stats.occupancyRate > 80 ? '혼잡' : (stats.occupancyRate > 40 ? '여유' : '쾌적'), icon: Zap, sub: stats.peakTime }
-            ].map((s, i) => (
-              <div key={i} className="bg-white p-6 rounded-[2.5rem] border border-outline-variant/30 flex items-center justify-between shadow-sm group hover:border-primary transition-all">
-                <div>
-                  <p className="text-[10px] font-bold text-on-surface-variant/40 uppercase mb-1">{s.label}</p>
-                  <div className="flex items-baseline gap-2">
-                     <p className="text-3xl font-serif font-black text-primary italic">{s.value}</p>
-                     <p className="text-[9px] font-bold text-primary/30 uppercase">{s.sub}</p>
+        <div className={`flex-1 overflow-y-auto lg:overflow-hidden flex flex-col p-6 lg:p-12 space-y-8 lg:space-y-12 bg-gyeol-pattern ${ownerViewMode === 'mobile' ? 'no-scrollbar' : ''}`}>
+          {/* Intelligence & Pulse HUD */}
+          <div className={`grid ${ownerViewMode === 'mobile' ? 'grid-cols-2' : 'grid-cols-4'} gap-4 lg:gap-8`}>
+            <motion.div 
+               whileHover={{ y: -5 }}
+               className="col-span-1 bg-white p-8 rounded-[3rem] border border-primary/5 shadow-premium flex flex-col justify-between group overflow-hidden relative"
+            >
+               <Activity className="absolute -top-6 -right-6 w-32 h-32 text-primary opacity-[0.02] group-hover:scale-110 transition-transform" />
+               <div className="space-y-1">
+                  <p className="text-[10px] font-black text-primary/30 uppercase tracking-[0.4em]">Live Occupancy</p>
+                  <p className="text-4xl font-serif font-black text-primary italic leading-tight">{stats.occupancyRate}%</p>
+               </div>
+               <div className="flex items-center gap-3">
+                  <div className="flex-1 h-1.5 bg-primary/5 rounded-full overflow-hidden">
+                     <motion.div initial={{ width: 0 }} animate={{ width: `${stats.occupancyRate}%` }} className="h-full bg-primary" />
                   </div>
-                </div>
-                <div className="p-4 bg-primary/5 rounded-2xl text-primary group-hover:bg-primary group-hover:text-white transition-all"><s.icon className="w-6 h-6" /></div>
-              </div>
-            ))}
+                  <span className="text-[10px] font-black text-primary/40">{actualTables.filter(t => t.currentCustomerId).length} tables</span>
+               </div>
+            </motion.div>
+
+            <motion.div 
+               whileHover={{ y: -5 }}
+               className="col-span-1 bg-white p-8 rounded-[3rem] border border-primary/5 shadow-premium flex flex-col justify-between group overflow-hidden relative"
+            >
+               <Hourglass className="absolute -top-6 -right-6 w-32 h-32 text-primary opacity-[0.02] group-hover:scale-110 transition-transform" />
+               <div className="space-y-1">
+                  <p className="text-[10px] font-black text-primary/30 uppercase tracking-[0.4em]">Average Stay</p>
+                  <p className="text-4xl font-serif font-black text-primary italic leading-tight">{stats.avgUsage}<span className="text-xs ml-1 font-sans not-italic font-black text-primary/30">MIN</span></p>
+               </div>
+               <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest bg-emerald-50 self-start px-3 py-1 rounded-full">Optimal Flow</p>
+            </motion.div>
+
+            <motion.div 
+               whileHover={{ y: -5 }}
+               className={`${ownerViewMode === 'mobile' ? 'col-span-2' : 'col-span-2'} bg-sidebar-bg p-6 lg:p-8 rounded-[2rem] lg:rounded-[3rem] border border-white/5 shadow-premium flex items-center justify-between group relative overflow-hidden`}
+            >
+               <Sparkles className="absolute -top-8 -right-8 w-48 h-48 text-white opacity-[0.03] animate-pulse" />
+               <div className="space-y-4 relative z-10 w-full">
+                  <div className="flex items-center gap-3">
+                     <div className="w-8 h-8 rounded-xl bg-gold/20 flex items-center justify-center text-gold"><Sparkles className="w-4 h-4" /></div>
+                     <p className="text-[10px] lg:text-[11px] font-black text-white/50 uppercase tracking-[0.4em]">Gyeol AI Intelligence</p>
+                  </div>
+                  <div className="bg-white/5 rounded-2xl lg:rounded-3xl p-4 lg:p-5 border border-white/10">
+                     <p className="text-xs lg:text-sm font-serif italic text-white/80 leading-relaxed">
+                        "현재 가동률 대비 대기 고객이 증가하고 있습니다. <span className="text-gold font-black">4번 테이블</span>의 체류 시간이 90분을 초과했습니다."
+                     </p>
+                  </div>
+               </div>
+            </motion.div>
           </div>
 
-          <div className="flex-1 relative bg-white rounded-[3rem] border border-outline-variant/30 shadow-inner overflow-hidden">
-             {viewMode === 'map' ? (
-                <div ref={mapContainerRef} className="absolute inset-0 overflow-auto p-20 bg-[radial-gradient(#e5dcd3_1px,transparent_1px)] [background-size:20px_20px] no-scrollbar">
+          {/* Table Architectural View */}
+          <div className="flex-1 relative bg-white rounded-[4rem] shadow-premium overflow-hidden border border-primary/5">
+             {viewMode === 'map' && ownerViewMode === 'desktop' ? (
+                <div ref={mapContainerRef} className="absolute inset-0 overflow-auto p-32 bg-[radial-gradient(#4a0e0e0a_2px,transparent_2px)] [background-size:40px_40px] no-scrollbar cursor-crosshair">
                    <div 
-                    className="relative origin-top-left transition-transform duration-300" 
-                    style={{ minWidth: '1200px', minHeight: '1000px', transform: `scale(${zoom})` }}
+                    className="relative origin-top-left transition-transform duration-500" 
+                    style={{ minWidth: '1400px', minHeight: '1200px', transform: `scale(${zoom})` }}
                    >
+                      {/* Decorative Compass Label */}
+                      <div className="absolute -top-20 -left-20 flex flex-col gap-2 opacity-10">
+                         <Globe className="w-12 h-12 text-primary" />
+                         <p className="text-[10px] font-black uppercase tracking-[0.5em] text-primary">N.ARCH 2026</p>
+                      </div>
+
                       {filteredTables.map(table => {
                         const isOccupied = table.currentCustomerId !== null;
                         const isBeingDragged = draggedTable === table.number;
+                        const isHighlighted = highlightedTable === table.number;
+                        
                         return (
-                          <div
+                          <motion.div
                             key={table.number}
+                            layout
                             onPointerDown={(e) => handlePointerDown(e, table)}
                             onPointerMove={handlePointerMove}
                             onPointerUp={handlePointerUp}
                             onClick={() => (isLayoutMode || table.type === 'table' || table.type === 'room') && setSelectedTable(table.number)}
-                            className={`absolute flex flex-col items-center justify-center group cursor-pointer ${isOccupied ? 'shadow-lg shadow-primary/20' : 'hover:shadow-xl'} ${isBeingDragged ? 'scale-[1.05] shadow-3xl z-[100] cursor-grabbing !transition-none' : 'duration-300 transition-all'} ${table.type !== 'table' && table.type !== 'room' && !isLayoutMode ? 'pointer-events-none opacity-60' : ''}`}
+                            className={`absolute flex flex-col items-center justify-center group ${isOccupied ? 'shadow-[0_20px_50px_rgba(74,14,14,0.15)]' : 'shadow-sm hover:shadow-xl'} ${isBeingDragged ? 'z-[100] cursor-grabbing !transition-none' : 'duration-500 transition-all'} ${isHighlighted ? 'ring-4 ring-gold animate-pulse-premium z-50' : ''} ${table.type !== 'table' && table.type !== 'room' && !isLayoutMode ? 'pointer-events-none opacity-40' : 'cursor-pointer'}`}
                             style={{
                               left: isBeingDragged ? dragPosition?.x : table.x,
                               top: isBeingDragged ? dragPosition?.y : table.y,
                               width: table.width || 80,
                               height: table.height || 80,
-                              backgroundColor: table.type === 'room' ? 'transparent' : (isOccupied ? '#261c1a' : (table.status === 'dirty' ? '#fdf2f2' : (isBeingDragged ? '#ffffff' : '#ffffff'))),
+                              backgroundColor: table.type === 'room' ? 'transparent' : (isOccupied ? '#1c1412' : (table.status === 'dirty' ? '#fcf1f1' : '#ffffff')),
                               border: table.type === 'room' 
-                                ? `4px solid ${isBeingDragged ? '#4285F4' : '#261c1a'}` 
-                                : (isOccupied ? 'none' : `3px solid ${selectedTable === table.number ? '#261c1a' : (isBeingDragged ? '#4285F4' : '#e5dcd3')}`),
-                              borderRadius: table.shape === 'circle' ? '50%' : (table.type === 'room' ? '3rem' : '1.5rem'),
+                                ? `8px solid ${isOccupied ? '#1c1412' : '#f0e6dd'}` 
+                                : `3px solid ${isOccupied ? '#1c1412' : (selectedTable === table.number ? '#4a0e0e' : (isLayoutMode ? '#e5ddd6' : '#f0e6dd'))}`,
+                              borderRadius: table.shape === 'circle' ? '50%' : (table.type === 'room' ? '4rem' : '2.5rem'),
                               zIndex: isBeingDragged ? 100 : (selectedTable === table.number ? 40 : 10),
-                              touchAction: 'none',
-                              borderStyle: table.type === 'corridor' ? 'dashed' : 'solid',
-                              opacity: table.type === 'corridor' ? 0.4 : 1
+                              touchAction: 'none'
                             }}
                           >
-                            {table.type === 'pos' && <div className="text-primary/20"><Monitor className="w-10 h-10" /></div>}
-                            {table.type === 'door' && <div className="text-primary/20"><LogOut className="w-10 h-10 rotate-90" /></div>}
-                            {table.type === 'room' && <div className="absolute top-4 left-8 text-[11px] font-black uppercase text-primary/30 tracking-widest">프라이빗 룸</div>}
+                            {table.type === 'pos' && <Monitor className="w-8 h-8 text-primary/10" />}
+                            {table.type === 'door' && <ArrowRight className="w-8 h-8 text-primary/10 rotate-90" />}
                             
-                            {table.type === 'table' && <span className={`text-xl font-serif font-black italic ${isOccupied ? 'text-white' : 'text-primary'}`}>{table.number}</span>}
+                            {table.type === 'table' && (
+                               <div className="flex flex-col items-center">
+                                  <span className={`text-2xl font-serif font-black italic ${isOccupied ? 'text-white' : 'text-primary/70'}`}>{table.number}</span>
+                                  {isOccupied && (
+                                     <div className="mt-2 px-3 py-1 bg-white/10 rounded-full border border-white/10 backdrop-blur-md">
+                                        <p className="text-[9px] font-black text-white/50 tracking-[0.2em] uppercase">
+                                           {(() => {
+                                              const start = new Date(table.sessionStartTime!);
+                                              const diff = Math.floor((currentTime.getTime() - start.getTime()) / 60000);
+                                              return `${diff}m`;
+                                           })()}
+                                        </p>
+                                     </div>
+                                  )}
+                               </div>
+                            )}
+
                             {isOccupied && (
-                                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                                   <div className="absolute top-2 right-2 w-2 h-2 bg-emerald-400 rounded-full"></div>
-                                   <div className="mt-8 px-2 py-1 bg-white/10 rounded-full backdrop-blur-sm border border-white/20">
-                                      <p className="text-[9px] font-black text-white/60 tracking-widest leading-none">
-                                         {(() => {
-                                            const start = new Date(table.sessionStartTime!);
-                                            const diff = Math.floor((currentTime.getTime() - start.getTime()) / 60000);
-                                            return `${diff}M`;
-                                         })()}
-                                      </p>
-                                   </div>
-                                </div>
-                             )}
+                               <div className="absolute -top-3 -right-3 w-8 h-8 bg-gold rounded-full border-4 border-white flex items-center justify-center text-white shadow-xl animate-bounce">
+                                  <Sparkles className="w-3.5 h-3.5" />
+                               </div>
+                            )}
 
                             {isLayoutMode && !isOccupied && (
-                               <>
-                                  <div className="absolute top-2 left-1/2 -translate-x-1/2 opacity-40 group-hover:opacity-100 transition-opacity">
-                                     <GripVertical className="w-4 h-4 text-primary" />
-                                  </div>
-                                  {!isBeingDragged && (
-                                     <>
-                                        <button 
-                                          onPointerDown={(e) => e.stopPropagation()}
-                                          onClick={(e) => { e.stopPropagation(); deleteTable(currentUser.id, table.number); }} 
-                                          className="absolute top-2 left-2 p-2 bg-burgundy/10 text-burgundy rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-burgundy hover:text-white z-20 shadow-sm"
-                                        >
-                                          <Trash2 className="w-3.5 h-3.5" />
-                                        </button>
-                                        <button 
-                                          onPointerDown={(e) => e.stopPropagation()}
-                                          onClick={(e) => { e.stopPropagation(); setSelectedTable(table.number); }} 
-                                          className={`absolute top-2 right-2 p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-20 shadow-sm ${selectedTable === table.number ? 'bg-primary text-white opacity-100' : 'bg-primary/10 text-primary hover:bg-primary hover:text-white'}`}
-                                        >
-                                          <Settings className="w-3.5 h-3.5" />
-                                        </button>
-                                     </>
-                                  )}
-                               </>
+                               <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-white/80 rounded-[inherit] z-20">
+                                  <button 
+                                    onPointerDown={(e) => e.stopPropagation()}
+                                    onClick={(e) => { e.stopPropagation(); deleteTable(currentUser.id, table.number); }} 
+                                    className="p-3 bg-burgundy/10 text-burgundy rounded-2xl hover:bg-burgundy hover:text-white transition-all mx-1"
+                                  >
+                                    <Trash2 className="w-5 h-5" />
+                                  </button>
+                                  <button className="p-3 bg-primary/10 text-primary rounded-2xl cursor-move mx-1"><GripVertical className="w-5 h-5" /></button>
+                               </div>
                             )}
-                          </div>
+                          </motion.div>
                         );
                       })}
                    </div>
                 </div>
              ) : (
-                <div className="p-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 overflow-y-auto h-full no-scrollbar">
+                <div className="p-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 overflow-y-auto h-full no-scrollbar bg-surface-bright/30">
                    {filteredTables.map(table => (
-                      <div key={table.number} onClick={() => setSelectedTable(table.number)} className="bg-surface-container rounded-3xl p-6 border border-outline-variant/30 flex items-center gap-6 cursor-pointer hover:bg-white transition-all">
-                         <div className="w-16 h-16 bg-primary text-white rounded-2xl flex items-center justify-center font-serif font-black text-2xl italic">{table.number}</div>
-                         <div>
-                            <p className="text-[10px] font-black uppercase text-primary/40">{table.currentCustomerId ? '이용 중' : '공석'}</p>
-                            <p className="text-sm font-black text-primary">{table.currentCustomerId ? users.find(u => u.id === table.currentCustomerId)?.name : '비어 있음'}</p>
+                      <motion.div 
+                        whileHover={{ y: -5 }}
+                        key={table.number} 
+                        onClick={() => setSelectedTable(table.number)} 
+                        className={`bg-white rounded-[2rem] lg:rounded-[3rem] ${ownerViewMode === 'mobile' ? 'p-6' : 'p-10'} border border-primary/5 flex flex-col gap-4 lg:gap-8 cursor-pointer shadow-premium relative overflow-hidden`}
+                      >
+                         <div className="flex justify-between items-start">
+                            <div className="w-12 h-12 lg:w-20 lg:h-20 bg-gyeol-wood text-white rounded-2xl lg:rounded-[2rem] flex items-center justify-center font-serif font-black text-xl lg:text-3xl italic shadow-premium">{table.number}</div>
+                            <div className={`px-4 py-1.5 rounded-full text-[9px] lg:text-[10px] font-black uppercase tracking-widest ${table.currentCustomerId ? 'bg-emerald-50 text-emerald-600' : 'bg-primary/5 text-primary/30'}`}>
+                               {table.currentCustomerId ? 'Occupied' : 'Vacant'}
+                            </div>
                          </div>
-                      </div>
+                         <div className="space-y-1">
+                            <p className="text-[9px] lg:text-[10px] font-black uppercase text-primary/30 tracking-[0.3em]">Current Tenant</p>
+                            <p className="text-lg lg:text-2xl font-serif font-black text-primary italic leading-tight">{table.currentCustomerId ? users.find(u => u.id === table.currentCustomerId)?.name : 'None'}</p>
+                         </div>
+                         {table.currentCustomerId && (
+                            <div className="absolute -bottom-2 -right-2 opacity-[0.05]">
+                               <Activity className="w-20 h-20 text-emerald-600" />
+                            </div>
+                         )}
+                      </motion.div>
                    ))}
                 </div>
              )}
 
              {isLayoutMode && (
-                <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-primary p-3 rounded-[2.5rem] shadow-3xl z-50 animate-in fade-in slide-in-from-bottom-8">
-                   <div className="flex items-center bg-white/10 rounded-2xl p-1">
-                      <button onClick={() => addTable(currentUser.id, 'table')} className="px-5 py-2.5 text-white hover:bg-white/10 rounded-xl flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all"><Utensils className="w-4 h-4" /> 테이블</button>
-                      <div className="w-[1px] h-4 bg-white/10"></div>
-                      <button onClick={() => addTable(currentUser.id, 'room')} className="px-5 py-2.5 text-white hover:bg-white/10 rounded-xl flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all"><Maximize2 className="w-4 h-4" /> 룸</button>
-                      <div className="w-[1px] h-4 bg-white/10"></div>
-                      <button onClick={() => addTable(currentUser.id, 'door')} className="px-5 py-2.5 text-white hover:bg-white/10 rounded-xl flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all"><LogOut className="w-4 h-4 rotate-90" /> 문</button>
-                      <div className="w-[1px] h-4 bg-white/10"></div>
-                      <button onClick={() => addTable(currentUser.id, 'pos')} className="px-5 py-2.5 text-white hover:bg-white/10 rounded-xl flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all"><Monitor className="w-4 h-4" /> 포스기</button>
+                <div className="absolute bottom-16 left-1/2 -translate-x-1/2 flex items-center gap-6 bg-sidebar-bg p-4 rounded-[3rem] shadow-3xl z-50 animate-in slide-in-from-bottom-12 outline outline-8 outline-white/20">
+                   <div className="flex items-center bg-white/5 rounded-[2.5rem] p-1">
+                      {[
+                        { label: 'Table', icon: Utensils, type: 'table' },
+                        { label: 'Room', icon: Maximize2, type: 'room' },
+                        { label: 'Door', icon: LogOut, type: 'door' },
+                        { label: 'POS', icon: Monitor, type: 'pos' }
+                      ].map((btn, idx) => (
+                        <button key={idx} onClick={() => addTable(currentUser.id, btn.type as any)} className="px-8 py-3 text-white hover:bg-white/10 rounded-[2rem] flex items-center gap-3 text-[11px] font-black uppercase tracking-[0.2em] transition-all"><btn.icon className="w-4 h-4 opacity-40" /> {btn.label}</button>
+                      ))}
                    </div>
-                   <div className="w-[1px] h-8 bg-white/20 mx-1"></div>
-                   <button onClick={() => initTables(currentUser.id)} className="p-3 bg-burgundy/10 text-white hover:bg-burgundy/20 rounded-[1.25rem] transition-all" title="초기화"><History className="w-5 h-5" /></button>
+                   <button onClick={() => initTables(currentUser.id)} className="p-4 bg-white/5 text-white/40 hover:bg-burgundy hover:text-white rounded-full transition-all" title="Architecture Reset"><History className="w-6 h-6" /></button>
                 </div>
              )}
           </div>
         </div>
 
-        {selectedTable && (
-           <aside className="fixed inset-y-0 right-0 w-96 bg-white shadow-[-30px_0_60px_rgba(0,0,0,0.1)] z-[60] p-10 flex flex-col border-l border-outline-variant/20 animate-in slide-in-from-right duration-500">
-              <div className="flex justify-between items-start mb-10">
-                 <div>
-                    <h2 className="text-3xl font-serif font-black text-primary italic mb-1">{activeTable?.type === 'room' ? '프라이빗 룸' : (activeTable?.type === 'table' ? `${selectedTable}번 테이블` : '실내 인테리어')}</h2>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant/40">상태: {activeTable?.currentCustomerId ? '이용 중' : (activeTable?.type === 'table' || activeTable?.type === 'room' ? '사용 가능' : '인테리어 요소')}</p>
-                 </div>
-                 <button onClick={() => setSelectedTable(null)} className="p-2 hover:bg-surface-container rounded-full"><X className="w-6 h-6 text-on-surface-variant/30" /></button>
-              </div>
+        {/* Cinematic Detail Panel */}
+        <AnimatePresence>
+          {selectedTable && (
+             <motion.aside 
+                initial={{ x: "100%", y: ownerViewMode === 'mobile' ? "100%" : 0 }}
+                animate={{ x: 0, y: 0 }}
+                exit={{ x: "100%", y: ownerViewMode === 'mobile' ? "100%" : 0 }}
+                transition={{ type: "spring", damping: 30, stiffness: 300 }}
+                className={`fixed inset-y-0 right-0 ${ownerViewMode === 'mobile' ? 'left-0 top-0 w-full rounded-t-[4rem]' : 'w-[480px]'} bg-white shadow-[-40px_0_100px_rgba(74,14,14,0.15)] z-[110] p-8 lg:p-16 flex flex-col border-l border-primary/5 overflow-y-auto no-scrollbar`}
+             >
+                <div className="flex justify-between items-start mb-8 lg:mb-16">
+                   <div>
+                      <h2 className="text-2xl lg:text-4xl font-serif font-black text-primary italic mb-2 leading-none">{activeTable?.type === 'room' ? 'Elite Private Room' : `${selectedTable}번 건축물`}</h2>
+                      <div className="flex items-center gap-3">
+                         <div className={`w-2 h-2 rounded-full ${activeTable?.currentCustomerId ? 'bg-emerald-500' : 'bg-primary/20'}`}></div>
+                         <p className="text-[9px] lg:text-[10px] font-black uppercase tracking-[0.4em] text-primary/40">{activeTable?.currentCustomerId ? 'Active Session' : 'Standby Mode'}</p>
+                      </div>
+                   </div>
+                   <button onClick={() => setSelectedTable(null)} className="p-4 bg-surface-bright rounded-full hover:bg-primary/5 transition-all outline-none"><X className="w-6 h-6 text-primary/20" /></button>
+                </div>
 
-              <div className="flex-1 overflow-y-auto no-scrollbar space-y-8">
-                 {activeCustomer ? (
-                    <div className="space-y-6">
-                       <div className="bg-surface-container p-8 rounded-[3rem] border-l-8 border-primary space-y-4">
-                          <h3 className="text-2xl font-serif font-black text-primary">{activeCustomer.name}</h3>
-                          <p className="text-xs font-bold text-on-surface-variant/60">{activeCustomer.phone}</p>
-                          <div className="flex gap-2">
-                             <span className="px-3 py-1 bg-primary text-white text-[9px] font-black rounded-full uppercase tracking-tighter">단골 마스터</span>
-                          </div>
-                       </div>
-                       <button onClick={() => leaveTable(selectedTable!, currentUser.id)} className="w-full py-5 bg-primary text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl">이용 종료</button>
-                    </div>
-                 ) : (
-                    <div className="space-y-8">
-                       {isLayoutMode ? (
-                          <div className="space-y-6">
-                             <div className="bg-surface-container p-8 rounded-[2.5rem] space-y-6">
-                                <h4 className="text-[10px] font-black uppercase tracking-widest text-primary/40">레이아웃 및 설정</h4>
-                                <div className="space-y-4">
-                                   {[
-                                      { label: '가로 크기', field: 'width', val: activeTable?.width || 80 },
-                                      { label: '세로 크기', field: 'height', val: activeTable?.height || 80 },
-                                      { label: '수용 좌석', field: 'seats', val: activeTable?.seats || 4 }
-                                   ].map(f => (
-                                      <div key={f.field} className="flex justify-between items-center">
-                                         <span className="text-xs font-bold text-primary/60">{f.label}</span>
-                                         <div className="flex items-center gap-4">
-                                            <button onClick={() => updateTableLayout(currentUser.id, selectedTable!, { [f.field]: Math.max(1, f.val - (f.field === 'seats' ? 1 : 10)) })} className="p-2 bg-white rounded-lg shadow-sm"><Minus className="w-3 h-3" /></button>
-                                            <span className="text-sm font-black w-8 text-center">{f.val}</span>
-                                            <button onClick={() => updateTableLayout(currentUser.id, selectedTable!, { [f.field]: f.val + (f.field === 'seats' ? 1 : 10) })} className="p-2 bg-white rounded-lg shadow-sm"><Plus className="w-3 h-3" /></button>
-                                         </div>
-                                      </div>
-                                   ))}
-                                </div>
-                             </div>
-                             <button onClick={() => setSelectedTable(null)} className="w-full py-4 border-2 border-primary text-primary rounded-2xl font-black text-[10px] uppercase">설정 완료</button>
-                          </div>
-                       ) : (
-                          <>
-                             <div className="bg-white p-6 rounded-[2.5rem] border-2 border-outline-variant/30 shadow-inner flex flex-col items-center gap-6">
-                                <div ref={qrRef}><QRCodeSVG value={`${window.location.origin}/customer/store/${currentUser.id}?table=${selectedTable}`} size={160} level="H" /></div>
-                                <p className="text-[9px] font-black text-on-surface-variant/40 uppercase tracking-[0.2em]">테이블 실시간 QR</p>
-                             </div>
-                             <div className="grid grid-cols-2 gap-4">
-                                <button onClick={copyTableLink} className="p-5 bg-surface-container rounded-[2rem] flex flex-col items-center gap-3 text-primary transition-all hover:bg-primary hover:text-white">
-                                   <Maximize2 className="w-6 h-6" /><span className="text-[9px] font-black uppercase">링크 복사</span>
-                                </button>
-                                <button onClick={downloadQR} className="p-5 bg-surface-container rounded-[2rem] flex flex-col items-center gap-3 text-primary transition-all hover:bg-primary hover:text-white">
-                                   <Plus className="w-6 h-6" /><span className="text-[9px] font-black uppercase">QR 저장</span>
-                                </button>
-                             </div>
-                          </>
-                       )}
-                    </div>
-                 )}
-              </div>
-           </aside>
-        )}
+                <div className="flex-1 overflow-y-auto no-scrollbar space-y-12">
+                   {activeCustomer ? (
+                      <div className="space-y-10">
+                         <div className="bg-gyeol-pattern p-10 rounded-[4rem] border border-primary/5 space-y-6 shadow-premium relative overflow-hidden group">
+                           <User className="absolute -top-10 -right-10 w-40 h-40 text-primary opacity-[0.03] group-hover:scale-110 transition-transform" />
+                           <div className="flex items-center gap-6 relative z-10">
+                              <div className="w-20 h-20 bg-white rounded-[2rem] shadow-xl p-1 overflow-hidden">
+                                 {activeCustomer.avatarUrl ? (
+                                    <img src={activeCustomer.avatarUrl} className="w-full h-full object-cover rounded-[1.5rem]" alt="" />
+                                 ) : (
+                                    <User className="w-10 h-10 text-primary/10 mx-auto" />
+                                 )}
+                              </div>
+                              <div>
+                                 <h3 className="text-2xl font-serif font-black text-primary italic tracking-tight">{activeCustomer.name}</h3>
+                                 <p className="text-xs font-bold text-primary/40 tracking-widest">{activeCustomer.phone}</p>
+                              </div>
+                           </div>
+                           <div className="flex flex-wrap gap-2 relative z-10">
+                              <span className={`px-4 py-1.5 text-[9px] font-black rounded-full border uppercase tracking-widest shadow-sm ${getTierColor(getCustomerStats(activeCustomer.id).tier)}`}>
+                                 {getCustomerStats(activeCustomer.id).tier} VIP
+                              </span>
+                              <span className="px-4 py-1.5 bg-white/80 text-[9px] font-black rounded-full border border-primary/5 uppercase tracking-widest text-primary/40">Visits: {getCustomerStats(activeCustomer.id).totalVisits}회</span>
+                           </div>
+                         </div>
+                         
+                         <div className="grid grid-cols-2 gap-6">
+                            <button className="p-8 bg-surface-bright rounded-[3rem] border border-primary/5 flex flex-col items-center gap-4 text-primary hover:bg-primary hover:text-white transition-all group">
+                               <MessageSquare className="w-6 h-6 opacity-40 group-hover:opacity-100" />
+                               <span className="text-[10px] font-black uppercase tracking-widest">Send Signal</span>
+                            </button>
+                            <button className="p-8 bg-surface-bright rounded-[3rem] border border-primary/5 flex flex-col items-center gap-4 text-primary hover:bg-primary hover:text-white transition-all group">
+                               <Ticket className="w-6 h-6 opacity-40 group-hover:opacity-100" />
+                               <span className="text-[10px] font-black uppercase tracking-widest">Issue Loyalty</span>
+                            </button>
+                         </div>
+                         
+                         <button onClick={() => leaveTable(selectedTable!, currentUser.id)} className="w-full py-6 bg-primary text-white rounded-[2.5rem] font-black text-xs uppercase tracking-[0.3em] shadow-3xl hover:scale-[1.02] active:scale-95 transition-all">Terminate Active Session</button>
+                      </div>
+                   ) : (
+                      <div className="space-y-10">
+                         {isLayoutMode ? (
+                            <div className="space-y-10">
+                               <div className="bg-surface-bright p-10 rounded-[4rem] space-y-10 border border-primary/5">
+                                  <div className="flex items-center gap-3 mb-6">
+                                     <Settings className="w-5 h-5 text-primary opacity-30" />
+                                     <h4 className="text-[11px] font-black uppercase tracking-[0.4em] text-primary/40">Architecture Params</h4>
+                                  </div>
+                                  <div className="space-y-8">
+                                     {[
+                                        { label: 'Grid Width', field: 'width', val: activeTable?.width || 80 },
+                                        { label: 'Grid Height', field: 'height', val: activeTable?.height || 80 },
+                                        { label: 'Seats Density', field: 'seats', val: activeTable?.seats || 4 }
+                                     ].map(f => (
+                                        <div key={f.field} className="flex justify-between items-center">
+                                           <span className="text-xs font-black text-primary/60 uppercase tracking-widest italic">{f.label}</span>
+                                           <div className="flex items-center gap-6">
+                                              <button onClick={() => updateTableLayout(currentUser.id, selectedTable!, { [f.field]: Math.max(1, f.val - (f.field === 'seats' ? 1 : 10)) })} className="p-3 bg-white rounded-2xl shadow-premium hover:bg-primary/5 transition-all"><Minus className="w-4 h-4 text-primary" /></button>
+                                              <span className="text-lg font-serif font-black italic w-10 text-center text-primary">{f.val}</span>
+                                              <button onClick={() => updateTableLayout(currentUser.id, selectedTable!, { [f.field]: f.val + (f.field === 'seats' ? 1 : 10) })} className="p-3 bg-white rounded-2xl shadow-premium hover:bg-primary/5 transition-all"><Plus className="w-4 h-4 text-primary" /></button>
+                                           </div>
+                                        </div>
+                                     ))}
+                                  </div>
+                               </div>
+                               <button onClick={() => setSelectedTable(null)} className="w-full py-6 bg-gyeol-wood text-white rounded-[2.5rem] font-black text-xs uppercase tracking-[0.3em] shadow-3xl transition-all">Confirm Specification</button>
+                            </div>
+                         ) : (
+                            <div className="space-y-10">
+                               <div className="bg-gyeol-pattern p-10 rounded-[4rem] border-4 border-white shadow-premium flex flex-col items-center gap-10">
+                                  <div className="p-6 bg-white rounded-3xl shadow-xl" ref={qrRef}><QRCodeSVG value={`${window.location.origin}/customer/store/${currentUser.id}?table=${selectedTable}`} size={200} level="H" /></div>
+                                  <p className="text-[11px] font-black text-primary uppercase tracking-[0.5em] opacity-40 italic">Digital Entrance Signal</p>
+                               </div>
+                               <div className="grid grid-cols-2 gap-6">
+                                  <button onClick={() => {
+                                      const url = `${window.location.origin}/customer/store/${currentUser.id}?table=${selectedTable}`;
+                                      navigator.clipboard.writeText(url);
+                                      window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Command relative link copied.', type: 'success' } }));
+                                  }} className="p-8 bg-surface-bright rounded-[3rem] border border-primary/5 flex flex-col items-center gap-4 text-primary hover:bg-primary hover:text-white transition-all group">
+                                     <Target className="w-6 h-6 opacity-40 group-hover:opacity-100" /><span className="text-[10px] font-black uppercase tracking-widest font-serif italic">Copy Vector</span>
+                                  </button>
+                                  <button onClick={() => {
+                                      const svg = qrRef.current?.querySelector('svg');
+                                      if (!svg) return;
+                                      const svgData = new XMLSerializer().serializeToString(svg);
+                                      const canvas = document.createElement('canvas');
+                                      const ctx = canvas.getContext('2d');
+                                      const img = new Image();
+                                      img.onload = () => {
+                                        canvas.width = img.width;
+                                        canvas.height = img.height;
+                                        ctx?.drawImage(img, 0, 0);
+                                        const pngFile = canvas.toDataURL('image/png');
+                                        const downloadLink = document.createElement('a');
+                                        downloadLink.download = `QR_Architect_T${selectedTable}.png`;
+                                        downloadLink.href = pngFile;
+                                        downloadLink.click();
+                                      };
+                                      img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+                                  }} className="p-8 bg-surface-bright rounded-[3rem] border border-primary/5 flex flex-col items-center gap-4 text-primary hover:bg-primary hover:text-white transition-all group">
+                                     <Maximize2 className="w-6 h-6 opacity-40 group-hover:opacity-100" /><span className="text-[10px] font-black uppercase tracking-widest font-serif italic">Export Asset</span>
+                                  </button>
+                               </div>
+                            </div>
+                         )}
+                      </div>
+                   )}
+                </div>
+             </motion.aside>
+          )}
+        </AnimatePresence>
       </main>
 
-      {/* Profile Settings Modal */}
-      {isSettingsOpen && (
-        <div className="fixed inset-0 bg-primary/20 backdrop-blur-md z-[110] flex items-center justify-center p-8 animate-in fade-in zoom-in-95">
-           <div className="bg-white w-full max-w-md rounded-[3rem] p-10 shadow-3xl flex flex-col gap-8 max-h-[90vh] overflow-y-auto">
-              <div className="flex justify-between items-center">
-                 <h3 className="text-2xl font-serif font-black text-primary italic">사장님 프로필 설정</h3>
-                 <button onClick={() => setIsSettingsOpen(false)} className="p-3 bg-surface-container rounded-full"><X className="w-5 h-5 text-on-surface-variant/40" /></button>
-              </div>
+      {/* Elite Profile Settings */}
+      <AnimatePresence>
+        {isSettingsOpen && (
+          <div className="fixed inset-0 bg-primary/40 backdrop-blur-2xl z-[150] flex items-center justify-center p-8">
+             <motion.div 
+               initial={{ scale: 0.9, opacity: 0, y: 20 }}
+               animate={{ scale: 1, opacity: 1, y: 0 }}
+               exit={{ scale: 0.9, opacity: 0, y: 20 }}
+               className="bg-white w-full max-w-xl rounded-[4rem] p-16 shadow-3xl flex flex-col gap-12 max-h-[90vh] overflow-y-auto no-scrollbar border border-white/10"
+             >
+                <div className="flex justify-between items-center">
+                   <div>
+                      <h3 className="text-3xl font-serif font-black text-primary italic">Owner Settings</h3>
+                      <p className="text-[10px] font-black text-primary/40 uppercase tracking-[0.5em]">Command Hub Governance</p>
+                   </div>
+                   <button onClick={() => setIsSettingsOpen(false)} className="p-4 bg-surface-bright rounded-full hover:bg-primary/5 transition-all"><X className="w-5 h-5 text-primary/30" /></button>
+                </div>
 
-              <div className="space-y-6">
-                 <div className="bg-surface-container p-6 rounded-3xl flex items-center gap-6">
-                    <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-primary shadow-sm"><User className="w-8 h-8" /></div>
-                    <div>
-                       <p className="text-xl font-serif font-black text-primary">{currentUser.name}</p>
-                       <p className="text-xs font-bold text-on-surface-variant/40">{currentUser.phone || '소셜 계정 전용'}</p>
-                       <p className="text-[10px] font-bold text-primary/40 uppercase tracking-widest mt-1">{currentUser.restaurantName}</p>
-                    </div>
-                 </div>
+                <div className="space-y-10">
+                   <div className="bg-gyeol-pattern p-10 rounded-[3rem] flex items-center gap-10 border border-primary/5 shadow-premium">
+                      <div className="w-24 h-24 bg-white rounded-[2.5rem] flex items-center justify-center text-primary shadow-xl border border-primary/5 p-1 overflow-hidden relative group">
+                         <User className="w-12 h-12 opacity-10" />
+                         <div className="absolute inset-0 bg-primary opacity-0 group-hover:opacity-60 flex items-center justify-center text-white transition-all cursor-pointer"><Settings className="w-6 h-6" /></div>
+                      </div>
+                      <div className="space-y-1">
+                         <p className="text-2xl font-serif font-black text-primary italic">{currentUser.name}</p>
+                         <p className="text-xs font-black text-primary/40 uppercase tracking-widest">{currentUser.restaurantName}</p>
+                         <p className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full inline-block mt-2">Verified Owner</p>
+                      </div>
+                   </div>
 
-                 <div className="space-y-4">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-primary opacity-40">연동된 계정</p>
-                    <div className="grid grid-cols-1 gap-3">
-                       <div className="flex items-center justify-between p-4 bg-white border border-outline-variant/30 rounded-2xl">
-                          <div className="flex items-center gap-3">
-                             <Mail className="w-4 h-4 text-on-surface-variant/40" />
-                             <span className="text-xs font-bold">기본 로그인</span>
-                          </div>
-                          <span className="text-[10px] font-black text-primary uppercase bg-primary/5 px-3 py-1 rounded-full">ACTIVE</span>
-                       </div>
-                       
-                       <button 
-                         onClick={() => !currentUser.linkedProviders?.includes('google') && linkSocialAccount('google')}
-                         className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${currentUser.linkedProviders?.includes('google') ? 'bg-white border-outline-variant/30' : 'bg-surface-container border-transparent hover:border-primary'}`}
-                       >
-                          <div className="flex items-center gap-3">
-                             <svg className="w-4 h-4" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-                             <span className="text-xs font-bold">Google</span>
-                          </div>
-                          {currentUser.linkedProviders?.includes('google') ? (
-                            <span className="text-[10px] font-black text-primary uppercase bg-primary/5 px-3 py-1 rounded-full">LINKED</span>
-                          ) : (
-                            <span className="text-[10px] font-black text-on-surface-variant/20 uppercase">계정 연동</span>
-                          )}
-                       </button>
+                   <div className="space-y-6">
+                      <p className="text-[10px] font-black uppercase tracking-[0.4em] text-primary/20 px-4">Digital Identity Links</p>
+                      <div className="grid grid-cols-1 gap-4">
+                         <div className="flex justify-between items-center p-8 bg-surface-bright rounded-[2.5rem] border border-primary/5">
+                            <div className="flex items-center gap-5">
+                               <div className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center shadow-sm"><Mail className="w-5 h-5 text-primary/40" /></div>
+                               <span className="text-sm font-black italic">Legacy Terminal Login</span>
+                            </div>
+                            <span className="text-[9px] font-black text-primary bg-primary/5 px-4 py-2 rounded-full uppercase tracking-widest">Active System</span>
+                         </div>
+                         
+                         {['google', 'kakao'].map(provider => (
+                           <button 
+                             key={provider}
+                             onClick={() => !currentUser.linkedProviders?.includes(provider as any) && linkSocialAccount(provider as any)}
+                             className={`flex justify-between items-center p-8 rounded-[2.5rem] border transition-all ${currentUser.linkedProviders?.includes(provider as any) ? 'bg-white border-primary/10 shadow-sm' : 'bg-surface-bright border-transparent hover:border-primary/20'}`}
+                           >
+                              <div className="flex items-center gap-5">
+                                 <div className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center shadow-sm"><Globe className="w-5 h-5 text-primary/40" /></div>
+                                 <span className="text-sm font-black italic capitalize text-primary/60">{provider} Identity</span>
+                              </div>
+                              {currentUser.linkedProviders?.includes(provider as any) ? (
+                                <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 px-4 py-2 rounded-full uppercase tracking-widest">Linked</span>
+                              ) : (
+                                <span className="text-[10px] font-black text-primary/20 uppercase tracking-widest">Connect Vector</span>
+                              )}
+                           </button>
+                         ))}
+                      </div>
+                   </div>
+                </div>
 
-                       <button 
-                         onClick={() => !currentUser.linkedProviders?.includes('kakao') && linkSocialAccount('kakao')}
-                         className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${currentUser.linkedProviders?.includes('kakao') ? 'bg-white border-outline-variant/30' : 'bg-[#FEE500]/10 border-transparent hover:border-[#3c1e1e]/20'}`}
-                       >
-                          <div className="flex items-center gap-3">
-                             <div className="w-4 h-4 bg-[#3c1e1e] rounded-full flex items-center justify-center text-[6px] text-[#FEE500] font-black">K</div>
-                             <span className="text-xs font-bold text-[#3c1e1e]">Kakao</span>
-                          </div>
-                          {currentUser.linkedProviders?.includes('kakao') ? (
-                            <span className="text-[10px] font-black text-[#3c1e1e] uppercase bg-[#FEE500] px-3 py-1 rounded-full">LINKED</span>
-                          ) : (
-                            <span className="text-[10px] font-black text-[#3c1e1e]/40 uppercase text-xs">계정 연동</span>
-                          )}
-                       </button>
-                    </div>
-                 </div>
-              </div>
-
-              <div className="pt-6 border-t border-outline-variant/10 flex flex-col gap-3">
-                 <button 
-                   onClick={handleLogout}
-                   className="w-full py-4 text-burgundy font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2 hover:bg-burgundy/5 rounded-2xl transition-all"
-                 >
-                    <LogOut className="w-4 h-4" /> 로그아웃
-                 </button>
-                 <button 
-                   onClick={() => setIsDeletingAccount(true)}
-                   className="w-full py-4 text-on-surface-variant/30 font-bold uppercase tracking-widest text-[10px] hover:text-burgundy transition-colors"
-                 >
-                    사장님 계정 해지 (매장 데이터 유지)
-                 </button>
-              </div>
-           </div>
-        </div>
-      )}
-
-      {/* Account Deletion Confirmation */}
-      {isDeletingAccount && (
-        <div className="fixed inset-0 bg-burgundy/10 backdrop-blur-md z-[120] flex items-center justify-center p-8 animate-in fade-in zoom-in-95">
-           <div className="bg-white rounded-[2.5rem] p-10 w-full max-w-sm text-center shadow-3xl border border-burgundy/20">
-              <div className="w-20 h-20 bg-burgundy/5 rounded-3xl flex items-center justify-center text-burgundy mx-auto mb-8 shadow-inner"><Trash2 className="w-10 h-10" /></div>
-              <h3 className="text-2xl font-serif font-black text-primary italic mb-2">프랜차이즈 해지 확인</h3>
-              <p className="text-xs text-on-surface-variant/60 leading-relaxed mb-6">결 플랫폼 가맹을 해지하시겠습니까? 데이터는 보존되지만 개인 정보는 즉시 파기됩니다.</p>
-              
-              <div className="mb-10 text-left">
-                 <p className="text-[10px] font-black text-primary/40 uppercase mb-2 ml-2">해지 승인 코드 입력</p>
-                 <input 
-                   type="text" 
-                   placeholder='"DELETE" 라고 입력하세요'
-                   value={confirmDeleteText}
-                   onChange={(e) => setConfirmDeleteText(e.target.value)}
-                   className="w-full px-5 py-4 bg-surface-container rounded-2xl border border-outline-variant/30 text-xs font-black placeholder:text-on-surface-variant/20 focus:border-burgundy transition-all"
-                 />
-              </div>
-
-              <div className="flex gap-4">
-                 <button onClick={() => { setIsDeletingAccount(false); setConfirmDeleteText(''); }} className="flex-1 py-4 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/40">취소</button>
-                 <button 
-                   disabled={confirmDeleteText !== 'DELETE'}
-                   onClick={() => {
-                      deleteAccount();
-                      setIsDeletingAccount(false);
-                      setIsSettingsOpen(false);
-                      setConfirmDeleteText('');
-                   }}
-                   className={`flex-[2] py-4 rounded-xl font-bold uppercase tracking-widest text-[10px] shadow-lg active:scale-95 transition-all ${confirmDeleteText === 'DELETE' ? 'bg-burgundy text-white' : 'bg-surface-container text-on-surface-variant/20 cursor-not-allowed'}`}
-                 >해지 실행</button>
-              </div>
-           </div>
-        </div>
-      )}
+                <div className="pt-10 border-t border-primary/5 flex flex-col gap-4">
+                   <button 
+                     onClick={handleLogout}
+                     className="w-full py-6 text-primary font-black uppercase tracking-[0.5em] text-[11px] flex items-center justify-center gap-4 hover:bg-primary/5 rounded-[2rem] transition-all"
+                   >
+                      <LogOut className="w-5 h-5 opacity-30" /> Command Exit
+                   </button>
+                   <button 
+                     onClick={() => setIsDeletingAccount(true)}
+                     className="w-full py-4 text-burgundy/20 font-black uppercase tracking-[0.5em] text-[9px] hover:text-burgundy transition-colors"
+                   >
+                      Deactivate Hub (Permanent)
+                   </button>
+                </div>
+             </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

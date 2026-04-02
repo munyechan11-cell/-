@@ -318,6 +318,15 @@ export const useStore = () => {
   const [tierOverrides, setTierOverrides] = useState<TierOverride[]>(getGlobalStorage('tierOverrides', []));
   const [masterPassword, setMasterPasswordState] = useState<string>(globalState.masterPassword);
   const [currentUser, setCurrentUser] = useState<User | null>(getLocalStorage('currentUser', null));
+  const [ownerViewMode, setOwnerViewModeState] = useState<'desktop' | 'mobile'>(
+    (localStorage.getItem('ownerViewMode') as 'desktop' | 'mobile') || 'desktop'
+  );
+
+  const setOwnerViewMode = (mode: 'desktop' | 'mobile') => {
+    setOwnerViewModeState(mode);
+    localStorage.setItem('ownerViewMode', mode);
+    window.dispatchEvent(new Event('local-storage-update'));
+  };
 
   useEffect(() => {
     const handleGlobalUpdate = () => {
@@ -336,6 +345,7 @@ export const useStore = () => {
 
     const handleLocalUpdate = () => {
       setCurrentUser(getLocalStorage('currentUser', null));
+      setOwnerViewModeState((localStorage.getItem('ownerViewMode') as 'desktop' | 'mobile') || 'desktop');
     };
 
     window.addEventListener('global-storage-update', handleGlobalUpdate);
@@ -501,23 +511,28 @@ export const useStore = () => {
     if (!currentUser) throw new Error('로그인이 필요합니다.');
     
     let socialId = '';
+    let socialAvatar = '';
     if (provider === 'google') {
       const authProvider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth!, authProvider);
       socialId = result.user.uid;
+      socialAvatar = result.user.photoURL || '';
     } else if (provider === 'kakao') {
-      socialId = await new Promise((resolve, reject) => {
+      const kakaoData: any = await new Promise((resolve, reject) => {
+        if (!(window as any).Kakao) return reject(new Error('카카오 SDK가 로드되지 않았습니다.'));
         (window as any).Kakao.Auth.login({
           success: () => {
             (window as any).Kakao.API.request({
               url: '/v2/user/me',
-              success: (res: any) => resolve(res.id.toString()),
+              success: (res: any) => resolve(res),
               fail: reject
             });
           },
           fail: reject
         });
       });
+      socialId = kakaoData.id.toString();
+      socialAvatar = kakaoData.kakao_account?.profile?.thumbnail_image_url || '';
     }
 
     // 이미 다른 계정에 연결되어 있는지 확인
@@ -527,15 +542,16 @@ export const useStore = () => {
     );
 
     if (existingUser) {
-      throw new Error('이미 등록된 계정입니다.');
+      throw new Error(`해당 ${provider === 'google' ? '구글' : '카카오'} 계정은 이미 다른 회원정보와 연동되어 있습니다.`);
     }
 
     const updates: Partial<User> = {
-      socialIds: [...(currentUser.socialIds || []), socialId],
-      linkedProviders: [...(currentUser.linkedProviders || []), provider]
+      socialIds: Array.from(new Set([...(currentUser.socialIds || []), socialId])),
+      linkedProviders: Array.from(new Set([...(currentUser.linkedProviders || []), provider]))
     };
     if (provider === 'google') updates.googleId = socialId;
     if (provider === 'kakao') updates.kakaoId = socialId;
+    if (socialAvatar && !currentUser.avatarUrl) updates.avatarUrl = socialAvatar;
 
     await updateFirestoreDoc('users', currentUser.id, updates);
     const updatedUser = { ...currentUser, ...updates };
@@ -792,7 +808,8 @@ export const useStore = () => {
     recordCommunication, bulkIssueCoupon, bulkRecordCommunication,
     updateTableLayout, updateBrandSettings, addTable, deleteTable,
     addSection, updateSection, deleteSection, updateTableStatus,
-    linkSocialAccount, deleteAccount
+    linkSocialAccount, deleteAccount,
+    ownerViewMode, setOwnerViewMode
   };
 };
 
