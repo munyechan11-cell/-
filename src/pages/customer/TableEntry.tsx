@@ -10,8 +10,19 @@ export default function TableEntry() {
   const processedRef = useRef(false);
 
   useEffect(() => {
+    // 1. 기본 준비 상태 확인
     if (processedRef.current || !isReady) return;
     if (!storeId || !tableNumber) { navigate('/'); return; }
+
+    // 2. 필수 데이터(매장 정보 등)가 로드될 때까지 약간 더 대기 (최대 2초)
+    const storeExists = users.some(u => u.id === storeId && u.role === 'owner');
+    if (!storeExists && isReady) {
+       // 매장 정보가 아직 안 왔다면 0.5초 후 재시도하도록 함
+       const timer = setTimeout(() => {
+          window.dispatchEvent(new Event('global-storage-update'));
+       }, 500);
+       return () => clearTimeout(timer);
+    }
 
     const run = async () => {
       processedRef.current = true;

@@ -688,8 +688,8 @@ export default function OwnerDashboard() {
                    <div>
                       <h2 className="text-2xl lg:text-4xl font-sans font-black text-primary mb-2 leading-none">{activeTable?.type === 'room' ? '프라이빗 룸' : `${selectedTable}번 테이블`}</h2>
                       <div className="flex items-center gap-3">
-                         <div className={`w-2 h-2 rounded-full ${activeTable?.currentCustomerId ? 'bg-emerald-500' : 'bg-primary/20'}`}></div>
-                         <p className="text-[9px] lg:text-[10px] font-black uppercase tracking-[0.4em] text-primary/40">{activeTable?.currentCustomerId ? '이용 중' : '입장 대기'}</p>
+                         <div className={`w-2 h-2 rounded-full ${activeTable?.currentCustomerId ? 'bg-emerald-500' : (activeTable?.status === 'dirty' ? 'bg-burgundy' : 'bg-primary/20')}`}></div>
+                         <p className="text-[9px] lg:text-[10px] font-black uppercase tracking-[0.4em] text-primary/40">{activeTable?.currentCustomerId ? '이용 중' : (activeTable?.status === 'dirty' ? '청소 필요' : '입장 대기')}</p>
                       </div>
                    </div>
                    <button onClick={() => setSelectedTable(null)} className="p-4 bg-surface-bright rounded-full hover:bg-primary/5 transition-all outline-none"><X className="w-6 h-6 text-primary/20" /></button>
@@ -765,7 +765,7 @@ export default function OwnerDashboard() {
                          ) : (
                             <div className="space-y-10">
                                <div className="bg-gyeol-pattern p-10 rounded-[4rem] border-4 border-white shadow-premium flex flex-col items-center gap-10">
-                                  <div className="p-6 bg-white rounded-3xl shadow-xl" ref={qrRef}><QRCodeSVG value={`${window.location.origin}/customer/store/${currentUser.id}?table=${selectedTable}`} size={200} level="H" /></div>
+                                  <div className="p-6 bg-white rounded-3xl shadow-xl" ref={qrRef}><QRCodeSVG value={`${window.location.origin}/customer/store/${currentUser.id}/table/${selectedTable}`} size={200} level="H" /></div>
                                   <p className="text-[11px] font-black text-primary uppercase tracking-[0.5em] opacity-40">디지털 입장 QR 코드</p>
                                 </div>
                                <div className="grid grid-cols-2 gap-6">

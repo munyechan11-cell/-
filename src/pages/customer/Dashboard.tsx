@@ -33,7 +33,7 @@ export default function CustomerDashboard() {
   useEffect(() => {
     if (currentUser && storeId && currentUser.storeId !== storeId) {
       logout();
-      navigate(`/customer/store/${storeId}/login`);
+      navigate(`/customer/store/${storeId}/login${window.location.search}`);
     }
   }, [currentUser, storeId, logout, navigate]);
 
@@ -201,59 +201,52 @@ export default function CustomerDashboard() {
              </motion.div>
           </section>
 
-          {/* Table Active Session HUD */}
-          {currentTable && (
-            <motion.div 
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="bg-primary/5 border border-primary/20 rounded-[3rem] p-8 lg:p-10 flex justify-between items-center relative overflow-hidden"
-            >
-               <div className="absolute top-0 right-0 w-2 h-full bg-primary/20"></div>
-               <div className="flex items-center gap-8">
-                  <div className="relative">
-                    <div className="absolute inset-0 bg-primary/20 rounded-3xl animate-ping opacity-40"></div>
-                    <div className="w-16 h-16 bg-primary rounded-[1.5rem] flex items-center justify-center text-white shadow-xl relative z-10"><MapPin className="w-7 h-7" /></div>
-                  </div>
-                  <div>
-                     <div className="flex items-center gap-3 mb-2">
-                        <span className="text-[9px] lg:text-[10px] font-black uppercase text-primary tracking-[0.2em] opacity-60 whitespace-nowrap">현재 이용 중</span>
-                        <div className="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
-                     </div>
-                     <p className="text-3xl font-serif font-black text-primary italic leading-none">{currentTable.number}번 테이블</p>
-                  </div>
-               </div>
-               <motion.button 
-                 whileTap={{ scale: 0.9 }}
-                 onClick={handleLeaveStore} 
-                 className="p-5 bg-white rounded-2xl text-burgundy shadow-sm border border-burgundy/10 hover:bg-burgundy hover:text-white transition-all group"
-               >
-                 <LeaveIcon className="w-7 h-7 group-hover:scale-110 transition-transform" />
-               </motion.button>
-            </motion.div>
-          )}
+           {/* Table Active Session HUD - Enhanced with auto-restore logic */}
+           {currentTable ? (
+             <motion.div 
+               initial={{ scale: 0.95, opacity: 0 }}
+               animate={{ scale: 1, opacity: 1 }}
+               className="bg-primary/5 border border-primary/20 rounded-[3rem] p-8 lg:p-10 flex justify-between items-center relative overflow-hidden"
+             >
+                <div className="absolute top-0 right-0 w-2 h-full bg-primary/20"></div>
+                <div className="flex items-center gap-8">
+                   <div className="relative">
+                     <div className="absolute inset-0 bg-primary/20 rounded-3xl animate-ping opacity-40"></div>
+                     <div className="w-16 h-16 bg-primary rounded-[1.5rem] flex items-center justify-center text-white shadow-xl relative z-10"><MapPin className="w-7 h-7" /></div>
+                   </div>
+                   <div>
+                      <div className="flex items-center gap-3 mb-2">
+                         <span className="text-[9px] lg:text-[10px] font-black uppercase text-primary tracking-[0.2em] opacity-60 whitespace-nowrap">현재 이용 중</span>
+                         <div className="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
+                      </div>
+                      <p className="text-3xl font-serif font-black text-primary italic leading-none">{currentTable.number}번 테이블</p>
+                   </div>
+                </div>
+                <motion.button 
+                  whileTap={{ scale: 0.9 }}
+                  onClick={handleLeaveStore} 
+                  className="p-5 bg-white rounded-2xl text-burgundy shadow-sm border border-burgundy/10 hover:bg-burgundy hover:text-white transition-all group"
+                >
+                  <LeaveIcon className="w-7 h-7 group-hover:scale-110 transition-transform" />
+                </motion.button>
+             </motion.div>
+           ) : (
+             <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                onClick={() => navigate('/scan')}
+                className="bg-surface-container rounded-[3rem] p-12 text-center border-2 border-dashed border-primary/10 cursor-pointer hover:border-primary/30 transition-all group"
+             >
+                <div className="w-20 h-20 bg-primary/5 rounded-[2.5rem] flex items-center justify-center text-primary/20 mx-auto mb-6 group-hover:bg-primary group-hover:text-white transition-all">
+                  <QrCode className="w-10 h-10" />
+                </div>
+                <h3 className="text-xl font-serif font-black text-primary italic mb-2">테이블 연동이 필요합니다</h3>
+                <p className="text-[10px] font-black text-primary/30 uppercase tracking-[0.3em]">이곳을 터치하거나 하단의 QR 스캐너를 실행하세요</p>
+             </motion.div>
+           )}
 
-          {/* Quick Hub Portal */}
-          <section className="grid grid-cols-2 gap-6 pb-6">
-             <motion.button 
-               whileTap={{ scale: 0.98 }}
-               onClick={() => setEditingMemo(true)} 
-               className="bg-white p-8 rounded-[3rem] border border-primary/5 shadow-premium hover:shadow-2xl transition-all text-left relative group overflow-hidden"
-             >
-                <div className="w-14 h-14 bg-primary/5 rounded-2xl flex items-center justify-center text-primary mb-6 group-hover:bg-primary group-hover:text-white transition-all outline-none"><Edit3 className="w-7 h-7" /></div>
-                <p className="text-[11px] font-black uppercase text-primary/30 tracking-widest leading-tight mb-1">사장님께 전하는</p>
-                <p className="text-2xl font-serif font-black text-primary italic">나의 기록</p>
-             </motion.button>
-             
-             <motion.button 
-               whileTap={{ scale: 0.98 }}
-               onClick={() => navigate('/scan')} 
-               className="bg-white p-8 rounded-[3rem] border border-primary/5 shadow-premium hover:shadow-2xl transition-all text-left relative group overflow-hidden"
-             >
-                <div className="w-14 h-14 bg-primary/5 rounded-2xl flex items-center justify-center text-primary mb-6 group-hover:bg-primary group-hover:text-white transition-all outline-none"><QrCode className="w-7 h-7" /></div>
-                <p className="text-[11px] font-black uppercase text-primary/30 tracking-widest leading-tight mb-1">손님 맞이용</p>
-                <p className="text-2xl font-serif font-black text-primary italic">QR 스캔</p>
-             </motion.button>
-          </section>
+          {/* Quick Hub Portal - Removed redundant buttons to clean up UI */}
+          <div className="pt-4"></div>
 
           {/* Exclusive Benefits (Coupons) */}
           <section className="space-y-8">
@@ -334,9 +327,8 @@ export default function CustomerDashboard() {
           </section>
         </div>
 
-        {/* Cinematic Bottom Hub */}
         <div className="fixed bottom-10 left-1/2 -translate-x-1/2 w-[calc(100%-48px)] max-w-[400px] bg-sidebar-bg/95 backdrop-blur-2xl px-12 py-7 rounded-[3rem] flex justify-between items-center z-50 shadow-3xl border border-white/10 ring-1 ring-white/5">
-           <Link to={`/customer/store/${storeId}/dashboard`} className="flex flex-col items-center gap-2 text-gold transition-all group">
+           <Link to={`/customer/store/${storeId}`} className="flex flex-col items-center gap-2 text-gold transition-all group">
               <Zap className="w-6 h-6 group-hover:scale-110 transition-transform" />
               <span className="text-[8px] font-black uppercase tracking-[0.2em] opacity-80">홈</span>
            </Link>

@@ -141,6 +141,12 @@ const globalState: Record<string, any> = {
 
 let isInitialized = false;
 let globalIsReady = false;
+let globalReadyStates: Record<string, boolean> = {
+  users: false,
+  visits: false,
+  coupons: false,
+  tables: false
+};
 let globalFirebaseStatus: 'connecting' | 'connected' | 'error' | 'offline' = isFirebaseConfigured ? 'connecting' : 'offline';
 let globalFirebaseError: string | null = null;
 let currentDb = db;
@@ -190,7 +196,11 @@ const startSync = (database: any, colls: any) => {
     const unsub = onSnapshot(colls[collName as keyof typeof colls], (snap) => {
       globalState[stateKey] = snap.docs.map(d => ({ ...d.data(), id: d.id }));
       globalFirebaseStatus = 'connected';
-      globalIsReady = true;
+      globalReadyStates[stateKey] = true;
+      // 필수 컬렉션들이 오면 Ready로 간주
+      if (globalReadyStates.users && globalReadyStates.tables) {
+         globalIsReady = true;
+      }
       notifyUpdate();
     }, (err) => {
       console.error(`Error syncing ${collName}:`, err);
@@ -632,6 +642,12 @@ export const useStore = () => {
   };
 
   const recordVisit = async (customerId: string, tableNumber: number, storeId: string, amount?: number) => {
+    // 10초 이내 동일 매장/테이블 중복 기록 방지 (레이스 컨디션 방어)
+    const lastVisitKey = `last_visit_${customerId}_${storeId}`;
+    const lastVisitTime = parseInt(sessionStorage.getItem(lastVisitKey) || '0');
+    if (Date.now() - lastVisitTime < 10000) return;
+    sessionStorage.setItem(lastVisitKey, Date.now().toString());
+
     const today = new Date().toDateString();
     const hasVisitedToday = visits.some(v => v.customerId === customerId && v.storeId === storeId && new Date(v.date).toDateString() === today);
 

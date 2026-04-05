@@ -36,13 +36,23 @@ export default function CustomerScanner() {
       const config = { fps: 10, qrbox: { width: 280, height: 280 } };
       const onScanSuccess = (decodedText: string) => {
         try {
-          if (decodedText.includes('/customer/store/')) {
-            navigate(decodedText.includes('http') ? new URL(decodedText).pathname : decodedText);
+          // 1. URL 기반 경로 추출 (다양한 도메인 및 경로 대응)
+          const storeMatch = decodedText.match(/\/customer\/store\/([^/?#]+)/);
+          const tableMatch = decodedText.match(/[?&]table=(\d+)/) || decodedText.match(/\/table\/(\d+)/);
+          
+          if (storeMatch) {
+            const sid = storeMatch[1];
+            const tid = tableMatch ? tableMatch[1] : null;
+            const targetUrl = tid ? `/customer/store/${sid}/table/${tid}` : `/customer/store/${sid}`;
+            navigate(targetUrl);
             return;
           }
+
+          // 2. JSON 기반 구형 QR 대응
           const data = JSON.parse(decodedText);
-          if (data.storeId && data.tableNumber) {
-            navigate(`/customer/store/${data.storeId}/table/${data.tableNumber}`);
+          if (data.storeId) {
+            const targetUrl = data.tableNumber ? `/customer/store/${data.storeId}/table/${data.tableNumber}` : `/customer/store/${data.storeId}`;
+            navigate(targetUrl);
           }
         } catch (e) { setError('QR 코드를 인식할 수 없습니다.'); }
       };

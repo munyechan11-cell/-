@@ -78,7 +78,7 @@ function PrivateRoute({ children, role }: { children: React.ReactNode, role: 'cu
         loginPath = `/customer/store/${match[1]}/login`;
       }
     }
-    return <Navigate to={loginPath} replace />;
+    return <Navigate to={`${loginPath}${location.search}`} replace />;
   }
   return <>{children}</>;
 }
