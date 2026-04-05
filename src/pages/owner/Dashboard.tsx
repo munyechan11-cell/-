@@ -19,9 +19,6 @@ import Skeleton, { DashboardStatsSkeleton } from '../../components/Skeleton';
 import { calculateRFMValue, getRFMCluster } from '../../store';
 
 export default function OwnerDashboard() {
-  // 배포 버전 확인용 로그
-  console.log("OwnerDashboard v2.0 (Table Fit + Map Top) Applied");
-
   const { 
     isReady, currentUser, tables, users, visits, coupons, sections, logout, leaveTable, 
     initTables, tierOverrides, approveCouponUse, rejectCouponUse, issueCoupon,
@@ -32,7 +29,7 @@ export default function OwnerDashboard() {
   
   const navigate = useNavigate();
   const [selectedTable, setSelectedTable] = useState<number | null>(null);
-  const [viewMode, setViewMode] = useState<'grid' | 'map'>('map');
+  const [viewMode, setViewMode] = useState<'grid' | 'map'>('grid');
   const [isInitialViewModeSet, setIsInitialViewModeSet] = useState(false);
   const [isLayoutMode, setIsLayoutMode] = useState(false);
   const [draggedTable, setDraggedTable] = useState<number | null>(null);
@@ -76,16 +73,15 @@ export default function OwnerDashboard() {
   }, [currentUser, tables, isInitialViewModeSet]);
 
   const updateZoomToFit = () => {
-    if (!mapContainerRef.current) return;
     const { clientWidth, clientHeight } = mapContainerRef.current;
     
     // 배치도 영역(1400x1200)이 컨테이너에 딱 맞도록 배율 계산
-    const padding = ownerViewMode === 'mobile' ? 20 : 80;
+    const padding = ownerViewMode === 'mobile' ? 20 : 40;
     const scaleX = (clientWidth - padding) / 1400;
     const scaleY = (clientHeight - padding) / 1200;
     
     const newZoom = Math.min(scaleX, scaleY, 1.2); // 최대 1.2배까지만
-    setZoom(Math.max(newZoom, 0.1)); // 최소 0.1배
+    setZoom(Math.max(newZoom, ownerViewMode === 'mobile' ? 0.1 : 0.45)); // 데스크톱 최소배율 상향
   };
 
   useEffect(() => {
@@ -333,7 +329,7 @@ export default function OwnerDashboard() {
           <div className="flex items-center gap-6 lg:gap-10">
             <div>
                <div className="flex items-center gap-3 mb-0.5 lg:mb-1">
-                 <h1 className="text-xl lg:text-3xl font-sans font-black text-primary tracking-tight">매장 실시간 테이블 현황 (v2.0)</h1>
+                 <h1 className="text-xl lg:text-3xl font-sans font-black text-primary tracking-tight">매장 실시간 테이블 현황</h1>
                  <div className="px-2 py-0.5 rounded-md bg-primary/5 border border-primary/10 text-[8px] font-black text-primary uppercase tracking-widest">실시간</div>
                </div>
                <div className="flex items-center gap-2 lg:gap-3">
@@ -519,27 +515,27 @@ export default function OwnerDashboard() {
                    </div>
                 </div>
              ) : (
-                <div className="p-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 overflow-y-auto h-full no-scrollbar bg-surface-bright/30">
+                <div className="p-6 lg:p-10 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 lg:gap-6 overflow-y-auto h-full no-scrollbar bg-surface-bright/30">
                    {filteredTables.map(table => (
                       <motion.div 
                         whileHover={{ y: -5 }}
                         key={table.number} 
                         onClick={() => setSelectedTable(table.number)} 
-                        className={`bg-white rounded-[2.5rem] lg:rounded-[3.5rem] ${ownerViewMode === 'mobile' ? 'p-8' : 'p-12'} border border-primary/5 flex flex-col gap-6 lg:gap-10 cursor-pointer shadow-premium relative min-h-[180px] lg:min-h-[260px] flex-shrink-0`}
+                        className={`bg-white rounded-[2rem] lg:rounded-[3rem] ${ownerViewMode === 'mobile' ? 'p-6' : 'p-8'} border border-primary/5 flex flex-col gap-4 lg:gap-6 cursor-pointer shadow-premium relative min-h-[140px] lg:min-h-[180px] flex-shrink-0`}
                       >
                          <div className="flex justify-between items-start">
-                            <div className="w-12 h-12 lg:w-20 lg:h-20 bg-gyeol-wood text-white rounded-2xl lg:rounded-[2rem] flex items-center justify-center font-black text-xl lg:text-3xl shadow-premium">{table.number}</div>
-                            <div className={`px-4 py-1.5 rounded-full text-[9px] lg:text-[10px] font-black uppercase tracking-widest ${table.currentCustomerId ? 'bg-emerald-50 text-emerald-600' : 'bg-primary/5 text-primary/30'}`}>
-                               {table.currentCustomerId ? '이용 중' : '사용 가능'}
+                            <div className="w-10 h-10 lg:w-16 lg:h-16 bg-gyeol-wood text-white rounded-xl lg:rounded-2xl flex items-center justify-center font-black text-lg lg:text-2xl shadow-premium">{table.number}</div>
+                            <div className={`px-3 py-1 rounded-full text-[8px] lg:text-[9px] font-black uppercase tracking-widest ${table.currentCustomerId ? 'bg-emerald-50 text-emerald-600' : 'bg-primary/5 text-primary/30'}`}>
+                               {table.currentCustomerId ? '이용 중' : '가능'}
                             </div>
                          </div>
-                         <div className="space-y-1">
-                            <p className="text-[9px] lg:text-[10px] font-black uppercase text-primary/30 tracking-[0.3em]">현재 이용 고객</p>
-                            <p className="text-lg lg:text-2xl font-sans font-black text-primary leading-tight">{table.currentCustomerId ? users.find(u => u.id === table.currentCustomerId)?.name : '없음'}</p>
+                         <div className="space-y-0.5">
+                            <p className="text-[8px] lg:text-[9px] font-black uppercase text-primary/30 tracking-[0.2em]">현재 고객</p>
+                            <p className="text-sm lg:text-xl font-sans font-black text-primary leading-tight truncate">{table.currentCustomerId ? users.find(u => u.id === table.currentCustomerId)?.name : '없음'}</p>
                          </div>
                          {table.currentCustomerId && (
-                            <div className="absolute -bottom-2 -right-2 opacity-[0.05]">
-                               <Activity className="w-20 h-20 text-emerald-600" />
+                            <div className="absolute -bottom-1 -right-1 opacity-[0.03]">
+                               <Activity className="w-16 h-16 text-emerald-600" />
                             </div>
                          )}
                       </motion.div>
@@ -568,31 +564,31 @@ export default function OwnerDashboard() {
           <div className={`grid ${ownerViewMode === 'mobile' ? 'grid-cols-2' : 'grid-cols-4'} gap-3 lg:gap-8`}>
             <motion.div 
                whileHover={{ y: -5 }}
-               className="col-span-1 bg-white p-8 rounded-[3rem] border border-primary/5 shadow-premium flex flex-col justify-between group overflow-hidden relative"
+               className="col-span-1 bg-white p-6 rounded-[2.5rem] border border-primary/5 shadow-premium flex flex-col justify-between group overflow-hidden relative"
             >
-               <Activity className="absolute -top-6 -right-6 w-32 h-32 text-primary opacity-[0.02] group-hover:scale-110 transition-transform" />
+               <Activity className="absolute -top-6 -right-6 w-24 h-24 text-primary opacity-[0.02] group-hover:scale-110 transition-transform" />
                <div className="space-y-1">
-                  <p className="text-[10px] font-black text-primary/30 uppercase tracking-[0.4em]">실시간 좌석 점유</p>
-                  <p className="text-4xl font-sans font-black text-primary leading-tight">{stats.occupancyRate}%</p>
+                  <p className="text-[9px] font-black text-primary/30 uppercase tracking-[0.3em]">실시간 좌석 점유</p>
+                  <p className="text-3xl font-sans font-black text-primary leading-tight">{stats.occupancyRate}%</p>
                </div>
-               <div className="flex items-center gap-3">
-                  <div className="flex-1 h-1.5 bg-primary/5 rounded-full overflow-hidden">
+               <div className="flex items-center gap-2">
+                  <div className="flex-1 h-1 bg-primary/5 rounded-full overflow-hidden">
                      <motion.div initial={{ width: 0 }} animate={{ width: `${stats.occupancyRate}%` }} className="h-full bg-primary" />
                   </div>
-                  <span className="text-[10px] font-black text-primary/40">{actualTables.filter(t => t.currentCustomerId).length}개 테이블 사용 중</span>
+                  <span className="text-[8px] font-black text-primary/40">{actualTables.filter(t => t.currentCustomerId).length}개 사용 중</span>
                </div>
             </motion.div>
 
             <motion.div 
                whileHover={{ y: -5 }}
-               className="col-span-1 bg-white p-8 rounded-[3rem] border border-primary/5 shadow-premium flex flex-col justify-between group overflow-hidden relative"
+               className="col-span-1 bg-white p-6 rounded-[2.5rem] border border-primary/5 shadow-premium flex flex-col justify-between group overflow-hidden relative"
             >
-               <Hourglass className="absolute -top-6 -right-6 w-32 h-32 text-primary opacity-[0.02] group-hover:scale-110 transition-transform" />
+               <Hourglass className="absolute -top-6 -right-6 w-24 h-24 text-primary opacity-[0.02] group-hover:scale-110 transition-transform" />
                <div className="space-y-1">
-                  <p className="text-[10px] font-black text-primary/30 uppercase tracking-[0.4em]">평균 머문 시간</p>
-                  <p className="text-4xl font-sans font-black text-primary leading-tight">{stats.avgUsage}<span className="text-xs ml-1 font-sans font-black text-primary/30">분</span></p>
+                  <p className="text-[9px] font-black text-primary/30 uppercase tracking-[0.3em]">평균 머문 시간</p>
+                  <p className="text-3xl font-sans font-black text-primary leading-tight">{stats.avgUsage}<span className="text-xs ml-1 font-sans font-black text-primary/30">분</span></p>
                </div>
-               <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest bg-emerald-50 self-start px-3 py-1 rounded-full">회전율 원활</p>
+               <p className="text-[8px] font-black text-emerald-600 uppercase tracking-widest bg-emerald-50 self-start px-3 py-1 rounded-full">회전율 원활</p>
             </motion.div>
 
             <motion.div 
