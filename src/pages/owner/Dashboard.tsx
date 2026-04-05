@@ -420,124 +420,121 @@ export default function OwnerDashboard() {
           </div>
         </header>
 
-        <div className={`flex-1 overflow-y-auto lg:overflow-hidden flex flex-col p-6 lg:p-12 space-y-8 lg:space-y-12 bg-gyeol-pattern ${ownerViewMode === 'mobile' ? 'no-scrollbar' : ''}`}>
-          {/* Table Architectural View (Moved to Top) */}
-          <div className="flex-1 relative bg-white rounded-[4rem] shadow-premium overflow-hidden border border-primary/5 min-h-[500px] lg:min-h-0">
+        <div className={`flex-1 overflow-y-auto p-6 lg:p-12 space-y-8 lg:space-y-12 bg-gyeol-pattern ${ownerViewMode === 'mobile' ? 'no-scrollbar' : ''}`}>
+          {/* Main Content Area: Table Map or List Grid */}
+          <div className="relative bg-white rounded-[3rem] lg:rounded-[4rem] shadow-premium overflow-hidden border border-primary/5 min-h-[600px] lg:min-h-[700px] flex flex-col">
              {viewMode === 'map' ? (
-                <div ref={mapContainerRef} className={`absolute inset-0 overflow-auto ${ownerViewMode === 'mobile' ? 'p-4' : 'p-20'} bg-[radial-gradient(#4a0e0e0a_2px,transparent_2px)] [background-size:40px_40px] no-scrollbar cursor-crosshair`}>
-                   <div 
-                    ref={mapInnerRef}
-                    className="relative origin-top-left transition-transform duration-500" 
-                    style={{ minWidth: '1400px', minHeight: '1200px', transform: `scale(${zoom})` }}
-                   >
-                      {/* Decorative Compass Label */}
-                      <div className="absolute -top-20 -left-20 flex flex-col gap-2 opacity-10">
-                         <Globe className="w-12 h-12 text-primary" />
-                         <p className="text-[10px] font-black uppercase tracking-[0.5em] text-primary">N.ARCH 2026</p>
-                      </div>
+                <div className="flex-1 relative">
+                   {/* FIXED Zoom Controls - Always visible in the top-right of the white box */}
+                   <div className="flex flex-col gap-3 absolute top-6 right-6 lg:top-10 lg:right-10 z-[100]">
+                      <button onClick={() => setZoom(prev => Math.min(prev + 0.1, 2))} className="w-10 h-10 lg:w-12 lg:h-12 bg-white/90 backdrop-blur-md rounded-xl lg:rounded-2xl shadow-premium border border-primary/5 flex items-center justify-center text-primary/40 hover:text-primary transition-all active:scale-90"><Plus className="w-5 h-5" /></button>
+                      <button onClick={updateZoomToFit} className="w-10 h-10 lg:w-12 lg:h-12 bg-primary text-white rounded-xl lg:rounded-2xl shadow-premium border border-primary/5 flex items-center justify-center hover:scale-105 transition-all active:scale-90" title="화면에 맞춤"><Maximize2 className="w-5 h-5" /></button>
+                      <button onClick={() => setZoom(prev => Math.max(prev - 0.1, 0.1))} className="w-10 h-10 lg:w-12 lg:h-12 bg-white/90 backdrop-blur-md rounded-xl lg:rounded-2xl shadow-premium border border-primary/5 flex items-center justify-center text-primary/40 hover:text-primary transition-all active:scale-90"><Minus className="w-5 h-5" /></button>
+                   </div>
 
-                      {/* Zoom Controls */}
-                      <div className="flex flex-col gap-3 absolute top-10 right-10 z-50">
-                         <button onClick={() => setZoom(prev => Math.min(prev + 0.1, 2))} className="w-12 h-12 bg-white rounded-2xl shadow-premium border border-primary/5 flex items-center justify-center text-primary/40 hover:text-primary transition-all active:scale-90"><Plus className="w-5 h-5" /></button>
-                         <button onClick={updateZoomToFit} className="w-12 h-12 bg-primary text-white rounded-2xl shadow-premium border border-primary/5 flex items-center justify-center hover:scale-105 transition-all active:scale-90" title="화면에 맞춤"><Maximize2 className="w-5 h-5" /></button>
-                         <button onClick={() => setZoom(prev => Math.max(prev - 0.1, 0.1))} className="w-12 h-12 bg-white rounded-2xl shadow-premium border border-primary/5 flex items-center justify-center text-primary/40 hover:text-primary transition-all active:scale-90"><Minus className="w-5 h-5" /></button>
-                      </div>
+                   <div ref={mapContainerRef} className={`absolute inset-0 overflow-auto ${ownerViewMode === 'mobile' ? 'p-4' : 'p-20'} bg-[radial-gradient(#4a0e0e15_2px,transparent_2px)] [background-size:40px_40px] no-scrollbar cursor-crosshair`}>
+                      <div 
+                       ref={mapInnerRef}
+                       className="relative origin-top-left transition-transform duration-500" 
+                       style={{ minWidth: '1400px', minHeight: '1200px', transform: `scale(${zoom})` }}
+                      >
+                         {/* Decorative Compass Label */}
+                         <div className="absolute -top-20 -left-20 flex flex-col gap-2 opacity-10">
+                            <Globe className="w-12 h-12 text-primary" />
+                            <p className="text-[10px] font-black uppercase tracking-[0.5em] text-primary">N.ARCH 2026</p>
+                         </div>
                       
-                      {filteredTables.map(table => {
-                        const isOccupied = table.currentCustomerId !== null;
-                        const isBeingDragged = draggedTable === table.number;
-                        const isHighlighted = highlightedTable === table.number;
-                        
-                        return (
-                          <motion.div
-                            key={table.number}
-                            layout
-                            onPointerDown={(e) => handlePointerDown(e, table)}
-                            onPointerMove={handlePointerMove}
-                            onPointerUp={handlePointerUp}
-                            onClick={() => (isLayoutMode || table.type === 'table' || table.type === 'room') && setSelectedTable(table.number)}
-                            className={`absolute flex flex-col items-center justify-center group ${isOccupied ? 'shadow-[0_20px_50px_rgba(74,14,14,0.15)]' : 'shadow-sm hover:shadow-xl'} ${isBeingDragged ? 'z-[100] cursor-grabbing !transition-none' : 'duration-500 transition-all'} ${isHighlighted ? 'ring-4 ring-gold animate-pulse-premium z-50' : ''} ${table.type !== 'table' && table.type !== 'room' && !isLayoutMode ? 'pointer-events-none opacity-40' : 'cursor-pointer'}`}
-                            style={{
-                              left: isBeingDragged ? dragPosition?.x : table.x,
-                              top: isBeingDragged ? dragPosition?.y : table.y,
-                              width: table.width || 80,
-                              height: table.height || 80,
-                              backgroundColor: table.type === 'room' ? 'transparent' : (isOccupied ? '#1c1412' : (table.status === 'dirty' ? '#fcf1f1' : '#ffffff')),
-                              border: table.type === 'room' 
-                                ? `8px solid ${isOccupied ? '#1c1412' : '#f0e6dd'}` 
-                                : `3px solid ${isOccupied ? '#1c1412' : (selectedTable === table.number ? '#4a0e0e' : (isLayoutMode ? '#e5ddd6' : '#f0e6dd'))}`,
-                              borderRadius: table.type === 'room' ? '4rem' : '1.2rem', // 살짝 둥근 사각형
-                              zIndex: isBeingDragged ? 100 : (selectedTable === table.number ? 40 : 10),
-                              touchAction: 'none'
-                            }}
-                          >
-                            {table.type === 'pos' && <Monitor className="w-8 h-8 text-primary/10" />}
-                            {table.type === 'door' && <ArrowRight className="w-8 h-8 text-primary/10 rotate-90" />}
-                            
-                            {table.type === 'table' && (
-                               <div className="flex flex-col items-center">
-                                  <span className={`text-2xl font-black ${isOccupied ? 'text-white' : 'text-primary/70'}`}>{table.number}</span>
-                                  {isOccupied && (
-                                     <div className="mt-2 px-3 py-1 bg-white/10 rounded-full border border-white/10 backdrop-blur-md">
-                                        <p className="text-[9px] font-black text-white/50 tracking-[0.2em] uppercase">
-                                           {(() => {
-                                              const start = new Date(table.sessionStartTime!);
-                                              const diff = Math.floor((currentTime.getTime() - start.getTime()) / 60000);
-                                              return `${diff}m`;
-                                           })()}
-                                        </p>
-                                     </div>
-                                  )}
-                               </div>
-                            )}
+                        {filteredTables.map(table => {
+                          const isOccupied = table.currentCustomerId !== null;
+                          const isBeingDragged = draggedTable === table.number;
+                          const isHighlighted = highlightedTable === table.number;
+                          
+                          return (
+                            <motion.div
+                              key={table.number}
+                              layout
+                              onPointerDown={(e) => handlePointerDown(e, table)}
+                              onPointerMove={handlePointerMove}
+                              onPointerUp={handlePointerUp}
+                              onClick={() => (isLayoutMode || table.type === 'table' || table.type === 'room') && setSelectedTable(table.number)}
+                              className={`absolute flex flex-col items-center justify-center group ${isOccupied ? 'shadow-[0_20px_50px_rgba(74,14,14,0.15)]' : 'shadow-sm hover:shadow-xl'} ${isBeingDragged ? 'z-[100] cursor-grabbing !transition-none' : 'duration-500 transition-all'} ${isHighlighted ? 'ring-4 ring-gold animate-pulse-premium z-50' : ''} ${table.type !== 'table' && table.type !== 'room' && !isLayoutMode ? 'pointer-events-none opacity-40' : 'cursor-pointer'}`}
+                              style={{
+                                left: isBeingDragged ? dragPosition?.x : table.x,
+                                top: isBeingDragged ? dragPosition?.y : table.y,
+                                width: table.width || 80,
+                                height: table.height || 80,
+                                backgroundColor: table.type === 'room' ? 'transparent' : (isOccupied ? '#1c1412' : (table.status === 'dirty' ? '#fcf1f1' : '#ffffff')),
+                                border: table.type === 'room' 
+                                  ? `8px solid ${isOccupied ? '#1c1412' : '#f0e6dd'}` 
+                                  : `3px solid ${isOccupied ? '#1c1412' : (selectedTable === table.number ? '#4a0e0e' : (isLayoutMode ? '#e5ddd6' : '#f0e6dd'))}`,
+                                borderRadius: table.type === 'room' ? '4rem' : '1.2rem',
+                                zIndex: isBeingDragged ? 100 : (selectedTable === table.number ? 40 : 10),
+                                touchAction: 'none'
+                              }}
+                            >
+                              {table.type === 'pos' && <Monitor className="w-8 h-8 text-primary/10" />}
+                              {table.type === 'door' && <ArrowRight className="w-8 h-8 text-primary/10 rotate-90" />}
+                              
+                              {table.type === 'table' && (
+                                 <div className="flex flex-col items-center">
+                                    <span className={`text-2xl font-black ${isOccupied ? 'text-white' : 'text-primary/70'}`}>{table.number}</span>
+                                    {isOccupied && (
+                                       <div className="mt-2 px-3 py-1 bg-white/10 rounded-full border border-white/10 backdrop-blur-md">
+                                          <p className="text-[9px] font-black text-white/50 tracking-[0.2em] uppercase">
+                                             {(() => {
+                                                const start = new Date(table.sessionStartTime!);
+                                                const diff = Math.floor((currentTime.getTime() - start.getTime()) / 60000);
+                                                return `${diff}m`;
+                                             })()}
+                                          </p>
+                                       </div>
+                                    )}
+                                 </div>
+                              )}
 
-                            {isOccupied && (
-                               <div className="absolute -top-3 -right-3 w-8 h-8 bg-gold rounded-full border-4 border-white flex items-center justify-center text-white shadow-xl animate-bounce">
-                                  <Sparkles className="w-3.5 h-3.5" />
-                                </div>
-                            )}
+                              {isOccupied && (
+                                 <div className="absolute -top-3 -right-3 w-8 h-8 bg-gold rounded-full border-4 border-white flex items-center justify-center text-white shadow-xl animate-bounce">
+                                    <Sparkles className="w-3.5 h-3.5" />
+                                  </div>
+                              )}
 
-                            {isLayoutMode && !isOccupied && (
-                               <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-white/80 rounded-[inherit] z-20">
-                                  <button 
-                                    onPointerDown={(e) => e.stopPropagation()}
-                                    onClick={(e) => { e.stopPropagation(); deleteTable(currentUser.id, table.number); }} 
-                                    className="p-3 bg-burgundy/10 text-burgundy rounded-2xl hover:bg-burgundy hover:text-white transition-all mx-1"
-                                  >
-                                    <Trash2 className="w-5 h-5" />
-                                  </button>
-                                  <button className="p-3 bg-primary/10 text-primary rounded-2xl cursor-move mx-1"><GripVertical className="w-5 h-5" /></button>
-                                </div>
-                            )}
-                          </motion.div>
-                        );
-                      })}
+                              {isLayoutMode && !isOccupied && (
+                                 <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-white/80 rounded-[inherit] z-20">
+                                    <button 
+                                      onPointerDown={(e) => e.stopPropagation()}
+                                      onClick={(e) => { e.stopPropagation(); deleteTable(currentUser.id, table.number); }} 
+                                      className="p-3 bg-burgundy/10 text-burgundy rounded-2xl hover:bg-burgundy hover:text-white transition-all mx-1"
+                                    >
+                                      <Trash2 className="w-5 h-5" />
+                                    </button>
+                                    <button className="p-3 bg-primary/10 text-primary rounded-2xl cursor-move mx-1"><GripVertical className="w-5 h-5" /></button>
+                                 </div>
+                              )}
+                            </motion.div>
+                          );
+                        })}
+                     </div>
                    </div>
                 </div>
              ) : (
-                <div className="p-6 lg:p-10 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 lg:gap-6 overflow-y-auto h-full no-scrollbar bg-surface-bright/30">
+                <div className="flex-1 p-4 lg:p-8 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 lg:gap-4 overflow-y-auto no-scrollbar bg-surface-bright/30">
                    {filteredTables.map(table => (
                       <motion.div 
-                        whileHover={{ y: -5 }}
+                        whileHover={{ y: -3 }}
                         key={table.number} 
                         onClick={() => setSelectedTable(table.number)} 
-                        className={`bg-white rounded-[2rem] lg:rounded-[3rem] ${ownerViewMode === 'mobile' ? 'p-6' : 'p-8'} border border-primary/5 flex flex-col gap-4 lg:gap-6 cursor-pointer shadow-premium relative min-h-[140px] lg:min-h-[180px] flex-shrink-0`}
+                        className={`bg-white rounded-[1.5rem] lg:rounded-[2.5rem] ${ownerViewMode === 'mobile' ? 'p-4' : 'p-6'} border border-primary/5 flex flex-col gap-3 lg:gap-4 cursor-pointer shadow-premium relative min-h-[120px] lg:min-h-[150px] flex-shrink-0 animate-in fade-in zoom-in-95 duration-500`}
                       >
                          <div className="flex justify-between items-start">
-                            <div className="w-10 h-10 lg:w-16 lg:h-16 bg-gyeol-wood text-white rounded-xl lg:rounded-2xl flex items-center justify-center font-black text-lg lg:text-2xl shadow-premium">{table.number}</div>
-                            <div className={`px-3 py-1 rounded-full text-[8px] lg:text-[9px] font-black uppercase tracking-widest ${table.currentCustomerId ? 'bg-emerald-50 text-emerald-600' : 'bg-primary/5 text-primary/30'}`}>
-                               {table.currentCustomerId ? '이용 중' : '가능'}
+                            <div className="w-8 h-8 lg:w-14 lg:h-14 bg-gyeol-wood text-white rounded-lg lg:rounded-2xl flex items-center justify-center font-black text-sm lg:text-xl shadow-premium">{table.number}</div>
+                            <div className={`px-2 py-0.5 rounded-full text-[7px] lg:text-[8px] font-black uppercase tracking-widest ${table.currentCustomerId ? 'bg-emerald-50 text-emerald-600' : 'bg-primary/5 text-primary/30'}`}>
+                               {table.currentCustomerId ? '이용중' : '가능'}
                             </div>
                          </div>
                          <div className="space-y-0.5">
-                            <p className="text-[8px] lg:text-[9px] font-black uppercase text-primary/30 tracking-[0.2em]">현재 고객</p>
-                            <p className="text-sm lg:text-xl font-sans font-black text-primary leading-tight truncate">{table.currentCustomerId ? users.find(u => u.id === table.currentCustomerId)?.name : '없음'}</p>
+                            <p className="text-[7px] lg:text-[8px] font-black uppercase text-primary/30 tracking-widest">손님</p>
+                            <p className="text-xs lg:text-base font-sans font-black text-primary leading-tight truncate">{table.currentCustomerId ? users.find(u => u.id === table.currentCustomerId)?.name : '없음'}</p>
                          </div>
-                         {table.currentCustomerId && (
-                            <div className="absolute -bottom-1 -right-1 opacity-[0.03]">
-                               <Activity className="w-16 h-16 text-emerald-600" />
-                            </div>
-                         )}
                       </motion.div>
                    ))}
                 </div>
