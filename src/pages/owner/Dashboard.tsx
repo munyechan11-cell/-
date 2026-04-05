@@ -328,13 +328,13 @@ export default function OwnerDashboard() {
         <header className="bg-white/80 backdrop-blur-xl px-4 lg:px-12 py-4 lg:py-8 border-b border-primary/5 flex justify-between items-center z-40">
           <div className="flex items-center gap-6 lg:gap-10">
             <div>
-               <div className="flex items-center gap-3 mb-0.5 lg:mb-1">
-                 <h1 className="text-xl lg:text-3xl font-sans font-black text-primary tracking-tight">매장 실시간 테이블 현황</h1>
-                 <div className="px-2 py-0.5 rounded-md bg-primary/5 border border-primary/10 text-[8px] font-black text-primary uppercase tracking-widest">실시간</div>
-               </div>
+                <div className="flex items-center gap-2 mb-0.5 lg:mb-1">
+                  <h1 className="text-lg lg:text-3xl font-sans font-black text-primary tracking-tight">실시간 매장 현황</h1>
+                  <div className="px-2 py-0.5 rounded-md bg-primary/5 border border-primary/10 text-[7px] lg:text-[8px] font-black text-primary uppercase tracking-widest">LIVE</div>
+                </div>
                <div className="flex items-center gap-2 lg:gap-3">
                   <div className="w-1.5 lg:w-2 h-1.5 lg:h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>
-                  <span className="text-[8px] lg:text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em]">실시간 현황 업데이트 • {currentTime.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</span>
+                  <span className="text-[8px] lg:text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em]">현재 시각: {currentTime.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</span>
                </div>
             </div>
             
@@ -441,7 +441,7 @@ export default function OwnerDashboard() {
                          {/* Decorative Compass Label */}
                          <div className="absolute -top-20 -left-20 flex flex-col gap-2 opacity-10">
                             <Globe className="w-12 h-12 text-primary" />
-                            <p className="text-[10px] font-black uppercase tracking-[0.5em] text-primary">N.ARCH 2026</p>
+                            <p className="text-[10px] font-black uppercase tracking-[0.5em] text-primary">결 배치 구조도</p>
                          </div>
                       
                         {filteredTables.map(table => {
@@ -557,7 +557,7 @@ export default function OwnerDashboard() {
              )}
           </div>
 
-          {/* Intelligence & Pulse HUD */}
+          {/* Real-time Summary HUD */}
           <div className={`grid ${ownerViewMode === 'mobile' ? 'grid-cols-2' : 'grid-cols-4'} gap-3 lg:gap-8`}>
             <motion.div 
                whileHover={{ y: -5 }}

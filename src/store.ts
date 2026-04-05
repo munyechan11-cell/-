@@ -188,7 +188,7 @@ const startSync = (database: any, colls: any) => {
     }
 
     const unsub = onSnapshot(colls[collName as keyof typeof colls], (snap) => {
-      globalState[stateKey] = snap.docs.map(d => d.data());
+      globalState[stateKey] = snap.docs.map(d => ({ ...d.data(), id: d.id }));
       globalFirebaseStatus = 'connected';
       globalIsReady = true;
       notifyUpdate();

@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
+import { useNavigate, useParams, Link, useSearchParams } from 'react-router-dom';
 import { useStore, formatPhoneNumber } from '../../store';
 import { QrCode, ArrowLeft, Heart, Sparkles, UserCircle, Phone, Loader2 } from 'lucide-react';
 
 export default function CustomerLogin() {
   const { storeId } = useParams();
+  const [searchParams] = useSearchParams();
+  const tableNumber = searchParams.get('table');
   const [isLogin, setIsLogin] = useState(true);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -14,7 +16,7 @@ export default function CustomerLogin() {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   
-  const { login, users, currentUser } = useStore();
+  const { login, users, currentUser, recordVisit } = useStore();
   const currentStore = users.find(u => u.id === storeId && u.role === 'owner');
 
   useEffect(() => {
@@ -26,7 +28,10 @@ export default function CustomerLogin() {
   const handleOAuthLogin = async (provider: 'google' | 'kakao') => {
     setIsLoading(true);
     try {
-      await login('', '', 'customer', undefined, storeId, provider);
+      const user = await login('', '', 'customer', undefined, storeId, provider);
+      if (tableNumber && storeId) {
+        await recordVisit(user.id, parseInt(tableNumber), storeId);
+      }
       navigate(`/customer/store/${storeId}`);
     } catch (err: any) {
       setError(err.message || '인증에 실패했습니다.');
@@ -46,7 +51,10 @@ export default function CustomerLogin() {
          if (!gender) throw new Error('성별을 선택해주세요.');
       }
       // For existing customers (isLogin=true), only phone is required
-      await login(phone, isLogin ? '' : name, 'customer', undefined, storeId, undefined, isPohangResident, gender || undefined);
+      const user = await login(phone, isLogin ? '' : name, 'customer', undefined, storeId, undefined, isPohangResident, gender || undefined);
+      if (tableNumber && storeId) {
+        await recordVisit(user.id, parseInt(tableNumber), storeId);
+      }
       navigate(`/customer/store/${storeId}`);
     } catch (err: any) {
       setError(err.message || '로그인에 실패했습니다.');

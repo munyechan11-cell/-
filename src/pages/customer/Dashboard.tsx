@@ -117,7 +117,7 @@ export default function CustomerDashboard() {
                 <h1 className="font-serif font-black text-xl italic tracking-tight text-primary">{restaurantName}</h1>
                 <div className="flex items-center gap-2">
                    <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
-                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/40 leading-none">Concierge Active</p>
+                   <p className="text-[9px] font-black uppercase tracking-[0.2em] text-primary/40 leading-none">컨시어지 활성</p>
                 </div>
              </div>
           </div>
@@ -156,8 +156,8 @@ export default function CustomerDashboard() {
                             )}
                          </div>
                          <div>
-                            <h2 className="text-3xl font-serif font-black italic tracking-tight">{currentUser.name}</h2>
-                            <p className="text-[10px] font-black text-white/50 uppercase tracking-[0.4em]">Legendary Customer</p>
+                            <h2 className="text-2xl font-serif font-black italic tracking-tight">{currentUser.name}</h2>
+                            <p className="text-[9px] font-black text-white/50 uppercase tracking-[0.4em]">레전더리 단골</p>
                          </div>
                       </div>
                       <div className={`px-6 py-3 rounded-2xl text-[12px] font-black uppercase tracking-[0.2em] shadow-2xl ${getTierColor(currentTier)} border border-white/20`}>
@@ -166,12 +166,12 @@ export default function CustomerDashboard() {
                    </div>
 
                    <div className="space-y-6 pt-8 border-t border-white/10">
-                      <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-[0.4em] text-gold/60">
-                         <span>Membership Velocity</span>
+                      <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-[0.2em] text-gold/60">
+                         <span>멤버십 활동지수</span>
                          {getNextTierVisits(uniqueVisitDays) ? (
-                            <span>{getNextTierVisits(uniqueVisitDays)?.remaining} More to {getTierCustomName(getNextTierVisits(uniqueVisitDays)!.next, owner?.tierNames)}</span>
+                            <span>{getNextTierVisits(uniqueVisitDays)?.remaining}회 남음: {getTierCustomName(getNextTierVisits(uniqueVisitDays)!.next, owner?.tierNames)}</span>
                          ) : (
-                            <span className="flex items-center gap-2"><Trophy className="w-3 h-3" /> Master Tier</span>
+                            <span className="flex items-center gap-2"><Trophy className="w-3 h-3" /> 마스터 등급</span>
                          )}
                       </div>
                       
@@ -189,8 +189,8 @@ export default function CustomerDashboard() {
                       
                       <div className="flex justify-between items-end">
                          <div className="space-y-1">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-gold/30">Total Experiences</p>
-                            <p className="text-4xl font-serif font-black italic leading-none">{myVisits.length}<span className="text-xs ml-2 opacity-50 uppercase font-sans not-italic">Visits</span></p>
+                            <p className="text-[9px] font-black uppercase tracking-widest text-gold/30">누적 방문</p>
+                            <p className="text-3xl font-serif font-black italic leading-none">{myVisits.length}<span className="text-[10px] ml-1.5 opacity-50 uppercase font-sans not-italic">회 방문</span></p>
                          </div>
                          <div className="text-right">
                            <p className="text-[10px] font-black uppercase tracking-widest text-white/20 italic">ID_ST_{currentUser.id.slice(0, 6).toUpperCase()}</p>
@@ -216,7 +216,7 @@ export default function CustomerDashboard() {
                   </div>
                   <div>
                      <div className="flex items-center gap-3 mb-2">
-                        <span className="text-[10px] lg:text-[11px] font-black uppercase text-primary tracking-[0.3em] opacity-60">Currently Occupying</span>
+                        <span className="text-[9px] lg:text-[10px] font-black uppercase text-primary tracking-[0.2em] opacity-60 whitespace-nowrap">현재 이용 중</span>
                         <div className="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
                      </div>
                      <p className="text-3xl font-serif font-black text-primary italic leading-none">{currentTable.number}번 테이블</p>
@@ -327,7 +327,7 @@ export default function CustomerDashboard() {
                       </div>
                    ))}
                    <button className="w-full py-6 bg-surface-bright/50 text-center block border-t border-primary/5 group transition-all">
-                      <p className="text-[11px] font-black uppercase text-primary/20 tracking-[0.4em] group-hover:text-primary group-hover:tracking-[0.5em] transition-all">Archived Memories</p>
+                      <p className="text-[10px] font-black uppercase text-primary/20 tracking-[0.3em] group-hover:text-primary group-hover:tracking-[0.4em] transition-all">지난 기록 보기</p>
                    </button>
                 </div>
              )}
@@ -337,8 +337,8 @@ export default function CustomerDashboard() {
         {/* Cinematic Bottom Hub */}
         <div className="fixed bottom-10 left-1/2 -translate-x-1/2 w-[calc(100%-48px)] max-w-[400px] bg-sidebar-bg/95 backdrop-blur-2xl px-12 py-7 rounded-[3rem] flex justify-between items-center z-50 shadow-3xl border border-white/10 ring-1 ring-white/5">
            <Link to={`/customer/store/${storeId}/dashboard`} className="flex flex-col items-center gap-2 text-gold transition-all group">
-              <Zap className="w-7 h-7 group-hover:scale-110 transition-transform" />
-              <span className="text-[9px] font-black uppercase tracking-[0.3em] opacity-80">Home</span>
+              <Zap className="w-6 h-6 group-hover:scale-110 transition-transform" />
+              <span className="text-[8px] font-black uppercase tracking-[0.2em] opacity-80">홈</span>
            </Link>
            <motion.button 
              whileHover={{ scale: 1.1, y: -10 }}
@@ -350,10 +350,10 @@ export default function CustomerDashboard() {
            </motion.button>
            <button onClick={() => setSendingMessage(true)} className="flex flex-col items-center gap-2 text-white/30 hover:text-white transition-all group">
               <div className="relative">
-                <MessageSquare className="w-7 h-7 group-hover:scale-110 transition-transform" />
-                {myCommunications.length > 0 && <div className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-primary rounded-full shadow-lg ring-2 ring-sidebar-bg"></div>}
+                <MessageSquare className="w-6 h-6 group-hover:scale-110 transition-transform" />
+                {myCommunications.length > 0 && <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-primary rounded-full shadow-lg ring-2 ring-sidebar-bg"></div>}
               </div>
-              <span className="text-[9px] font-black uppercase tracking-[0.3em] opacity-80">Pulse</span>
+              <span className="text-[8px] font-black uppercase tracking-[0.2em] opacity-80">메시지</span>
            </button>
         </div>
 
@@ -370,8 +370,8 @@ export default function CustomerDashboard() {
                  <div className="w-28 h-28 bg-primary rounded-[3rem] flex items-center justify-center text-white mx-auto mb-10 shadow-premium rotate-12 group overflow-hidden">
                     <Ticket className="w-14 h-14" />
                  </div>
-                 <h3 className="text-4xl font-serif font-black text-primary italic mb-6">Redeem Privileges</h3>
-                 <p className="text-base text-on-surface-variant/60 leading-relaxed mb-12 px-6 italic">"{activeCoupon.description}" 혜택을 사용하시겠습니까? 사장님께 승인 요청이 실시간으로 전송됩니다.</p>
+                 <h3 className="text-2xl font-serif font-black text-primary italic mb-4">혜택 사용하기</h3>
+                 <p className="text-sm text-on-surface-variant/60 leading-relaxed mb-10 px-6 italic">"{activeCoupon.description}" 혜택을 사용하시겠습니까? 사장님께 승인 요청이 실시간으로 전송됩니다.</p>
                  <div className="flex flex-col gap-4">
                     <button 
                       onClick={() => {
@@ -401,11 +401,11 @@ export default function CustomerDashboard() {
                 className="bg-white w-full max-w-md rounded-t-[5rem] p-14 shadow-3xl flex flex-col gap-12"
               >
                  <div className="flex justify-between items-center">
-                    <div className="space-y-2">
-                       <h3 className="text-4xl font-serif font-black text-primary italic tracking-tight">Direct Concierge</h3>
-                       <p className="text-[11px] font-black text-primary/30 uppercase tracking-[0.5em]">Real-time feedback pulse</p>
+                    <div className="space-y-1">
+                       <h3 className="text-3xl font-serif font-black text-primary italic tracking-tight">다이렉트 소통</h3>
+                       <p className="text-[10px] font-black text-primary/30 uppercase tracking-[0.4em]">실시간 피드백 전송</p>
                     </div>
-                    <button onClick={() => setSendingMessage(false)} className="p-5 bg-surface-container rounded-full hover:bg-primary/5 transition-colors outline-none"><X className="w-6 h-6 text-primary/20" /></button>
+                    <button onClick={() => setSendingMessage(false)} className="p-4 bg-surface-container rounded-full hover:bg-primary/5 transition-colors outline-none"><X className="w-5 h-5 text-primary/20" /></button>
                  </div>
                  <textarea 
                    autoFocus
@@ -434,8 +434,8 @@ export default function CustomerDashboard() {
                    disabled={isSending || !messageContent.trim()}
                    className="w-full py-7 bg-primary text-white rounded-[2.5rem] font-bold uppercase tracking-widest text-[12px] disabled:opacity-30 shadow-3xl flex items-center justify-center gap-5 active:scale-[0.98] transition-all outline-none"
                  >
-                    {isSending ? <Loader2 className="w-6 h-6 animate-spin" /> : <Send className="w-6 h-6" />}
-                    DISPATCH FEEDBACK
+                    {isSending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+                    피드백 전송하기
                  </button>
               </motion.div>
             </div>
@@ -450,9 +450,9 @@ export default function CustomerDashboard() {
                    className="bg-sidebar-bg rounded-[4rem] p-14 text-white text-center shadow-premium relative overflow-hidden"
                 >
                    <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-gold via-white to-gold"></div>
-                   <Sparkles className="w-16 h-16 text-gold mx-auto mb-10 animate-bounce" />
-                   <h3 className="text-4xl font-serif font-black italic mb-6">Review & Elevate</h3>
-                   <p className="text-base text-white/60 mb-12 leading-relaxed px-4">
+                   <Sparkles className="w-12 h-12 text-gold mx-auto mb-8 animate-bounce" />
+                   <h3 className="text-2xl font-serif font-black italic mb-4">리뷰 남기고 혜택 받기</h3>
+                   <p className="text-sm text-white/60 mb-10 leading-relaxed px-4">
                       오늘의 경험을 리뷰로 남겨주시면 <span className="text-gold font-black">서비스 쿠폰</span>을 즉시 지급해 드립니다. 사장님께 로열티를 증명해 보세요!
                    </p>
                    <div className="flex flex-col gap-4">
@@ -489,10 +489,10 @@ export default function CustomerDashboard() {
                >
                   <div className="flex justify-between items-center">
                      <div>
-                        <h3 className="text-4xl font-serif font-black text-primary italic tracking-tight">Identity Governance</h3>
-                        <p className="text-[11px] font-black text-primary/30 uppercase tracking-[0.5em]">System Profile & Security</p>
+                        <h3 className="text-2xl font-serif font-black text-primary italic tracking-tight">내 정보 관리</h3>
+                        <p className="text-[10px] font-black text-primary/30 uppercase tracking-[0.4em]">프로필 및 보안 설정</p>
                      </div>
-                     <button onClick={() => setIsSettingsOpen(false)} className="p-5 bg-surface-container rounded-full hover:bg-primary/5 transition-colors outline-none"><X className="w-6 h-6 text-primary/20" /></button>
+                     <button onClick={() => setIsSettingsOpen(false)} className="p-4 bg-surface-container rounded-full hover:bg-primary/5 transition-colors outline-none"><X className="w-5 h-5 text-primary/20" /></button>
                   </div>
 
                   <div className="space-y-12">
@@ -511,14 +511,14 @@ export default function CustomerDashboard() {
                      </div>
 
                      <div className="space-y-8">
-                        <p className="text-[11px] font-black uppercase tracking-[0.5em] text-primary/20 px-4">Federated Digital Identities</p>
+                        <p className="text-[10px] font-black uppercase tracking-[0.4em] text-primary/20 px-4">소셜 계정 연동</p>
                         <div className="grid grid-cols-1 gap-5">
                            <div className="flex items-center justify-between p-8 bg-surface-bright border border-primary/10 rounded-[2.5rem] shadow-sm">
                               <div className="flex items-center gap-5">
                                  <div className="w-12 h-12 bg-primary/5 rounded-2xl flex items-center justify-center text-primary/30"><Smartphone className="w-6 h-6" /></div>
                                  <span className="text-base font-sans font-black text-primary/80">기본 전화번호</span>
                               </div>
-                              <span className="text-[10px] font-black text-primary uppercase bg-primary/5 px-5 py-2 rounded-full ring-1 ring-primary/20">Active Node</span>
+                              <span className="text-[10px] font-black text-primary uppercase bg-primary/5 px-5 py-2 rounded-full ring-1 ring-primary/20">활성화됨</span>
                            </div>
                            
                            {['google', 'kakao'].map(provider => (
@@ -538,7 +538,7 @@ export default function CustomerDashboard() {
                                     <div className="w-12 h-12 bg-white/50 rounded-2xl flex items-center justify-center text-primary/30 border border-primary/5">
                                        {provider === 'google' ? <Globe className="w-6 h-6" /> : <MessageSquare className="w-6 h-6" />}
                                     </div>
-                                    <span className="text-base font-black italic capitalize text-primary/60">{provider} Network</span>
+                                    <span className="text-base font-black italic capitalize text-primary/60">{provider} 계정</span>
                                  </div>
                                  {currentUser.linkedProviders?.includes(provider as any) ? (
                                    <div className="flex items-center gap-2 text-emerald-600 bg-emerald-50 px-5 py-2 rounded-full ring-1 ring-emerald-200">
@@ -546,7 +546,7 @@ export default function CustomerDashboard() {
                                       <span className="text-[10px] font-black uppercase">Verified</span>
                                    </div>
                                  ) : (
-                                   <span className="text-[10px] font-black text-primary/30 uppercase tracking-[0.4em] group-hover:text-primary transition-colors italic">Bind Identity</span>
+                                   <span className="text-[10px] font-black text-primary/30 uppercase tracking-[0.4em] group-hover:text-primary transition-colors italic">연동하기</span>
                                  )}
                              </button>
                            ))}
@@ -557,13 +557,12 @@ export default function CustomerDashboard() {
                   <div className="pt-12 border-t border-primary/5 flex flex-col gap-6">
                      <button 
                        onClick={handleLogout}
-                       className="w-full py-7 text-primary font-black uppercase tracking-[0.5em] text-[12px] flex items-center justify-center gap-4 hover:bg-primary/5 rounded-[2.5rem] transition-all"
+                       className="w-full py-6 text-primary font-black uppercase tracking-[0.4em] text-[11px] flex items-center justify-center gap-4 hover:bg-primary/5 rounded-[2.5rem] transition-all"
                      >
-                        <LogOut className="w-5 h-5 opacity-30" /> Terminate Secure Session
+                        <LogOut className="w-5 h-5 opacity-30" /> 로그아웃
                      </button>
                      <button 
                        onClick={() => setIsDeletingAccount(true)}
-                       className="w-full py-5 text-burgundy/20 font-black uppercase tracking-[0.5em] text-[10px] hover:text-burgundy transition-colors italic"
                      >
                         Purge Digital Identity Permanently
                      </button>
