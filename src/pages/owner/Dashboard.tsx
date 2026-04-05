@@ -293,7 +293,7 @@ export default function OwnerDashboard() {
 
       <main className={`${ownerViewMode === 'desktop' ? 'ml-20 lg:ml-72' : 'flex-1 pb-24'} flex-1 h-screen flex flex-col overflow-hidden`}>
         {/* Intelligence Header */}
-        <header className="bg-white/80 backdrop-blur-xl px-6 lg:px-12 py-6 lg:py-8 border-b border-primary/5 flex justify-between items-center z-40">
+        <header className="bg-white/80 backdrop-blur-xl px-4 lg:px-12 py-4 lg:py-8 border-b border-primary/5 flex justify-between items-center z-40">
           <div className="flex items-center gap-6 lg:gap-10">
             <div>
                <div className="flex items-center gap-3 mb-0.5 lg:mb-1">
@@ -317,7 +317,7 @@ export default function OwnerDashboard() {
              <div className="relative">
                 <button 
                   onClick={() => setShowNotifications(!showNotifications)}
-                  className={`p-4 rounded-2xl transition-all relative shadow-sm ${showNotifications ? 'bg-primary text-white' : 'bg-surface-bright border border-primary/5 text-primary hover:bg-primary/5'}`}
+                  className={`p-3 lg:p-4 rounded-2xl transition-all relative shadow-sm ${showNotifications ? 'bg-primary text-white' : 'bg-surface-bright border border-primary/5 text-primary hover:bg-primary/5'}`}
                 >
                    <Bell className="w-5 h-5" />
                    {localNotifications.length > 0 && (
@@ -381,7 +381,7 @@ export default function OwnerDashboard() {
              <motion.button 
                whileTap={{ scale: 0.95 }}
                onClick={() => setIsLayoutMode(!isLayoutMode)} 
-               className={`px-10 py-4 rounded-[1.5rem] font-sans font-black text-sm transition-all shadow-xl ${isLayoutMode ? 'bg-primary text-white ring-8 ring-primary/10' : 'bg-surface-bright border border-primary/10 text-primary hover:shadow-premium'}`}
+               className={`px-6 lg:px-10 py-3 lg:py-4 rounded-[1.2rem] lg:rounded-[1.5rem] font-sans font-black text-[11px] lg:text-sm transition-all shadow-xl whitespace-nowrap flex-shrink-0 ${isLayoutMode ? 'bg-primary text-white ring-8 ring-primary/10' : 'bg-surface-bright border border-primary/10 text-primary hover:shadow-premium'}`}
              >
                 {isLayoutMode ? '배치 저장 완료' : '테이블 배치 수정'}
              </motion.button>
@@ -390,7 +390,7 @@ export default function OwnerDashboard() {
 
         <div className={`flex-1 overflow-y-auto lg:overflow-hidden flex flex-col p-6 lg:p-12 space-y-8 lg:space-y-12 bg-gyeol-pattern ${ownerViewMode === 'mobile' ? 'no-scrollbar' : ''}`}>
           {/* Intelligence & Pulse HUD */}
-          <div className={`grid ${ownerViewMode === 'mobile' ? 'grid-cols-2' : 'grid-cols-4'} gap-4 lg:gap-8`}>
+          <div className={`grid ${ownerViewMode === 'mobile' ? 'grid-cols-2' : 'grid-cols-4'} gap-3 lg:gap-8`}>
             <motion.div 
                whileHover={{ y: -5 }}
                className="col-span-1 bg-white p-8 rounded-[3rem] border border-primary/5 shadow-premium flex flex-col justify-between group overflow-hidden relative"

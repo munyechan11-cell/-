@@ -57,6 +57,10 @@ export interface User {
   tierNames?: Record<string, string>; // { 'VIP': '단골마스터', ... }
   tierRewards?: Record<string, string>; // { 'VIP': '특별 서비스 제공', ... }
   avatarUrl?: string; // New: social profile image
+  aligoKey?: string;
+  aligoUserId?: string;
+  aligoSender?: string;
+  smsGatewayUrl?: string;
   storeConfig?: StoreConfig; // New: Multi-tenancy config
   rewardBalance?: number; // New: Accumulated points or stamps
 }
@@ -829,14 +833,36 @@ export const useStore = () => {
     showToast(`${customerIds.length}명에게 쿠폰을 발급했습니다.`, 'success');
   };
 
-  const sendPhysicalSms = async (phone: string, content: string, mode: 'device' | 'gateway' = 'device', gatewayUrl?: string) => {
+  const sendPhysicalSms = async (phone: string, content: string, mode: 'device' | 'gateway' | 'aligo' = 'device', gatewayUrl?: string) => {
     const cleanPhone = phone.replace(/[^0-9]/g, '');
     const encodedMsg = encodeURIComponent(content);
 
-    // 1. Local Gateway Mode: 안드로이드 게이트웨이 앱(무료) 사용 시
-    if (mode === 'gateway' && gatewayUrl) {
+    // 1. Aligo API Mode (Cloud Automation - Recommended for iPhone)
+    if (mode === 'aligo' && currentUser?.aligoKey && currentUser?.aligoUserId) {
       try {
-        await fetch(`${gatewayUrl}/send?phone=${cleanPhone}&message=${encodedMsg}`);
+        const formData = new FormData();
+        formData.append('key', currentUser.aligoKey);
+        formData.append('userid', currentUser.aligoUserId);
+        formData.append('sender', currentUser.aligoSender || '');
+        formData.append('receiver', cleanPhone);
+        formData.append('msg', content);
+        
+        await fetch('https://apis.aligo.in/send/', {
+          method: 'POST',
+          body: formData
+        });
+        showToast('알리고를 통해 자동 전송되었습니다.', 'success');
+        return true;
+      } catch (e) {
+        showToast('알리고 전송 실패. 기기 직접 전송으로 전환합니다.', 'info');
+      }
+    }
+
+    // 2. Local Gateway Mode: 안드로이드 게이트웨이 앱 사용 시
+    if (mode === 'gateway' && (gatewayUrl || currentUser?.smsGatewayUrl)) {
+      try {
+        const targetUrl = gatewayUrl || currentUser?.smsGatewayUrl;
+        await fetch(`${targetUrl}/send?phone=${cleanPhone}&message=${encodedMsg}`);
         showToast('로컬 게이트웨이를 통해 문자가 발송되었습니다.', 'success');
         return true;
       } catch (e) {
@@ -844,18 +870,17 @@ export const useStore = () => {
       }
     }
 
-    // 2. Device Direct Mode: 사장님 폰의 문자 앱 실행 (요금제 무료 문자 활용)
+    // 3. Device Direct Mode: 사장님 폰의 문자 앱 실행 (무료)
     const isIOS = /iPhone|iPad|iPod/i.test(window.navigator.userAgent);
     const smsUrl = `sms:${cleanPhone}${isIOS ? '&' : '?'}body=${encodedMsg}`;
     
-    // PC인 경우 안내 메시지 출력
     if (!/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(window.navigator.userAgent)) {
       showToast('PC에서는 문자 앱을 실행할 수 없습니다. 모바일에서 접속해 주세요.', 'error');
       return false;
     }
 
     window.location.href = smsUrl;
-    showToast('문자 발송 화면으로 이동합니다. 전송 버튼을 눌러주세요.', 'info');
+    showToast('문자 앱으로 이동합니다. 전송 버튼을 눌러주세요.', 'info');
     return true;
   };
 
