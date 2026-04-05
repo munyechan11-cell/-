@@ -9,6 +9,12 @@ import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 // 타임스탬프 + 랜덤 조합으로 ID 충돌 위험을 최소화하는 고유 ID 생성기
 const generateId = () => `${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 7)}`;
 
+declare global {
+  interface Window {
+    Kakao: any;
+  }
+}
+
 // 전화번호 자동 하이픈 및 유효성 검사
 export const formatPhoneNumber = (value: string) => {
   const nums = value.replace(/[^0-9]/g, '');
@@ -18,6 +24,19 @@ export const formatPhoneNumber = (value: string) => {
 };
 
 export type Role = 'customer' | 'owner';
+
+export interface StoreConfig {
+  industry: 'cafe' | 'meat' | 'bakery' | 'general';
+  rewardType: 'point' | 'stamp';
+  pointRate?: number; // e.g., 5%
+  stampMax?: number; // e.g., 10 stamps for reward
+  marketingTriggers?: {
+    inactiveDays: number;
+    birthdayCoupon: boolean;
+  };
+  smsApiKey?: string; // New: Aligo/Twilio API Key
+  alimtalkSenderId?: string; // New: Kakao Alimtalk Sender Profile
+}
 
 export interface User {
   id: string;
@@ -38,6 +57,8 @@ export interface User {
   tierNames?: Record<string, string>; // { 'VIP': '단골마스터', ... }
   tierRewards?: Record<string, string>; // { 'VIP': '특별 서비스 제공', ... }
   avatarUrl?: string; // New: social profile image
+  storeConfig?: StoreConfig; // New: Multi-tenancy config
+  rewardBalance?: number; // New: Accumulated points or stamps
 }
 
 export interface Visit {
@@ -46,6 +67,7 @@ export interface Visit {
   storeId: string;
   date: string; // ISO string
   tableNumber: number;
+  totalAmount?: number; // New: Monetary value for RFM
 }
 
 export interface Coupon {
@@ -585,14 +607,30 @@ export const useStore = () => {
     showToast('로그아웃 되었습니다.', 'info');
   };
 
-  const recordVisit = async (customerId: string, tableNumber: number, storeId: string) => {
+  const recordVisit = async (customerId: string, tableNumber: number, storeId: string, amount?: number) => {
     const today = new Date().toDateString();
     const hasVisitedToday = visits.some(v => v.customerId === customerId && v.storeId === storeId && new Date(v.date).toDateString() === today);
 
     if (!hasVisitedToday) {
-      const visit = { id: generateId(), customerId, storeId, date: new Date().toISOString(), tableNumber };
+      const visit: Visit = { 
+        id: generateId(), 
+        customerId, 
+        storeId, 
+        date: new Date().toISOString(), 
+        tableNumber,
+        totalAmount: amount || 0 // New: Monetary value for RFM
+      };
       await updateFirestoreDoc('visits', visit.id, visit);
       checkAndIssueTierCoupons(customerId, storeId, [...visits, visit]);
+
+      // Update user's reward balance if store config exists
+      const owner = users.find(u => u.id === storeId);
+      const customer = users.find(u => u.id === customerId);
+      if (owner?.storeConfig && customer) {
+        const increment = owner.storeConfig.rewardType === 'stamp' ? 1 : Math.floor((amount || 10000) * (owner.storeConfig.pointRate || 0.05));
+        const currentBalance = customer.rewardBalance || 0;
+        await updateFirestoreDoc('users', customerId, { rewardBalance: currentBalance + increment });
+      }
     }
 
     const tableId = `${storeId}_${tableNumber}`;
@@ -791,6 +829,53 @@ export const useStore = () => {
     showToast(`${customerIds.length}명에게 쿠폰을 발급했습니다.`, 'success');
   };
 
+  const sendPhysicalSms = async (phone: string, content: string, mode: 'device' | 'gateway' = 'device') => {
+    if (mode === 'device') {
+      const cleanPhone = phone.replace(/[^0-9]/g, '');
+      const encodedMsg = encodeURIComponent(content);
+      // For iOS/Android, space can be Different. Standard is '&' but '?' works for single param
+      const smsUrl = `sms:${cleanPhone}${window.navigator.userAgent.match(/iPhone/i) ? '&' : '?'}body=${encodedMsg}`;
+      window.location.href = smsUrl;
+      showToast('문자 앱이 실행되었습니다.', 'info');
+      return true;
+    } else {
+      // API Gateway Simulation (Aligo/Sens)
+      showToast('게이트웨이를 통해 대량 발송이 처리되었습니다.', 'success');
+      return true;
+    }
+  };
+
+  const sendKakaoMessage = async (content: string, storeName: string, storeId: string) => {
+    if (window.Kakao && window.Kakao.isInitialized()) {
+      window.Kakao.Share.sendDefault({
+        objectType: 'feed',
+        content: {
+          title: `[${storeName}] 서비스 안내`,
+          description: content,
+          imageUrl: 'https://images.unsplash.com/photo-1541167760496-162955ed8a9f?q=80&w=300&h=300&auto=format&fit=crop',
+          link: {
+            mobileWebUrl: `${window.location.origin}/customer/store/${storeId}`,
+            webUrl: `${window.location.origin}/customer/store/${storeId}`,
+          },
+        },
+        buttons: [
+          {
+            title: '매장 방문하기',
+            link: {
+              mobileWebUrl: `${window.location.origin}/customer/store/${storeId}`,
+              webUrl: `${window.location.origin}/customer/store/${storeId}`,
+            },
+          },
+        ],
+      });
+      showToast('카카오톡 공유창이 열렸습니다.', 'info');
+      return true;
+    } else {
+      showToast('카카오 SDK가 준비되지 않았습니다.', 'error');
+      return false;
+    }
+  };
+
   const bulkRecordCommunication = async (customerIds: string[], storeId: string, type: 'coupon' | 'message', content: string, senderRole: Role = 'owner') => {
     const batch = writeBatch(db!);
     customerIds.forEach(id => {
@@ -798,6 +883,14 @@ export const useStore = () => {
       batch.set(commRef, { id: commRef.id, customerId: id, storeId, type, content, senderRole, date: new Date().toISOString() });
     });
     await batch.commit();
+  };
+
+  const updateStoreConfig = async (storeId: string, config: Partial<StoreConfig>) => {
+    const owner = users.find(u => u.id === storeId);
+    if (owner) {
+      const newConfig = { ...(owner.storeConfig || { industry: 'general', rewardType: 'point' }), ...config };
+      await updateFirestoreDoc('users', storeId, { storeConfig: newConfig });
+    }
   };
 
   return {
@@ -809,22 +902,35 @@ export const useStore = () => {
     updateTableLayout, updateBrandSettings, addTable, deleteTable,
     addSection, updateSection, deleteSection, updateTableStatus,
     linkSocialAccount, deleteAccount,
-    ownerViewMode, setOwnerViewMode
+    ownerViewMode, setOwnerViewMode,
+    updateStoreConfig, sendPhysicalSms, sendKakaoMessage
   };
+};
+
+// --- RFM ANALYSIS UTILITY ---
+export const calculateRFMValue = (visits: Visit[], customerId: string, storeId: string) => {
+  const customerVisits = visits.filter(v => v.customerId === customerId && v.storeId === storeId);
+  if (customerVisits.length === 0) return { r: 999, f: 0, m: 0 };
+
+  const lastVisitDate = new Date(Math.max(...customerVisits.map(v => new Date(v.date).getTime())));
+  const recency = Math.floor((new Date().getTime() - lastVisitDate.getTime()) / (1000 * 3600 * 24));
+  const frequency = customerVisits.length;
+  const monetary = customerVisits.reduce((sum, v) => sum + (v.totalAmount || 0), 0);
+
+  return { r: recency, f: frequency, m: monetary };
+};
+
+export const getRFMCluster = (r: number, f: number, m: number) => {
+  if (r <= 7 && f >= 5) return { name: 'VIP', color: 'bg-primary', icon: 'Trophy' };
+  if (r <= 14 && f >= 2) return { name: 'Active', color: 'bg-emerald-500', icon: 'Zap' };
+  if (r > 30) return { name: 'At Risk', color: 'bg-burgundy', icon: 'ShieldAlert' };
+  if (f === 1) return { name: 'New', color: 'bg-blue-500', icon: 'Sparkles' };
+  return { name: 'General', color: 'bg-on-surface-variant/20', icon: 'User' };
 };
 
 export const getTierCustomName = (tier: string, tierNames?: Record<string, string>) => {
   if (tierNames && tierNames[tier]) return tierNames[tier];
-  
-  // Default names if not customized
-  switch (tier) {
-    case 'VIP': return '티어 5';
-    case '다이아': return '티어 4';
-    case '골드': return '티어 3';
-    case '실버': return '티어 2';
-    case '브론즈': return '티어 1';
-    default: return '일반';
-  }
+  return tier;
 };
 
 export const getCustomerTier = (visitCount: number) => {
@@ -842,12 +948,12 @@ export const getEffectiveTier = (visitCount: number, overrideTier?: string) => {
 };
 
 export const getNextTierVisits = (visitCount: number) => {
-  if (visitCount >= 12) return 0;
-  if (visitCount >= 8) return 12 - visitCount;
-  if (visitCount >= 6) return 8 - visitCount;
-  if (visitCount >= 4) return 6 - visitCount;
-  if (visitCount >= 2) return 4 - visitCount;
-  return 2 - visitCount;
+  if (visitCount < 2) return { next: '브론즈', remaining: 2 - visitCount, total: 2 };
+  if (visitCount < 4) return { next: '실버', remaining: 4 - visitCount, total: 4 };
+  if (visitCount < 6) return { next: '골드', remaining: 6 - visitCount, total: 6 };
+  if (visitCount < 8) return { next: '다이아', remaining: 8 - visitCount, total: 8 };
+  if (visitCount < 12) return { next: 'VIP', remaining: 12 - visitCount, total: 12 };
+  return null;
 };
 
 export const getTierColor = (tier: string) => {

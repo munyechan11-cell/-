@@ -1,17 +1,17 @@
 import React, { useState } from 'react';
-import { useStore, getEffectiveTier, getTierColor, getCustomerTier, getTierCustomName } from '../../store';
+import { useStore, getEffectiveTier, getTierColor, getCustomerTier, getTierCustomName, calculateRFMValue, getRFMCluster } from '../../store';
 import { 
   Users, LayoutGrid, Search, Send, X, MessageSquare, Ticket, 
   History, Loader2, CheckSquare, Square, Download, ChevronDown, 
   BarChart3, LogOut, Store as StoreIcon, ShieldCheck, Heart, 
   TrendingUp, Calendar, Edit2, Filter, Trash2, Plus, ArrowUpRight,
-  Clock, MapPin, Settings, Globe, Smartphone
+  Clock, MapPin, Settings, Globe, Smartphone, Target, Zap
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import MemoModal, { formatMemoDisplay } from '../../components/MemoModal';
 
 export default function OwnerCustomers() {
-  const { users, visits, issueCoupon, recordCommunication, communications, currentUser, tierOverrides, setCustomerTier, updateUserMemo, bulkIssueCoupon, bulkRecordCommunication, ownerViewMode } = useStore();
+  const { users, visits, issueCoupon, recordCommunication, communications, currentUser, tierOverrides, setCustomerTier, updateUserMemo, bulkIssueCoupon, bulkRecordCommunication, ownerViewMode, sendPhysicalSms, sendKakaoMessage } = useStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterTier, setFilterTier] = useState<string>('all');
   const [selectedCustomer, setSelectedCustomer] = useState<string | null>(null);
@@ -69,6 +69,9 @@ export default function OwnerCustomers() {
     const override = tierOverrides.find(t => t.customerId === customerId && t.storeId === currentUser.id);
     const effectiveTier = getEffectiveTier(recentVisits, override?.tier);
 
+    const rfm = calculateRFMValue(visits, customerId, currentUser.id);
+    const cluster = getRFMCluster(rfm.r, rfm.f, rfm.m);
+
     return {
       totalVisits: customerVisits.length,
       recentVisits,
@@ -76,7 +79,9 @@ export default function OwnerCustomers() {
       isManualTier: !!override,
       autoTier: getCustomerTier(recentVisits),
       daysSinceLastVisit,
-      frequencyPerMonth: frequencyPerMonth.toFixed(1)
+      frequencyPerMonth: frequencyPerMonth.toFixed(1),
+      rfm,
+      cluster
     };
   };
 
@@ -90,6 +95,8 @@ export default function OwnerCustomers() {
   });
 
   const [isSending, setIsSending] = useState(false);
+  const [useRealSms, setUseRealSms] = useState(false);
+  const [useKakao, setUseKakao] = useState(false);
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,6 +110,24 @@ export default function OwnerCustomers() {
           bulkRecordCommunication(targets, currentUser.id, 'coupon', content);
         } else {
           bulkRecordCommunication(targets, currentUser.id, 'message', content);
+        }
+
+        // --- Actual Physical SMS Send ---
+        if (useRealSms) {
+          if (targets.length === 1) {
+            const customer = customers.find(c => c.id === targets[0]);
+            if (customer?.phone) {
+              await sendPhysicalSms(customer.phone, content, 'device');
+            }
+          } else {
+            // Bulk simulation
+            await sendPhysicalSms('', content, 'gateway');
+          }
+        }
+
+        // --- Kakao Duo Send ---
+        if (useKakao) {
+          await sendKakaoMessage(content, currentUser.restaurantName || '매장', currentUser.id);
         }
         setSelectedCustomer(null);
         setSelectedCustomers([]);
@@ -310,12 +335,27 @@ export default function OwnerCustomers() {
                      </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4 mb-8">
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                     <div className="p-4 bg-surface-container rounded-2xl border border-outline-variant/30 text-center relative overflow-hidden group/tile">
+                        <div className={`absolute top-0 right-0 w-1 h-full ${stats.cluster.color} opacity-30`}></div>
+                        <p className="text-[9px] font-bold text-on-surface-variant/40 uppercase mb-1">CRM 분석</p>
+                        <p className={`text-sm font-black uppercase tracking-widest ${stats.cluster.color.replace('bg-', 'text-')}`}>{stats.cluster.name}</p>
+                     </div>
                      <div className="p-4 bg-surface-container rounded-2xl border border-outline-variant/30 text-center">
+                        <p className="text-[9px] font-bold text-on-surface-variant/40 uppercase mb-1">{currentUser.storeConfig?.rewardType === 'stamp' ? '누적 스탬프' : '보유 포인트'}</p>
+                        <p className="text-sm font-black text-primary">
+                          {customer.rewardBalance?.toLocaleString() || 0}
+                          <span className="text-[10px] ml-1 opacity-40">{currentUser.storeConfig?.rewardType === 'stamp' ? 'STAMPS' : 'P'}</span>
+                        </p>
+                     </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 mb-8">
+                     <div className="p-4 bg-surface-container rounded-2xl border border-outline-variant/30 text-center hover:bg-white transition-colors">
                         <p className="text-[9px] font-bold text-on-surface-variant/40 uppercase mb-1">총 방문</p>
                         <p className="text-xl font-serif font-black text-primary">{stats.totalVisits}회</p>
                      </div>
-                     <div className="p-4 bg-surface-container rounded-2xl border border-outline-variant/30 text-center">
+                     <div className="p-4 bg-surface-container rounded-2xl border border-outline-variant/30 text-center hover:bg-white transition-colors">
                         <p className="text-[9px] font-bold text-on-surface-variant/40 uppercase mb-1">마지막 방문</p>
                         <p className="text-xl font-serif font-black text-primary">{stats.daysSinceLastVisit ?? 0}일 전</p>
                      </div>
@@ -326,6 +366,49 @@ export default function OwnerCustomers() {
                        {formatMemoDisplay(customer.memo)}
                     </div>
                   )}
+                
+                <div className="space-y-3">
+                   <div className="flex items-center gap-4 p-4 bg-surface-container/50 border border-outline-variant/30 rounded-2xl cursor-pointer group" onClick={() => setUseRealSms(!useRealSms)}>
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${useRealSms ? 'bg-primary text-white' : 'bg-white text-on-surface-variant/20'}`}>
+                         <Zap className="w-5 h-5" />
+                      </div>
+                      <div className="flex-1">
+                         <p className="text-[9px] font-black uppercase tracking-widest text-primary/40 leading-none mb-1">Authentic SMS</p>
+                         <p className="text-[11px] font-bold text-primary">실제 문자로 발송</p>
+                      </div>
+                      <div className={`w-10 h-6 rounded-full relative transition-all ${useRealSms ? 'bg-primary' : 'bg-outline-variant/30'}`}>
+                         <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${useRealSms ? 'left-5' : 'left-1'}`}></div>
+                      </div>
+                   </div>
+
+                   {(isMultiSelectMode || activeCustomer?.linkedProviders?.includes('kakao')) && (
+                     <div className="flex items-center gap-4 p-4 bg-[#FEE500]/10 border border-[#FEE500]/30 rounded-2xl cursor-pointer group" onClick={() => setUseKakao(!useKakao)}>
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${useKakao ? 'bg-[#FEE500] text-[#3c1e1e]' : 'bg-white text-[#3c1e1e]/20'}`}>
+                           <MessageSquare className="w-5 h-5" />
+                        </div>
+                        <div className="flex-1">
+                           <p className="text-[9px] font-black uppercase tracking-widest text-[#3c1e1e]/40 leading-none mb-1">Dual Channel Link</p>
+                           <p className="text-[11px] font-bold text-[#3c1e1e]">카카오톡으로도 보내기</p>
+                        </div>
+                        <div className={`w-10 h-6 rounded-full relative transition-all ${useKakao ? 'bg-[#FEE500]' : 'bg-[#3c1e1e]/10'}`}>
+                           <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${useKakao ? 'left-5' : 'left-1'}`}></div>
+                        </div>
+                     </div>
+                   )}
+                </div>
+
+                <div className="flex items-center gap-4 p-5 bg-surface-container/50 border border-outline-variant/30 rounded-2xl cursor-pointer group" onClick={() => setUseRealSms(!useRealSms)}>
+                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${useRealSms ? 'bg-primary text-white' : 'bg-white text-on-surface-variant/20'}`}>
+                      <Zap className="w-5 h-5" />
+                   </div>
+                   <div className="flex-1">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-primary/40 leading-none mb-1">Authentic Communication</p>
+                      <p className="text-[11px] font-bold text-primary">실제 문자/알림톡 발송</p>
+                   </div>
+                   <div className={`w-10 h-6 rounded-full relative transition-all ${useRealSms ? 'bg-primary' : 'bg-outline-variant/30'}`}>
+                      <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${useRealSms ? 'left-5' : 'left-1'}`}></div>
+                   </div>
+                </div>
 
                   <div className="flex gap-2">
                      <button 

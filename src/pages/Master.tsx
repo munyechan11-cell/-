@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useStore, getEffectiveTier, getTierColor, showToast, formatPhoneNumber } from '../store';
+import { useStore, getEffectiveTier, getTierColor, showToast, formatPhoneNumber, StoreConfig } from '../store';
 import { Link } from 'react-router-dom';
 import { 
   ArrowLeft, Store, Users, Ticket, Trash2, 
@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 
 export default function Master() {
-  const { users, visits, coupons, tables, tierOverrides, masterPassword, setMasterPassword, deleteUser } = useStore();
+  const { users, visits, coupons, tables, tierOverrides, masterPassword, setMasterPassword, deleteUser, updateStoreConfig } = useStore();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const [error, setError] = useState('');
@@ -229,10 +229,79 @@ export default function Master() {
                         <td className="px-10 py-8"><span className="text-[10px] font-bold uppercase text-primary bg-primary/5 px-3 py-1 rounded-full border border-primary/10">{owner.status === 'deleted' ? '해지됨' : '운영 중'}</span></td>
                         <td className="px-10 py-8 text-right flex justify-end gap-2">
                            <button onClick={(e) => { e.stopPropagation(); handleDeleteUser(owner.id, 'owner', owner.name); }} className="p-3 bg-burgundy/5 text-burgundy rounded-xl hover:bg-burgundy hover:text-white transition-all"><Trash2 className="w-5 h-5" /></button>
-                           <ChevronRight className={`w-5 h-5 text-on-surface-variant/20 transition-transform ${selectedOwnerId === owner.id ? 'rotate-90' : ''}`} />
+                            <ChevronRight className={`w-5 h-5 text-on-surface-variant/20 transition-transform ${selectedOwnerId === owner.id ? 'rotate-90' : ''}`} />
+                         </td>
+                      </tr>,
+                      <tr key={`${owner.id}-config`} className="bg-surface-bright/30">
+                        <td colSpan={5} className="px-10 py-6 border-b border-outline-variant/30">
+                          <div className="flex gap-12 items-center">
+                            <div className="flex-1">
+                              <p className="text-[10px] font-black uppercase text-primary/30 mb-4 tracking-widest">Store Personality & Governance</p>
+                              <div className="grid grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                   <label className="text-[9px] font-bold text-primary/60 uppercase">Industry Vector</label>
+                                   <select 
+                                     value={owner.storeConfig?.industry || 'general'} 
+                                     onChange={(e) => updateStoreConfig(owner.id, { industry: e.target.value as any })}
+                                     className="w-full bg-white border border-outline-variant/30 rounded-xl px-4 py-2 text-xs font-bold text-primary outline-none"
+                                   >
+                                     <option value="general">일반 (General)</option>
+                                     <option value="meat">고기집 (Meat Shop)</option>
+                                     <option value="cafe">카페 (Cafe)</option>
+                                     <option value="bakery">베이커리 (Bakery)</option>
+                                   </select>
+                                </div>
+                                <div className="space-y-2">
+                                   <label className="text-[9px] font-bold text-primary/60 uppercase">Reward Engine</label>
+                                   <div className="flex bg-surface-container p-1 rounded-xl">
+                                     <button 
+                                       onClick={() => updateStoreConfig(owner.id, { rewardType: 'point' })}
+                                       className={`flex-1 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${owner.storeConfig?.rewardType !== 'stamp' ? 'bg-white text-primary shadow-sm' : 'text-primary/30'}`}
+                                     >Points</button>
+                                     <button 
+                                       onClick={() => updateStoreConfig(owner.id, { rewardType: 'stamp' })}
+                                       className={`flex-1 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${owner.storeConfig?.rewardType === 'stamp' ? 'bg-white text-primary shadow-sm' : 'text-primary/30'}`}
+                                     >Stamps</button>
+                                   </div>
+                                </div>
+                                <div className="space-y-2 col-span-2">
+                                   <label className="text-[9px] font-bold text-primary/60 uppercase">SMS API Gateway Key (Aligo/Sens)</label>
+                                   <input 
+                                     type="password" 
+                                     placeholder="Enter API Key for automatic sending"
+                                     value={owner.storeConfig?.smsApiKey || ''}
+                                     onChange={(e) => updateStoreConfig(owner.id, { smsApiKey: e.target.value })}
+                                     className="w-full bg-white border border-outline-variant/30 rounded-xl px-4 py-2 text-xs font-bold text-primary outline-none"
+                                   />
+                                </div>
+                              </div>
+                            </div>
+                            <div className="w-px h-16 bg-outline-variant/20"></div>
+                            <div className="flex-1">
+                              <p className="text-[10px] font-black uppercase text-primary/30 mb-4 tracking-widest">Automation Triggers</p>
+                              <div className="flex gap-4">
+                                 <div className="flex-1 bg-white p-4 rounded-2xl border border-outline-variant/30 flex justify-between items-center">
+                                    <span className="text-[9px] font-bold text-primary/60 uppercase">Inactive Alert (Days)</span>
+                                    <input 
+                                      type="number" 
+                                      value={owner.storeConfig?.marketingTriggers?.inactiveDays || 30}
+                                      onChange={(e) => updateStoreConfig(owner.id, { marketingTriggers: { ...owner.storeConfig?.marketingTriggers, inactiveDays: parseInt(e.target.value), birthdayCoupon: owner.storeConfig?.marketingTriggers?.birthdayCoupon || false } })}
+                                      className="w-12 text-right bg-transparent font-black text-primary border-none p-0 focus:ring-0"
+                                    />
+                                 </div>
+                                 <button 
+                                   onClick={() => updateStoreConfig(owner.id, { marketingTriggers: { ...owner.storeConfig?.marketingTriggers, inactiveDays: owner.storeConfig?.marketingTriggers?.inactiveDays || 30, birthdayCoupon: !owner.storeConfig?.marketingTriggers?.birthdayCoupon } })}
+                                   className={`flex-1 p-4 rounded-2xl border transition-all flex items-center justify-between ${owner.storeConfig?.marketingTriggers?.birthdayCoupon ? 'bg-primary/5 border-primary/20 text-primary' : 'bg-white border-outline-variant/30 text-primary/30'}`}
+                                 >
+                                    <span className="text-[9px] font-bold uppercase">Birthday Auto-Msg</span>
+                                    {owner.storeConfig?.marketingTriggers?.birthdayCoupon ? <ShieldCheck className="w-4 h-4" /> : <X className="w-4 h-4" />}
+                                 </button>
+                              </div>
+                            </div>
+                          </div>
                         </td>
-                     </tr>,
-                     selectedOwnerId === owner.id && (
+                      </tr>,
+                      selectedOwnerId === owner.id && (
                         <tr key={`${owner.id}-customers`} className="bg-surface-bright/50">
                           <td colSpan={4} className="px-10 py-12 border-b border-outline-variant/30">
                             <div className="animate-in slide-in-from-top-4 duration-500 space-y-12">

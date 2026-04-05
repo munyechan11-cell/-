@@ -8,13 +8,15 @@ import {
   Utensils, Hourglass, GripVertical, Monitor,
   User, Mail, Settings as SettingsIcon, ShieldAlert,
   Send, ChevronRight, Activity, Zap, Sparkles,
-  Trophy, Globe, Leaf, Target, ArrowRight, MessageSquare, Ticket
+  Trophy, Globe, Leaf, Target, ArrowRight, MessageSquare, Ticket,
+  TrendingUp as TrendingUpIcon, AlertCircle, Gift
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { motion, AnimatePresence } from 'motion/react';
 import { formatMemoDisplay } from '../../components/MemoModal';
 import Skeleton, { DashboardStatsSkeleton } from '../../components/Skeleton';
+import { calculateRFMValue, getRFMCluster } from '../../store';
 
 export default function OwnerDashboard() {
   const { 
@@ -22,7 +24,7 @@ export default function OwnerDashboard() {
     initTables, tierOverrides, approveCouponUse, rejectCouponUse, 
     updateTableLayout, addTable, deleteTable, addSection, updateSection, 
     deleteSection, updateTableStatus, linkSocialAccount, deleteAccount,
-    ownerViewMode
+    ownerViewMode, sendPhysicalSms, sendKakaoMessage
   } = useStore();
   
   const navigate = useNavigate();
@@ -200,7 +202,24 @@ export default function OwnerDashboard() {
     const occupancyRate = actualTables.length > 0 ? Math.round((occupiedTables.length / actualTables.length) * 100) : 0;
     const currentDurations = occupiedTables.map(t => (currentTime.getTime() - new Date(t.sessionStartTime!).getTime()) / 60000);
     const avgUsage = currentDurations.length > 0 ? Math.round(currentDurations.reduce((a, b) => a + b, 0) / currentDurations.length) : 45;
-    return { newCustomers, occupancyRate, avgUsage };
+    
+    // RFM Segments
+    const storeCustomers = users.filter(u => u.role === 'customer' && u.storeId === currentUser.id);
+    const rfmSegments = storeCustomers.reduce((acc, c) => {
+      const { r, f, m } = calculateRFMValue(visits, c.id, currentUser.id);
+      const cluster = getRFMCluster(r, f, m);
+      acc[cluster.name] = (acc[cluster.name] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    // Marketing Triggers
+    const inactiveDaysLimit = currentUser.storeConfig?.marketingTriggers?.inactiveDays || 30;
+    const inactiveCustomers = storeCustomers.filter(c => {
+      const { r } = calculateRFMValue(visits, c.id, currentUser.id);
+      return r >= inactiveDaysLimit;
+    });
+
+    return { newCustomers, occupancyRate, avgUsage, rfmSegments, inactiveCustomers };
   })();
 
   return (
@@ -400,22 +419,85 @@ export default function OwnerDashboard() {
 
             <motion.div 
                whileHover={{ y: -5 }}
-               className={`${ownerViewMode === 'mobile' ? 'col-span-2' : 'col-span-2'} bg-sidebar-bg p-6 lg:p-8 rounded-[2rem] lg:rounded-[3rem] border border-white/5 shadow-premium flex items-center justify-between group relative overflow-hidden`}
+               className={`${ownerViewMode === 'mobile' ? 'col-span-2' : 'col-span-2'} bg-white p-6 lg:p-8 rounded-[2rem] lg:rounded-[3rem] border border-primary/5 shadow-premium flex flex-col justify-between group relative overflow-hidden`}
             >
-               <Sparkles className="absolute -top-8 -right-8 w-48 h-48 text-white opacity-[0.03] animate-pulse" />
-               <div className="space-y-4 relative z-10 w-full">
+               <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
-                     <div className="w-8 h-8 rounded-xl bg-gold/20 flex items-center justify-center text-gold"><Sparkles className="w-4 h-4" /></div>
-                     <p className="text-[10px] lg:text-[11px] font-black text-white/50 uppercase tracking-[0.4em]">Gyeol AI Intelligence</p>
+                     <div className="w-8 h-8 rounded-xl bg-primary/5 flex items-center justify-center text-primary"><Target className="w-4 h-4" /></div>
+                     <p className="text-[10px] font-black text-primary/30 uppercase tracking-[0.4em]">RFM Customer Intelligence</p>
                   </div>
-                  <div className="bg-white/5 rounded-2xl lg:rounded-3xl p-4 lg:p-5 border border-white/10">
-                     <p className="text-xs lg:text-sm font-serif italic text-white/80 leading-relaxed">
-                        "현재 가동률 대비 대기 고객이 증가하고 있습니다. <span className="text-gold font-black">4번 테이블</span>의 체류 시간이 90분을 초과했습니다."
-                     </p>
-                  </div>
+                  <TrendingUpIcon className="w-4 h-4 text-emerald-500" />
+               </div>
+               
+               <div className="flex items-end gap-2 lg:gap-3 h-24 pb-2">
+                  {[
+                    { label: 'VIP', val: stats.rfmSegments['VIP'] || 0, color: 'bg-primary' },
+                    { label: 'Active', val: stats.rfmSegments['Active'] || 0, color: 'bg-emerald-500' },
+                    { label: 'New', val: stats.rfmSegments['New'] || 0, color: 'bg-blue-500' },
+                    { label: 'Risk', val: stats.rfmSegments['At Risk'] || 0, color: 'bg-burgundy' }
+                  ].map(segment => {
+                    const maxVal = Math.max(...Object.values(stats.rfmSegments), 1);
+                    const height = Math.max(10, (segment.val / maxVal) * 100);
+                    return (
+                      <div key={segment.label} className="flex-1 flex flex-col items-center gap-2 group/bar">
+                         <div className="relative w-full flex items-end justify-center h-full">
+                            <motion.div 
+                              initial={{ height: 0 }}
+                              animate={{ height: `${height}%` }}
+                              className={`w-full max-w-[40px] rounded-t-xl ${segment.color} opacity-80 group-hover/bar:opacity-100 transition-all`}
+                            />
+                            <div className="absolute -top-6 opacity-0 group-hover/bar:opacity-100 transition-opacity whitespace-nowrap bg-primary text-white text-[8px] font-black px-2 py-1 rounded-full">{segment.val}명</div>
+                         </div>
+                         <span className="text-[8px] font-bold text-primary/30 uppercase tracking-tighter">{segment.label}</span>
+                      </div>
+                    );
+                  })}
                </div>
             </motion.div>
           </div>
+
+          {/* Trigger Awareness Bar */}
+          {stats.inactiveCustomers.length > 0 && (
+             <motion.div 
+               initial={{ opacity: 0, y: 20 }}
+               animate={{ opacity: 1, y: 0 }}
+               className="bg-burgundy p-6 lg:p-8 rounded-[2rem] lg:rounded-[3rem] text-white flex flex-col lg:flex-row items-center justify-between gap-6 shadow-2xl relative overflow-hidden group"
+             >
+                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/dark-wood.png')] opacity-10"></div>
+                <div className="flex items-center gap-6 relative z-10">
+                   <div className="w-16 h-16 rounded-[1.5rem] bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20 animate-pulse">
+                      <AlertCircle className="w-8 h-8 text-white" />
+                   </div>
+                   <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/50 mb-1">Marketing Opportunity Triggered</p>
+                      <h3 className="text-xl lg:text-3xl font-serif font-black italic tracking-tight underline decoration-white/20 underline-offset-8">
+                        {stats.inactiveCustomers.length}명의 고객이 '이탈 위험' 단계입니다.
+                      </h3>
+                   </div>
+                </div>
+                <div className="flex gap-4 relative z-10 w-full lg:w-auto">
+                   <Link 
+                     to="/owner/customers" 
+                     className="flex-1 lg:flex-none px-10 py-5 bg-white/10 backdrop-blur-md text-white border border-white/20 rounded-2xl font-serif font-black italic text-sm hover:bg-white/20 transition-all flex items-center justify-center gap-4"
+                   >
+                      명부 확인 <ArrowRight className="w-5 h-5" />
+                   </Link>
+                   <button 
+                     onClick={async () => {
+                        const confirmSend = window.confirm(`${stats.inactiveCustomers.length}명의 고객에게 복귀 권유 문자와 카카오톡을 즉시 발송하시겠습니까? (CRM 게이트웨이 시뮬레이션)`);
+                        if (confirmSend) {
+                           const msg = `[${currentUser.restaurantName}] 고객님, 오랜만이에요! 재방문 시 사용 가능한 특별 쿠폰이 발송되었습니다.`;
+                           await sendPhysicalSms('', msg, 'gateway');
+                           await sendKakaoMessage(msg, currentUser.restaurantName || '매장', currentUser.id);
+                        }
+                     }}
+                     className="flex-1 lg:flex-none px-10 py-5 bg-white text-burgundy rounded-2xl font-serif font-black italic text-sm hover:scale-[1.02] active:scale-95 transition-all shadow-3xl flex items-center justify-center gap-4"
+                   >
+                      <Zap className="w-5 h-5" /> 즉시 문자 & 카톡 발송
+                   </button>
+                </div>
+             </motion.div>
+          )}
 
           {/* Table Architectural View */}
           <div className="flex-1 relative bg-white rounded-[4rem] shadow-premium overflow-hidden border border-primary/5">
