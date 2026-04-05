@@ -30,6 +30,7 @@ export default function OwnerDashboard() {
   const navigate = useNavigate();
   const [selectedTable, setSelectedTable] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'map'>('map');
+  const [isInitialViewModeSet, setIsInitialViewModeSet] = useState(false);
   const [isLayoutMode, setIsLayoutMode] = useState(false);
   const [draggedTable, setDraggedTable] = useState<number | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -61,8 +62,14 @@ export default function OwnerDashboard() {
       if (myTables.length === 0) {
         initTables(currentUser.id);
       }
+      
+      // 설정된 기본 뷰모드로 초기화 (한 번만)
+      if (!isInitialViewModeSet && currentUser.storeConfig?.defaultDashboardView) {
+        setViewMode(currentUser.storeConfig.defaultDashboardView as 'grid' | 'map');
+        setIsInitialViewModeSet(true);
+      }
     }
-  }, [currentUser]);
+  }, [currentUser, tables, isInitialViewModeSet]);
 
   // Entrance Notifications Logic
   useEffect(() => {
@@ -542,7 +549,7 @@ export default function OwnerDashboard() {
                               border: table.type === 'room' 
                                 ? `8px solid ${isOccupied ? '#1c1412' : '#f0e6dd'}` 
                                 : `3px solid ${isOccupied ? '#1c1412' : (selectedTable === table.number ? '#4a0e0e' : (isLayoutMode ? '#e5ddd6' : '#f0e6dd'))}`,
-                              borderRadius: table.shape === 'circle' ? '50%' : (table.type === 'room' ? '4rem' : '2.5rem'),
+                              borderRadius: table.type === 'room' ? '4rem' : '1.2rem', // 살짝 둥근 사각형
                               zIndex: isBeingDragged ? 100 : (selectedTable === table.number ? 40 : 10),
                               touchAction: 'none'
                             }}
@@ -597,7 +604,7 @@ export default function OwnerDashboard() {
                         whileHover={{ y: -5 }}
                         key={table.number} 
                         onClick={() => setSelectedTable(table.number)} 
-                        className={`bg-white rounded-[2rem] lg:rounded-[3rem] ${ownerViewMode === 'mobile' ? 'p-6' : 'p-10'} border border-primary/5 flex flex-col gap-4 lg:gap-8 cursor-pointer shadow-premium relative overflow-hidden`}
+                        className={`bg-white rounded-[2.5rem] lg:rounded-[3.5rem] ${ownerViewMode === 'mobile' ? 'p-8' : 'p-12'} border border-primary/5 flex flex-col gap-6 lg:gap-10 cursor-pointer shadow-premium relative min-h-[180px] lg:min-h-[260px] flex-shrink-0`}
                       >
                          <div className="flex justify-between items-start">
                             <div className="w-12 h-12 lg:w-20 lg:h-20 bg-gyeol-wood text-white rounded-2xl lg:rounded-[2rem] flex items-center justify-center font-black text-xl lg:text-3xl shadow-premium">{table.number}</div>

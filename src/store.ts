@@ -36,6 +36,7 @@ export interface StoreConfig {
   };
   smsApiKey?: string; // New: Aligo/Twilio API Key
   alimtalkSenderId?: string; // New: Kakao Alimtalk Sender Profile
+  defaultDashboardView?: 'grid' | 'map'; // New: Default landing view
 }
 
 export interface User {
@@ -319,6 +320,19 @@ export const showToast = (message: string, type: 'success' | 'error' | 'info' = 
 
 // --- IMPROVED GRANULAR MUTATIONS ---
 const updateFirestoreDoc = async (coll: string, id: string, data: any, isDelete = false) => {
+  // Optimistic UI Update: 서버 저장 여부와 상관없이 로컬 메모리 즉각 업데이트
+  if (isDelete) {
+    globalState[coll] = globalState[coll].filter((item: any) => item.id !== id);
+  } else {
+    const idx = globalState[coll].findIndex((item: any) => item.id === id);
+    if (idx !== -1) {
+      globalState[coll][idx] = { ...globalState[coll][idx], ...data };
+    } else {
+      globalState[coll].push(data);
+    }
+  }
+  notifyUpdate();
+
   if (!isFirebaseConfigured || !db) {
     localStorage.setItem('offline_global_state', JSON.stringify(globalState));
     return;
@@ -432,30 +446,35 @@ export const useStore = () => {
     let socialName = '';
     let socialAvatar = '';
 
-    if (socialProvider === 'google') {
-      const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth!, provider);
-      socialId = result.user.uid;
-      socialEmail = result.user.email || '';
-      socialName = result.user.displayName || '';
-      socialAvatar = result.user.photoURL || '';
-    } else if (socialProvider === 'kakao') {
-      const kakaoData: any = await new Promise((resolve, reject) => {
-        if (!(window as any).Kakao) return reject(new Error('카카오 SDK가 로드되지 않았습니다.'));
-        (window as any).Kakao.Auth.login({
-          success: (authObj: any) => {
-            (window as any).Kakao.API.request({
-              url: '/v2/user/me',
-              success: (res: any) => resolve(res),
-              fail: reject
-            });
-          },
-          fail: reject
+    try {
+      if (socialProvider === 'google') {
+        const provider = new GoogleAuthProvider();
+        const result = await signInWithPopup(auth!, provider);
+        socialId = result.user.uid;
+        socialEmail = result.user.email || '';
+        socialName = result.user.displayName || '';
+        socialAvatar = result.user.photoURL || '';
+      } else if (socialProvider === 'kakao') {
+        const kakaoData: any = await new Promise((resolve, reject) => {
+          if (!(window as any).Kakao) return reject(new Error('카카오 SDK가 로드되지 않았습니다.'));
+          (window as any).Kakao.Auth.login({
+            success: () => {
+              (window as any).Kakao.API.request({
+                url: '/v2/user/me',
+                success: (res: any) => resolve(res),
+                fail: reject
+              });
+            },
+            fail: reject
+          });
         });
-      });
-      socialId = kakaoData.id.toString();
-      socialName = kakaoData.kakao_account?.profile?.nickname || '';
-      socialAvatar = kakaoData.kakao_account?.profile?.thumbnail_image_url || '';
+        socialId = kakaoData.id.toString();
+        socialName = kakaoData.kakao_account?.profile?.nickname || '';
+        socialAvatar = kakaoData.kakao_account?.profile?.thumbnail_image_url || '';
+      }
+    } catch (e: any) {
+      showToast('소셜 연동 실패: ' + (e.message || '인증 과정에서 오류가 발생했습니다.'), 'error');
+      throw e;
     }
 
     const cleanPhone = phone ? phone.replace(/[^0-9]/g, '') : '';
@@ -514,13 +533,14 @@ export const useStore = () => {
       
       if (role === 'owner') {
         const batch = writeBatch(db!);
-        for (let i = 1; i <= 12; i++) {
-          const tableRef = doc(db!, 'tables', `${user.id}_${i}`);
-          const x = ((i - 1) % 4) * 80 + 20;
-          const y = Math.floor((i - 1) / 4) * 80 + 20;
+        for (let i = 1; i <= 15; i++) {
+          const tableId = `${user.id}_${i}`;
+          const x = ((i - 1) % 5) * 120 + 40;
+          const y = Math.floor((i - 1) / 5) * 120 + 40;
+          const tableRef = doc(db!, 'tables', tableId);
           batch.set(tableRef, { 
             number: i, storeId: user.id, currentCustomerId: null, sessionStartTime: null,
-            x, y, width: 70, height: 70, isRoom: false, seats: 4, shape: 'square', status: 'available'
+            x, y, width: 90, height: 90, isRoom: false, seats: 4, shape: 'square', status: 'available'
           });
         }
         await batch.commit();
@@ -710,22 +730,22 @@ export const useStore = () => {
       const existingSnaps = await getDocs(q);
       existingSnaps.forEach(d => batch.delete(d.ref));
       
-      // 2. Create 12 default tables in a 4x3 grid
-      for (let i = 1; i <= 12; i++) {
+      // 2. Create 15 default tables in a 5x3 grid
+      for (let i = 1; i <= 15; i++) {
         const tableId = `${storeId}_${i}`;
-        const x = ((i - 1) % 4) * 110 + 50;
-        const y = Math.floor((i - 1) / 4) * 110 + 100;
+        const x = ((i - 1) % 5) * 120 + 40;
+        const y = Math.floor((i - 1) / 5) * 120 + 40;
         const tableRef = doc(db, 'tables', tableId);
         
         const newTable: Table = { 
           number: i, storeId, currentCustomerId: null, sessionStartTime: null, 
-          x, y, width: 80, height: 80, seats: 4, type: 'table', shape: 'square', status: 'available' 
+          x, y, width: 90, height: 90, seats: 4, type: 'table', shape: 'square', status: 'available' 
         };
         batch.set(tableRef, newTable);
       }
 
       await batch.commit();
-      showToast('12개 기본 테이블로 초기화되었습니다.', 'success');
+      showToast('15개 기본 테이블로 초기화되었습니다.', 'success');
     } catch (err) {
       console.error('Error initializing tables:', err);
       showToast('테이블 초기화 중 오류가 발생했습니다.', 'error');

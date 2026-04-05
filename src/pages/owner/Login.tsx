@@ -17,7 +17,8 @@ export default function OwnerLogin() {
   const handleOAuthLogin = async (provider: 'google' | 'kakao') => {
     setIsLoading(true);
     try {
-      await login('', '', 'owner', undefined, undefined, provider, false, undefined);
+      // Pass the current state values to the login function for social registration
+      await login(phone, name, 'owner', !isLogin ? restaurantName : undefined, undefined, provider);
       navigate('/owner');
     } catch (err: any) {
       setError(err.message || '인증에 실패했습니다.');
