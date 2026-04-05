@@ -396,126 +396,10 @@ export default function OwnerDashboard() {
         </header>
 
         <div className={`flex-1 overflow-y-auto lg:overflow-hidden flex flex-col p-6 lg:p-12 space-y-8 lg:space-y-12 bg-gyeol-pattern ${ownerViewMode === 'mobile' ? 'no-scrollbar' : ''}`}>
-          {/* Intelligence & Pulse HUD */}
-          <div className={`grid ${ownerViewMode === 'mobile' ? 'grid-cols-2' : 'grid-cols-4'} gap-3 lg:gap-8`}>
-            <motion.div 
-               whileHover={{ y: -5 }}
-               className="col-span-1 bg-white p-8 rounded-[3rem] border border-primary/5 shadow-premium flex flex-col justify-between group overflow-hidden relative"
-            >
-               <Activity className="absolute -top-6 -right-6 w-32 h-32 text-primary opacity-[0.02] group-hover:scale-110 transition-transform" />
-               <div className="space-y-1">
-                  <p className="text-[10px] font-black text-primary/30 uppercase tracking-[0.4em]">실시간 좌석 점유</p>
-                  <p className="text-4xl font-sans font-black text-primary leading-tight">{stats.occupancyRate}%</p>
-               </div>
-               <div className="flex items-center gap-3">
-                  <div className="flex-1 h-1.5 bg-primary/5 rounded-full overflow-hidden">
-                     <motion.div initial={{ width: 0 }} animate={{ width: `${stats.occupancyRate}%` }} className="h-full bg-primary" />
-                  </div>
-                  <span className="text-[10px] font-black text-primary/40">{actualTables.filter(t => t.currentCustomerId).length}개 테이블 사용 중</span>
-               </div>
-            </motion.div>
-
-            <motion.div 
-               whileHover={{ y: -5 }}
-               className="col-span-1 bg-white p-8 rounded-[3rem] border border-primary/5 shadow-premium flex flex-col justify-between group overflow-hidden relative"
-            >
-               <Hourglass className="absolute -top-6 -right-6 w-32 h-32 text-primary opacity-[0.02] group-hover:scale-110 transition-transform" />
-               <div className="space-y-1">
-                  <p className="text-[10px] font-black text-primary/30 uppercase tracking-[0.4em]">평균 머문 시간</p>
-                  <p className="text-4xl font-sans font-black text-primary leading-tight">{stats.avgUsage}<span className="text-xs ml-1 font-sans font-black text-primary/30">분</span></p>
-               </div>
-               <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest bg-emerald-50 self-start px-3 py-1 rounded-full">회전율 원활</p>
-            </motion.div>
-
-            <motion.div 
-               whileHover={{ y: -5 }}
-               className={`${ownerViewMode === 'mobile' ? 'col-span-2' : 'col-span-2'} bg-white p-6 lg:p-8 rounded-[2rem] lg:rounded-[3rem] border border-primary/5 shadow-premium flex flex-col justify-between group relative overflow-hidden`}
-            >
-               <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                     <div className="w-8 h-8 rounded-xl bg-primary/5 flex items-center justify-center text-primary"><Target className="w-4 h-4" /></div>
-                     <p className="text-[10px] font-black text-primary/30 uppercase tracking-[0.4em]">고객 방문 패턴 분석</p>
-                  </div>
-                  <TrendingUpIcon className="w-4 h-4 text-emerald-500" />
-               </div>
-               
-               <div className="flex items-end gap-2 lg:gap-3 h-24 pb-2">
-                  {[
-                    { label: '단골', val: stats.rfmSegments['VIP'] || 0, color: 'bg-primary' },
-                    { label: '활동', val: stats.rfmSegments['Active'] || 0, color: 'bg-emerald-500' },
-                    { label: '신규', val: stats.rfmSegments['New'] || 0, color: 'bg-blue-500' },
-                    { label: '위험', val: stats.rfmSegments['At Risk'] || 0, color: 'bg-burgundy' }
-                  ].map(segment => {
-                    const maxVal = Math.max(...Object.values(stats.rfmSegments), 1);
-                    const height = Math.max(10, (segment.val / maxVal) * 100);
-                    return (
-                      <div key={segment.label} className="flex-1 flex flex-col items-center gap-2 group/bar">
-                         <div className="relative w-full flex items-end justify-center h-full">
-                            <motion.div 
-                               initial={{ height: 0 }}
-                               animate={{ height: `${height}%` }}
-                               className={`w-full max-w-[40px] rounded-t-xl ${segment.color} opacity-80 group-hover/bar:opacity-100 transition-all`}
-                            />
-                            <div className="absolute -top-6 opacity-0 group-hover/bar:opacity-100 transition-opacity whitespace-nowrap bg-primary text-white text-[8px] font-black px-2 py-1 rounded-full">{segment.val}명</div>
-                         </div>
-                         <span className="text-[8px] font-bold text-primary/30 uppercase tracking-tighter">{segment.label}</span>
-                      </div>
-                    );
-                  })}
-               </div>
-            </motion.div>
-          </div>
-
-          {/* Trigger Awareness Bar */}
-          {stats.inactiveCustomers.length > 0 && (
-             <motion.div 
-               initial={{ opacity: 0, y: 20 }}
-               animate={{ opacity: 1, y: 0 }}
-               className="bg-burgundy p-6 lg:p-8 rounded-[2rem] lg:rounded-[3rem] text-white flex flex-col lg:flex-row items-center justify-between gap-6 shadow-2xl relative overflow-hidden group"
-             >
-                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/dark-wood.png')] opacity-10"></div>
-                <div className="flex items-center gap-6 relative z-10">
-                   <div className="w-16 h-16 rounded-[1.5rem] bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20 animate-pulse">
-                      <AlertCircle className="w-8 h-8 text-white" />
-                   </div>
-                   <div>
-                      <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/50 mb-1">타겟 마케팅 기회 포착</p>
-                      <h3 className="text-xl lg:text-3xl font-sans font-black tracking-tight underline decoration-white/20 underline-offset-8">
-                        {stats.inactiveCustomers.length}명의 고객이 '이탈 위험' 단계입니다.
-                      </h3>
-                   </div>
-                </div>
-                <div className="flex gap-4 relative z-10 w-full lg:w-auto">
-                   <Link 
-                     to="/owner/customers" 
-                     className="flex-1 lg:flex-none px-10 py-5 bg-white/10 backdrop-blur-md text-white border border-white/20 rounded-2xl font-sans font-black text-sm hover:bg-white/20 transition-all flex items-center justify-center gap-4"
-                   >
-                      명부 확인 <ArrowRight className="w-5 h-5" />
-                   </Link>
-                   <button 
-                     onClick={async () => {
-                        const confirmSend = window.confirm(`${stats.inactiveCustomers.length}명의 고객에게 복귀 권유 문자와 카카오톡을 즉시 발송하시겠습니까?`);
-                        if (confirmSend) {
-                           const msg = `[${currentUser.restaurantName}] 고객님, 오랜만이에요! 재방문 시 사용 가능한 특별 쿠폰이 발송되었습니다.`;
-                           if (currentUser.role === 'owner') {
-                              // 사장님 폰에서 직접 보낼 수 있도록 번호가 없으면 알림만, 있으면 실제 전송 루틴으로 연결
-                              await sendPhysicalSms('', msg, 'device');
-                           }
-                           await sendKakaoMessage(msg, currentUser.restaurantName || '매장', currentUser.id);
-                        }
-                     }}
-                     className="flex-1 lg:flex-none px-10 py-5 bg-white text-burgundy rounded-2xl font-sans font-black text-sm hover:scale-[1.02] active:scale-95 transition-all shadow-3xl flex items-center justify-center gap-4"
-                   >
-                      <Zap className="w-5 h-5" /> 즉시 문자 & 카톡 발송
-                   </button>
-                </div>
-             </motion.div>
-          )}
-
-          {/* Table Architectural View */}
-          <div className="flex-1 relative bg-white rounded-[4rem] shadow-premium overflow-hidden border border-primary/5">
-             {viewMode === 'map' && ownerViewMode === 'desktop' ? (
-                <div ref={mapContainerRef} className="absolute inset-0 overflow-auto p-32 bg-[radial-gradient(#4a0e0e0a_2px,transparent_2px)] [background-size:40px_40px] no-scrollbar cursor-crosshair">
+          {/* Table Architectural View (Moved to Top) */}
+          <div className="flex-1 relative bg-white rounded-[4rem] shadow-premium overflow-hidden border border-primary/5 min-h-[500px] lg:min-h-0">
+             {viewMode === 'map' ? (
+                <div ref={mapContainerRef} className={`absolute inset-0 overflow-auto ${ownerViewMode === 'mobile' ? 'p-10' : 'p-32'} bg-[radial-gradient(#4a0e0e0a_2px,transparent_2px)] [background-size:40px_40px] no-scrollbar cursor-crosshair`}>
                    <div 
                     className="relative origin-top-left transition-transform duration-500" 
                     style={{ minWidth: '1400px', minHeight: '1200px', transform: `scale(${zoom})` }}
@@ -642,6 +526,122 @@ export default function OwnerDashboard() {
                 </div>
              )}
           </div>
+
+          {/* Intelligence & Pulse HUD */}
+          <div className={`grid ${ownerViewMode === 'mobile' ? 'grid-cols-2' : 'grid-cols-4'} gap-3 lg:gap-8`}>
+            <motion.div 
+               whileHover={{ y: -5 }}
+               className="col-span-1 bg-white p-8 rounded-[3rem] border border-primary/5 shadow-premium flex flex-col justify-between group overflow-hidden relative"
+            >
+               <Activity className="absolute -top-6 -right-6 w-32 h-32 text-primary opacity-[0.02] group-hover:scale-110 transition-transform" />
+               <div className="space-y-1">
+                  <p className="text-[10px] font-black text-primary/30 uppercase tracking-[0.4em]">실시간 좌석 점유</p>
+                  <p className="text-4xl font-sans font-black text-primary leading-tight">{stats.occupancyRate}%</p>
+               </div>
+               <div className="flex items-center gap-3">
+                  <div className="flex-1 h-1.5 bg-primary/5 rounded-full overflow-hidden">
+                     <motion.div initial={{ width: 0 }} animate={{ width: `${stats.occupancyRate}%` }} className="h-full bg-primary" />
+                  </div>
+                  <span className="text-[10px] font-black text-primary/40">{actualTables.filter(t => t.currentCustomerId).length}개 테이블 사용 중</span>
+               </div>
+            </motion.div>
+
+            <motion.div 
+               whileHover={{ y: -5 }}
+               className="col-span-1 bg-white p-8 rounded-[3rem] border border-primary/5 shadow-premium flex flex-col justify-between group overflow-hidden relative"
+            >
+               <Hourglass className="absolute -top-6 -right-6 w-32 h-32 text-primary opacity-[0.02] group-hover:scale-110 transition-transform" />
+               <div className="space-y-1">
+                  <p className="text-[10px] font-black text-primary/30 uppercase tracking-[0.4em]">평균 머문 시간</p>
+                  <p className="text-4xl font-sans font-black text-primary leading-tight">{stats.avgUsage}<span className="text-xs ml-1 font-sans font-black text-primary/30">분</span></p>
+               </div>
+               <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest bg-emerald-50 self-start px-3 py-1 rounded-full">회전율 원활</p>
+            </motion.div>
+
+            <motion.div 
+               whileHover={{ y: -5 }}
+               className={`${ownerViewMode === 'mobile' ? 'col-span-2' : 'col-span-2'} bg-white p-6 lg:p-8 rounded-[2rem] lg:rounded-[3rem] border border-primary/5 shadow-premium flex flex-col justify-between group relative overflow-hidden`}
+            >
+               <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                     <div className="w-8 h-8 rounded-xl bg-primary/5 flex items-center justify-center text-primary"><Target className="w-4 h-4" /></div>
+                     <p className="text-[10px] font-black text-primary/30 uppercase tracking-[0.4em]">고객 방문 패턴 분석</p>
+                  </div>
+                  <TrendingUpIcon className="w-4 h-4 text-emerald-500" />
+               </div>
+               
+               <div className="flex items-end gap-2 lg:gap-3 h-24 pb-2">
+                  {[
+                    { label: '단골', val: stats.rfmSegments['VIP'] || 0, color: 'bg-primary' },
+                    { label: '활동', val: stats.rfmSegments['Active'] || 0, color: 'bg-emerald-500' },
+                    { label: '신규', val: stats.rfmSegments['New'] || 0, color: 'bg-blue-500' },
+                    { label: '위험', val: stats.rfmSegments['At Risk'] || 0, color: 'bg-burgundy' }
+                  ].map(segment => {
+                    const maxVal = Math.max(...Object.values(stats.rfmSegments), 1);
+                    const height = Math.max(10, (segment.val / maxVal) * 100);
+                    return (
+                      <div key={segment.label} className="flex-1 flex flex-col items-center gap-2 group/bar">
+                         <div className="relative w-full flex items-end justify-center h-full">
+                            <motion.div 
+                               initial={{ height: 0 }}
+                               animate={{ height: `${height}%` }}
+                               className={`w-full max-w-[40px] rounded-t-xl ${segment.color} opacity-80 group-hover/bar:opacity-100 transition-all`}
+                            />
+                            <div className="absolute -top-6 opacity-0 group-hover/bar:opacity-100 transition-opacity whitespace-nowrap bg-primary text-white text-[8px] font-black px-2 py-1 rounded-full">{segment.val}명</div>
+                         </div>
+                         <span className="text-[8px] font-bold text-primary/30 uppercase tracking-tighter">{segment.label}</span>
+                      </div>
+                    );
+                  })}
+               </div>
+            </motion.div>
+          </div>
+
+          {/* Trigger Awareness Bar */}
+          {stats.inactiveCustomers.length > 0 && (
+             <motion.div 
+               initial={{ opacity: 0, y: 20 }}
+               animate={{ opacity: 1, y: 0 }}
+               className="bg-burgundy p-6 lg:p-8 rounded-[2rem] lg:rounded-[3rem] text-white flex flex-col lg:flex-row items-center justify-between gap-6 shadow-2xl relative overflow-hidden group"
+             >
+                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/dark-wood.png')] opacity-10"></div>
+                <div className="flex items-center gap-6 relative z-10">
+                   <div className="w-16 h-16 rounded-[1.5rem] bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20 animate-pulse">
+                      <AlertCircle className="w-8 h-8 text-white" />
+                   </div>
+                   <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/50 mb-1">타겟 마케팅 기회 포착</p>
+                      <h3 className="text-xl lg:text-3xl font-sans font-black tracking-tight underline decoration-white/20 underline-offset-8">
+                        {stats.inactiveCustomers.length}명의 고객이 '이탈 위험' 단계입니다.
+                      </h3>
+                   </div>
+                </div>
+                <div className="flex gap-4 relative z-10 w-full lg:w-auto">
+                   <Link 
+                     to="/owner/customers" 
+                     className="flex-1 lg:flex-none px-10 py-5 bg-white/10 backdrop-blur-md text-white border border-white/20 rounded-2xl font-sans font-black text-sm hover:bg-white/20 transition-all flex items-center justify-center gap-4"
+                   >
+                      명부 확인 <ArrowRight className="w-5 h-5" />
+                   </Link>
+                   <button 
+                     onClick={async () => {
+                        const confirmSend = window.confirm(`${stats.inactiveCustomers.length}명의 고객에게 복귀 권유 문자와 카카오톡을 즉시 발송하시겠습니까?`);
+                        if (confirmSend) {
+                           const msg = `[${currentUser.restaurantName}] 고객님, 오랜만이에요! 재방문 시 사용 가능한 특별 쿠폰이 발송되었습니다.`;
+                           if (currentUser.role === 'owner') {
+                              // 사장님 폰에서 직접 보낼 수 있도록 번호가 없으면 알림만, 있으면 실제 전송 루틴으로 연결
+                              await sendPhysicalSms('', msg, 'device');
+                           }
+                           await sendKakaoMessage(msg, currentUser.restaurantName || '매장', currentUser.id);
+                        }
+                     }}
+                     className="flex-1 lg:flex-none px-10 py-5 bg-white text-burgundy rounded-2xl font-sans font-black text-sm hover:scale-[1.02] active:scale-95 transition-all shadow-3xl flex items-center justify-center gap-4"
+                   >
+                      <Zap className="w-5 h-5" /> 즉시 문자 & 카톡 발송
+                   </button>
+                </div>
+             </motion.div>
+          )}
         </div>
 
         {/* Cinematic Detail Panel */}
