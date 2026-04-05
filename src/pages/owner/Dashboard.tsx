@@ -19,6 +19,9 @@ import Skeleton, { DashboardStatsSkeleton } from '../../components/Skeleton';
 import { calculateRFMValue, getRFMCluster } from '../../store';
 
 export default function OwnerDashboard() {
+  // 배포 버전 확인용 로그
+  console.log("OwnerDashboard v2.0 (Table Fit + Map Top) Applied");
+
   const { 
     isReady, currentUser, tables, users, visits, coupons, sections, logout, leaveTable, 
     initTables, tierOverrides, approveCouponUse, rejectCouponUse, issueCoupon,
@@ -330,7 +333,7 @@ export default function OwnerDashboard() {
           <div className="flex items-center gap-6 lg:gap-10">
             <div>
                <div className="flex items-center gap-3 mb-0.5 lg:mb-1">
-                 <h1 className="text-xl lg:text-3xl font-sans font-black text-primary tracking-tight">매장 현황 모니터링</h1>
+                 <h1 className="text-xl lg:text-3xl font-sans font-black text-primary tracking-tight">매장 실시간 테이블 현황 (v2.0)</h1>
                  <div className="px-2 py-0.5 rounded-md bg-primary/5 border border-primary/10 text-[8px] font-black text-primary uppercase tracking-widest">실시간</div>
                </div>
                <div className="flex items-center gap-2 lg:gap-3">
