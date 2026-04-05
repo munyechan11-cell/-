@@ -183,9 +183,9 @@ export default function OwnerCustomers() {
       {ownerViewMode === 'desktop' && (
         <aside className="h-screen w-20 lg:w-64 fixed left-0 bg-sidebar-bg shadow-2xl flex flex-col py-8 z-50">
           <div className="px-8 mb-12">
-            <Link to="/" className="text-[#fcfcfc] font-serif italic text-2xl">결</Link>
+            <Link to="/" className="text-[#fcfcfc] font-sans font-black text-2xl">결</Link>
             <div className="mt-8 hidden lg:block">
-              <p className="text-[#fcfcfc] font-serif italic text-sm">{currentUser.restaurantName}</p>
+              <p className="text-[#fcfcfc] font-sans font-bold text-sm">{currentUser.restaurantName}</p>
               <p className="text-[#fcfcfc]/50 uppercase tracking-widest text-[10px]">실시간 매장 관리</p>
             </div>
           </div>
@@ -235,7 +235,7 @@ export default function OwnerCustomers() {
         {/* Header */}
         <header className="bg-white/90 backdrop-blur-md sticky top-0 z-40 flex justify-between items-center w-full px-6 lg:px-8 py-4 border-b border-outline-variant/30">
           <div className="flex items-center gap-6 lg:gap-12">
-            <span className="font-serif text-xl lg:text-2xl font-bold text-primary">단골 관리</span>
+            <span className="font-sans text-xl lg:text-2xl font-black text-primary">단골 관리</span>
             <button 
               onClick={handleExportData}
               className="hidden lg:flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-primary/60 hover:text-primary transition-colors"
@@ -260,7 +260,7 @@ export default function OwnerCustomers() {
                   setIsMultiSelectMode(!isMultiSelectMode);
                   setSelectedCustomers([]);
                 }}
-                className={`px-4 lg:px-6 py-2 rounded-full font-serif text-xs lg:text-sm transition-all shadow-lg ${isMultiSelectMode ? 'bg-primary text-white' : 'bg-surface-container-highest text-primary'}`}
+                className={`px-4 lg:px-6 py-2 rounded-full font-sans font-bold text-xs lg:text-sm transition-all shadow-lg ${isMultiSelectMode ? 'bg-primary text-white' : 'bg-surface-container-highest text-primary'}`}
              >
                {isMultiSelectMode ? '취소' : (ownerViewMode === 'mobile' ? '일괄' : '일괄 서비스')}
              </button>
@@ -270,7 +270,7 @@ export default function OwnerCustomers() {
         <div className="flex-1 overflow-y-auto no-scrollbar p-8">
           <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-8 lg:mb-12">
             <div>
-               <h2 className="text-3xl lg:text-4xl font-serif font-black text-primary tracking-tight italic">단골 명부</h2>
+               <h2 className="text-3xl lg:text-4xl font-sans font-black text-primary tracking-tight">단골 명부</h2>
                <p className="text-on-surface-variant/60 text-[10px] lg:text-[11px] font-bold uppercase tracking-widest mt-1 lg:mt-2">{currentUser.restaurantName}의 소중한 손님 기록입니다.</p>
             </div>
             
@@ -316,10 +316,10 @@ export default function OwnerCustomers() {
                   </div>
 
                   <div className="flex items-start gap-6 mb-8">
-                     <div className="w-16 h-16 rounded-2xl bg-surface-container flex items-center justify-center font-serif text-2xl font-bold text-primary">{customer.name.charAt(0)}</div>
+                     <div className="w-16 h-16 rounded-2xl bg-surface-container flex items-center justify-center font-sans text-2xl font-black text-primary">{customer.name.charAt(0)}</div>
                      <div>
                         <div className="flex items-center gap-3 mb-1">
-                           <h3 className="text-xl font-serif font-black text-primary">{customer.name}</h3>
+                           <h3 className="text-xl font-sans font-black text-primary">{customer.name}</h3>
                            <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-widest ${getTierColor(stats.tier)} text-white`}>
                               {getTierCustomName(stats.tier, currentUser?.tierNames)}
                            </span>
@@ -432,7 +432,7 @@ export default function OwnerCustomers() {
         <div className="fixed inset-0 bg-primary/20 backdrop-blur-md z-[200] flex items-center justify-center p-6">
           <div className="bg-white w-full max-w-md rounded-3xl p-10 shadow-3xl border border-outline-variant/30 animate-in fade-in zoom-in duration-300">
             <div className="flex justify-between items-center mb-8">
-              <h2 className="font-serif text-2xl text-primary italic">서비스 전송</h2>
+              <h2 className="font-sans text-2xl text-primary font-black">서비스 전송</h2>
               <button onClick={() => setSelectedCustomer(null)} className="p-2 hover:bg-surface-container rounded-full transition-all"><X className="w-6 h-6 text-on-surface-variant/40" /></button>
             </div>
             
@@ -481,7 +481,7 @@ export default function OwnerCustomers() {
         <div className="fixed inset-0 bg-primary/20 backdrop-blur-md z-[200] flex items-center justify-center p-6">
           <div className="bg-white w-full max-w-lg rounded-3xl p-10 shadow-3xl border border-outline-variant/30 flex flex-col max-h-[80vh]">
             <div className="flex justify-between items-center mb-10">
-              <h2 className="font-serif text-2xl text-primary italic">활동 내역</h2>
+              <h2 className="font-sans text-2xl text-primary font-black">활동 내역</h2>
               <button onClick={() => setHistoryCustomer(null)} className="p-2 hover:bg-surface-container rounded-full transition-all"><X className="w-6 h-6 text-on-surface-variant/40" /></button>
             </div>
             <div className="flex-1 overflow-y-auto no-scrollbar space-y-4">

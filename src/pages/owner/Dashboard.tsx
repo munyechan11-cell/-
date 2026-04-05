@@ -228,9 +228,9 @@ export default function OwnerDashboard() {
       {ownerViewMode === 'desktop' && (
         <aside className="h-screen w-20 lg:w-72 fixed left-0 bg-sidebar-bg shadow-premium flex flex-col py-10 z-50 border-r border-white/5">
           <div className="px-10 mb-16">
-            <Link to="/" className="text-white font-serif italic text-4xl font-black tracking-tighter drop-shadow-xl">결</Link>
+            <Link to="/" className="text-white font-sans text-4xl font-black tracking-tighter drop-shadow-xl">결</Link>
             <div className="mt-6 hidden lg:block opacity-60">
-              <p className="text-white font-serif italic text-sm">{currentUser.restaurantName}</p>
+              <p className="text-white font-sans text-sm font-bold">{currentUser.restaurantName}</p>
               <p className="text-gold uppercase tracking-[0.3em] text-[9px] font-black mt-1">Certified Store Hub</p>
             </div>
           </div>
@@ -296,7 +296,10 @@ export default function OwnerDashboard() {
         <header className="bg-white/80 backdrop-blur-xl px-6 lg:px-12 py-6 lg:py-8 border-b border-primary/5 flex justify-between items-center z-40">
           <div className="flex items-center gap-6 lg:gap-10">
             <div>
-               <h1 className="text-xl lg:text-3xl font-serif font-black italic text-primary mb-0.5 lg:mb-1 tracking-tight">Command Center</h1>
+               <div className="flex items-center gap-3 mb-0.5 lg:mb-1">
+                 <h1 className="text-xl lg:text-3xl font-sans font-black text-primary tracking-tight">매장 관제 센터</h1>
+                 <div className="px-2 py-0.5 rounded-md bg-primary/5 border border-primary/10 text-[8px] font-black text-primary uppercase tracking-widest">Live</div>
+               </div>
                <div className="flex items-center gap-2 lg:gap-3">
                   <div className="w-1.5 lg:w-2 h-1.5 lg:h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>
                   <span className="text-[8px] lg:text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em]">Live Pulse • {currentTime.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</span>
@@ -378,7 +381,7 @@ export default function OwnerDashboard() {
              <motion.button 
                whileTap={{ scale: 0.95 }}
                onClick={() => setIsLayoutMode(!isLayoutMode)} 
-               className={`px-10 py-4 rounded-[1.5rem] font-serif font-black italic text-sm transition-all shadow-xl ${isLayoutMode ? 'bg-primary text-white ring-8 ring-primary/10' : 'bg-surface-bright border border-primary/10 text-primary hover:shadow-premium'}`}
+               className={`px-10 py-4 rounded-[1.5rem] font-sans font-black text-sm transition-all shadow-xl ${isLayoutMode ? 'bg-primary text-white ring-8 ring-primary/10' : 'bg-surface-bright border border-primary/10 text-primary hover:shadow-premium'}`}
              >
                 {isLayoutMode ? 'Architect Mode: Saving...' : 'Edit Architectural Map'}
              </motion.button>
@@ -395,7 +398,7 @@ export default function OwnerDashboard() {
                <Activity className="absolute -top-6 -right-6 w-32 h-32 text-primary opacity-[0.02] group-hover:scale-110 transition-transform" />
                <div className="space-y-1">
                   <p className="text-[10px] font-black text-primary/30 uppercase tracking-[0.4em]">Live Occupancy</p>
-                  <p className="text-4xl font-serif font-black text-primary italic leading-tight">{stats.occupancyRate}%</p>
+                  <p className="text-4xl font-sans font-black text-primary leading-tight">{stats.occupancyRate}%</p>
                </div>
                <div className="flex items-center gap-3">
                   <div className="flex-1 h-1.5 bg-primary/5 rounded-full overflow-hidden">
@@ -412,7 +415,7 @@ export default function OwnerDashboard() {
                <Hourglass className="absolute -top-6 -right-6 w-32 h-32 text-primary opacity-[0.02] group-hover:scale-110 transition-transform" />
                <div className="space-y-1">
                   <p className="text-[10px] font-black text-primary/30 uppercase tracking-[0.4em]">Average Stay</p>
-                  <p className="text-4xl font-serif font-black text-primary italic leading-tight">{stats.avgUsage}<span className="text-xs ml-1 font-sans not-italic font-black text-primary/30">MIN</span></p>
+                  <p className="text-4xl font-sans font-black text-primary leading-tight">{stats.avgUsage}<span className="text-xs ml-1 font-sans font-black text-primary/30">MIN</span></p>
                </div>
                <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest bg-emerald-50 self-start px-3 py-1 rounded-full">Optimal Flow</p>
             </motion.div>
@@ -470,7 +473,7 @@ export default function OwnerDashboard() {
                    </div>
                    <div>
                       <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/50 mb-1">Marketing Opportunity Triggered</p>
-                      <h3 className="text-xl lg:text-3xl font-serif font-black italic tracking-tight underline decoration-white/20 underline-offset-8">
+                      <h3 className="text-xl lg:text-3xl font-sans font-black tracking-tight underline decoration-white/20 underline-offset-8">
                         {stats.inactiveCustomers.length}명의 고객이 '이탈 위험' 단계입니다.
                       </h3>
                    </div>
@@ -478,7 +481,7 @@ export default function OwnerDashboard() {
                 <div className="flex gap-4 relative z-10 w-full lg:w-auto">
                    <Link 
                      to="/owner/customers" 
-                     className="flex-1 lg:flex-none px-10 py-5 bg-white/10 backdrop-blur-md text-white border border-white/20 rounded-2xl font-serif font-black italic text-sm hover:bg-white/20 transition-all flex items-center justify-center gap-4"
+                     className="flex-1 lg:flex-none px-10 py-5 bg-white/10 backdrop-blur-md text-white border border-white/20 rounded-2xl font-sans font-black text-sm hover:bg-white/20 transition-all flex items-center justify-center gap-4"
                    >
                       명부 확인 <ArrowRight className="w-5 h-5" />
                    </Link>
@@ -491,7 +494,7 @@ export default function OwnerDashboard() {
                            await sendKakaoMessage(msg, currentUser.restaurantName || '매장', currentUser.id);
                         }
                      }}
-                     className="flex-1 lg:flex-none px-10 py-5 bg-white text-burgundy rounded-2xl font-serif font-black italic text-sm hover:scale-[1.02] active:scale-95 transition-all shadow-3xl flex items-center justify-center gap-4"
+                     className="flex-1 lg:flex-none px-10 py-5 bg-white text-burgundy rounded-2xl font-sans font-black text-sm hover:scale-[1.02] active:scale-95 transition-all shadow-3xl flex items-center justify-center gap-4"
                    >
                       <Zap className="w-5 h-5" /> 즉시 문자 & 카톡 발송
                    </button>
@@ -601,7 +604,7 @@ export default function OwnerDashboard() {
                          </div>
                          <div className="space-y-1">
                             <p className="text-[9px] lg:text-[10px] font-black uppercase text-primary/30 tracking-[0.3em]">Current Tenant</p>
-                            <p className="text-lg lg:text-2xl font-serif font-black text-primary italic leading-tight">{table.currentCustomerId ? users.find(u => u.id === table.currentCustomerId)?.name : 'None'}</p>
+                            <p className="text-lg lg:text-2xl font-sans font-black text-primary leading-tight">{table.currentCustomerId ? users.find(u => u.id === table.currentCustomerId)?.name : 'None'}</p>
                          </div>
                          {table.currentCustomerId && (
                             <div className="absolute -bottom-2 -right-2 opacity-[0.05]">
@@ -643,7 +646,7 @@ export default function OwnerDashboard() {
              >
                 <div className="flex justify-between items-start mb-8 lg:mb-16">
                    <div>
-                      <h2 className="text-2xl lg:text-4xl font-serif font-black text-primary italic mb-2 leading-none">{activeTable?.type === 'room' ? 'Elite Private Room' : `${selectedTable}번 건축물`}</h2>
+                      <h2 className="text-2xl lg:text-4xl font-sans font-black text-primary mb-2 leading-none">{activeTable?.type === 'room' ? '프라이빗 룸' : `${selectedTable}번 테이블`}</h2>
                       <div className="flex items-center gap-3">
                          <div className={`w-2 h-2 rounded-full ${activeTable?.currentCustomerId ? 'bg-emerald-500' : 'bg-primary/20'}`}></div>
                          <p className="text-[9px] lg:text-[10px] font-black uppercase tracking-[0.4em] text-primary/40">{activeTable?.currentCustomerId ? 'Active Session' : 'Standby Mode'}</p>
@@ -666,7 +669,7 @@ export default function OwnerDashboard() {
                                  )}
                               </div>
                               <div>
-                                 <h3 className="text-2xl font-serif font-black text-primary italic tracking-tight">{activeCustomer.name}</h3>
+                                 <h3 className="text-2xl font-sans font-black text-primary tracking-tight">{activeCustomer.name}</h3>
                                  <p className="text-xs font-bold text-primary/40 tracking-widest">{activeCustomer.phone}</p>
                               </div>
                            </div>
@@ -731,7 +734,7 @@ export default function OwnerDashboard() {
                                       navigator.clipboard.writeText(url);
                                       window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Command relative link copied.', type: 'success' } }));
                                   }} className="p-8 bg-surface-bright rounded-[3rem] border border-primary/5 flex flex-col items-center gap-4 text-primary hover:bg-primary hover:text-white transition-all group">
-                                     <Target className="w-6 h-6 opacity-40 group-hover:opacity-100" /><span className="text-[10px] font-black uppercase tracking-widest font-serif italic">Copy Vector</span>
+                                     <Target className="w-6 h-6 opacity-40 group-hover:opacity-100" /><span className="text-[10px] font-black uppercase tracking-widest font-sans">고유 벡터 복사</span>
                                   </button>
                                   <button onClick={() => {
                                       const svg = qrRef.current?.querySelector('svg');
@@ -752,7 +755,7 @@ export default function OwnerDashboard() {
                                       };
                                       img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
                                   }} className="p-8 bg-surface-bright rounded-[3rem] border border-primary/5 flex flex-col items-center gap-4 text-primary hover:bg-primary hover:text-white transition-all group">
-                                     <Maximize2 className="w-6 h-6 opacity-40 group-hover:opacity-100" /><span className="text-[10px] font-black uppercase tracking-widest font-serif italic">Export Asset</span>
+                                     <Maximize2 className="w-6 h-6 opacity-40 group-hover:opacity-100" /><span className="text-[10px] font-black uppercase tracking-widest font-sans">에셋 내보내기</span>
                                   </button>
                                </div>
                             </div>
@@ -777,7 +780,7 @@ export default function OwnerDashboard() {
              >
                 <div className="flex justify-between items-center">
                    <div>
-                      <h3 className="text-3xl font-serif font-black text-primary italic">Owner Settings</h3>
+                      <h3 className="text-3xl font-sans font-black text-primary">사장님 설정</h3>
                       <p className="text-[10px] font-black text-primary/40 uppercase tracking-[0.5em]">Command Hub Governance</p>
                    </div>
                    <button onClick={() => setIsSettingsOpen(false)} className="p-4 bg-surface-bright rounded-full hover:bg-primary/5 transition-all"><X className="w-5 h-5 text-primary/30" /></button>
@@ -790,7 +793,7 @@ export default function OwnerDashboard() {
                          <div className="absolute inset-0 bg-primary opacity-0 group-hover:opacity-60 flex items-center justify-center text-white transition-all cursor-pointer"><Settings className="w-6 h-6" /></div>
                       </div>
                       <div className="space-y-1">
-                         <p className="text-2xl font-serif font-black text-primary italic">{currentUser.name}</p>
+                         <p className="text-2xl font-sans font-black text-primary">{currentUser.name}</p>
                          <p className="text-xs font-black text-primary/40 uppercase tracking-widest">{currentUser.restaurantName}</p>
                          <p className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full inline-block mt-2">Verified Owner</p>
                       </div>

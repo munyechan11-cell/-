@@ -84,24 +84,17 @@ export default function Home() {
       <section className="pt-32 pb-20 px-6 text-center z-10 w-full max-w-4xl">
         <motion.div variants={itemVariants} className="inline-block mb-6">
            <span className="px-4 py-1.5 rounded-full bg-primary/5 border border-primary/10 text-[10px] font-black text-primary uppercase tracking-[0.3em]">
-             Professional Dining Management Hub
+             실시간 매장 및 단골 관리 플랫폼
            </span>
         </motion.div>
         
-        <motion.div variants={itemVariants} className="relative mb-8">
-           <h1 className="text-[140px] sm:text-[180px] font-serif font-black text-primary leading-none tracking-tighter italic select-none relative drop-shadow-2xl">
+        <motion.div variants={itemVariants} className="relative mb-12">
+           <h1 className="text-[140px] sm:text-[180px] font-sans font-black text-primary leading-none tracking-tighter select-none relative drop-shadow-2xl">
              결
            </h1>
-           <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 flex items-center space-x-4">
-              <div className="h-px w-12 bg-primary/20"></div>
-              <p className="text-[12px] font-medium text-primary/60 italic tracking-widest font-serif">
-                The Grain of Sincerity
-              </p>
-              <div className="h-px w-12 bg-primary/20"></div>
-           </div>
         </motion.div>
 
-        <motion.p variants={itemVariants} className="text-lg sm:text-xl text-primary/70 font-serif italic max-w-2xl mx-auto mb-12 leading-relaxed">
+        <motion.p variants={itemVariants} className="text-lg sm:text-xl text-primary/70 font-sans font-bold max-w-2xl mx-auto mb-12 leading-relaxed">
           "사장님의 정성과 손님의 발걸음이 만나는 가장 아름다운 결"
         </motion.p>
       </section>
@@ -123,7 +116,7 @@ export default function Home() {
               </div>
               <div className="space-y-4">
                 <div className="flex items-center space-x-3">
-                  <h2 className="text-3xl font-serif font-black text-primary italic tracking-tight">손님 입장</h2>
+                  <h2 className="text-3xl font-sans font-black text-primary tracking-tight">손님 입장</h2>
                   <Sparkles className="w-5 h-5 text-gold animate-pulse" />
                 </div>
                 <p className="text-base text-primary/60 font-sans leading-relaxed max-w-xs">
@@ -153,7 +146,7 @@ export default function Home() {
               </div>
               <div className="space-y-4 text-white">
                 <div className="flex items-center space-x-3">
-                  <h2 className="text-3xl font-serif font-black italic tracking-tight">사장님 관리</h2>
+                  <h2 className="text-3xl font-sans font-black tracking-tight">사장님 관리</h2>
                   <Zap className="w-5 h-5 text-gold" />
                 </div>
                 <p className="text-base text-white/60 font-sans leading-relaxed max-w-xs">
@@ -172,15 +165,15 @@ export default function Home() {
       {/* Brand Values */}
       <section className="w-full max-w-6xl px-6 py-20 border-t border-primary/5 bg-white/30 backdrop-blur-sm">
         <motion.div variants={itemVariants} className="text-center mb-16">
-          <h3 className="text-[11px] font-black text-primary/40 uppercase tracking-[0.5em] mb-4">Core Philosophy</h3>
-          <h2 className="text-4xl font-serif font-black text-primary italic">결의 세 가지 약속</h2>
+          <h3 className="text-[11px] font-black text-primary/40 uppercase tracking-[0.5em] mb-4">핵심 가치</h3>
+          <h2 className="text-4xl font-sans font-black text-primary">결의 세 가지 약속</h2>
         </motion.div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
           {[
-            { icon: <Shield className="w-8 h-8" />, title: "Trust", desc: "검증된 데이터를 통해 손님과 매장 사이의 깊은 신뢰 관계를 형성합니다." },
-            { icon: <Heart className="w-8 h-8" />, title: "Sincerity", desc: "단순한 거래를 넘어, 매장마다 담긴 고유한 정성과 철학을 온전히 전달합니다." },
-            { icon: <Star className="w-8 h-8" />, title: "Quality", desc: "정교한 매니지먼트 시스템으로 매장 운영의 품질을 한 단계 더 끌어올립니다." }
+            { icon: <Shield className="w-8 h-8" />, title: "신뢰", desc: "검증된 데이터를 통해 손님과 매장 사이의 깊은 신뢰 관계를 형성합니다." },
+            { icon: <Heart className="w-8 h-8" />, title: "진심", desc: "단순한 거래를 넘어, 매장마다 담긴 고유한 정성과 철학을 온전히 전달합니다." },
+            { icon: <Star className="w-8 h-8" />, title: "품질", desc: "정교한 매니지먼트 시스템으로 매장 운영의 품질을 한 단계 더 끌어올립니다." }
           ].map((val, idx) => (
             <motion.div 
               key={idx}
@@ -191,7 +184,7 @@ export default function Home() {
               <div className="w-16 h-16 rounded-full bg-primary/5 flex items-center justify-center text-primary mb-6">
                 {val.icon}
               </div>
-              <h4 className="text-xl font-serif font-bold text-primary mb-3">{val.title}</h4>
+              <h4 className="text-xl font-sans font-black text-primary mb-3">{val.title}</h4>
               <p className="text-sm text-on-surface-variant leading-relaxed">{val.desc}</p>
             </motion.div>
           ))}
@@ -206,20 +199,20 @@ export default function Home() {
             className="group flex items-center space-x-3 text-[10px] font-black text-primary/30 hover:text-primary transition-all uppercase tracking-[0.4em]"
           >
             <ShieldCheck className="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity" strokeWidth={3} />
-            <span>Master Governance</span>
+            <span>시스템 관리자</span>
           </Link>
         </motion.div>
         
         <motion.div variants={itemVariants} className="mt-12 flex items-center space-x-8 text-[10px] font-bold text-primary/20 uppercase tracking-widest">
-           <span>Terms</span>
+           <span>이용약관</span>
            <div className="w-1 h-1 rounded-full bg-primary/20"></div>
-           <span>Privacy</span>
+           <span>개인정보처리방침</span>
            <div className="w-1 h-1 rounded-full bg-primary/20"></div>
-           <span>Contact</span>
+           <span>문의하기</span>
         </motion.div>
         
         <motion.p variants={itemVariants} className="mt-8 text-[9px] font-medium text-primary/10 uppercase tracking-[0.5em]">
-          © 2026 Gyeol Platform. All Rights Reserved.
+          © 2026 결 페이퍼. All Rights Reserved.
         </motion.p>
       </footer>
     </motion.div>

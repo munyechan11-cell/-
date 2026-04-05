@@ -114,9 +114,9 @@ export default function OwnerStatistics() {
       {ownerViewMode === 'desktop' && (
         <aside className="h-screen w-20 lg:w-64 fixed left-0 bg-sidebar-bg shadow-2xl flex flex-col py-8 z-50">
           <div className="px-8 mb-12">
-            <Link to="/" className="text-[#fcfcfc] font-serif italic text-2xl">결</Link>
+            <Link to="/" className="text-[#fcfcfc] font-sans font-black text-2xl">결</Link>
             <div className="mt-8 hidden lg:block">
-              <p className="text-[#fcfcfc] font-serif italic text-sm">{currentUser.restaurantName}</p>
+              <p className="text-[#fcfcfc] font-sans font-bold text-sm">{currentUser.restaurantName}</p>
               <p className="text-[#fcfcfc]/50 uppercase tracking-widest text-[10px]">실시간 매장 관리</p>
             </div>
           </div>
@@ -165,7 +165,7 @@ export default function OwnerStatistics() {
       <main className={`${ownerViewMode === 'desktop' ? 'ml-20 lg:ml-64' : 'flex-1 pb-24'} flex-1 h-screen flex flex-col overflow-hidden`}>
         <header className="bg-white/90 backdrop-blur-md sticky top-0 z-40 flex justify-between items-center w-full px-6 lg:px-8 py-4 border-b border-outline-variant/30">
           <div className="flex items-center gap-4">
-             <span className="font-serif text-xl lg:text-2xl font-bold text-primary">비즈니스 리포트</span>
+             <span className="font-sans text-xl lg:text-2xl font-black text-primary">비즈니스 리포트</span>
              <div className="hidden lg:flex bg-surface-container p-1 rounded-lg ml-6">
                 {['7일', '30일', '전체'].map(range => (
                    <button
@@ -195,7 +195,7 @@ export default function OwnerStatistics() {
                   <item.icon className="w-8 h-8 text-primary opacity-20 group-hover:opacity-100 transition-opacity mb-6" />
                   <p className="text-[9px] font-bold text-on-surface-variant/40 uppercase mb-2">{item.label}</p>
                   <div className="flex items-end justify-between">
-                     <p className="text-2xl font-serif font-black text-primary italic">{item.value}</p>
+                     <p className="text-2xl font-sans font-black text-primary">{item.value}</p>
                      <p className={`text-[10px] font-bold text-on-surface-variant/40`}>{item.trend}</p>
                   </div>
                </div>
@@ -206,7 +206,7 @@ export default function OwnerStatistics() {
              <div className="lg:col-span-2 bg-white p-10 rounded-[2.5rem] border border-outline-variant/30 shadow-sm space-y-10">
                 <div className="flex justify-between items-start">
                    <div>
-                      <h3 className="text-2xl font-serif font-black text-primary italic">방문 트렌드</h3>
+                      <h3 className="text-2xl font-sans font-black text-primary">방문 트렌드</h3>
                       <p className="text-[10px] font-bold text-on-surface-variant/40 uppercase tracking-widest mt-1">최근 요일별 방문자 현황</p>
                    </div>
                    <div className="text-right">
@@ -246,16 +246,16 @@ export default function OwnerStatistics() {
 
              <div className="bg-primary p-12 rounded-[2.5rem] text-white flex flex-col gap-10 shadow-2xl relative overflow-hidden group">
                 <div className="relative z-10">
-                   <h3 className="text-3xl font-serif font-black italic">Marketing Effect</h3>
-                   <p className="text-sm opacity-60 mt-2 font-serif">쿠폰 발행을 통한 방문 유도 효과</p>
+                   <h3 className="text-3xl font-sans font-black">마케팅 효과 분석</h3>
+                   <p className="text-sm opacity-60 mt-2 font-sans">쿠폰 발행을 통한 재방문 유도 지표입니다.</p>
                 </div>
                 
                 <div className="relative z-10 flex-1 flex flex-col justify-center gap-12">
                    <div className="space-y-4">
                       <p className="text-[10px] font-bold uppercase tracking-widest opacity-40">쿠폰 회수 현황</p>
                       <div className="flex items-end gap-3">
-                         <span className="text-6xl font-serif font-black italic">{usedCouponsCount}</span>
-                         <span className="text-sm font-serif mb-2 opacity-60">Collects</span>
+                         <span className="text-6xl font-sans font-black">{usedCouponsCount}</span>
+                         <span className="text-sm font-sans mb-2 opacity-60">건 사용됨</span>
                       </div>
                    </div>
                    

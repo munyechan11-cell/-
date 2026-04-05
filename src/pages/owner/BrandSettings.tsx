@@ -66,9 +66,9 @@ export default function BrandSettings() {
       {ownerViewMode === 'desktop' && (
         <aside className="h-screen w-20 lg:w-64 fixed left-0 bg-sidebar-bg shadow-2xl flex flex-col py-8 z-50">
           <div className="px-8 mb-12">
-            <Link to="/" className="text-[#fcfcfc] font-serif italic text-2xl">결</Link>
+            <Link to="/" className="text-[#fcfcfc] font-sans font-black text-2xl">결</Link>
             <div className="mt-8 hidden lg:block">
-              <p className="text-[#fcfcfc] font-serif italic text-sm">{currentUser.restaurantName}</p>
+              <p className="text-[#fcfcfc] font-sans font-bold text-sm">{currentUser.restaurantName}</p>
               <p className="text-[#fcfcfc]/50 uppercase tracking-widest text-[10px]">실시간 매장 관리</p>
             </div>
           </div>
@@ -116,11 +116,11 @@ export default function BrandSettings() {
       {/* Main Workspace */}
       <main className={`${ownerViewMode === 'desktop' ? 'ml-20 lg:ml-64' : 'flex-1 pb-24'} flex-1 h-screen flex flex-col overflow-hidden`}>
         <header className="bg-white/90 backdrop-blur-md sticky top-0 z-40 flex justify-between items-center w-full px-6 lg:px-8 py-4 border-b border-outline-variant/30">
-          <span className="font-serif text-xl lg:text-2xl font-bold text-primary">브랜딩 설정</span>
+          <span className="font-sans text-xl lg:text-2xl font-black text-primary">브랜딩 설정</span>
           <button
              onClick={handleSave}
              disabled={isSaving}
-             className="px-6 lg:px-8 py-2 bg-primary text-white rounded-full font-serif text-xs lg:text-sm hover:bg-accent-burgundy transition-all shadow-lg flex items-center gap-2 disabled:opacity-50"
+             className="px-6 lg:px-8 py-2 bg-primary text-white rounded-full font-sans font-bold text-xs lg:text-sm hover:bg-accent-burgundy transition-all shadow-lg flex items-center gap-2 disabled:opacity-50"
           >
             {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             {ownerViewMode === 'mobile' ? '저장' : '설정 저장하기'}
@@ -130,7 +130,7 @@ export default function BrandSettings() {
         <div className="p-8 space-y-12 flex-1 overflow-y-auto no-scrollbar">
            <div className="max-w-4xl space-y-12">
               <section>
-                 <h2 className="text-3xl font-serif font-black text-primary italic mb-2">단골 등급 체계</h2>
+                 <h2 className="text-3xl font-sans font-black text-primary mb-2">단골 등급 체계</h2>
                  <p className="text-on-surface-variant/60 text-sm mb-10">손님들의 등급별 명칭과 혜택을 사장님만의 스타일로 정의해 보세요.</p>
                  
                  <div className="space-y-6">
@@ -166,7 +166,7 @@ export default function BrandSettings() {
 
               <section className="bg-primary p-10 rounded-[2.5rem] shadow-xl text-white relative overflow-hidden group">
                  <div className="relative z-10 space-y-4">
-                    <h3 className="text-2xl font-serif font-black italic">브랜딩 팁</h3>
+                    <h3 className="text-2xl font-sans font-black">브랜딩 팁</h3>
                     <p className="text-sm opacity-80 leading-relaxed max-w-xl">
                       단골 손님들에게 사장님만의 친근하거나 품격 있는 명칭을 불러드리면 재방문율을 높이는 데 큰 도움이 됩니다. 설정을 저장하면 손님의 모바일 화면에도 즉시 반영됩니다.
                     </p>

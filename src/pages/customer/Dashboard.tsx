@@ -505,8 +505,8 @@ export default function CustomerDashboard() {
                            )}
                         </div>
                         <div>
-                           <p className="text-3xl font-serif font-black text-primary italic leading-tight mb-1">{currentUser.name}</p>
-                           <p className="text-xs font-black text-primary/30 uppercase tracking-[0.2em]">{currentUser.phone || 'Digital Passport Verified'}</p>
+                           <p className="text-3xl font-sans font-black text-primary leading-tight mb-1">{currentUser.name}</p>
+                           <p className="text-xs font-black text-primary/30 uppercase tracking-[0.2em]">{currentUser.phone || '디지털 본인 인증 완료'}</p>
                         </div>
                      </div>
 
@@ -516,7 +516,7 @@ export default function CustomerDashboard() {
                            <div className="flex items-center justify-between p-8 bg-surface-bright border border-primary/10 rounded-[2.5rem] shadow-sm">
                               <div className="flex items-center gap-5">
                                  <div className="w-12 h-12 bg-primary/5 rounded-2xl flex items-center justify-center text-primary/30"><Smartphone className="w-6 h-6" /></div>
-                                 <span className="text-base font-black italic text-primary/80">Primary Phone</span>
+                                 <span className="text-base font-sans font-black text-primary/80">기본 전화번호</span>
                               </div>
                               <span className="text-[10px] font-black text-primary uppercase bg-primary/5 px-5 py-2 rounded-full ring-1 ring-primary/20">Active Node</span>
                            </div>
@@ -584,8 +584,8 @@ export default function CustomerDashboard() {
                  className="bg-white rounded-[5rem] p-16 w-full max-w-sm text-center shadow-3xl border border-burgundy/10"
                >
                   <div className="w-28 h-28 bg-burgundy/5 rounded-[3rem] flex items-center justify-center text-burgundy mx-auto mb-12 shadow-inner"><Trash2 className="w-14 h-14" /></div>
-                  <h3 className="text-4xl font-serif font-black text-primary italic mb-6 tracking-tight">Identity Purge</h3>
-                  <p className="text-base text-on-surface-variant/60 leading-relaxed mb-14 px-4 italic">모든 데이터가 영구적으로 파기되어 복구가 불가능합니다. 시스템에서의 영구 삭제를 승인하시겠습니까?</p>
+                  <h3 className="text-4xl font-sans font-black text-primary mb-6 tracking-tight">계정 탈퇴 확인</h3>
+                  <p className="text-base text-on-surface-variant/60 leading-relaxed mb-14 px-4">모든 데이터가 영구적으로 파기되어 복구가 불가능합니다. 시스템에서의 영구 삭제를 승인하시겠습니까?</p>
                   <div className="flex flex-col gap-4">
                      <button 
                        onClick={() => {
@@ -595,7 +595,7 @@ export default function CustomerDashboard() {
                        }}
                        className="w-full py-8 bg-burgundy text-white rounded-[2rem] font-black uppercase tracking-widest text-[12px] shadow-3xl active:scale-95 transition-all outline-none"
                      >삭제 승인</button>
-                     <button onClick={() => setIsDeletingAccount(false)} className="w-full py-5 text-[11px] font-black uppercase tracking-[0.5em] text-primary/20 outline-none">Purge 취소</button>
+                     <button onClick={() => setIsDeletingAccount(false)} className="w-full py-5 text-[11px] font-black uppercase tracking-[0.5em] text-primary/20 outline-none">탈퇴 취소</button>
                   </div>
                </motion.div>
             </div>

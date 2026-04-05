@@ -56,7 +56,7 @@ export default function OwnerLogin() {
         <div className="w-24 h-24 rounded-[2rem] bg-primary flex items-center justify-center mx-auto mb-10 shadow-2xl rotate-3 scale-110"><Store className="w-12 h-12 text-white" /></div>
         
         <div className="mb-8">
-           <h2 className="text-4xl font-serif font-black text-primary italic mb-2 tracking-tighter">결 사장님용</h2>
+           <h2 className="text-4xl font-sans font-black text-primary mb-2 tracking-tighter">결 사장님용</h2>
            <p className="text-[10px] font-bold text-on-surface-variant/40 uppercase tracking-[0.3em] font-sans">매장 통합 거버넌스 시스템</p>
         </div>
 
