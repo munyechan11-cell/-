@@ -39,8 +39,9 @@ export default function OwnerDashboard() {
   const [dragStart, setDragStart] = useState<{x: number, y: number} | null>(null);
   const [tableStart, setTableStart] = useState<{x: number, y: number} | null>(null);
   const [showNotifications, setShowNotifications] = useState(false);
-  const mapContainerRef = useRef<HTMLDivElement>(null);
-  const qrRef = useRef<HTMLDivElement>(null);
+   const mapContainerRef = useRef<HTMLDivElement>(null);
+   const mapInnerRef = useRef<HTMLDivElement>(null);
+   const qrRef = useRef<HTMLDivElement>(null);
   
   const currentStoreSections = sections.filter(s => s.storeId === currentUser?.id);
   const [activeSectionId, setActiveSectionId] = useState<string | 'all' | 'unassigned'>('all');
@@ -70,6 +71,31 @@ export default function OwnerDashboard() {
       }
     }
   }, [currentUser, tables, isInitialViewModeSet]);
+
+  const updateZoomToFit = () => {
+    if (!mapContainerRef.current) return;
+    const { clientWidth, clientHeight } = mapContainerRef.current;
+    
+    // 배치도 영역(1400x1200)이 컨테이너에 딱 맞도록 배율 계산
+    const padding = ownerViewMode === 'mobile' ? 20 : 80;
+    const scaleX = (clientWidth - padding) / 1400;
+    const scaleY = (clientHeight - padding) / 1200;
+    
+    const newZoom = Math.min(scaleX, scaleY, 1.2); // 최대 1.2배까지만
+    setZoom(Math.max(newZoom, 0.1)); // 최소 0.1배
+  };
+
+  useEffect(() => {
+    if (viewMode === 'map') {
+      // 렌더링 후 약간의 지연을 두어 정확한 너비 계산
+      const timer = setTimeout(updateZoomToFit, 100);
+      window.addEventListener('resize', updateZoomToFit);
+      return () => {
+        clearTimeout(timer);
+        window.removeEventListener('resize', updateZoomToFit);
+      };
+    }
+  }, [viewMode, ownerViewMode, isReady]);
 
   // Entrance Notifications Logic
   useEffect(() => {
@@ -399,8 +425,9 @@ export default function OwnerDashboard() {
           {/* Table Architectural View (Moved to Top) */}
           <div className="flex-1 relative bg-white rounded-[4rem] shadow-premium overflow-hidden border border-primary/5 min-h-[500px] lg:min-h-0">
              {viewMode === 'map' ? (
-                <div ref={mapContainerRef} className={`absolute inset-0 overflow-auto ${ownerViewMode === 'mobile' ? 'p-10' : 'p-32'} bg-[radial-gradient(#4a0e0e0a_2px,transparent_2px)] [background-size:40px_40px] no-scrollbar cursor-crosshair`}>
+                <div ref={mapContainerRef} className={`absolute inset-0 overflow-auto ${ownerViewMode === 'mobile' ? 'p-4' : 'p-20'} bg-[radial-gradient(#4a0e0e0a_2px,transparent_2px)] [background-size:40px_40px] no-scrollbar cursor-crosshair`}>
                    <div 
+                    ref={mapInnerRef}
                     className="relative origin-top-left transition-transform duration-500" 
                     style={{ minWidth: '1400px', minHeight: '1200px', transform: `scale(${zoom})` }}
                    >
@@ -410,6 +437,13 @@ export default function OwnerDashboard() {
                          <p className="text-[10px] font-black uppercase tracking-[0.5em] text-primary">N.ARCH 2026</p>
                       </div>
 
+                      {/* Zoom Controls */}
+                      <div className="flex flex-col gap-3 absolute top-10 right-10 z-50">
+                         <button onClick={() => setZoom(prev => Math.min(prev + 0.1, 2))} className="w-12 h-12 bg-white rounded-2xl shadow-premium border border-primary/5 flex items-center justify-center text-primary/40 hover:text-primary transition-all active:scale-90"><Plus className="w-5 h-5" /></button>
+                         <button onClick={updateZoomToFit} className="w-12 h-12 bg-primary text-white rounded-2xl shadow-premium border border-primary/5 flex items-center justify-center hover:scale-105 transition-all active:scale-90" title="화면에 맞춤"><Maximize2 className="w-5 h-5" /></button>
+                         <button onClick={() => setZoom(prev => Math.max(prev - 0.1, 0.1))} className="w-12 h-12 bg-white rounded-2xl shadow-premium border border-primary/5 flex items-center justify-center text-primary/40 hover:text-primary transition-all active:scale-90"><Minus className="w-5 h-5" /></button>
+                      </div>
+                      
                       {filteredTables.map(table => {
                         const isOccupied = table.currentCustomerId !== null;
                         const isBeingDragged = draggedTable === table.number;
