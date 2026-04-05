@@ -117,7 +117,7 @@ export default function OwnerStatistics() {
             <Link to="/" className="text-[#fcfcfc] font-sans font-black text-2xl">결</Link>
             <div className="mt-8 hidden lg:block">
               <p className="text-[#fcfcfc] font-sans font-bold text-sm">{currentUser.restaurantName}</p>
-              <p className="text-[#fcfcfc]/50 uppercase tracking-widest text-[10px]">실시간 매장 관리</p>
+              <p className="text-[#fcfcfc]/50 uppercase tracking-widest text-[10px]">매장 데이터 인사이트</p>
             </div>
           </div>
           <nav className="flex-1 space-y-2">
@@ -135,7 +135,7 @@ export default function OwnerStatistics() {
             </Link>
           </nav>
           <button onClick={handleLogout} className="px-8 mt-auto text-white/40 hover:text-white text-[10px] flex items-center gap-2 uppercase tracking-widest">
-            <LogOut className="w-4 h-4" /> <span className="hidden lg:block">로그아웃</span>
+            <LogOut className="w-4 h-4" /> <span className="hidden lg:block">시스템 로그아웃</span>
           </button>
         </aside>
       )}
@@ -183,7 +183,7 @@ export default function OwnerStatistics() {
           </button>
         </header>
 
-        <div className="flex-1 overflow-y-auto no-scrollbar p-8 space-y-12 pb-24">
+        <div className="flex-1 overflow-y-auto no-scrollbar p-8 space-y-12 pb-24 bg-gyeol-pattern">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
              {[
                { icon: Users, label: '신규 단골', value: `${newCustomersInWeek}명`, trend: '최근' },
@@ -191,27 +191,27 @@ export default function OwnerStatistics() {
                { icon: MapPin, label: '피크 시간대', value: peakTimeString, trend: '예측' },
                { icon: Activity, label: '매장 가동률', value: `${occupancyRate}%`, trend: '양호' }
              ].map((item, idx) => (
-               <div key={idx} className="bg-white p-8 rounded-2xl border border-outline-variant/30 shadow-sm flex flex-col group hover:border-primary transition-all duration-500">
+                <div key={idx} className="bg-white/80 backdrop-blur-md p-8 rounded-3xl border border-primary/5 shadow-premium flex flex-col group hover:scale-[1.02] transition-all duration-500">
                   <item.icon className="w-8 h-8 text-primary opacity-20 group-hover:opacity-100 transition-opacity mb-6" />
-                  <p className="text-[9px] font-bold text-on-surface-variant/40 uppercase mb-2">{item.label}</p>
+                  <p className="text-[9px] font-bold text-primary/30 uppercase mb-2 tracking-widest">{item.label}</p>
                   <div className="flex items-end justify-between">
-                     <p className="text-2xl font-sans font-black text-primary">{item.value}</p>
-                     <p className={`text-[10px] font-bold text-on-surface-variant/40`}>{item.trend}</p>
+                     <p className="text-2xl font-sans font-black text-primary tracking-tight">{item.value}</p>
+                     <p className={`text-[9px] font-black text-primary/30 uppercase tracking-[0.2em]`}>{item.trend}</p>
                   </div>
                </div>
              ))}
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-             <div className="lg:col-span-2 bg-white p-10 rounded-[2.5rem] border border-outline-variant/30 shadow-sm space-y-10">
+             <div className="lg:col-span-2 bg-white/80 backdrop-blur-md p-10 rounded-[3rem] border border-primary/5 shadow-premium space-y-10">
                 <div className="flex justify-between items-start">
                    <div>
-                      <h3 className="text-2xl font-sans font-black text-primary">방문 트렌드</h3>
-                      <p className="text-[10px] font-bold text-on-surface-variant/40 uppercase tracking-widest mt-1">최근 요일별 방문자 현황</p>
+                      <h3 className="text-2xl font-sans font-black text-primary tracking-tight">방문 트렌드 그래프</h3>
+                      <p className="text-[10px] font-bold text-primary/30 uppercase tracking-widest mt-1">최근 요일별 방문자 현황 분석</p>
                    </div>
                    <div className="text-right">
-                      <p className="text-xs font-bold text-primary">{totalVisitsInRange} Visits</p>
-                      <p className="text-[9px] font-bold text-emerald-500 uppercase tracking-tighter">Growth: +12.4%</p>
+                      <p className="text-xs font-black text-primary">{totalVisitsInRange}회 방문</p>
+                      <p className="text-[9px] font-black text-emerald-500 uppercase tracking-tighter">증감률: +12.4%</p>
                    </div>
                 </div>
                 
@@ -223,7 +223,7 @@ export default function OwnerStatistics() {
                         <div key={idx} className="flex-1 flex flex-col items-center gap-4 group h-full justify-end">
                            <div className="relative w-full flex flex-col items-center justify-end h-48 group">
                               <div 
-                                className={`w-full bg-surface-container rounded-t-xl transition-all duration-700 ease-out relative ${bucket.count === maxVal ? 'bg-primary/20' : 'hover:bg-primary/10'}`}
+                                className={`w-full bg-primary/5 rounded-t-xl transition-all duration-700 ease-out relative ${bucket.count === maxVal ? 'bg-primary/20' : 'hover:bg-primary/10'}`}
                                 style={{ height: `${heightPercent}%` }}
                               >
                                  <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-primary text-white text-[10px] font-black px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all shadow-xl -translate-y-2 group-hover:translate-y-0 whitespace-nowrap z-50">
@@ -237,37 +237,37 @@ export default function OwnerStatistics() {
                                  )}
                               </div>
                            </div>
-                           <span className="text-[9px] font-black text-on-surface-variant/40 uppercase tracking-widest">{bucket.label}</span>
+                           <span className="text-[9px] font-black text-primary/30 uppercase tracking-widest">{bucket.label}</span>
                         </div>
                       );
                    })}
                 </div>
              </div>
 
-             <div className="bg-primary p-12 rounded-[2.5rem] text-white flex flex-col gap-10 shadow-2xl relative overflow-hidden group">
+             <div className="bg-primary p-12 rounded-[3.5rem] text-white flex flex-col gap-10 shadow-3xl relative overflow-hidden group">
                 <div className="relative z-10">
-                   <h3 className="text-3xl font-sans font-black">마케팅 효과 분석</h3>
-                   <p className="text-sm opacity-60 mt-2 font-sans">쿠폰 발행을 통한 재방문 유도 지표입니다.</p>
+                   <h3 className="text-3xl font-sans font-black tracking-tight">쿠폰 마케팅 효과</h3>
+                   <p className="text-sm opacity-60 mt-2 font-sans border-l-2 border-white/20 pl-4">쿠폰 발행을 통한 실사용 지표입니다.</p>
                 </div>
                 
                 <div className="relative z-10 flex-1 flex flex-col justify-center gap-12">
                    <div className="space-y-4">
-                      <p className="text-[10px] font-bold uppercase tracking-widest opacity-40">쿠폰 회수 현황</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest opacity-40">쿠폰 회수 현황</p>
                       <div className="flex items-end gap-3">
                          <span className="text-6xl font-sans font-black">{usedCouponsCount}</span>
-                         <span className="text-sm font-sans mb-2 opacity-60">건 사용됨</span>
+                         <span className="text-sm font-black mb-2 opacity-60">건 사용됨</span>
                       </div>
                    </div>
                    
                    <div className="space-y-6">
                       <div className="h-1 bg-white/10 rounded-full overflow-hidden">
                          <div 
-                           className="h-full bg-white transition-all duration-1000 ease-out" 
+                           className="h-full bg-white transition-all duration-1000 ease-out shadow-[0_0_10px_white]" 
                            style={{ width: `${Math.min(100, (usedCouponsCount / Math.max(1, storeCoupons.length)) * 100)}%` }}
                          />
                       </div>
-                      <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest opacity-40">
-                         <span>Active Potential</span>
+                      <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest opacity-40">
+                         <span>캠페인 활동 잠재력</span>
                          <span>{Math.round((usedCouponsCount / Math.max(1, storeCoupons.length)) * 100)}%</span>
                       </div>
                    </div>

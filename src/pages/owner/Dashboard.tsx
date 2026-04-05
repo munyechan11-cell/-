@@ -21,7 +21,7 @@ import { calculateRFMValue, getRFMCluster } from '../../store';
 export default function OwnerDashboard() {
   const { 
     isReady, currentUser, tables, users, visits, coupons, sections, logout, leaveTable, 
-    initTables, tierOverrides, approveCouponUse, rejectCouponUse, 
+    initTables, tierOverrides, approveCouponUse, rejectCouponUse, issueCoupon,
     updateTableLayout, addTable, deleteTable, addSection, updateSection, 
     deleteSection, updateTableStatus, linkSocialAccount, deleteAccount,
     ownerViewMode, sendPhysicalSms, sendKakaoMessage
@@ -224,14 +224,14 @@ export default function OwnerDashboard() {
 
   return (
     <div className={`flex h-screen overflow-hidden bg-surface-bright font-sans text-on-surface ${ownerViewMode === 'mobile' ? 'flex-col' : ''}`}>
-      {/* Elite Sidebar - Hidden on Mobile unless specifically in desktop mode */}
+      {/* Elite Sidebar */}
       {ownerViewMode === 'desktop' && (
         <aside className="h-screen w-20 lg:w-72 fixed left-0 bg-sidebar-bg shadow-premium flex flex-col py-10 z-50 border-r border-white/5">
           <div className="px-10 mb-16">
             <Link to="/" className="text-white font-sans text-4xl font-black tracking-tighter drop-shadow-xl">결</Link>
             <div className="mt-6 hidden lg:block opacity-60">
               <p className="text-white font-sans text-sm font-bold">{currentUser.restaurantName}</p>
-              <p className="text-gold uppercase tracking-[0.3em] text-[9px] font-black mt-1">Certified Store Hub</p>
+              <p className="text-gold uppercase tracking-[0.3em] text-[9px] font-black mt-1">결 공식 인증 매장</p>
             </div>
           </div>
           
@@ -239,8 +239,8 @@ export default function OwnerDashboard() {
             {[
               { to: '/owner', icon: LayoutGrid, label: '대시보드', active: true },
               { to: '/owner/customers', icon: Users, label: '단골 관리' },
-              { to: '/owner/statistics', icon: BarChart3, label: '매장 인텔리전스' },
-              { to: '/owner/brand-settings', icon: Settings, label: '브랜드 스페이스' }
+              { to: '/owner/statistics', icon: BarChart3, label: '매장 현황 분석' },
+              { to: '/owner/brand-settings', icon: Settings, label: '매장 프로필 관리' }
             ].map((item, idx) => (
               <Link 
                 key={idx}
@@ -297,18 +297,18 @@ export default function OwnerDashboard() {
           <div className="flex items-center gap-6 lg:gap-10">
             <div>
                <div className="flex items-center gap-3 mb-0.5 lg:mb-1">
-                 <h1 className="text-xl lg:text-3xl font-sans font-black text-primary tracking-tight">매장 관제 센터</h1>
-                 <div className="px-2 py-0.5 rounded-md bg-primary/5 border border-primary/10 text-[8px] font-black text-primary uppercase tracking-widest">Live</div>
+                 <h1 className="text-xl lg:text-3xl font-sans font-black text-primary tracking-tight">매장 현황 모니터링</h1>
+                 <div className="px-2 py-0.5 rounded-md bg-primary/5 border border-primary/10 text-[8px] font-black text-primary uppercase tracking-widest">실시간</div>
                </div>
                <div className="flex items-center gap-2 lg:gap-3">
                   <div className="w-1.5 lg:w-2 h-1.5 lg:h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>
-                  <span className="text-[8px] lg:text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em]">Live Pulse • {currentTime.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</span>
+                  <span className="text-[8px] lg:text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em]">실시간 현황 업데이트 • {currentTime.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</span>
                </div>
             </div>
             
             <nav className="hidden lg:flex gap-10">
-               <button onClick={() => setViewMode('map')} className={`text-[11px] font-black uppercase tracking-[0.3em] transition-all px-4 py-2 rounded-xl ${viewMode === 'map' ? 'text-primary bg-primary/5' : 'text-primary/30 hover:text-primary'}`}>Architectural Map</button>
-               <button onClick={() => setViewMode('grid')} className={`text-[11px] font-black uppercase tracking-[0.3em] transition-all px-4 py-2 rounded-xl ${viewMode === 'grid' ? 'text-primary bg-primary/5' : 'text-primary/30 hover:text-primary'}`}>Grid Monitor</button>
+               <button onClick={() => setViewMode('map')} className={`text-[11px] font-black uppercase tracking-[0.3em] transition-all px-4 py-2 rounded-xl ${viewMode === 'map' ? 'text-primary bg-primary/5' : 'text-primary/30 hover:text-primary'}`}>테이블 배치도</button>
+               <button onClick={() => setViewMode('grid')} className={`text-[11px] font-black uppercase tracking-[0.3em] transition-all px-4 py-2 rounded-xl ${viewMode === 'grid' ? 'text-primary bg-primary/5' : 'text-primary/30 hover:text-primary'}`}>리스트 현황</button>
             </nav>
           </div>
 
@@ -334,9 +334,9 @@ export default function OwnerDashboard() {
                       className="absolute top-20 right-0 w-96 bg-white rounded-[3rem] shadow-premium border border-primary/5 overflow-hidden z-[100]"
                     >
                         <div className="p-8 border-b border-primary/5 flex justify-between items-center bg-surface-bright/50">
-                           <h4 className="text-[11px] font-black uppercase tracking-[0.4em] text-primary/40">Portal Signals</h4>
+                           <h4 className="text-[11px] font-black uppercase tracking-[0.4em] text-primary/40">최근 도착 알림</h4>
                            {localNotifications.length > 0 && (
-                              <button onClick={() => setLocalNotifications([])} className="text-[10px] font-black text-burgundy/40 hover:text-burgundy uppercase">Clear All</button>
+                              <button onClick={() => setLocalNotifications([])} className="text-[10px] font-black text-burgundy/40 hover:text-burgundy uppercase">알림 모두 삭제</button>
                            )}
                         </div>
                         <div className="max-h-[500px] overflow-y-auto no-scrollbar">
@@ -358,7 +358,7 @@ export default function OwnerDashboard() {
                                     </div>
                                     <div className="flex-1">
                                        <div className="flex items-center gap-3 mb-1">
-                                          <p className="text-sm font-black text-primary italic">{notification.name}</p>
+                                          <p className="text-sm font-black text-primary">{notification.name}</p>
                                           <span className={`text-[8px] font-black px-2 py-0.5 rounded-full border shadow-sm ${getTierColor(notification.tier)} uppercase tracking-tighter opacity-80`}>{notification.tier}</span>
                                        </div>
                                        <p className="text-[10px] font-bold text-primary/30 uppercase tracking-widest">{notification.table}번 테이블 입장 • {notification.time}</p>
@@ -369,7 +369,7 @@ export default function OwnerDashboard() {
                            ) : (
                               <div className="p-16 text-center">
                                  <Bell className="w-10 h-10 text-primary/10 mx-auto mb-6" />
-                                 <p className="text-[11px] font-black text-primary/20 uppercase tracking-[0.4em]">No active signals</p>
+                                 <p className="text-[11px] font-black text-primary/20 uppercase tracking-[0.4em]">새로운 알림이 없습니다</p>
                               </div>
                            )}
                         </div>
@@ -383,7 +383,7 @@ export default function OwnerDashboard() {
                onClick={() => setIsLayoutMode(!isLayoutMode)} 
                className={`px-10 py-4 rounded-[1.5rem] font-sans font-black text-sm transition-all shadow-xl ${isLayoutMode ? 'bg-primary text-white ring-8 ring-primary/10' : 'bg-surface-bright border border-primary/10 text-primary hover:shadow-premium'}`}
              >
-                {isLayoutMode ? 'Architect Mode: Saving...' : 'Edit Architectural Map'}
+                {isLayoutMode ? '배치 저장 완료' : '테이블 배치 수정'}
              </motion.button>
           </div>
         </header>
@@ -397,14 +397,14 @@ export default function OwnerDashboard() {
             >
                <Activity className="absolute -top-6 -right-6 w-32 h-32 text-primary opacity-[0.02] group-hover:scale-110 transition-transform" />
                <div className="space-y-1">
-                  <p className="text-[10px] font-black text-primary/30 uppercase tracking-[0.4em]">Live Occupancy</p>
+                  <p className="text-[10px] font-black text-primary/30 uppercase tracking-[0.4em]">실시간 좌석 점유</p>
                   <p className="text-4xl font-sans font-black text-primary leading-tight">{stats.occupancyRate}%</p>
                </div>
                <div className="flex items-center gap-3">
                   <div className="flex-1 h-1.5 bg-primary/5 rounded-full overflow-hidden">
                      <motion.div initial={{ width: 0 }} animate={{ width: `${stats.occupancyRate}%` }} className="h-full bg-primary" />
                   </div>
-                  <span className="text-[10px] font-black text-primary/40">{actualTables.filter(t => t.currentCustomerId).length} tables</span>
+                  <span className="text-[10px] font-black text-primary/40">{actualTables.filter(t => t.currentCustomerId).length}개 테이블 사용 중</span>
                </div>
             </motion.div>
 
@@ -414,10 +414,10 @@ export default function OwnerDashboard() {
             >
                <Hourglass className="absolute -top-6 -right-6 w-32 h-32 text-primary opacity-[0.02] group-hover:scale-110 transition-transform" />
                <div className="space-y-1">
-                  <p className="text-[10px] font-black text-primary/30 uppercase tracking-[0.4em]">Average Stay</p>
-                  <p className="text-4xl font-sans font-black text-primary leading-tight">{stats.avgUsage}<span className="text-xs ml-1 font-sans font-black text-primary/30">MIN</span></p>
+                  <p className="text-[10px] font-black text-primary/30 uppercase tracking-[0.4em]">평균 머문 시간</p>
+                  <p className="text-4xl font-sans font-black text-primary leading-tight">{stats.avgUsage}<span className="text-xs ml-1 font-sans font-black text-primary/30">분</span></p>
                </div>
-               <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest bg-emerald-50 self-start px-3 py-1 rounded-full">Optimal Flow</p>
+               <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest bg-emerald-50 self-start px-3 py-1 rounded-full">회전율 원활</p>
             </motion.div>
 
             <motion.div 
@@ -427,17 +427,17 @@ export default function OwnerDashboard() {
                <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
                      <div className="w-8 h-8 rounded-xl bg-primary/5 flex items-center justify-center text-primary"><Target className="w-4 h-4" /></div>
-                     <p className="text-[10px] font-black text-primary/30 uppercase tracking-[0.4em]">RFM Customer Intelligence</p>
+                     <p className="text-[10px] font-black text-primary/30 uppercase tracking-[0.4em]">고객 방문 패턴 분석</p>
                   </div>
                   <TrendingUpIcon className="w-4 h-4 text-emerald-500" />
                </div>
                
                <div className="flex items-end gap-2 lg:gap-3 h-24 pb-2">
                   {[
-                    { label: 'VIP', val: stats.rfmSegments['VIP'] || 0, color: 'bg-primary' },
-                    { label: 'Active', val: stats.rfmSegments['Active'] || 0, color: 'bg-emerald-500' },
-                    { label: 'New', val: stats.rfmSegments['New'] || 0, color: 'bg-blue-500' },
-                    { label: 'Risk', val: stats.rfmSegments['At Risk'] || 0, color: 'bg-burgundy' }
+                    { label: '단골', val: stats.rfmSegments['VIP'] || 0, color: 'bg-primary' },
+                    { label: '활동', val: stats.rfmSegments['Active'] || 0, color: 'bg-emerald-500' },
+                    { label: '신규', val: stats.rfmSegments['New'] || 0, color: 'bg-blue-500' },
+                    { label: '위험', val: stats.rfmSegments['At Risk'] || 0, color: 'bg-burgundy' }
                   ].map(segment => {
                     const maxVal = Math.max(...Object.values(stats.rfmSegments), 1);
                     const height = Math.max(10, (segment.val / maxVal) * 100);
@@ -445,9 +445,9 @@ export default function OwnerDashboard() {
                       <div key={segment.label} className="flex-1 flex flex-col items-center gap-2 group/bar">
                          <div className="relative w-full flex items-end justify-center h-full">
                             <motion.div 
-                              initial={{ height: 0 }}
-                              animate={{ height: `${height}%` }}
-                              className={`w-full max-w-[40px] rounded-t-xl ${segment.color} opacity-80 group-hover/bar:opacity-100 transition-all`}
+                               initial={{ height: 0 }}
+                               animate={{ height: `${height}%` }}
+                               className={`w-full max-w-[40px] rounded-t-xl ${segment.color} opacity-80 group-hover/bar:opacity-100 transition-all`}
                             />
                             <div className="absolute -top-6 opacity-0 group-hover/bar:opacity-100 transition-opacity whitespace-nowrap bg-primary text-white text-[8px] font-black px-2 py-1 rounded-full">{segment.val}명</div>
                          </div>
@@ -472,7 +472,7 @@ export default function OwnerDashboard() {
                       <AlertCircle className="w-8 h-8 text-white" />
                    </div>
                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/50 mb-1">Marketing Opportunity Triggered</p>
+                      <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/50 mb-1">타겟 마케팅 기회 포착</p>
                       <h3 className="text-xl lg:text-3xl font-sans font-black tracking-tight underline decoration-white/20 underline-offset-8">
                         {stats.inactiveCustomers.length}명의 고객이 '이탈 위험' 단계입니다.
                       </h3>
@@ -487,10 +487,13 @@ export default function OwnerDashboard() {
                    </Link>
                    <button 
                      onClick={async () => {
-                        const confirmSend = window.confirm(`${stats.inactiveCustomers.length}명의 고객에게 복귀 권유 문자와 카카오톡을 즉시 발송하시겠습니까? (CRM 게이트웨이 시뮬레이션)`);
+                        const confirmSend = window.confirm(`${stats.inactiveCustomers.length}명의 고객에게 복귀 권유 문자와 카카오톡을 즉시 발송하시겠습니까?`);
                         if (confirmSend) {
                            const msg = `[${currentUser.restaurantName}] 고객님, 오랜만이에요! 재방문 시 사용 가능한 특별 쿠폰이 발송되었습니다.`;
-                           await sendPhysicalSms('', msg, 'gateway');
+                           if (currentUser.role === 'owner') {
+                              // 사장님 폰에서 직접 보낼 수 있도록 번호가 없으면 알림만, 있으면 실제 전송 루틴으로 연결
+                              await sendPhysicalSms('', msg, 'device');
+                           }
                            await sendKakaoMessage(msg, currentUser.restaurantName || '매장', currentUser.id);
                         }
                      }}
@@ -549,7 +552,7 @@ export default function OwnerDashboard() {
                             
                             {table.type === 'table' && (
                                <div className="flex flex-col items-center">
-                                  <span className={`text-2xl font-serif font-black italic ${isOccupied ? 'text-white' : 'text-primary/70'}`}>{table.number}</span>
+                                  <span className={`text-2xl font-black ${isOccupied ? 'text-white' : 'text-primary/70'}`}>{table.number}</span>
                                   {isOccupied && (
                                      <div className="mt-2 px-3 py-1 bg-white/10 rounded-full border border-white/10 backdrop-blur-md">
                                         <p className="text-[9px] font-black text-white/50 tracking-[0.2em] uppercase">
@@ -567,7 +570,7 @@ export default function OwnerDashboard() {
                             {isOccupied && (
                                <div className="absolute -top-3 -right-3 w-8 h-8 bg-gold rounded-full border-4 border-white flex items-center justify-center text-white shadow-xl animate-bounce">
                                   <Sparkles className="w-3.5 h-3.5" />
-                               </div>
+                                </div>
                             )}
 
                             {isLayoutMode && !isOccupied && (
@@ -580,7 +583,7 @@ export default function OwnerDashboard() {
                                     <Trash2 className="w-5 h-5" />
                                   </button>
                                   <button className="p-3 bg-primary/10 text-primary rounded-2xl cursor-move mx-1"><GripVertical className="w-5 h-5" /></button>
-                               </div>
+                                </div>
                             )}
                           </motion.div>
                         );
@@ -597,14 +600,14 @@ export default function OwnerDashboard() {
                         className={`bg-white rounded-[2rem] lg:rounded-[3rem] ${ownerViewMode === 'mobile' ? 'p-6' : 'p-10'} border border-primary/5 flex flex-col gap-4 lg:gap-8 cursor-pointer shadow-premium relative overflow-hidden`}
                       >
                          <div className="flex justify-between items-start">
-                            <div className="w-12 h-12 lg:w-20 lg:h-20 bg-gyeol-wood text-white rounded-2xl lg:rounded-[2rem] flex items-center justify-center font-serif font-black text-xl lg:text-3xl italic shadow-premium">{table.number}</div>
+                            <div className="w-12 h-12 lg:w-20 lg:h-20 bg-gyeol-wood text-white rounded-2xl lg:rounded-[2rem] flex items-center justify-center font-black text-xl lg:text-3xl shadow-premium">{table.number}</div>
                             <div className={`px-4 py-1.5 rounded-full text-[9px] lg:text-[10px] font-black uppercase tracking-widest ${table.currentCustomerId ? 'bg-emerald-50 text-emerald-600' : 'bg-primary/5 text-primary/30'}`}>
-                               {table.currentCustomerId ? 'Occupied' : 'Vacant'}
+                               {table.currentCustomerId ? '이용 중' : '사용 가능'}
                             </div>
                          </div>
                          <div className="space-y-1">
-                            <p className="text-[9px] lg:text-[10px] font-black uppercase text-primary/30 tracking-[0.3em]">Current Tenant</p>
-                            <p className="text-lg lg:text-2xl font-sans font-black text-primary leading-tight">{table.currentCustomerId ? users.find(u => u.id === table.currentCustomerId)?.name : 'None'}</p>
+                            <p className="text-[9px] lg:text-[10px] font-black uppercase text-primary/30 tracking-[0.3em]">현재 이용 고객</p>
+                            <p className="text-lg lg:text-2xl font-sans font-black text-primary leading-tight">{table.currentCustomerId ? users.find(u => u.id === table.currentCustomerId)?.name : '없음'}</p>
                          </div>
                          {table.currentCustomerId && (
                             <div className="absolute -bottom-2 -right-2 opacity-[0.05]">
@@ -620,15 +623,15 @@ export default function OwnerDashboard() {
                 <div className="absolute bottom-16 left-1/2 -translate-x-1/2 flex items-center gap-6 bg-sidebar-bg p-4 rounded-[3rem] shadow-3xl z-50 animate-in slide-in-from-bottom-12 outline outline-8 outline-white/20">
                    <div className="flex items-center bg-white/5 rounded-[2.5rem] p-1">
                       {[
-                        { label: 'Table', icon: Utensils, type: 'table' },
-                        { label: 'Room', icon: Maximize2, type: 'room' },
-                        { label: 'Door', icon: LogOut, type: 'door' },
-                        { label: 'POS', icon: Monitor, type: 'pos' }
+                        { label: '테이블', icon: Utensils, type: 'table' },
+                        { label: '룸/보석함', icon: Maximize2, type: 'room' },
+                        { label: '출입문', icon: LogOut, type: 'door' },
+                        { label: '주방/포스', icon: Monitor, type: 'pos' }
                       ].map((btn, idx) => (
                         <button key={idx} onClick={() => addTable(currentUser.id, btn.type as any)} className="px-8 py-3 text-white hover:bg-white/10 rounded-[2rem] flex items-center gap-3 text-[11px] font-black uppercase tracking-[0.2em] transition-all"><btn.icon className="w-4 h-4 opacity-40" /> {btn.label}</button>
                       ))}
                    </div>
-                   <button onClick={() => initTables(currentUser.id)} className="p-4 bg-white/5 text-white/40 hover:bg-burgundy hover:text-white rounded-full transition-all" title="Architecture Reset"><History className="w-6 h-6" /></button>
+                   <button onClick={() => initTables(currentUser.id)} className="p-4 bg-white/5 text-white/40 hover:bg-burgundy hover:text-white rounded-full transition-all" title="초기화"><History className="w-6 h-6" /></button>
                 </div>
              )}
           </div>
@@ -649,7 +652,7 @@ export default function OwnerDashboard() {
                       <h2 className="text-2xl lg:text-4xl font-sans font-black text-primary mb-2 leading-none">{activeTable?.type === 'room' ? '프라이빗 룸' : `${selectedTable}번 테이블`}</h2>
                       <div className="flex items-center gap-3">
                          <div className={`w-2 h-2 rounded-full ${activeTable?.currentCustomerId ? 'bg-emerald-500' : 'bg-primary/20'}`}></div>
-                         <p className="text-[9px] lg:text-[10px] font-black uppercase tracking-[0.4em] text-primary/40">{activeTable?.currentCustomerId ? 'Active Session' : 'Standby Mode'}</p>
+                         <p className="text-[9px] lg:text-[10px] font-black uppercase tracking-[0.4em] text-primary/40">{activeTable?.currentCustomerId ? '이용 중' : '입장 대기'}</p>
                       </div>
                    </div>
                    <button onClick={() => setSelectedTable(null)} className="p-4 bg-surface-bright rounded-full hover:bg-primary/5 transition-all outline-none"><X className="w-6 h-6 text-primary/20" /></button>
@@ -674,25 +677,25 @@ export default function OwnerDashboard() {
                               </div>
                            </div>
                            <div className="flex flex-wrap gap-2 relative z-10">
-                              <span className={`px-4 py-1.5 text-[9px] font-black rounded-full border uppercase tracking-widest shadow-sm ${getTierColor(getCustomerStats(activeCustomer.id).tier)}`}>
-                                 {getCustomerStats(activeCustomer.id).tier} VIP
+                              <span className={`px-4 py-1.5 text-[9px] font-black rounded-full border border-primary/10 uppercase tracking-widest shadow-sm ${getTierColor(getCustomerStats(activeCustomer.id).tier)}`}>
+                                 {getCustomerStats(activeCustomer.id).tier} 우수고객
                               </span>
-                              <span className="px-4 py-1.5 bg-white/80 text-[9px] font-black rounded-full border border-primary/5 uppercase tracking-widest text-primary/40">Visits: {getCustomerStats(activeCustomer.id).totalVisits}회</span>
+                              <span className="px-4 py-1.5 bg-white/80 text-[9px] font-black rounded-full border border-primary/5 uppercase tracking-widest text-primary/40">방문 횟수: {getCustomerStats(activeCustomer.id).totalVisits}회</span>
                            </div>
                          </div>
                          
                          <div className="grid grid-cols-2 gap-6">
-                            <button className="p-8 bg-surface-bright rounded-[3rem] border border-primary/5 flex flex-col items-center gap-4 text-primary hover:bg-primary hover:text-white transition-all group">
+                            <button onClick={() => activeCustomer?.phone && sendPhysicalSms(activeCustomer.phone, `[${currentUser.restaurantName}] 고객님, 매장 이용 안내를 위해 문자 드립니다.`, 'device')} className="p-8 bg-surface-bright rounded-[3rem] border border-primary/5 flex flex-col items-center gap-4 text-primary hover:bg-primary hover:text-white transition-all group">
                                <MessageSquare className="w-6 h-6 opacity-40 group-hover:opacity-100" />
-                               <span className="text-[10px] font-black uppercase tracking-widest">Send Signal</span>
+                               <span className="text-[10px] font-black uppercase tracking-widest">문자/알림 전송</span>
                             </button>
-                            <button className="p-8 bg-surface-bright rounded-[3rem] border border-primary/5 flex flex-col items-center gap-4 text-primary hover:bg-primary hover:text-white transition-all group">
+                            <button onClick={() => activeCustomer?.id && issueCoupon(activeCustomer.id, currentUser.id, '사장님 특별 서비스', '재방문 시 사용 가능한 특별 서비스 쿠폰이 발송되었습니다.')} className="p-8 bg-surface-bright rounded-[3rem] border border-primary/5 flex flex-col items-center gap-4 text-primary hover:bg-primary hover:text-white transition-all group">
                                <Ticket className="w-6 h-6 opacity-40 group-hover:opacity-100" />
-                               <span className="text-[10px] font-black uppercase tracking-widest">Issue Loyalty</span>
+                               <span className="text-[10px] font-black uppercase tracking-widest">쿠폰/서비스 증정</span>
                             </button>
                          </div>
                          
-                         <button onClick={() => leaveTable(selectedTable!, currentUser.id)} className="w-full py-6 bg-primary text-white rounded-[2.5rem] font-black text-xs uppercase tracking-[0.3em] shadow-3xl hover:scale-[1.02] active:scale-95 transition-all">Terminate Active Session</button>
+                         <button onClick={() => leaveTable(selectedTable!, currentUser.id)} className="w-full py-6 bg-primary text-white rounded-[2.5rem] font-black text-xs uppercase tracking-[0.3em] shadow-3xl hover:scale-[1.02] active:scale-95 transition-all">이용 완료 (결제 처리)</button>
                       </div>
                    ) : (
                       <div className="space-y-10">
@@ -701,40 +704,40 @@ export default function OwnerDashboard() {
                                <div className="bg-surface-bright p-10 rounded-[4rem] space-y-10 border border-primary/5">
                                   <div className="flex items-center gap-3 mb-6">
                                      <Settings className="w-5 h-5 text-primary opacity-30" />
-                                     <h4 className="text-[11px] font-black uppercase tracking-[0.4em] text-primary/40">Architecture Params</h4>
+                                     <h4 className="text-[11px] font-black uppercase tracking-[0.4em] text-primary/40">배치 상세 설정</h4>
                                   </div>
                                   <div className="space-y-8">
                                      {[
-                                        { label: 'Grid Width', field: 'width', val: activeTable?.width || 80 },
-                                        { label: 'Grid Height', field: 'height', val: activeTable?.height || 80 },
-                                        { label: 'Seats Density', field: 'seats', val: activeTable?.seats || 4 }
+                                        { label: '가로 길이', field: 'width', val: activeTable?.width || 80 },
+                                        { label: '세로 길이', field: 'height', val: activeTable?.height || 80 },
+                                        { label: '최대 좌석', field: 'seats', val: activeTable?.seats || 4 }
                                      ].map(f => (
                                         <div key={f.field} className="flex justify-between items-center">
-                                           <span className="text-xs font-black text-primary/60 uppercase tracking-widest italic">{f.label}</span>
+                                           <span className="text-xs font-black text-primary/60 uppercase tracking-widest">{f.label}</span>
                                            <div className="flex items-center gap-6">
                                               <button onClick={() => updateTableLayout(currentUser.id, selectedTable!, { [f.field]: Math.max(1, f.val - (f.field === 'seats' ? 1 : 10)) })} className="p-3 bg-white rounded-2xl shadow-premium hover:bg-primary/5 transition-all"><Minus className="w-4 h-4 text-primary" /></button>
-                                              <span className="text-lg font-serif font-black italic w-10 text-center text-primary">{f.val}</span>
+                                              <span className="text-lg font-black w-10 text-center text-primary">{f.val}</span>
                                               <button onClick={() => updateTableLayout(currentUser.id, selectedTable!, { [f.field]: f.val + (f.field === 'seats' ? 1 : 10) })} className="p-3 bg-white rounded-2xl shadow-premium hover:bg-primary/5 transition-all"><Plus className="w-4 h-4 text-primary" /></button>
                                            </div>
                                         </div>
                                      ))}
                                   </div>
                                </div>
-                               <button onClick={() => setSelectedTable(null)} className="w-full py-6 bg-gyeol-wood text-white rounded-[2.5rem] font-black text-xs uppercase tracking-[0.3em] shadow-3xl transition-all">Confirm Specification</button>
+                               <button onClick={() => setSelectedTable(null)} className="w-full py-6 bg-gyeol-wood text-white rounded-[2.5rem] font-black text-xs uppercase tracking-[0.3em] shadow-3xl transition-all">설정 저장 완료</button>
                             </div>
                          ) : (
                             <div className="space-y-10">
                                <div className="bg-gyeol-pattern p-10 rounded-[4rem] border-4 border-white shadow-premium flex flex-col items-center gap-10">
                                   <div className="p-6 bg-white rounded-3xl shadow-xl" ref={qrRef}><QRCodeSVG value={`${window.location.origin}/customer/store/${currentUser.id}?table=${selectedTable}`} size={200} level="H" /></div>
-                                  <p className="text-[11px] font-black text-primary uppercase tracking-[0.5em] opacity-40 italic">Digital Entrance Signal</p>
-                               </div>
+                                  <p className="text-[11px] font-black text-primary uppercase tracking-[0.5em] opacity-40">디지털 입장 QR 코드</p>
+                                </div>
                                <div className="grid grid-cols-2 gap-6">
                                   <button onClick={() => {
                                       const url = `${window.location.origin}/customer/store/${currentUser.id}?table=${selectedTable}`;
                                       navigator.clipboard.writeText(url);
-                                      window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: 'Command relative link copied.', type: 'success' } }));
+                                      window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: '테이블 접속 링크가 복사되었습니다.', type: 'success' } }));
                                   }} className="p-8 bg-surface-bright rounded-[3rem] border border-primary/5 flex flex-col items-center gap-4 text-primary hover:bg-primary hover:text-white transition-all group">
-                                     <Target className="w-6 h-6 opacity-40 group-hover:opacity-100" /><span className="text-[10px] font-black uppercase tracking-widest font-sans">고유 벡터 복사</span>
+                                     <Target className="w-6 h-6 opacity-40 group-hover:opacity-100" /><span className="text-[10px] font-black uppercase tracking-widest font-sans">링크 복사</span>
                                   </button>
                                   <button onClick={() => {
                                       const svg = qrRef.current?.querySelector('svg');
@@ -749,13 +752,13 @@ export default function OwnerDashboard() {
                                         ctx?.drawImage(img, 0, 0);
                                         const pngFile = canvas.toDataURL('image/png');
                                         const downloadLink = document.createElement('a');
-                                        downloadLink.download = `QR_Architect_T${selectedTable}.png`;
+                                        downloadLink.download = `결_QR_${selectedTable}번.png`;
                                         downloadLink.href = pngFile;
                                         downloadLink.click();
                                       };
                                       img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
                                   }} className="p-8 bg-surface-bright rounded-[3rem] border border-primary/5 flex flex-col items-center gap-4 text-primary hover:bg-primary hover:text-white transition-all group">
-                                     <Maximize2 className="w-6 h-6 opacity-40 group-hover:opacity-100" /><span className="text-[10px] font-black uppercase tracking-widest font-sans">에셋 내보내기</span>
+                                     <Maximize2 className="w-6 h-6 opacity-40 group-hover:opacity-100" /><span className="text-[10px] font-black uppercase tracking-widest font-sans">QR 저장</span>
                                   </button>
                                </div>
                             </div>
@@ -780,8 +783,8 @@ export default function OwnerDashboard() {
              >
                 <div className="flex justify-between items-center">
                    <div>
-                      <h3 className="text-3xl font-sans font-black text-primary">사장님 설정</h3>
-                      <p className="text-[10px] font-black text-primary/40 uppercase tracking-[0.5em]">Command Hub Governance</p>
+                      <h3 className="text-3xl font-sans font-black text-primary">매장 관리 설정</h3>
+                      <p className="text-[10px] font-black text-primary/40 uppercase tracking-[0.5em]">System Governance</p>
                    </div>
                    <button onClick={() => setIsSettingsOpen(false)} className="p-4 bg-surface-bright rounded-full hover:bg-primary/5 transition-all"><X className="w-5 h-5 text-primary/30" /></button>
                 </div>
@@ -795,19 +798,19 @@ export default function OwnerDashboard() {
                       <div className="space-y-1">
                          <p className="text-2xl font-sans font-black text-primary">{currentUser.name}</p>
                          <p className="text-xs font-black text-primary/40 uppercase tracking-widest">{currentUser.restaurantName}</p>
-                         <p className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full inline-block mt-2">Verified Owner</p>
+                         <p className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full inline-block mt-2">정식 파트너 인증 사장님</p>
                       </div>
                    </div>
 
                    <div className="space-y-6">
-                      <p className="text-[10px] font-black uppercase tracking-[0.4em] text-primary/20 px-4">Digital Identity Links</p>
+                      <p className="text-[10px] font-black uppercase tracking-[0.4em] text-primary/20 px-4">계정 연동 정보</p>
                       <div className="grid grid-cols-1 gap-4">
                          <div className="flex justify-between items-center p-8 bg-surface-bright rounded-[2.5rem] border border-primary/5">
                             <div className="flex items-center gap-5">
                                <div className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center shadow-sm"><Mail className="w-5 h-5 text-primary/40" /></div>
-                               <span className="text-sm font-black italic">Legacy Terminal Login</span>
+                               <span className="text-sm font-black text-primary/60">기본 이메일 로그인</span>
                             </div>
-                            <span className="text-[9px] font-black text-primary bg-primary/5 px-4 py-2 rounded-full uppercase tracking-widest">Active System</span>
+                            <span className="text-[9px] font-black text-primary bg-primary/5 px-4 py-2 rounded-full uppercase tracking-widest">사용 중</span>
                          </div>
                          
                          {['google', 'kakao'].map(provider => (
@@ -818,12 +821,12 @@ export default function OwnerDashboard() {
                            >
                               <div className="flex items-center gap-5">
                                  <div className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center shadow-sm"><Globe className="w-5 h-5 text-primary/40" /></div>
-                                 <span className="text-sm font-black italic capitalize text-primary/60">{provider} Identity</span>
+                                 <span className="text-sm font-black capitalize text-primary/60">{provider} 연동</span>
                               </div>
                               {currentUser.linkedProviders?.includes(provider as any) ? (
-                                <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 px-4 py-2 rounded-full uppercase tracking-widest">Linked</span>
+                                <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 px-4 py-2 rounded-full uppercase tracking-widest">연동됨</span>
                               ) : (
-                                <span className="text-[10px] font-black text-primary/20 uppercase tracking-widest">Connect Vector</span>
+                                <span className="text-[10px] font-black text-primary/20 uppercase tracking-widest">연동하기</span>
                               )}
                            </button>
                          ))}
@@ -836,13 +839,13 @@ export default function OwnerDashboard() {
                      onClick={handleLogout}
                      className="w-full py-6 text-primary font-black uppercase tracking-[0.5em] text-[11px] flex items-center justify-center gap-4 hover:bg-primary/5 rounded-[2rem] transition-all"
                    >
-                      <LogOut className="w-5 h-5 opacity-30" /> Command Exit
+                      <LogOut className="w-5 h-5 opacity-30" /> 시스템 로그아웃
                    </button>
                    <button 
                      onClick={() => setIsDeletingAccount(true)}
                      className="w-full py-4 text-burgundy/20 font-black uppercase tracking-[0.5em] text-[9px] hover:text-burgundy transition-colors"
                    >
-                      Deactivate Hub (Permanent)
+                      계정 탈퇴 (영구 삭제)
                    </button>
                 </div>
              </motion.div>

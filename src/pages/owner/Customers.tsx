@@ -95,8 +95,8 @@ export default function OwnerCustomers() {
   });
 
   const [isSending, setIsSending] = useState(false);
-  const [useRealSms, setUseRealSms] = useState(false);
-  const [useKakao, setUseKakao] = useState(false);
+  const [useRealSms, setUseRealSms] = useState(true);
+  const [useKakao, setUseKakao] = useState(true);
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -367,48 +367,6 @@ export default function OwnerCustomers() {
                     </div>
                   )}
                 
-                <div className="space-y-3">
-                   <div className="flex items-center gap-4 p-4 bg-surface-container/50 border border-outline-variant/30 rounded-2xl cursor-pointer group" onClick={() => setUseRealSms(!useRealSms)}>
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${useRealSms ? 'bg-primary text-white' : 'bg-white text-on-surface-variant/20'}`}>
-                         <Zap className="w-5 h-5" />
-                      </div>
-                      <div className="flex-1">
-                         <p className="text-[9px] font-black uppercase tracking-widest text-primary/40 leading-none mb-1">Authentic SMS</p>
-                         <p className="text-[11px] font-bold text-primary">실제 문자로 발송</p>
-                      </div>
-                      <div className={`w-10 h-6 rounded-full relative transition-all ${useRealSms ? 'bg-primary' : 'bg-outline-variant/30'}`}>
-                         <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${useRealSms ? 'left-5' : 'left-1'}`}></div>
-                      </div>
-                   </div>
-
-                   {(isMultiSelectMode || activeCustomer?.linkedProviders?.includes('kakao')) && (
-                     <div className="flex items-center gap-4 p-4 bg-[#FEE500]/10 border border-[#FEE500]/30 rounded-2xl cursor-pointer group" onClick={() => setUseKakao(!useKakao)}>
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${useKakao ? 'bg-[#FEE500] text-[#3c1e1e]' : 'bg-white text-[#3c1e1e]/20'}`}>
-                           <MessageSquare className="w-5 h-5" />
-                        </div>
-                        <div className="flex-1">
-                           <p className="text-[9px] font-black uppercase tracking-widest text-[#3c1e1e]/40 leading-none mb-1">Dual Channel Link</p>
-                           <p className="text-[11px] font-bold text-[#3c1e1e]">카카오톡으로도 보내기</p>
-                        </div>
-                        <div className={`w-10 h-6 rounded-full relative transition-all ${useKakao ? 'bg-[#FEE500]' : 'bg-[#3c1e1e]/10'}`}>
-                           <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${useKakao ? 'left-5' : 'left-1'}`}></div>
-                        </div>
-                     </div>
-                   )}
-                </div>
-
-                <div className="flex items-center gap-4 p-5 bg-surface-container/50 border border-outline-variant/30 rounded-2xl cursor-pointer group" onClick={() => setUseRealSms(!useRealSms)}>
-                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${useRealSms ? 'bg-primary text-white' : 'bg-white text-on-surface-variant/20'}`}>
-                      <Zap className="w-5 h-5" />
-                   </div>
-                   <div className="flex-1">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-primary/40 leading-none mb-1">Authentic Communication</p>
-                      <p className="text-[11px] font-bold text-primary">실제 문자/알림톡 발송</p>
-                   </div>
-                   <div className={`w-10 h-6 rounded-full relative transition-all ${useRealSms ? 'bg-primary' : 'bg-outline-variant/30'}`}>
-                      <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${useRealSms ? 'left-5' : 'left-1'}`}></div>
-                   </div>
-                </div>
 
                   <div className="flex gap-2">
                      <button 

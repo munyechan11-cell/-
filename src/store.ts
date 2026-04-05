@@ -829,20 +829,34 @@ export const useStore = () => {
     showToast(`${customerIds.length}명에게 쿠폰을 발급했습니다.`, 'success');
   };
 
-  const sendPhysicalSms = async (phone: string, content: string, mode: 'device' | 'gateway' = 'device') => {
-    if (mode === 'device') {
-      const cleanPhone = phone.replace(/[^0-9]/g, '');
-      const encodedMsg = encodeURIComponent(content);
-      // For iOS/Android, space can be Different. Standard is '&' but '?' works for single param
-      const smsUrl = `sms:${cleanPhone}${window.navigator.userAgent.match(/iPhone/i) ? '&' : '?'}body=${encodedMsg}`;
-      window.location.href = smsUrl;
-      showToast('문자 앱이 실행되었습니다.', 'info');
-      return true;
-    } else {
-      // API Gateway Simulation (Aligo/Sens)
-      showToast('게이트웨이를 통해 대량 발송이 처리되었습니다.', 'success');
-      return true;
+  const sendPhysicalSms = async (phone: string, content: string, mode: 'device' | 'gateway' = 'device', gatewayUrl?: string) => {
+    const cleanPhone = phone.replace(/[^0-9]/g, '');
+    const encodedMsg = encodeURIComponent(content);
+
+    // 1. Local Gateway Mode: 안드로이드 게이트웨이 앱(무료) 사용 시
+    if (mode === 'gateway' && gatewayUrl) {
+      try {
+        await fetch(`${gatewayUrl}/send?phone=${cleanPhone}&message=${encodedMsg}`);
+        showToast('로컬 게이트웨이를 통해 문자가 발송되었습니다.', 'success');
+        return true;
+      } catch (e) {
+        showToast('게이트웨이 연결 실패. 기기 직접 전송으로 전환합니다.', 'info');
+      }
     }
+
+    // 2. Device Direct Mode: 사장님 폰의 문자 앱 실행 (요금제 무료 문자 활용)
+    const isIOS = /iPhone|iPad|iPod/i.test(window.navigator.userAgent);
+    const smsUrl = `sms:${cleanPhone}${isIOS ? '&' : '?'}body=${encodedMsg}`;
+    
+    // PC인 경우 안내 메시지 출력
+    if (!/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(window.navigator.userAgent)) {
+      showToast('PC에서는 문자 앱을 실행할 수 없습니다. 모바일에서 접속해 주세요.', 'error');
+      return false;
+    }
+
+    window.location.href = smsUrl;
+    showToast('문자 발송 화면으로 이동합니다. 전송 버튼을 눌러주세요.', 'info');
+    return true;
   };
 
   const sendKakaoMessage = async (content: string, storeName: string, storeId: string) => {
