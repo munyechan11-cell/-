@@ -20,7 +20,7 @@ import { calculateRFMValue, getRFMCluster } from '../../store';
 
 export default function OwnerDashboard() {
   const { 
-    isReady, currentUser, tables, users, visits, coupons, sections, logout, leaveTable, 
+    isReady, currentUser, tables, users, visits, coupons, sections, communications, logout, leaveTable, 
     initTables, tierOverrides, approveCouponUse, rejectCouponUse, issueCoupon,
     updateTableLayout, addTable, deleteTable, addSection, updateSection, 
     deleteSection, updateTableStatus, linkSocialAccount, deleteAccount,
@@ -46,8 +46,21 @@ export default function OwnerDashboard() {
   const currentStoreSections = sections.filter(s => s.storeId === currentUser?.id);
   const [activeSectionId, setActiveSectionId] = useState<string | 'all' | 'unassigned'>('all');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [localNotifications, setLocalNotifications] = useState<{id: string, name: string, time: string, table: number, avatar?: string, tier: string}[]>([]);
+  interface NotificationItem {
+    id: string;
+    name: string;
+    type: 'entrance' | 'message' | 'coupon';
+    time: string;
+    table?: number;
+    avatar?: string;
+    tier?: string;
+    content?: string;
+  }
+
+  const [localNotifications, setLocalNotifications] = useState<NotificationItem[]>([]);
   const processedVisitIds = useRef<Set<string>>(new Set());
+  const processedCommIds = useRef<Set<string>>(new Set());
+  const processedCouponIds = useRef<Set<string>>(new Set());
   const isInitialLoad = useRef(true);
   const [highlightedTable, setHighlightedTable] = useState<number | null>(null);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
@@ -73,6 +86,7 @@ export default function OwnerDashboard() {
   }, [currentUser, tables, isInitialViewModeSet]);
 
   const updateZoomToFit = () => {
+    if (!mapContainerRef.current) return;
     const { clientWidth, clientHeight } = mapContainerRef.current;
     
     // 배치도 영역(1400x1200)이 컨테이너에 딱 맞도록 배율 계산
@@ -96,58 +110,78 @@ export default function OwnerDashboard() {
     }
   }, [viewMode, ownerViewMode, isReady]);
 
-  // Entrance Notifications Logic
+  // Combined Smart Notification Engine
   useEffect(() => {
-    if (!currentUser || currentUser.role !== 'owner') return;
+    if (!currentUser || currentUser.role !== 'owner' || !isReady) return;
 
-    const myVisits = visits.filter(v => v.storeId === currentUser.id);
-    
+    const myId = currentUser.id;
+    const playSound = (type: 'info' | 'success' | 'alert' = 'info') => {
+       try {
+         const urls = {
+           info: 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3',
+           success: 'https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3',
+           alert: 'https://assets.mixkit.co/active_storage/sfx/951/951-preview.mp3'
+         };
+         const audio = new Audio(urls[type]);
+         audio.volume = 0.4;
+         audio.play();
+       } catch (e) {}
+    };
+
+    // 1. Entrance Notifications
+    const myVisits = visits.filter(v => v.storeId === myId);
     if (isInitialLoad.current) {
-      if (myVisits.length > 0) {
-        myVisits.forEach(v => processedVisitIds.current.add(v.id));
-        isInitialLoad.current = false;
-      }
-      return;
-    }
-
-    const newVisits = myVisits.filter(v => !processedVisitIds.current.has(v.id));
-    
-    if (newVisits.length > 0) {
+      myVisits.forEach(v => processedVisitIds.current.add(v.id));
+    } else {
+      const newVisits = myVisits.filter(v => !processedVisitIds.current.has(v.id));
       newVisits.forEach(v => {
         processedVisitIds.current.add(v.id);
         const customer = users.find(u => u.id === v.customerId);
-        const customerName = customer?.name || '신규 고객';
-        
+        const name = customer?.name || '신규 고객';
         setHighlightedTable(v.tableNumber);
-        setTimeout(() => setHighlightedTable(null), 8000);
-        
-        try {
-          const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-          audio.volume = 0.4;
-          audio.play();
-        } catch (e) {}
-
-        window.dispatchEvent(new CustomEvent('show-toast', { 
-          detail: { 
-            message: `${customerName}님이 ${v.tableNumber}번 테이블에 입장하셨습니다!`, 
-            type: 'info' 
-          } 
-        }));
-
-        setLocalNotifications(prev => [
-          { 
-            id: v.id, 
-            name: customerName, 
-            avatar: customer?.avatarUrl,
-            tier: getCustomerStats(v.customerId).tier,
-            time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
-            table: v.tableNumber 
-          },
-          ...prev
-        ].slice(0, 10));
+        setTimeout(() => setHighlightedTable(null), 10000);
+        playSound('info');
+        showToast(`${name}님이 ${v.tableNumber}번 테이블에 입장하셨습니다!`, 'info');
+        setLocalNotifications(prev => [{ id: v.id, type: 'entrance', name, avatar: customer?.avatarUrl, time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }), table: v.tableNumber }, ...prev].slice(0, 15));
       });
     }
-  }, [visits, currentUser, users]);
+
+    // 2. Real-time Message Notifications
+    const myComms = communications.filter(c => c.storeId === myId && c.senderRole === 'customer');
+    if (isInitialLoad.current) {
+      myComms.forEach(c => processedCommIds.current.add(c.id));
+    } else {
+      const newComms = myComms.filter(c => !processedCommIds.current.has(c.id));
+      newComms.forEach(c => {
+        processedCommIds.current.add(c.id);
+        const customer = users.find(u => u.id === c.customerId);
+        playSound('alert');
+        showToast(`${customer?.name || '고객'}님의 새로운 메시지: ${c.content.slice(0, 15)}...`, 'success');
+        setLocalNotifications(prev => [{ id: c.id, type: 'message', name: customer?.name || '고객', content: c.content, avatar: customer?.avatarUrl, time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) }, ...prev].slice(0, 15));
+      });
+    }
+
+    // 3. Coupon Usage Request Notifications
+    const myPendingCoupons = coupons.filter(cp => cp.storeId === myId && cp.status === 'pending');
+    if (isInitialLoad.current) {
+      myPendingCoupons.forEach(cp => processedCouponIds.current.add(cp.id));
+    } else {
+      const newReqs = myPendingCoupons.filter(cp => !processedCouponIds.current.has(cp.id));
+      newReqs.forEach(cp => {
+        processedCouponIds.current.add(cp.id);
+        const customer = users.find(u => u.id === cp.customerId);
+        playSound('success');
+        showToast(`${customer?.name || '고객'}님이 쿠폰 사용을 요청했습니다 (${cp.description})`, 'info');
+        if (cp.usedAtTable) {
+           setHighlightedTable(cp.usedAtTable);
+           setTimeout(() => setHighlightedTable(null), 15000);
+        }
+        setLocalNotifications(prev => [{ id: cp.id, type: 'coupon', name: customer?.name || '고객', content: cp.description, time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }), table: cp.usedAtTable }, ...prev].slice(0, 15));
+      });
+    }
+
+    if (isInitialLoad.current) isInitialLoad.current = false;
+  }, [visits, communications, coupons, currentUser, users, isReady]);
 
   if (!currentUser) return null;
 

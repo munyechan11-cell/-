@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { 
   ArrowLeft, Store, Users, Ticket, Trash2, 
   ChevronRight, Search, LogOut, ShieldCheck, X,
-  LayoutDashboard, Phone, Settings
+  LayoutDashboard, Phone, Settings, Activity
 } from 'lucide-react';
 
 export default function Master() {
@@ -155,6 +155,50 @@ export default function Master() {
                    <p className={`text-2xl font-serif font-black italic ${stat.color}`}>{stat.value}</p>
                 </div>
               ))}
+           </div>
+
+           {/* Platform Health Matrix */}
+           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-2 bg-sidebar-bg rounded-[3rem] p-10 flex items-center justify-between overflow-hidden relative group">
+                 <div className="absolute top-0 right-0 p-12 opacity-[0.03] group-hover:opacity-[0.08] transition-all duration-700">
+                    <Activity className="w-64 h-64 text-white" strokeWidth={0.5} />
+                 </div>
+                 <div className="relative z-10">
+                    <h3 className="text-white/40 text-[10px] font-black uppercase tracking-[0.4em] mb-4">Platform Growth</h3>
+                    <h4 className="text-white text-4xl font-serif font-black italic mb-8 tracking-tighter">데이터 시너지 가속화</h4>
+                    <div className="flex gap-12">
+                       <div>
+                          <p className="text-white/30 text-[9px] font-bold uppercase mb-1">Total Visits</p>
+                          <p className="text-white text-2xl font-black font-sans">{visits.length.toLocaleString()}</p>
+                       </div>
+                       <div>
+                          <p className="text-white/30 text-[9px] font-bold uppercase mb-1">Active Tables</p>
+                          <p className="text-white text-2xl font-black font-sans">{tables.filter(t => t.currentCustomerId).length}</p>
+                       </div>
+                       <div>
+                          <p className="text-white/30 text-[9px] font-bold uppercase mb-1">Issued Coupons</p>
+                          <p className="text-white text-2xl font-black font-sans">{coupons.length.toLocaleString()}</p>
+                       </div>
+                    </div>
+                 </div>
+                 <div className="relative z-10 hidden xl:block">
+                    <div className="flex items-center gap-4 px-6 py-3 bg-white/5 rounded-full border border-white/10 backdrop-blur-md">
+                       <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                       <span className="text-white/80 text-[10px] font-black uppercase tracking-widest">System Cloud: Stable</span>
+                    </div>
+                 </div>
+              </div>
+              
+              <div className="bg-primary/5 rounded-[3rem] p-10 border border-primary/10 flex flex-col justify-between">
+                 <div>
+                    <h3 className="text-primary/40 text-[10px] font-black uppercase tracking-[0.4em] mb-4">Security Pulse</h3>
+                    <p className="text-primary text-xl font-serif font-black italic leading-tight">관리자 암호 보안이<br/>활성화되어 있습니다.</p>
+                 </div>
+                 <button onClick={() => setIsChangingPassword(true)} className="flex items-center gap-3 text-primary/60 hover:text-primary transition-all">
+                    <Settings className="w-4 h-4" />
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em]">거버넌스 암호 고도화</span>
+                 </button>
+              </div>
            </div>
 
            <div className="flex justify-between items-end">

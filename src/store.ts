@@ -778,6 +778,7 @@ export const useStore = () => {
   };
 
   const updateTableLayout = async (storeId: string, tableNumber: number, data: Partial<Table>) => {
+    if (!currentUser || currentUser.id !== storeId) return;
     const id = `${storeId}_${tableNumber}`;
     const idx = globalState.tables.findIndex((t: any) => t.storeId === storeId && t.number === tableNumber);
     if (idx !== -1) {
@@ -961,6 +962,7 @@ export const useStore = () => {
   };
 
   const updateStoreConfig = async (storeId: string, config: Partial<StoreConfig>) => {
+    if (!currentUser || currentUser.id !== storeId) return;
     const owner = users.find(u => u.id === storeId);
     if (owner) {
       const newConfig = { ...(owner.storeConfig || { industry: 'general', rewardType: 'point' }), ...config };

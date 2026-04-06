@@ -83,16 +83,82 @@ function PrivateRoute({ children, role }: { children: React.ReactNode, role: 'cu
   return <>{children}</>;
 }
 
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: Error | null }> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error("Critical Runtime Error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-surface-bright flex flex-col items-center justify-center p-8 text-center text-primary font-sans">
+          <div className="bg-white p-12 rounded-[3.5rem] shadow-3xl max-w-sm w-full border border-primary/10">
+             <div className="w-20 h-20 bg-burgundy/5 rounded-3xl flex items-center justify-center mx-auto mb-8">
+                <AlertCircle className="w-10 h-10 text-burgundy" />
+             </div>
+             <h2 className="text-3xl font-serif font-black italic mb-4">서비스 일시 중지</h2>
+             <p className="text-xs font-medium text-on-surface-variant/60 mb-10 leading-relaxed">
+                일시적인 시스템 충돌이 발생했습니다. <br/>
+                하단의 버튼을 눌러 복구해 주세요.
+             </p>
+             <button 
+               onClick={() => window.location.reload()}
+               className="w-full py-5 bg-primary text-white rounded-2xl font-bold uppercase tracking-widest text-[10px] shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all"
+             >앱 다시 시작하기</button>
+             {this.state.error && (
+                <div className="mt-8 text-[8px] font-mono opacity-20 break-all">{this.state.error.message}</div>
+             )}
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function PageLoader() {
   return (
     <div className="min-h-screen bg-surface-bright flex flex-col items-center justify-center p-8 text-center text-primary selection:bg-primary/10">
-      <div className="relative mb-8">
-         <div className="w-16 h-16 rounded-[2rem] border-4 border-primary/5 border-t-primary animate-spin"></div>
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="relative mb-12"
+      >
+         <div className="w-24 h-24 rounded-[3rem] border-[3px] border-primary/5 border-t-primary/60 animate-[spin_1.5s_linear_infinite]"></div>
          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-[10px] font-serif italic font-bold">결</div>
+            <motion.div 
+              initial={{ rotate: -12 }}
+              animate={{ rotate: 12 }}
+              transition={{ repeat: Infinity, repeatType: "reverse", duration: 2, ease: "easeInOut" }}
+              className="text-4xl font-serif italic font-black text-primary drop-shadow-sm select-none"
+            >
+              결
+            </motion.div>
          </div>
+      </motion.div>
+      <div className="space-y-4">
+         <p className="text-primary font-serif font-black italic text-lg tracking-tighter opacity-80 animate-pulse">정성을 담아 연결 중...</p>
+         <div className="flex justify-center gap-1.5 translate-x-1">
+            {[0, 1, 2].map(i => (
+              <motion.div 
+                key={i} 
+                animate={{ scaleY: [1, 1.5, 1], opacity: [0.3, 1, 0.3] }}
+                transition={{ repeat: Infinity, duration: 1, delay: i * 0.2 }}
+                className="w-0.5 h-3 bg-primary rounded-full"
+              />
+            ))}
+         </div>
+         <p className="text-on-surface-variant/30 font-bold text-[9px] uppercase tracking-[0.4em] pt-4">Gyeol Integrated Cloud System</p>
       </div>
-      <p className="text-primary/40 font-bold text-[10px] uppercase tracking-[0.3em]">매장 시스템 연결 중...</p>
     </div>
   );
 }
@@ -152,7 +218,7 @@ export default function App() {
 
   useEffect(() => {
     if (!isReady) {
-      const timer = setTimeout(() => setShowSlowHint(true), 10000);
+      const timer = setTimeout(() => setShowSlowHint(true), 12000);
       return () => clearTimeout(timer);
     }
   }, [isReady]);
@@ -208,15 +274,17 @@ export default function App() {
   }
 
   return (
-    <Router>
-      <div className="min-h-screen bg-surface-bright selection:bg-primary/20">
-        <Toast />
-        <div className="w-full min-h-screen relative">
-          <Suspense fallback={<PageLoader />}>
-            <NavigationRoutes />
-          </Suspense>
+    <ErrorBoundary>
+      <Router>
+        <div className="min-h-screen bg-surface-bright selection:bg-primary/20">
+          <Toast />
+          <div className="w-full min-h-screen relative">
+            <Suspense fallback={<PageLoader />}>
+              <NavigationRoutes />
+            </Suspense>
+          </div>
         </div>
-      </div>
-    </Router>
+      </Router>
+    </ErrorBoundary>
   );
 }

@@ -1,6 +1,6 @@
 // src/lib/firebase.ts
 import { initializeApp, getApp, getApps } from 'firebase/app';
-import { getFirestore, Firestore } from 'firebase/firestore';
+import { getFirestore, Firestore, enableIndexedDbPersistence } from 'firebase/firestore';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import firebaseConfigFromJson from '../../firebase-applet-config.json';
 
@@ -22,7 +22,18 @@ export const app = isFirebaseConfigured
 export const getDb = (databaseId?: string): Firestore | null => {
   if (!app) return null;
   const id = databaseId || firebaseConfig.firestoreDatabaseId;
-  return getFirestore(app, id);
+  const database = getFirestore(app, id);
+  
+  if (typeof window !== 'undefined' && database) {
+    enableIndexedDbPersistence(database).catch((err) => {
+      if (err.code === 'failed-precondition') {
+        console.warn('Multiple tabs open, persistence can only be enabled in one tab at a time.');
+      } else if (err.code === 'unimplemented') {
+        console.warn('The current browser does not support all of the features required to enable persistence');
+      }
+    });
+  }
+  return database;
 };
 
 export const db = getDb();
