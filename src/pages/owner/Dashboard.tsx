@@ -64,6 +64,16 @@ export default function OwnerDashboard() {
   const isInitialLoad = useRef(true);
   const [highlightedTable, setHighlightedTable] = useState<number | null>(null);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    // 알림창이 닫혀있을 때만 미확인 카운트 증가
+    if (!showNotifications) {
+       setUnreadCount(localNotifications.length);
+    } else {
+       setUnreadCount(0);
+    }
+  }, [localNotifications, showNotifications]);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
@@ -387,7 +397,13 @@ export default function OwnerDashboard() {
                 >
                    <Bell className="w-5 h-5" />
                    {localNotifications.length > 0 && (
-                      <span className="absolute top-3 right-3 w-2.5 h-2.5 bg-burgundy rounded-full border-2 border-white animate-bounce shadow-lg"></span>
+                      <motion.div 
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        className="absolute -top-1 -right-1 w-6 h-6 bg-burgundy text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white shadow-xl z-10"
+                      >
+                         {localNotifications.length}
+                      </motion.div>
                    )}
                 </button>
 

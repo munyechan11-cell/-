@@ -356,8 +356,9 @@ const updateFirestoreDoc = async (coll: string, id: string, data: any, isDelete 
 };
 
 export const useStore = () => {
-  const [isReady, setIsReady] = useState(globalIsReady);
-  const [firebaseStatus, setFirebaseStatus] = useState(globalFirebaseStatus);
+  const [isReady, setIsReady] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [firebaseStatus, setFirebaseStatus] = useState<'loading' | 'stable' | 'error' | 'offline'>('loading');
   const [firebaseError, setFirebaseError] = useState(globalFirebaseError);
   const [users, setUsers] = useState<User[]>(getGlobalStorage('users', []));
   const [visits, setVisits] = useState<Visit[]>(getGlobalStorage('visits', []));
@@ -381,7 +382,7 @@ export const useStore = () => {
   useEffect(() => {
     const handleGlobalUpdate = () => {
       setIsReady(globalIsReady);
-      setFirebaseStatus(globalFirebaseStatus);
+      setFirebaseStatus(globalFirebaseStatus as any);
       setFirebaseError(globalFirebaseError);
       setUsers(getGlobalStorage('users', []));
       setVisits(getGlobalStorage('visits', []));
@@ -971,7 +972,7 @@ export const useStore = () => {
   };
 
   return {
-    isReady, firebaseStatus, firebaseError, users, visits, coupons, tables, sections, communications, tierOverrides,
+    isReady, isProcessing, firebaseStatus, firebaseError, users, visits, coupons, tables, sections, communications, tierOverrides,
     currentUser, masterPassword, login, logout, recordVisit, leaveTable, issueCoupon, 
     requestCouponUse, cancelCouponRequest, approveCouponUse, rejectCouponUse, 
     initTables, setCustomerTier, setMasterPassword, deleteUser, updateUserMemo, 

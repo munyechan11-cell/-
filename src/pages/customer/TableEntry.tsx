@@ -1,72 +1,105 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useStore } from '../../store';
-import { Loader2, ShieldCheck, Zap } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { ShieldCheck, Sparkles, Store } from 'lucide-react';
 
 export default function TableEntry() {
   const { storeId, tableNumber } = useParams<{ storeId: string, tableNumber: string }>();
   const navigate = useNavigate();
-  const { currentUser, users, recordVisit, logout, isReady } = useStore();
-  const processedRef = useRef(false);
+  const { isReady, users, recordVisit, currentUser } = useStore();
+  const [status, setStatus] = useState<'syncing' | 'verifying' | 'linking'>('syncing');
 
   useEffect(() => {
-    // 1. 기본 준비 상태 확인
-    if (processedRef.current || !isReady) return;
-    if (!storeId || !tableNumber) { navigate('/'); return; }
+    if (!isReady || !storeId || !tableNumber || !currentUser) return;
 
-    // 2. 필수 데이터(매장 정보 등)가 로드될 때까지 약간 더 대기 (최대 2초)
-    const storeExists = users.some(u => u.id === storeId && u.role === 'owner');
-    if (!storeExists && isReady) {
-       // 매장 정보가 아직 안 왔다면 0.5초 후 재시도하도록 함
-       const timer = setTimeout(() => {
-          window.dispatchEvent(new Event('global-storage-update'));
-       }, 500);
-       return () => clearTimeout(timer);
-    }
+    const syncAndEntry = async () => {
+      // Step 1: Syncing data (Wait for store to be available in users)
+      setStatus('syncing');
+      let retryCount = 0;
+      const maxRetries = 10;
+      
+      const checkStore = () => {
+        const store = users.find(u => u.id === storeId && u.role === 'owner');
+        return !!store;
+      };
 
-    const run = async () => {
-      processedRef.current = true;
-      const userExists = currentUser && users.some(u => u.id === currentUser.id);
-
-      if (currentUser?.role === 'customer' && userExists) {
-        if (currentUser.storeId === storeId) {
-          await recordVisit(currentUser.id, parseInt(tableNumber), storeId);
-          navigate(`/customer/store/${storeId}`);
-        } else {
-          logout();
-          navigate(`/customer/store/${storeId}/login?table=${tableNumber}`);
-        }
-      } else {
-        logout();
-        navigate(`/customer/store/${storeId}/login?table=${tableNumber}`);
+      while (!checkStore() && retryCount < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, 300));
+        retryCount++;
       }
+
+      // Step 2: Verifying session
+      setStatus('verifying');
+      await new Promise(resolve => setTimeout(resolve, 600));
+
+      // Step 3: Linking table
+      setStatus('linking');
+      await recordVisit(currentUser.id, parseInt(tableNumber), storeId);
+      
+      // Complete
+      setTimeout(() => {
+        navigate(`/customer/store/${storeId}`);
+      }, 500);
     };
-    run();
-  }, [currentUser, users, navigate, storeId, tableNumber, recordVisit, logout, isReady]);
+
+    syncAndEntry();
+  }, [isReady, storeId, tableNumber, users, currentUser, recordVisit, navigate]);
 
   return (
-    <div className="min-h-screen bg-[#fdfaf7] text-[#261c1a] font-sans selection:bg-primary/10 flex flex-col items-center justify-center p-6">
-      
-      <div className="w-full max-w-sm bg-white rounded-[3rem] p-12 text-center shadow-3xl border border-[#e5dcd3] relative animate-in fade-in zoom-in duration-700">
-        <div className="relative mb-10">
-           <div className="w-20 h-20 rounded-3xl bg-primary flex items-center justify-center mx-auto shadow-2xl rotate-12">
-              <span className="text-3xl font-serif font-black text-white italic">결</span>
-           </div>
-        </div>
+    <div className="min-h-screen bg-surface-bright flex flex-col items-center justify-center p-12 text-center selection:bg-primary/10 overflow-hidden">
+      <AnimatePresence mode="wait">
+        <motion.div 
+          key={status}
+          initial={{ opacity: 0, scale: 0.9, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 1.1, y: -20 }}
+          className="relative z-10 flex flex-col items-center"
+        >
+          <div className="relative mb-12">
+            <motion.div 
+              animate={{ rotate: 360 }}
+              transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+              className="w-32 h-32 rounded-[3.5rem] border-[3px] border-primary/5 border-t-primary shadow-2xl"
+            ></motion.div>
+            <div className="absolute inset-0 flex items-center justify-center text-primary">
+              {status === 'syncing' && <Store className="w-10 h-10 opacity-20" />}
+              {status === 'verifying' && <ShieldCheck className="w-10 h-10 opacity-30" />}
+              {status === 'linking' && <Sparkles className="w-10 h-10 text-gold animate-pulse" />}
+            </div>
+          </div>
 
-        <h2 className="text-2xl font-serif font-black text-primary mb-2 italic">매장 연동 중</h2>
-        <p className="text-[10px] font-bold text-on-surface-variant/40 uppercase tracking-widest mb-8">테이블 정보를 확인하고 있습니다</p>
-        
-        <div className="flex items-center justify-center gap-3">
-           <Loader2 className="w-5 h-5 animate-spin text-primary opacity-30" />
-           <span className="text-[10px] font-bold uppercase tracking-widest text-primary/40">동기화 중</span>
-        </div>
+          <div className="space-y-4">
+             <h2 className="text-3xl font-serif font-black text-primary italic tracking-tight">
+               {status === 'syncing' && "매장 입구 확인 중..."}
+               {status === 'verifying' && "보안 세션 검증 중..."}
+               {status === 'linking' && "테이블 연동 중..."}
+             </h2>
+             <p className="text-[10px] font-black text-primary/30 uppercase tracking-[0.4em] max-w-xs mx-auto leading-relaxed">
+               {status === 'syncing' && "클라우드 데이터베이스와 동기화하고 있습니다"}
+               {status === 'verifying' && "고객님의 안전한 입장을 확인하고 있습니다"}
+               {status === 'linking' && `${tableNumber}번 테이블 세션을 준비하고 있습니다`}
+             </p>
+          </div>
+
+          <div className="mt-12 flex gap-1.5 translate-x-1">
+            {[0, 1, 2].map(i => (
+              <motion.div 
+                key={i} 
+                animate={{ scaleY: [1, 2, 1], opacity: [0.2, 1, 0.2] }}
+                transition={{ repeat: Infinity, duration: 0.8, delay: i * 0.15 }}
+                className="w-0.5 h-4 bg-primary/40 rounded-full"
+              />
+            ))}
+          </div>
+        </motion.div>
+      </AnimatePresence>
+
+      {/* Decorative Background Elements */}
+      <div className="absolute inset-0 pointer-events-none opacity-20">
+         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-[120px]"></div>
+         <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-gold/5 rounded-full blur-[150px]"></div>
       </div>
-
-      <footer className="mt-16 flex flex-col items-center opacity-20">
-         <ShieldCheck className="w-8 h-8 text-primary mb-4" />
-         <p className="text-[8px] font-black uppercase tracking-[0.5em]">결 SECURE CONNECTION</p>
-      </footer>
     </div>
   );
 }

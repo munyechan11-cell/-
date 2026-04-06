@@ -135,71 +135,85 @@ export default function CustomerDashboard() {
         {/* Content Flow */}
         <div className="px-8 space-y-12 flex-1 pb-10">
           
-          {/* VIP Membership Card with Progress */}
-          <section className="relative perspective-1000">
-             <motion.div 
-               whileHover={{ rotateY: 5, rotateX: -5 }}
-               className="relative h-[22rem] w-full rounded-[3.5rem] bg-gyeol-wood p-12 text-white shadow-premium overflow-hidden group border border-white/10 flex flex-col justify-between"
-             >
-                {/* Holographic Pattern */}
-                <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/10 opacity-50"></div>
-                <div className="absolute top-[-50%] right-[-50%] w-[400px] h-[400px] bg-gold/10 rounded-full blur-[100px] group-hover:scale-150 transition-transform duration-[2000ms]"></div>
-                
-                <div className="relative z-10 flex flex-col h-full justify-between">
-                   <div className="flex justify-between items-start">
-                      <div className="flex gap-6 items-center">
-                         <div className="w-20 h-20 rounded-[2rem] bg-white/10 border border-white/20 p-1 flex items-center justify-center overflow-hidden shadow-2xl backdrop-blur-md">
-                            {currentUser.avatarUrl ? (
-                               <img src={currentUser.avatarUrl} className="w-full h-full object-cover" alt="" />
-                            ) : (
-                               <User className="w-10 h-10 text-white/40" />
-                            )}
-                         </div>
-                         <div>
-                            <h2 className="text-2xl font-serif font-black italic tracking-tight">{currentUser.name}</h2>
-                            <p className="text-[9px] font-black text-white/50 uppercase tracking-[0.4em]">레전더리 단골</p>
-                         </div>
-                      </div>
-                      <div className={`px-6 py-3 rounded-2xl text-[12px] font-black uppercase tracking-[0.2em] shadow-2xl ${getTierColor(currentTier)} border border-white/20`}>
-                         {getTierCustomName(currentTier, owner?.tierNames)}
-                      </div>
-                   </div>
+           {/* VIP Membership Card with Dynamic Holographic Effect */}
+           <section className="relative perspective-1000 group/card">
+              <motion.div 
+                whileHover={{ rotateY: 5, rotateX: -5 }}
+                onMouseMove={(e) => {
+                   const card = e.currentTarget;
+                   const rect = card.getBoundingClientRect();
+                   const x = e.clientX - rect.left;
+                   const y = e.clientY - rect.top;
+                   card.style.setProperty('--mouse-x', `${x}px`);
+                   card.style.setProperty('--mouse-y', `${y}px`);
+                }}
+                className="relative h-[22rem] w-full rounded-[3.5rem] bg-[#1c1412] p-12 text-white shadow-premium overflow-hidden border border-white/10 flex flex-col justify-between transition-all duration-300"
+              >
+                 {/* Dynamic Reflection Layer */}
+                 <div className="absolute inset-0 opacity-0 group-hover/card:opacity-30 pointer-events-none transition-opacity duration-500 bg-[radial-gradient(circle_at_var(--mouse-x)_var(--mouse-y),rgba(198,163,79,0.4),transparent_40%)]"></div>
+                 <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/10 opacity-50"></div>
+                 
+                 <div className="relative z-10 flex flex-col h-full justify-between">
+                    {/* Tier-based Holographic Glow */}
+                    {currentTier === 'gold' && <div className="absolute -top-20 -left-20 w-64 h-64 bg-gold/20 rounded-full blur-[80px] animate-pulse"></div>}
+                    {currentTier === 'silver' && <div className="absolute -top-20 -left-20 w-64 h-64 bg-white/10 rounded-full blur-[80px] animate-pulse"></div>}
 
-                   <div className="space-y-6 pt-8 border-t border-white/10">
-                      <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-[0.2em] text-gold/60">
-                         <span>멤버십 활동지수</span>
-                         {getNextTierVisits(uniqueVisitDays) ? (
-                            <span>{getNextTierVisits(uniqueVisitDays)?.remaining}회 남음: {getTierCustomName(getNextTierVisits(uniqueVisitDays)!.next, owner?.tierNames)}</span>
-                         ) : (
-                            <span className="flex items-center gap-2"><Trophy className="w-3 h-3" /> 마스터 등급</span>
-                         )}
-                      </div>
-                      
-                      <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden border border-white/5">
-                         <motion.div 
-                           initial={{ width: 0 }}
-                           animate={{ 
-                             width: getNextTierVisits(uniqueVisitDays) 
-                               ? `${(uniqueVisitDays / getNextTierVisits(uniqueVisitDays)!.total) * 100}%` 
-                               : '100%' 
-                           }}
-                           className="h-full bg-gold shadow-[0_0_20px_rgba(198,163,79,0.7)]"
-                         />
-                      </div>
-                      
-                      <div className="flex justify-between items-end">
-                         <div className="space-y-1">
-                            <p className="text-[9px] font-black uppercase tracking-widest text-gold/30">누적 방문</p>
-                            <p className="text-3xl font-serif font-black italic leading-none">{myVisits.length}<span className="text-[10px] ml-1.5 opacity-50 uppercase font-sans not-italic">회 방문</span></p>
-                         </div>
-                         <div className="text-right">
-                           <p className="text-[10px] font-black uppercase tracking-widest text-white/20 italic">ID_ST_{currentUser.id.slice(0, 6).toUpperCase()}</p>
-                         </div>
-                      </div>
-                   </div>
-                </div>
-             </motion.div>
-          </section>
+                    <div className="flex justify-between items-start">
+                       <div className="flex gap-6 items-center">
+                          <div className="w-20 h-20 rounded-[2rem] bg-white/10 border border-white/20 p-1 flex items-center justify-center overflow-hidden shadow-2xl backdrop-blur-md">
+                             {currentUser.avatarUrl ? (
+                                <img src={currentUser.avatarUrl} className="w-full h-full object-cover" alt="" />
+                             ) : (
+                                <User className="w-10 h-10 text-white/40" />
+                             )}
+                          </div>
+                          <div>
+                             <h2 className="text-2xl font-serif font-black italic tracking-tight leading-tight">{currentUser.name}</h2>
+                             <p className="text-[9px] font-black text-white/50 uppercase tracking-[0.4em] mt-1">
+                               {currentTier === 'gold' ? 'Royal Legend' : currentTier === 'silver' ? 'Elite Member' : 'Welcome Star'}
+                             </p>
+                          </div>
+                       </div>
+                       <div className={`px-6 py-3 rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] shadow-2xl ${getTierColor(currentTier)} border border-white/20 backdrop-blur-lg`}>
+                          {getTierCustomName(currentTier, owner?.tierNames)}
+                       </div>
+                    </div>
+
+                    <div className="space-y-6 pt-8 border-t border-white/10">
+                       <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-[0.2em] text-white/40">
+                          <span className="flex items-center gap-2 text-gold/80"><Sparkles className="w-3 h-3 text-gold" /> 멤버십 정체성</span>
+                          {getNextTierVisits(uniqueVisitDays) ? (
+                             <span className="text-white/60">NEXT: {getTierCustomName(getNextTierVisits(uniqueVisitDays)!.next, owner?.tierNames)}까지 {getNextTierVisits(uniqueVisitDays)?.remaining}회</span>
+                          ) : (
+                             <span className="flex items-center gap-2 text-gold"><Trophy className="w-3 h-3" /> MASTER STATUS</span>
+                          )}
+                       </div>
+                       
+                       <div className="h-2.5 w-full bg-white/5 rounded-full overflow-hidden border border-white/5 p-0.5">
+                          <motion.div 
+                            initial={{ width: 0 }}
+                            animate={{ 
+                              width: getNextTierVisits(uniqueVisitDays) 
+                                ? `${(uniqueVisitDays / getNextTierVisits(uniqueVisitDays)!.total) * 100}%` 
+                                : '100%' 
+                            }}
+                            className={`h-full rounded-full ${currentTier === 'gold' ? 'bg-gold shadow-[0_0_20px_rgba(198,163,79,0.8)]' : 'bg-white shadow-[0_0_15px_rgba(255,255,255,0.4)]'}`}
+                          />
+                       </div>
+                       
+                       <div className="flex justify-between items-end">
+                          <div className="space-y-1">
+                             <p className="text-[9px] font-black uppercase tracking-widest text-white/20">Monthly Influence</p>
+                             <p className="text-4xl font-serif font-black italic leading-none">{myVisits.length}<span className="text-[12px] ml-2 opacity-30 uppercase font-sans not-italic tracking-[0.2em]">Visits</span></p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-white/20 italic font-sans">#ST_{currentUser.id.slice(0, 8).toUpperCase()}</p>
+                          </div>
+                       </div>
+                    </div>
+                 </div>
+              </motion.div>
+           </section>
 
            {/* Table Active Session HUD - Enhanced with auto-restore logic */}
            {currentTable ? (
