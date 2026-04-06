@@ -448,6 +448,18 @@ export const useStore = () => {
       unsubscribes.forEach(unsub => unsub());
       unsubscribes = [];
 
+      let readyCount = 0;
+      const checkAllReady = () => {
+        readyCount++;
+        // tables, users are the minimum required for a stable dashboard
+        if (readyCount >= 2) {
+          setFirebaseStatus('stable');
+          globalIsReady = true;
+          setIsReady(true);
+          notifyUpdate();
+        }
+      };
+
       const collectionMapping = [
         { key: 'tables', coll: collections.tables, filterField: 'storeId' },
         { key: 'visits', coll: collections.visits, filterField: 'storeId' },
@@ -462,6 +474,8 @@ export const useStore = () => {
           const data = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as any));
           globalState[key] = data;
           
+          if (key === 'tables') checkAllReady();
+
           // Trigger React state updates for the specific key
           switch(key) {
             case 'tables': setTables(data as Table[]); break;
@@ -479,9 +493,9 @@ export const useStore = () => {
       // Special case: Users belonging to this store
       unsubscribes.push(onSnapshot(query(collections.users, where('storeId', '==', storeId)), (snapshot) => {
         const storeCustomers = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as User));
-        // We merged global users and store customers for local view
         globalState.users = Array.from(new Map([...globalState.users, ...storeCustomers].map(u => [u.id, u])).values());
         setUsers(globalState.users);
+        checkAllReady();
         notifyUpdate();
       }));
     };
