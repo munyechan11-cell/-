@@ -1109,9 +1109,9 @@ export const useStore = () => {
 };
 
 // --- CRM ANALYSIS UTILITY (Advanced RFM) ---
-export const calculateRFMValue = (visits: Visit[], customerId: string, storeId: string) => {
-  const customerVisits = visits.filter(v => v.customerId === customerId && v.storeId === storeId);
-  if (customerVisits.length === 0) return { r: 999, f: 0, m: 0, rScore: 0, fScore: 0, mScore: 0, total: 0 };
+export const calculateRFMValue = (visits: Visit[] = [], customerId: string, storeId: string) => {
+  const customerVisits = (visits || []).filter(v => v.customerId === customerId && v.storeId === storeId);
+  if (!customerVisits || customerVisits.length === 0) return { r: 999, f: 0, m: 0, rScore: 0, fScore: 0, mScore: 0, total: 0 };
 
   const lastVisitDate = new Date(Math.max(...customerVisits.map(v => new Date(v.date).getTime())));
   const recency = Math.floor((new Date().getTime() - lastVisitDate.getTime()) / (1000 * 3600 * 24));
@@ -1121,7 +1121,7 @@ export const calculateRFMValue = (visits: Visit[], customerId: string, storeId: 
   // Scoring (1-5 scale, relative logic)
   const rScore = recency <= 7 ? 5 : recency <= 14 ? 4 : recency <= 30 ? 3 : recency <= 60 ? 2 : 1;
   const fScore = frequency >= 10 ? 5 : frequency >= 5 ? 4 : frequency >= 3 ? 3 : frequency >= 2 ? 2 : 1;
-  const avgAmount = monetary / frequency;
+  const avgAmount = monetary / Math.max(frequency, 1);
   const mScore = avgAmount >= 50000 ? 5 : avgAmount >= 30000 ? 4 : avgAmount >= 15000 ? 3 : avgAmount >= 8000 ? 2 : 1;
 
   return { r: recency, f: frequency, m: monetary, rScore, fScore, mScore, total: rScore + fScore + mScore };
@@ -1143,8 +1143,8 @@ export const getRFMCluster = (r: number, f: number, m: number) => {
   return { id: 'general', name: '일반 고객', color: 'bg-on-surface-variant/20', icon: 'User', desc: '꾸준히 방문하는 일반 고객' };
 };
 
-export const getActionableInsights = (visits: Visit[], customerId: string, storeId: string, customInsights?: Record<string, string>) => {
-  const rfm = calculateRFMValue(visits, customerId, storeId);
+export const getActionableInsights = (visits: Visit[] = [], customerId: string, storeId: string, customInsights?: Record<string, string>) => {
+  const rfm = calculateRFMValue(visits || [], customerId, storeId);
   const cluster = getRFMCluster(rfm.r, rfm.f, rfm.m);
 
   if (customInsights && customInsights[cluster.id]) return customInsights[cluster.id];

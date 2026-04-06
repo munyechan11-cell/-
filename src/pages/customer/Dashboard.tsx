@@ -16,7 +16,23 @@ import MemoModal, { formatMemoDisplay } from '../../components/MemoModal';
 import Skeleton, { CustomerCardSkeleton } from '../../components/Skeleton';
 
 export default function CustomerDashboard() {
-  const { isReady, currentUser, visits, coupons, users, tables, logout, leaveTable, communications, tierOverrides, requestCouponUse, cancelCouponRequest, updateUserMemo, recordCommunication, firebaseStatus } = useStore();
+  const { 
+    isReady = false, 
+    currentUser = null, 
+    visits = [], 
+    coupons = [], 
+    users = [], 
+    tables = [], 
+    logout = () => {}, 
+    leaveTable = () => {}, 
+    communications = [], 
+    tierOverrides = [], 
+    requestCouponUse = () => {}, 
+    cancelCouponRequest = () => {}, 
+    updateUserMemo = () => {}, 
+    recordCommunication = async () => {}, 
+    firebaseStatus = 'offline' 
+  } = useStore();
   const navigate = useNavigate();
   const { storeId } = useParams<{ storeId: string }>();
   const [selectedCoupon, setSelectedCoupon] = useState<string | null>(null);
@@ -50,7 +66,7 @@ export default function CustomerDashboard() {
 
   useEffect(() => {
     // Show review prompt for frequent visitors who haven't seen it recently
-    const hasLastVisitToday = visits.some(v => v.customerId === currentUser?.id && new Date(v.date).toDateString() === new Date().toDateString());
+    const hasLastVisitToday = (visits || []).some(v => v.customerId === currentUser?.id && new Date(v.date).toDateString() === new Date().toDateString());
     if (hasLastVisitToday && Math.random() > 0.7) {
        const timer = setTimeout(() => setShowReviewReward(true), 2000);
        return () => clearTimeout(timer);
@@ -80,21 +96,21 @@ export default function CustomerDashboard() {
     );
   }
 
-  const owner = users.find(u => u.id === storeId && u.role === 'owner');
+  const owner = (users || []).find(u => u.id === storeId && u.role === 'owner');
   if (!owner) return null;
 
   const restaurantName = owner.restaurantName || '단골 매장';
-  const myVisits = visits.filter(v => v.customerId === currentUser.id && v.storeId === storeId);
-  const myCoupons = coupons.filter(c => c.customerId === currentUser.id && c.storeId === storeId && (c.status === 'available' || c.status === 'pending'));
-  const myCommunications = communications.filter(c => c.customerId === currentUser.id && c.storeId === storeId).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  const currentTable = tables.find(t => t.currentCustomerId === currentUser.id && t.storeId === storeId);
+  const myVisits = (visits || []).filter(v => v.customerId === currentUser.id && v.storeId === storeId);
+  const myCoupons = (coupons || []).filter(c => c.customerId === currentUser.id && c.storeId === storeId && (c.status === 'available' || c.status === 'pending'));
+  const myCommunications = (communications || []).filter(c => c.customerId === currentUser.id && c.storeId === storeId).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const currentTable = (tables || []).find(t => t.currentCustomerId === currentUser.id && t.storeId === storeId);
   
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
   const recentVisits = myVisits.filter(v => new Date(v.date) >= thirtyDaysAgo);
   const uniqueVisitDays = new Set(recentVisits.map(v => new Date(v.date).toDateString())).size;
   
-  const override = tierOverrides.find(t => t.customerId === currentUser.id && t.storeId === storeId);
+  const override = (tierOverrides || []).find(t => t.customerId === currentUser.id && t.storeId === storeId);
   const currentTier = getEffectiveTier(uniqueVisitDays, override?.tier);
 
   const handleLogout = () => {
