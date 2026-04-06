@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { useStore, getEffectiveTier, getTierColor, getTierCustomName, showToast } from '../../store';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { useStore, getEffectiveTier, getTierColor, getTierCustomName, showToast, calculateRFMValue, getRFMCluster, getActionableInsights } from '../../store';
 import { 
   Users, LayoutGrid, LogOut, X, Bell, BarChart3, 
   Settings, Map as MapIcon, List, Move, Plus, 
@@ -9,14 +9,13 @@ import {
   User, Mail, Settings as SettingsIcon, ShieldAlert,
   Send, ChevronRight, Activity, Zap, Sparkles,
   Trophy, Globe, Leaf, Target, ArrowRight, MessageSquare, Ticket,
-  TrendingUp as TrendingUpIcon, AlertCircle, Gift
+  TrendingUp as TrendingUpIcon, AlertCircle, Gift, AlertTriangle, Coins, ShieldCheck, Printer
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { motion, AnimatePresence } from 'motion/react';
 import { formatMemoDisplay } from '../../components/MemoModal';
 import Skeleton, { DashboardStatsSkeleton } from '../../components/Skeleton';
-import { calculateRFMValue, getRFMCluster } from '../../store';
 
 export default function OwnerDashboard() {
   const { 
@@ -74,6 +73,21 @@ export default function OwnerDashboard() {
        setUnreadCount(0);
     }
   }, [localNotifications, showNotifications]);
+
+  // CRM 데이터 계산 (RFM 세그먼트 분포)
+  const crmSegments = useMemo(() => {
+    const segments = { 'vip': 0, 'new': 0, 'slipping': 0, 'cold': 0, 'whale': 0, 'general': 0 };
+    const myUsers = users.filter(u => u.role === 'customer' && u.storeId === currentUser?.id);
+    myUsers.forEach(u => {
+      const userVisits = visits.filter(v => v.customerId === u.id);
+      const rfm = calculateRFMValue(userVisits, u.id, currentUser.id);
+      const cluster = getRFMCluster(rfm.r, rfm.f, rfm.m);
+      if (segments[cluster.id as keyof typeof segments] !== undefined) {
+        segments[cluster.id as keyof typeof segments]++;
+      }
+    });
+    return segments;
+  }, [users, visits, currentUser?.id]);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
@@ -152,7 +166,7 @@ export default function OwnerDashboard() {
         setTimeout(() => setHighlightedTable(null), 10000);
         playSound('info');
         showToast(`${name}님이 ${v.tableNumber}번 테이블에 입장하셨습니다!`, 'info');
-        setLocalNotifications(prev => [{ id: v.id, type: 'entrance', name, avatar: customer?.avatarUrl, time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }), table: v.tableNumber }, ...prev].slice(0, 15));
+        setLocalNotifications(prev => [{ id: v.id, type: 'entrance' as const, name, avatar: customer?.avatarUrl, time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }), table: v.tableNumber }, ...prev].slice(0, 15));
       });
     }
 
@@ -167,7 +181,7 @@ export default function OwnerDashboard() {
         const customer = users.find(u => u.id === c.customerId);
         playSound('alert');
         showToast(`${customer?.name || '고객'}님의 새로운 메시지: ${c.content.slice(0, 15)}...`, 'success');
-        setLocalNotifications(prev => [{ id: c.id, type: 'message', name: customer?.name || '고객', content: c.content, avatar: customer?.avatarUrl, time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) }, ...prev].slice(0, 15));
+        setLocalNotifications(prev => [{ id: c.id, type: 'message' as const, name: customer?.name || '고객', content: c.content, avatar: customer?.avatarUrl, time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) }, ...prev].slice(0, 15));
       });
     }
 
@@ -186,7 +200,7 @@ export default function OwnerDashboard() {
            setHighlightedTable(cp.usedAtTable);
            setTimeout(() => setHighlightedTable(null), 15000);
         }
-        setLocalNotifications(prev => [{ id: cp.id, type: 'coupon', name: customer?.name || '고객', content: cp.description, time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }), table: cp.usedAtTable }, ...prev].slice(0, 15));
+        setLocalNotifications(prev => [{ id: cp.id, type: 'coupon' as const, name: customer?.name || '고객', content: cp.description, time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }), table: cp.usedAtTable }, ...prev].slice(0, 15));
       });
     }
 
@@ -288,15 +302,18 @@ export default function OwnerDashboard() {
       return acc;
     }, {} as Record<string, number>);
 
-    // Marketing Triggers
-    const inactiveDaysLimit = currentUser.storeConfig?.marketingTriggers?.inactiveDays || 30;
-    const inactiveCustomers = storeCustomers.filter(c => {
-      const { r } = calculateRFMValue(visits, c.id, currentUser.id);
-      return r >= inactiveDaysLimit;
-    });
+    const turnoverRate = 2.4; // Simulated real-time turnover
+    const healthScore = Math.min(100, Math.round((occupancyRate * 0.4) + (turnoverRate * 30) + (100 - (crmSegments.slipping * 5))));
 
-    return { newCustomers, occupancyRate, avgUsage, rfmSegments, inactiveCustomers };
+    return { 
+      newCustomers, occupancyRate, avgUsage, 
+      rfmSegments: crmSegments, 
+      healthScore,
+      atRisk: crmSegments.slipping + crmSegments.cold
+    };
   })();
+
+  const turnoverRate = 2.4; // Simulated real-time turnover
 
   return (
     <div className={`flex h-screen overflow-hidden bg-surface-bright font-sans text-on-surface ${ownerViewMode === 'mobile' ? 'flex-col' : ''}`}>
@@ -385,79 +402,90 @@ export default function OwnerDashboard() {
             <nav className="hidden lg:flex gap-10">
                <button onClick={() => setViewMode('map')} className={`text-[11px] font-black uppercase tracking-[0.3em] transition-all px-4 py-2 rounded-xl ${viewMode === 'map' ? 'text-primary bg-primary/5' : 'text-primary/30 hover:text-primary'}`}>테이블 배치도</button>
                <button onClick={() => setViewMode('grid')} className={`text-[11px] font-black uppercase tracking-[0.3em] transition-all px-4 py-2 rounded-xl ${viewMode === 'grid' ? 'text-primary bg-primary/5' : 'text-primary/30 hover:text-primary'}`}>리스트 현황</button>
+               <Link to="/owner/qr-print" className="text-[11px] font-black uppercase tracking-[0.3em] text-primary/30 hover:text-primary px-4 py-2 flex items-center gap-2 group">
+                  <Printer className="w-3.5 h-3.5 group-hover:animate-bounce" />
+                  QR 프린트 키트
+               </Link>
             </nav>
           </div>
 
           <div className="flex items-center gap-6">
-             {/* Notification Hub */}
-             <div className="relative">
-                <button 
-                  onClick={() => setShowNotifications(!showNotifications)}
-                  className={`p-3 lg:p-4 rounded-2xl transition-all relative shadow-sm ${showNotifications ? 'bg-primary text-white' : 'bg-surface-bright border border-primary/5 text-primary hover:bg-primary/5'}`}
-                >
-                   <Bell className="w-5 h-5" />
-                   {localNotifications.length > 0 && (
-                      <motion.div 
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        className="absolute -top-1 -right-1 w-6 h-6 bg-burgundy text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white shadow-xl z-10"
-                      >
-                         {localNotifications.length}
-                      </motion.div>
-                   )}
-                </button>
+             <div className="flex items-center gap-3">
+                <div className="flex flex-col items-end hidden md:flex">
+                   <span className="text-[8px] font-black text-emerald-600 uppercase tracking-widest">Live Sync Active</span>
+                   <span className="text-[7px] font-bold text-primary/30 uppercase">Secure Cloud Link</span>
+                </div>
+                
+                {/* Notification Hub */}
+                <div className="relative">
+                   <button 
+                     onClick={() => setShowNotifications(!showNotifications)}
+                     className={`p-3 lg:p-4 rounded-2xl transition-all relative shadow-sm ${showNotifications ? 'bg-primary text-white' : 'bg-surface-bright border border-primary/5 text-primary hover:bg-primary/5'}`}
+                   >
+                      <Bell className="w-5 h-5" />
+                      {localNotifications.length > 0 && (
+                         <motion.div 
+                           initial={{ scale: 0 }}
+                           animate={{ scale: 1 }}
+                           className="absolute -top-1 -right-1 w-6 h-6 bg-burgundy text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white shadow-xl z-10"
+                         >
+                            {localNotifications.length}
+                         </motion.div>
+                      )}
+                   </button>
 
-                <AnimatePresence>
-                  {showNotifications && (
-                    <motion.div 
-                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                      className="absolute top-20 right-0 w-96 bg-white rounded-[3rem] shadow-premium border border-primary/5 overflow-hidden z-[100]"
-                    >
-                        <div className="p-8 border-b border-primary/5 flex justify-between items-center bg-surface-bright/50">
-                           <h4 className="text-[11px] font-black uppercase tracking-[0.4em] text-primary/40">최근 도착 알림</h4>
-                           {localNotifications.length > 0 && (
-                              <button onClick={() => setLocalNotifications([])} className="text-[10px] font-black text-burgundy/40 hover:text-burgundy uppercase">알림 모두 삭제</button>
-                           )}
-                        </div>
-                        <div className="max-h-[500px] overflow-y-auto no-scrollbar">
-                           {localNotifications.length > 0 ? (
-                              localNotifications.map(notification => (
-                                 <motion.div 
-                                   initial={{ opacity: 0, x: 10 }}
-                                   animate={{ opacity: 1, x: 0 }}
-                                   key={notification.id} 
-                                   onClick={() => { setHighlightedTable(notification.table); setShowNotifications(false); }} 
-                                   className="p-8 border-b border-primary/5 hover:bg-primary/5 transition-all flex items-center gap-6 cursor-pointer group"
-                                 >
-                                    <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-primary overflow-hidden shadow-premium border border-primary/5">
-                                       {notification.avatar ? (
-                                          <img src={notification.avatar} className="w-full h-full object-cover" alt="" />
-                                       ) : (
-                                          <User className="w-6 h-6 opacity-20" />
-                                       )}
-                                    </div>
-                                    <div className="flex-1">
-                                       <div className="flex items-center gap-3 mb-1">
-                                          <p className="text-sm font-black text-primary">{notification.name}</p>
-                                          <span className={`text-[8px] font-black px-2 py-0.5 rounded-full border shadow-sm ${getTierColor(notification.tier)} uppercase tracking-tighter opacity-80`}>{notification.tier}</span>
+                   <AnimatePresence>
+                     {showNotifications && (
+                       <motion.div 
+                         initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                         animate={{ opacity: 1, y: 0, scale: 1 }}
+                         exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                         className="absolute top-20 right-0 w-96 bg-white rounded-[3rem] shadow-premium border border-primary/5 overflow-hidden z-[100]"
+                       >
+                           <div className="p-8 border-b border-primary/5 flex justify-between items-center bg-surface-bright/50">
+                              <h4 className="text-[11px] font-black uppercase tracking-[0.4em] text-primary/40">최근 도착 알림</h4>
+                              {localNotifications.length > 0 && (
+                                 <button onClick={() => setLocalNotifications([])} className="text-[10px] font-black text-burgundy/40 hover:text-burgundy uppercase">알림 모두 삭제</button>
+                              )}
+                           </div>
+                           <div className="max-h-[500px] overflow-y-auto no-scrollbar">
+                              {localNotifications.length > 0 ? (
+                                 localNotifications.map(notification => (
+                                    <motion.div 
+                                      initial={{ opacity: 0, x: 10 }}
+                                      animate={{ opacity: 1, x: 0 }}
+                                      key={notification.id} 
+                                      onClick={() => { setHighlightedTable(notification.table); setShowNotifications(false); }} 
+                                      className="p-8 border-b border-primary/5 hover:bg-primary/5 transition-all flex items-center gap-6 cursor-pointer group"
+                                    >
+                                       <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-primary overflow-hidden shadow-premium border border-primary/5">
+                                          {notification.avatar ? (
+                                             <img src={notification.avatar} className="w-full h-full object-cover" alt="" />
+                                          ) : (
+                                             <User className="w-6 h-6 opacity-20" />
+                                          )}
                                        </div>
-                                       <p className="text-[10px] font-bold text-primary/30 uppercase tracking-widest">{notification.table}번 테이블 입장 • {notification.time}</p>
-                                    </div>
-                                    <ChevronRight className="w-4 h-4 text-primary opacity-0 group-hover:opacity-40 -translate-x-2 group-hover:translate-x-0 transition-all" />
-                                 </motion.div>
-                              ))
-                           ) : (
-                              <div className="p-16 text-center">
-                                 <Bell className="w-10 h-10 text-primary/10 mx-auto mb-6" />
-                                 <p className="text-[11px] font-black text-primary/20 uppercase tracking-[0.4em]">새로운 알림이 없습니다</p>
-                              </div>
-                           )}
-                        </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                                       <div className="flex-1">
+                                          <div className="flex items-center gap-3 mb-1">
+                                             <p className="text-sm font-black text-primary">{notification.name}</p>
+                                             <span className={`text-[8px] font-black px-2 py-0.5 rounded-full border shadow-sm ${getTierColor(notification.tier)} uppercase tracking-tighter opacity-80`}>{notification.tier}</span>
+                                          </div>
+                                          <p className="text-[10px] font-bold text-primary/30 uppercase tracking-widest">{notification.table}번 테이블 입장 • {notification.time}</p>
+                                       </div>
+                                       <ChevronRight className="w-4 h-4 text-primary opacity-0 group-hover:opacity-40 -translate-x-2 group-hover:translate-x-0 transition-all" />
+                                    </motion.div>
+                                 ))
+                              ) : (
+                                 <div className="p-16 text-center">
+                                    <Bell className="w-10 h-10 text-primary/10 mx-auto mb-6" />
+                                    <p className="text-[11px] font-black text-primary/20 uppercase tracking-[0.4em]">새로운 알림이 없습니다</p>
+                                 </div>
+                              )}
+                           </div>
+                       </motion.div>
+                     )}
+                   </AnimatePresence>
+                </div>
              </div>
 
              <motion.button 
@@ -471,8 +499,126 @@ export default function OwnerDashboard() {
         </header>
 
         <div className={`flex-1 overflow-y-auto p-6 lg:p-12 space-y-8 lg:space-y-12 bg-gyeol-pattern ${ownerViewMode === 'mobile' ? 'no-scrollbar' : ''}`}>
+               {/* Proactive Operational HUD - Top Intelligence Bar */}
+               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8 lg:mb-12">
+                  {[
+                    { label: '매장 건강 지수', val: `${stats.healthScore}pt`, icon: Activity, color: 'text-emerald-600', bg: 'bg-emerald-50', trend: '+5%' },
+                    { label: '실시간 점유율', val: `${stats.occupancyRate}%`, icon: Users, color: 'text-primary', bg: 'bg-primary/5', trend: 'STABLE' },
+                    { label: '예상 일일 회전율', val: `${turnoverRate}회`, icon: History, color: 'text-gold', bg: 'bg-gold/10', trend: 'HIGH' },
+                    { label: '집중 관리 필요', val: `${stats.atRisk}명`, icon: ShieldAlert, color: 'text-burgundy', bg: 'bg-burgundy/5', trend: 'ACTION REQ' }
+                  ].map((stat, i) => (
+                    <motion.div 
+                      key={i}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.1 }}
+                      className={`${stat.bg} p-8 lg:p-11 rounded-[2.5rem] lg:rounded-[4rem] border border-primary/5 shadow-premium flex flex-col justify-between group overflow-hidden relative min-h-[160px] lg:min-h-[220px]`}
+                    >
+                      <stat.icon className={`absolute -right-4 -bottom-4 w-28 h-28 ${stat.color} opacity-[0.03] group-hover:scale-110 transition-transform`} />
+                      <div className="relative z-10 flex flex-col h-full justify-between">
+                         <div className="flex justify-between items-start">
+                            <p className="text-[9px] lg:text-[10px] font-black uppercase tracking-[0.3em] opacity-40">{stat.label}</p>
+                            <span className={`text-[7px] font-black px-2 py-0.5 rounded-full bg-white/50 border border-current/10 ${stat.color}`}>{stat.trend}</span>
+                         </div>
+                         <p className={`text-3xl lg:text-5xl font-sans font-black italic tracking-tighter ${stat.color}`}>{stat.val}</p>
+                      </div>
+                    </motion.div>
+                  ))}
+               </div>
+
+               {/* CRM Insight Matrix - Advanced Segment View */}
+               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12 mb-12">
+                  <div className="lg:col-span-2 bg-sidebar-bg rounded-[4rem] p-10 lg:p-16 text-white relative overflow-hidden shadow-heavy">
+                     <div className="absolute inset-0 bg-gyeol-pattern opacity-10"></div>
+                     <div className="relative z-10 flex flex-col h-full">
+                        <div className="flex justify-between items-center mb-12">
+                           <div>
+                              <h3 className="text-2xl lg:text-4xl font-sans font-black italic tracking-tight mb-2">고객 가치 매트릭스 (CRM)</h3>
+                              <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.4em]">Advanced RFM Analytics Engine</p>
+                           </div>
+                           <div className="flex gap-4">
+                              <div className="px-6 py-3 bg-white/5 rounded-2xl border border-white/10 flex items-center gap-3">
+                                 <Users className="w-4 h-4 text-gold" />
+                                 <span className="text-[11px] font-black">{users.filter(u => u.role === 'customer' && u.storeId === currentUser.id).length}명 분석 중</span>
+                              </div>
+                           </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 lg:gap-6 flex-1">
+                           {[
+                             { label: 'VIP 레전드', id: 'vip', color: 'from-gold/40 to-white/5', icon: Trophy },
+                             { label: '유망 신규', id: 'new', color: 'from-blue-500/20 to-white/5', icon: Sparkles },
+                             { label: '이탈 위험', id: 'slipping', color: 'from-burgundy/40 to-white/5', icon: AlertTriangle },
+                             { label: '잠재 큰손', id: 'whale', color: 'from-primary/40 to-white/5', icon: Coins },
+                             { label: '장기 휴면', id: 'cold', color: 'from-white/10 to-white/5', icon: History }
+                           ].map((item, idx) => (
+                              <div key={idx} className={`p-6 lg:p-10 rounded-[2.5rem] bg-white/5 border border-white/10 flex flex-col justify-between bg-gradient-to-br ${item.color} group hover:scale-[1.02] transition-all cursor-default`}>
+                                 <div className="flex justify-between items-start mb-6">
+                                    <item.icon className="w-6 h-6 opacity-40 group-hover:opacity-100 transition-opacity" />
+                                    <div className="w-1.5 h-1.5 rounded-full bg-white/20"></div>
+                                 </div>
+                                 <div>
+                                    <p className="text-4xl lg:text-5xl font-serif font-black italic mb-2 tracking-tighter">{stats.rfmSegments[item.id as keyof typeof stats.rfmSegments] || 0}</p>
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-white/40">{item.label}</p>
+                                 </div>
+                              </div>
+                           ))}
+                        </div>
+                     </div>
+                  </div>
+
+                  <div className="bg-white rounded-[4rem] p-10 lg:p-16 shadow-premium border border-primary/5 flex flex-col justify-between relative overflow-hidden">
+                     <div className="relative z-10 h-full flex flex-col">
+                        <div className="flex justify-between items-start mb-8">
+                           <h3 className="text-2xl font-serif font-black italic tracking-tight text-primary">Proactive Insight</h3>
+                           <Zap className="w-6 h-6 text-gold animate-pulse" />
+                        </div>
+                        
+                        <div className="space-y-6 flex-1">
+                           {stats.atRisk > 0 ? (
+                              <div className="flex gap-5 items-start p-8 bg-burgundy/5 rounded-[2.5rem] border border-burgundy/10">
+                                 <AlertTriangle className="w-8 h-8 text-burgundy flex-shrink-0" />
+                                 <div>
+                                    <p className="text-sm font-black text-primary mb-2">이탈 가능성 감지 ({stats.atRisk}명)</p>
+                                    <p className="text-[11px] font-medium text-primary/40 leading-relaxed">
+                                       {getActionableInsights([], '', '', currentUser.storeConfig?.crmCustomInsights) || '최근 활동이 급감한 고객들이 포착되었습니다. 지금 즉시 특별 혜택을 제안하여 재방문을 유도하세요.'}
+                                    </p>
+                                    <Link to="/owner/customers" className="inline-flex items-center gap-2 mt-5 text-[10px] font-black text-burgundy uppercase tracking-widest group">
+                                       즉시 캠페인 실행 <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+                                    </Link>
+                                 </div>
+                              </div>
+                           ) : (
+                              <div className="flex gap-5 items-start p-8 bg-emerald-50 rounded-[2.5rem] border border-emerald-100">
+                                 <ShieldCheck className="w-8 h-8 text-emerald-500 flex-shrink-0" />
+                                 <div>
+                                    <p className="text-sm font-black text-primary mb-2">고객 유지도 안정적</p>
+                                    <p className="text-[11px] font-medium text-primary/40 leading-relaxed">현재 위험군 고객이 없습니다. 기존 단골 고객들을 위한 보상 체계 강화를 권장합니다.</p>
+                                 </div>
+                              </div>
+                           )}
+
+                           <div className="flex gap-5 items-start p-8 bg-primary/5 rounded-[2.5rem] border border-primary/10">
+                              <Target className="w-8 h-8 text-primary flex-shrink-0" />
+                              <div>
+                                 <p className="text-sm font-black text-primary mb-2">성장 전략 제안</p>
+                                 <p className="text-[11px] font-medium text-primary/40 leading-relaxed">{stats.rfmSegments.new}명의 신규 고객을 단골로 만들기 위한 '두 번째 방문' 이벤트를 활성화하세요.</p>
+                              </div>
+                           </div>
+                        </div>
+                     </div>
+                     <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-gold/5 rounded-full blur-[60px]"></div>
+                  </div>
+               </div>
+
           {/* Main Content Area: Table Map or List Grid */}
-          <div className="relative bg-white rounded-[3rem] lg:rounded-[4rem] shadow-premium overflow-hidden border border-primary/5 min-h-[600px] lg:min-h-[700px] flex flex-col">
+          <div className="relative bg-white rounded-[3rem] lg:rounded-[4rem] shadow-premium overflow-hidden border border-primary/5 min-h-[600px] lg:min-h-[800px] flex flex-col">
+             <div className="p-8 border-b border-primary/5 flex justify-between items-center bg-surface-bright/30">
+                <div className="flex items-center gap-6">
+                   <h4 className="text-[11px] font-black uppercase tracking-[0.4em] text-primary/40">라이브 모니터링</h4>
+                   {viewMode === 'map' && <div className="text-[9px] font-black text-gold/60 uppercase tracking-widest flex items-center gap-2"><Sparkles className="w-3 h-3" /> 인터랙티브 캔버스</div>}
+                </div>
+             </div>
              {viewMode === 'map' ? (
                 <div className="flex-1 relative">
                    {/* FIXED Zoom Controls - Always visible in the top-right of the white box */}
@@ -640,36 +786,38 @@ export default function OwnerDashboard() {
 
             <motion.div 
                whileHover={{ y: -5 }}
-               className={`${ownerViewMode === 'mobile' ? 'col-span-2' : 'col-span-2'} bg-white p-6 lg:p-8 rounded-[2rem] lg:rounded-[3rem] border border-primary/5 shadow-premium flex flex-col justify-between group relative overflow-hidden`}
+               className={`${ownerViewMode === 'mobile' ? 'col-span-2' : 'col-span-2'} bg-white p-6 lg:p-10 rounded-[2.5rem] lg:rounded-[4rem] border border-primary/5 shadow-premium flex flex-col justify-between group relative overflow-hidden`}
             >
-               <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                     <div className="w-8 h-8 rounded-xl bg-primary/5 flex items-center justify-center text-primary"><Target className="w-4 h-4" /></div>
-                     <p className="text-[10px] font-black text-primary/30 uppercase tracking-[0.4em]">고객 방문 패턴 분석</p>
+               <div className="flex items-center justify-between mb-8">
+                  <div className="flex items-center gap-4">
+                     <div className="w-10 h-10 rounded-2xl bg-primary/5 flex items-center justify-center text-primary"><Target className="w-5 h-5" /></div>
+                     <p className="text-[11px] font-black text-primary/30 uppercase tracking-[0.4em]">고객 세그먼트 시각화</p>
                   </div>
-                  <TrendingUpIcon className="w-4 h-4 text-emerald-500" />
+                  <TrendingUpIcon className="w-5 h-5 text-emerald-500" />
                </div>
                
-               <div className="flex items-end gap-2 lg:gap-3 h-24 pb-2">
+               <div className="flex items-end gap-3 lg:gap-5 h-32 pb-4">
                   {[
-                    { label: '단골', val: stats.rfmSegments['VIP'] || 0, color: 'bg-primary' },
-                    { label: '활동', val: stats.rfmSegments['Active'] || 0, color: 'bg-emerald-500' },
-                    { label: '신규', val: stats.rfmSegments['New'] || 0, color: 'bg-blue-500' },
-                    { label: '위험', val: stats.rfmSegments['At Risk'] || 0, color: 'bg-burgundy' }
+                    { label: 'VIP', id: 'vip', color: 'bg-gold' },
+                    { label: '유망', id: 'new', color: 'bg-blue-500' },
+                    { label: '큰손', id: 'whale', color: 'bg-primary' },
+                    { label: '위험', id: 'slipping', color: 'bg-burgundy' },
+                    { label: '휴면', id: 'cold', color: 'bg-surface-container' }
                   ].map(segment => {
+                    const val = stats.rfmSegments[segment.id as keyof typeof stats.rfmSegments] || 0;
                     const maxVal = Math.max(...Object.values(stats.rfmSegments), 1);
-                    const height = Math.max(10, (segment.val / maxVal) * 100);
+                    const height = Math.max(10, (val / maxVal) * 100);
                     return (
-                      <div key={segment.label} className="flex-1 flex flex-col items-center gap-2 group/bar">
+                      <div key={segment.label} className="flex-1 flex flex-col items-center gap-3 group/bar">
                          <div className="relative w-full flex items-end justify-center h-full">
                             <motion.div 
                                initial={{ height: 0 }}
                                animate={{ height: `${height}%` }}
-                               className={`w-full max-w-[40px] rounded-t-xl ${segment.color} opacity-80 group-hover/bar:opacity-100 transition-all`}
+                               className={`w-full max-w-[50px] rounded-t-2xl ${segment.color} opacity-80 group-hover/bar:opacity-100 transition-all shadow-sm`}
                             />
-                            <div className="absolute -top-6 opacity-0 group-hover/bar:opacity-100 transition-opacity whitespace-nowrap bg-primary text-white text-[8px] font-black px-2 py-1 rounded-full">{segment.val}명</div>
+                            <div className="absolute -top-8 opacity-0 group-hover/bar:opacity-100 transition-opacity whitespace-nowrap bg-primary text-white text-[9px] font-black px-3 py-1.5 rounded-full shadow-xl z-20">{val}명</div>
                          </div>
-                         <span className="text-[8px] font-bold text-primary/30 uppercase tracking-tighter">{segment.label}</span>
+                         <span className="text-[10px] font-bold text-primary/30 uppercase tracking-tighter">{segment.label}</span>
                       </div>
                     );
                   })}

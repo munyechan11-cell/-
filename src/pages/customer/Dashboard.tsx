@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useStore, getEffectiveTier, getTierColor, getNextTierVisits, getTierCustomName, showToast } from '../../store';
+import React, { useState, useEffect } from 'react';
+import { useStore, getEffectiveTier, getTierColor, getNextTierVisits, getTierCustomName, showToast, calculateRFMValue, getRFMCluster } from '../../store';
 import { 
   LogOut, Ticket, Award, Calendar, X, ArrowLeft, 
   LogOut as LeaveIcon, MessageSquare, Bell, Edit3, 
@@ -8,7 +8,7 @@ import {
   ChevronRight, Activity, Zap, Store as StoreIcon,
   ArrowUpRight, QrCode, User, Settings as SettingsIcon,
   ShieldAlert, Trash2, Mail, History, Leaf, Coins,
-  Sparkles, Trophy, Globe
+  Sparkles, Trophy, Globe, Wifi, WifiOff
 } from 'lucide-react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
@@ -16,7 +16,7 @@ import MemoModal, { formatMemoDisplay } from '../../components/MemoModal';
 import Skeleton, { CustomerCardSkeleton } from '../../components/Skeleton';
 
 export default function CustomerDashboard() {
-  const { isReady, currentUser, visits, coupons, users, tables, logout, leaveTable, communications, tierOverrides, requestCouponUse, cancelCouponRequest, updateUserMemo, recordCommunication } = useStore();
+  const { isReady, currentUser, visits, coupons, users, tables, logout, leaveTable, communications, tierOverrides, requestCouponUse, cancelCouponRequest, updateUserMemo, recordCommunication, firebaseStatus } = useStore();
   const navigate = useNavigate();
   const { storeId } = useParams<{ storeId: string }>();
   const [selectedCoupon, setSelectedCoupon] = useState<string | null>(null);
@@ -28,7 +28,18 @@ export default function CustomerDashboard() {
   const [messageContent, setMessageContent] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [showReviewReward, setShowReviewReward] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const { linkSocialAccount, deleteAccount } = useStore();
+
+  useEffect(() => {
+    if (storeId && !localStorage.getItem(`gyeol_visited_${storeId}`)) {
+      const timer = setTimeout(() => {
+        setShowOnboarding(true);
+        localStorage.setItem(`gyeol_visited_${storeId}`, 'true');
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [storeId]);
 
   useEffect(() => {
     if (currentUser && storeId && currentUser.storeId !== storeId) {
@@ -98,6 +109,8 @@ export default function CustomerDashboard() {
     }
   };
 
+  const rfm = calculateRFMValue(myVisits, currentUser.id, storeId!);
+  const cluster = getRFMCluster(rfm.r, rfm.f, rfm.m);
   const activeCoupon = myCoupons.find(c => c.id === selectedCoupon);
 
   return (
@@ -110,18 +123,21 @@ export default function CustomerDashboard() {
       <div className="w-full max-w-md min-h-screen flex flex-col relative pb-40">
         
         {/* Elite Header */}
-        <header className="px-8 py-8 flex justify-between items-center bg-surface-bright/80 backdrop-blur-xl sticky top-0 z-40">
+        <header className="px-8 py-8 flex justify-between items-center bg-surface-bright/80 backdrop-blur-xl sticky top-0 z-40 border-b border-primary/5">
           <div className="flex items-center gap-4">
              <div className="w-12 h-12 rounded-2xl bg-gyeol-wood flex items-center justify-center text-white font-serif italic text-2xl shadow-premium">결</div>
              <div>
                 <h1 className="font-serif font-black text-xl italic tracking-tight text-primary">{restaurantName}</h1>
                 <div className="flex items-center gap-2">
-                   <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
-                   <p className="text-[9px] font-black uppercase tracking-[0.2em] text-primary/40 leading-none">컨시어지 활성</p>
+                   <div className={`w-1.5 h-1.5 rounded-full ${firebaseStatus === 'stable' ? 'bg-emerald-500' : 'bg-primary'} animate-pulse shadow-sm`}></div>
+                   <p className="text-[9px] font-black uppercase tracking-[0.2em] text-primary/40 leading-none">
+                      {firebaseStatus === 'stable' ? 'Connected' : 'Offline Mode'}
+                   </p>
                 </div>
              </div>
           </div>
           <div className="flex items-center gap-3">
+             {firebaseStatus !== 'stable' && <WifiOff className="w-4 h-4 text-burgundy opacity-40 mr-2" />}
              <motion.button 
                whileTap={{ scale: 0.9 }}
                onClick={() => setIsSettingsOpen(true)} 
@@ -131,6 +147,63 @@ export default function CustomerDashboard() {
              </motion.button>
           </div>
         </header>
+
+        {/* Concierge Welcome Note - Proactive Intelligence */}
+        <div className="px-8 mb-10">
+           <motion.div 
+             initial={{ opacity: 0, y: 10 }}
+             animate={{ opacity: 1, y: 0 }}
+             className="bg-sidebar-bg border border-white/10 rounded-[3rem] p-10 relative overflow-hidden group shadow-heavy"
+           >
+              <div className="absolute inset-0 bg-gyeol-pattern opacity-10"></div>
+              <div className="relative z-10 flex flex-col gap-6">
+                 <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                       <div className="w-1.5 h-1.5 bg-gold rounded-full animate-pulse shadow-[0_0_15px_rgba(198,163,79,0.8)]"></div>
+                       <p className="text-[10px] font-black text-gold uppercase tracking-[0.5em]">{cluster.name} Concierge</p>
+                    </div>
+                    <h3 className="text-2xl lg:text-3xl font-serif font-black italic text-white tracking-tight leading-[1.2]">
+                       {cluster.id === 'vip' ? `${currentUser.name}님은 이 매장의 상징적인 존재입니다.` : 
+                        cluster.id === 'whale' ? `${currentUser.name}님, 오늘 특별한 큰손 대우를 약속합니다.` :
+                        cluster.id === 'new' ? `환영합니다 ${currentUser.name}님! 첫 인연을 소중히 모시겠습니다.` :
+                        `${currentUser.name}님을 위한 ‘결’의 맞춤형 서비스가 준비되었습니다.`}
+                    </h3>
+                    
+                    {/* Proactive Tip */}
+                    <div className="bg-white/5 p-5 rounded-2xl border border-white/5 backdrop-blur-md">
+                       <div className="flex items-center gap-3 mb-2">
+                          <Zap className="w-3.5 h-3.5 text-gold" />
+                          <p className="text-[9px] font-black text-white/40 uppercase tracking-widest">Smart Activity Tip</p>
+                       </div>
+                       <p className="text-[11px] font-medium text-white/80 leading-relaxed">
+                          {cluster.id === 'slipping' ? '오랜만에 뵙네요! 오늘은 따뜻한 차 한 잔 어떠세요?' :
+                           cluster.id === 'new' ? '첫 방문 기념 웰컴 쿠폰 보관함을 꼭 확인해 보세요.' :
+                           '사장님이 오늘 신선한 재료가 준비되었다고 전하셨습니다.'}
+                       </p>
+                    </div>
+                 </div>
+
+                 {/* Road to Royal Progress Overlay */}
+                 <div className="pt-2">
+                    <div className="flex justify-between items-end mb-3">
+                       <p className="text-[9px] font-black text-white/20 uppercase tracking-[0.4em]">Membership Path</p>
+                       <p className="text-[10px] font-black text-gold uppercase tracking-tighter">
+                          {currentTier === 'gold' ? 'ROYAL STATUS' : 
+                           `${getNextTierVisits(uniqueVisitDays)?.remaining} more to next rank`}
+                       </p>
+                    </div>
+                    <div className="h-1.5 bg-white/5 rounded-full overflow-hidden p-0.5 border border-white/5">
+                       <motion.div 
+                         initial={{ width: 0 }}
+                         animate={{ width: `${(uniqueVisitDays / (getNextTierVisits(uniqueVisitDays)?.total || uniqueVisitDays)) * 100}%` }}
+                         className={`h-full rounded-full ${currentTier === 'gold' ? 'bg-gold shadow-[0_0_15px_rgba(198,163,79,0.5)]' : 'bg-white shadow-[0_0_10px_rgba(255,255,255,0.4)]'}`}
+                       />
+                    </div>
+                 </div>
+              </div>
+              <div className="absolute -top-10 -right-10 w-48 h-48 bg-gold/5 rounded-full blur-[60px]"></div>
+           </motion.div>
+        </div>
 
         {/* Content Flow */}
         <div className="px-8 space-y-12 flex-1 pb-10">
@@ -258,9 +331,6 @@ export default function CustomerDashboard() {
                 <p className="text-[10px] font-black text-primary/30 uppercase tracking-[0.3em]">이곳을 터치하거나 하단의 QR 스캐너를 실행하세요</p>
              </motion.div>
            )}
-
-          {/* Quick Hub Portal - Removed redundant buttons to clean up UI */}
-          <div className="pt-4"></div>
 
           {/* Exclusive Benefits (Coupons) */}
           <section className="space-y-8">
@@ -569,6 +639,7 @@ export default function CustomerDashboard() {
                      </button>
                      <button 
                        onClick={() => setIsDeletingAccount(true)}
+                       className="w-full py-4 text-burgundy/20 font-black uppercase tracking-[0.5em] text-[9px] hover:text-burgundy transition-colors"
                      >
                         Purge Digital Identity Permanently
                      </button>
@@ -606,12 +677,70 @@ export default function CustomerDashboard() {
             </div>
           )}
         </AnimatePresence>
+
+        {/* Onboarding Welcome Overlay */}
+        <AnimatePresence>
+          {showOnboarding && (
+            <div className="fixed inset-0 z-[300] flex items-center justify-center p-8 bg-primary/20 backdrop-blur-2xl">
+              <motion.div 
+                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                className="bg-white w-full max-w-sm rounded-[4rem] p-12 shadow-3xl text-center relative overflow-hidden flex flex-col items-center"
+              >
+                 <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-gold via-white to-gold animate-shimmer"></div>
+                 <div className="w-24 h-24 bg-primary/5 rounded-[2.5rem] flex items-center justify-center mb-10 relative">
+                    <Sparkles className="w-10 h-10 text-gold animate-pulse" />
+                    <div className="absolute inset-0 bg-gold/10 rounded-full blur-2xl animate-pulse"></div>
+                 </div>
+                 
+                 <h2 className="text-3xl font-serif font-black italic text-primary mb-4 leading-tight">
+                    환영합니다!<br/>{restaurantName}입니다.
+                 </h2>
+                 <p className="text-xs font-medium text-primary/40 mb-12 leading-relaxed text-center">
+                    사장님이 정성껏 준비한 단골 서비스를<br/>
+                    이제 '결'에서 스마트하게 관리해 보세요.
+                 </p>
+
+                 <div className="w-full space-y-4 mb-12">
+                    {[
+                      { icon: QrCode, text: '테이블 QR로 즉시 입장' },
+                      { icon: Ticket, text: '방문 시마다 포인트/스탬프 적립' },
+                      { icon: Award, text: '등급별 특별한 단골 혜택' }
+                    ].map((guide, i) => (
+                      <div key={i} className="flex items-center gap-4 p-4 bg-primary/5 rounded-2xl border border-primary/5 text-left w-full">
+                         <guide.icon className="w-5 h-5 text-primary/40 shrink-0" />
+                         <span className="text-[11px] font-black text-primary/60 uppercase tracking-tight">{guide.text}</span>
+                      </div>
+                    ))}
+                 </div>
+
+                 <button 
+                   onClick={() => setShowOnboarding(false)}
+                   className="w-full py-6 bg-primary text-white rounded-[2rem] font-black text-xs uppercase tracking-[0.4em] shadow-2xl hover:scale-[1.02] active:scale-95 transition-all outline-none"
+                 >매장 이용 시작하기</button>
+              </motion.div>
+              
+              {/* Confetti-like background elements */}
+              {[...Array(6)].map((_, i) => (
+                 <motion.div
+                   key={i}
+                   initial={{ opacity: 0 }}
+                   animate={{ opacity: 0.1, y: [0, -100, 0], x: [0, i % 2 === 0 ? 50 : -50, 0] }}
+                   transition={{ repeat: Infinity, duration: 3 + i, delay: i * 0.5 }}
+                   className="absolute w-2 h-2 bg-gold rounded-full"
+                   style={{ left: `${15 + i * 15}%`, top: '80%' }}
+                 />
+              ))}
+            </div>
+          )}
+        </AnimatePresence>
+
       </div>
     </motion.div>
   );
 }
 
-// Add missing icon for Profile Settings
 function Smartphone(props: any) {
   return (
     <svg

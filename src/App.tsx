@@ -15,6 +15,7 @@ const OwnerStatistics = lazy(() => import('./pages/owner/Statistics'));
 const BrandSettings = lazy(() => import('./pages/owner/BrandSettings'));
 const Home = lazy(() => import('./pages/Home'));
 const Master = lazy(() => import('./pages/Master'));
+const QrPrint = lazy(() => import('./pages/owner/QrPrint'));
 
 function Toast() {
   const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' | 'info', id: number } | null>(null);
@@ -204,6 +205,11 @@ function NavigationRoutes() {
         <Route path="/owner/statistics" element={
           <PrivateRoute role="owner">
             <OwnerStatistics />
+          </PrivateRoute>
+        } />
+        <Route path="/owner/qr-print" element={
+          <PrivateRoute role="owner">
+            <QrPrint />
           </PrivateRoute>
         } />
       </Routes>

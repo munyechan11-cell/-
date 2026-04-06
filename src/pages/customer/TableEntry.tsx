@@ -47,7 +47,19 @@ export default function TableEntry() {
   }, [isReady, storeId, tableNumber, users, currentUser, recordVisit, navigate]);
 
   return (
-    <div className="min-h-screen bg-surface-bright flex flex-col items-center justify-center p-12 text-center selection:bg-primary/10 overflow-hidden">
+    <div className="min-h-screen bg-surface-bright flex flex-col items-center justify-center p-12 text-center selection:bg-primary/10 overflow-hidden relative">
+      {/* Dynamic Background */}
+      <motion.div 
+        animate={{ 
+          scale: status === 'linking' ? 1.2 : 1,
+          opacity: status === 'linking' ? 0.4 : 0.2 
+        }}
+        className="absolute inset-0 pointer-events-none"
+      >
+         <div className="absolute top-1/4 left-1/4 w-[40rem] h-[40rem] bg-primary/5 rounded-full blur-[120px]"></div>
+         <div className="absolute bottom-1/4 right-1/4 w-[50rem] h-[50rem] bg-gold/5 rounded-full blur-[150px]"></div>
+      </motion.div>
+
       <AnimatePresence mode="wait">
         <motion.div 
           key={status}
@@ -56,50 +68,66 @@ export default function TableEntry() {
           exit={{ opacity: 0, scale: 1.1, y: -20 }}
           className="relative z-10 flex flex-col items-center"
         >
-          <div className="relative mb-12">
+          <div className="relative mb-14">
             <motion.div 
               animate={{ rotate: 360 }}
               transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-              className="w-32 h-32 rounded-[3.5rem] border-[3px] border-primary/5 border-t-primary shadow-2xl"
+              className="w-36 h-36 rounded-[4rem] border-[3px] border-primary/5 border-t-primary shadow-premium"
             ></motion.div>
             <div className="absolute inset-0 flex items-center justify-center text-primary">
-              {status === 'syncing' && <Store className="w-10 h-10 opacity-20" />}
-              {status === 'verifying' && <ShieldCheck className="w-10 h-10 opacity-30" />}
-              {status === 'linking' && <Sparkles className="w-10 h-10 text-gold animate-pulse" />}
+              {status === 'syncing' && <Store className="w-12 h-12 opacity-20" />}
+              {status === 'verifying' && <ShieldCheck className="w-12 h-12 opacity-30" />}
+              {status === 'linking' && <Sparkles className="w-12 h-12 text-gold animate-pulse" />}
             </div>
+            
+            {/* Success Ripple */}
+            {status === 'linking' && (
+              <motion.div 
+                initial={{ scale: 0.5, opacity: 1 }}
+                animate={{ scale: 2, opacity: 0 }}
+                transition={{ duration: 1, repeat: Infinity }}
+                className="absolute inset-0 bg-gold/20 rounded-[4rem]"
+              />
+            )}
           </div>
 
-          <div className="space-y-4">
-             <h2 className="text-3xl font-serif font-black text-primary italic tracking-tight">
-               {status === 'syncing' && "매장 입구 확인 중..."}
-               {status === 'verifying' && "보안 세션 검증 중..."}
-               {status === 'linking' && "테이블 연동 중..."}
+          <div className="space-y-6">
+             <div className="flex items-center justify-center gap-3 mb-2">
+                <div className="w-1 h-1 bg-primary/20 rounded-full"></div>
+                <p className="text-[10px] font-black text-primary/40 uppercase tracking-[0.6em]">Secure Entry Session</p>
+                <div className="w-1 h-1 bg-primary/20 rounded-full"></div>
+             </div>
+             
+             <h2 className="text-4xl font-serif font-black text-primary italic tracking-tight leading-none">
+               {status === 'syncing' && "매장 동기화 중"}
+               {status === 'verifying' && "세션 인증 확인"}
+               {status === 'linking' && "테이블 연동 완료"}
              </h2>
-             <p className="text-[10px] font-black text-primary/30 uppercase tracking-[0.4em] max-w-xs mx-auto leading-relaxed">
-               {status === 'syncing' && "클라우드 데이터베이스와 동기화하고 있습니다"}
-               {status === 'verifying' && "고객님의 안전한 입장을 확인하고 있습니다"}
-               {status === 'linking' && `${tableNumber}번 테이블 세션을 준비하고 있습니다`}
+             
+             <p className="text-xs font-medium text-primary/30 max-w-xs mx-auto leading-relaxed">
+               {status === 'syncing' && "클라우드 데이터베이스와 실시간 정보를 맞추고 있습니다."}
+               {status === 'verifying' && "고객님의 안전하고 프라이빗한 입장을 검증하고 있습니다."}
+               {status === 'linking' && `${tableNumber}번 테이블로 곧 안내해 드리겠습니다.`}
              </p>
           </div>
 
-          <div className="mt-12 flex gap-1.5 translate-x-1">
+          {/* Progress Indicator */}
+          <div className="mt-16 flex gap-3">
             {[0, 1, 2].map(i => (
               <motion.div 
                 key={i} 
-                animate={{ scaleY: [1, 2, 1], opacity: [0.2, 1, 0.2] }}
-                transition={{ repeat: Infinity, duration: 0.8, delay: i * 0.15 }}
-                className="w-0.5 h-4 bg-primary/40 rounded-full"
+                animate={{ 
+                  scaleY: [1, 2.5, 1], 
+                  opacity: [0.1, 0.6, 0.1],
+                  backgroundColor: status === 'linking' ? "var(--color-gold)" : "var(--color-primary)"
+                }}
+                transition={{ repeat: Infinity, duration: 1, delay: i * 0.2 }}
+                className="w-1 h-6 rounded-full"
               />
             ))}
           </div>
         </motion.div>
       </AnimatePresence>
-
-      {/* Decorative Background Elements */}
-      <div className="absolute inset-0 pointer-events-none opacity-20">
-         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-[120px]"></div>
-         <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-gold/5 rounded-full blur-[150px]"></div>
-      </div>
     </div>
   );
 }

@@ -28,6 +28,14 @@ export default function BrandSettings() {
     '브론즈': '재방문 시 스탬프 추가 적립'
   });
 
+  const [crmCustomInsights, setCrmCustomInsights] = useState<Record<string, string>>(currentUser?.storeConfig?.crmCustomInsights || {
+    'vip': '',
+    'new': '',
+    'slipping': '',
+    'whale': '',
+    'cold': ''
+  });
+
   const [isSaving, setIsSaving] = useState(false);
 
   if (!currentUser) return null;
@@ -39,7 +47,14 @@ export default function BrandSettings() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      await updateBrandSettings(currentUser.id, { tierNames, tierRewards });
+      await updateBrandSettings(currentUser.id, { 
+        tierNames, 
+        tierRewards,
+        storeConfig: {
+          ...currentUser.storeConfig,
+          crmCustomInsights
+        } as any
+      });
       navigate('/owner');
     } catch (error) {
       console.error(error);
@@ -159,6 +174,37 @@ export default function BrandSettings() {
                               />
                            </div>
                         </div>
+                      </div>
+                    ))}
+                 </div>
+              </section>
+
+              <section className="bg-white/80 backdrop-blur-md p-10 rounded-[3rem] border border-primary/5 shadow-premium">
+                 <div className="flex items-center gap-4 mb-2">
+                    <h2 className="text-3xl font-sans font-black text-primary tracking-tight">CRM 마케팅 인사이트 설정</h2>
+                    <div className="px-3 py-1 bg-gold/10 text-gold text-[9px] font-black rounded-lg">PREMIUM</div>
+                 </div>
+                 <p className="text-primary/40 text-sm mb-10 font-bold uppercase tracking-widest">각 고객 세그먼트별로 표시될 마케팅 제안 문구를 자유롭게 수정하세요.</p>
+                 
+                 <div className="grid grid-cols-1 gap-6">
+                    {[
+                      { id: 'vip', label: 'VIP 레전드', default: '우리 매장의 기둥입니다. 신메뉴 테스트나 특별 행사에 우선 초대하세요.' },
+                      { id: 'new', label: '유망 신규', default: '방금 데뷔한 신규 고객입니다. 웰컴 푸드나 무료 음료 쿠폰으로 첫 인상을 굳히세요.' },
+                      { id: 'slipping', label: '이탈 위험', default: '지난 한 달간 방문이 없습니다. 안부 인사와 함께 재방문 쿠폰을 보내보세요.' },
+                      { id: 'whale', label: '잠재 큰손', default: '객단가가 높은 우량 고객입니다. VIP 등급 수동 지정을 검토해 보세요.' },
+                      { id: 'cold', label: '장기 휴면', default: '관심이 필요한 휴면 고객입니다. 다시 방문할 수 있는 강력한 혜택을 제안해 보세요.' }
+                    ].map((item) => (
+                      <div key={item.id} className="bg-white p-8 rounded-3xl border border-primary/5 shadow-sm group hover:border-gold transition-all">
+                         <div className="flex justify-between items-center mb-4">
+                            <label className="text-xs font-black text-primary tracking-tight">{item.label}</label>
+                            <span className="text-[9px] font-black text-primary/20 uppercase tracking-widest">SEGMENT MESSAGE</span>
+                         </div>
+                         <textarea 
+                           className="w-full bg-primary/5 border-none rounded-2xl p-5 text-sm font-medium focus:ring-2 focus:ring-gold min-h-[100px] resize-none"
+                           value={crmCustomInsights[item.id] || ''}
+                           onChange={e => setCrmCustomInsights({...crmCustomInsights, [item.id]: e.target.value})}
+                           placeholder={`기본 메시지: ${item.default}`}
+                         />
                       </div>
                     ))}
                  </div>

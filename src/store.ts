@@ -37,6 +37,7 @@ export interface StoreConfig {
   smsApiKey?: string; // New: Aligo/Twilio API Key
   alimtalkSenderId?: string; // New: Kakao Alimtalk Sender Profile
   defaultDashboardView?: 'grid' | 'map'; // New: Default landing view
+  crmCustomInsights?: Record<string, string>; // New: Customizable marketing insights
 }
 
 export interface User {
@@ -136,7 +137,18 @@ const globalState: Record<string, any> = {
   sections: [],
   communications: [],
   tierOverrides: [],
-  masterPassword: 'IMC'
+  masterPassword: 'IMC',
+  offlineQueue: [] // New: Queue for offline mutations
+};
+
+// Snapshot & Rollback Utility for Optimistic UI
+const createSnapshot = () => {
+  return JSON.parse(JSON.stringify(globalState));
+};
+
+const rollback = (snapshot: any) => {
+  Object.assign(globalState, snapshot);
+  window.dispatchEvent(new Event('global-storage-update'));
 };
 
 let isInitialized = false;
@@ -330,28 +342,48 @@ export const showToast = (message: string, type: 'success' | 'error' | 'info' = 
 
 // --- IMPROVED GRANULAR MUTATIONS ---
 const updateFirestoreDoc = async (coll: string, id: string, data: any, isDelete = false) => {
+  // Snapshot for Rollback
+  const snapshot = createSnapshot();
+
   // Optimistic UI Update: 서버 저장 여부와 상관없이 로컬 메모리 즉각 업데이트
   if (isDelete) {
     globalState[coll] = globalState[coll].filter((item: any) => item.id !== id);
   } else {
-    const idx = globalState[coll].findIndex((item: any) => item.id === id);
+    const idx = globalState[coll].findIndex((item: any) => (item.id === id || (coll === 'tables' && `${item.storeId}_${item.number}` === id)));
     if (idx !== -1) {
       globalState[coll][idx] = { ...globalState[coll][idx], ...data };
     } else {
-      globalState[coll].push(data);
+      globalState[coll].push({ ...data, id });
     }
   }
   notifyUpdate();
 
   if (!isFirebaseConfigured || !db) {
     localStorage.setItem('offline_global_state', JSON.stringify(globalState));
+    // Offline Queue
+    globalState.offlineQueue.push({ coll, id, data, isDelete, timestamp: Date.now() });
+    localStorage.setItem('offline_queue', JSON.stringify(globalState.offlineQueue));
     return;
   }
-  const docRef = doc(db, coll, id);
-  if (isDelete) {
-    await deleteDoc(docRef);
-  } else {
-    await setDoc(docRef, data, { merge: true });
+
+  try {
+    const docRef = doc(db, coll, id);
+    if (isDelete) {
+      await deleteDoc(docRef);
+    } else {
+      await setDoc(docRef, data, { merge: true });
+    }
+  } catch (e) {
+    console.error(`[Firebase] Mutation failed for ${coll}/${id}. Rolling back...`, e);
+    rollback(snapshot);
+    showToast('네트워크 오류로 작업이 취소되었습니다. 다시 시도해 주세요.', 'error');
+    
+    // Fail-safe: add to offline queue if it was a network issue rather than auth/schema issue
+    if ((e as any).code === 'unavailable' || (e as any).code === 'deadline-exceeded') {
+       globalState.offlineQueue.push({ coll, id, data, isDelete, timestamp: Date.now() });
+       localStorage.setItem('offline_queue', JSON.stringify(globalState.offlineQueue));
+    }
+    throw e;
   }
 };
 
@@ -379,38 +411,104 @@ export const useStore = () => {
     window.dispatchEvent(new Event('local-storage-update'));
   };
 
+  // 6단계 고도화: Scoped Listener & Optimistic UI
   useEffect(() => {
-    const handleGlobalUpdate = () => {
-      setIsReady(globalIsReady);
-      setFirebaseStatus(globalFirebaseStatus as any);
-      setFirebaseError(globalFirebaseError);
-      setUsers(getGlobalStorage('users', []));
-      setVisits(getGlobalStorage('visits', []));
-      setCoupons(getGlobalStorage('coupons', []));
-      setTables(getGlobalStorage('tables', []));
-      setSections(getGlobalStorage('sections', []));
-      setCommunications(getGlobalStorage('communications', []));
-      setTierOverrides(getGlobalStorage('tierOverrides', []));
-      setMasterPasswordState(globalState.masterPassword);
+    if (!isFirebaseConfigured || !db || !collections) return;
+
+    let unsubscribes: (() => void)[] = [];
+
+    // Offline Queue Processor
+    const processQueue = async () => {
+      const queue = JSON.parse(localStorage.getItem('offline_queue') || '[]');
+      if (queue.length === 0) return;
+      
+      console.info(`[Offline] Processing ${queue.length} queued items...`);
+      const remaining = [];
+      for (const item of queue) {
+        try {
+          const docRef = doc(db, item.coll, item.id);
+          if (item.isDelete) await deleteDoc(docRef);
+          else await setDoc(docRef, item.data, { merge: true });
+        } catch (e) {
+          remaining.push(item);
+        }
+      }
+      globalState.offlineQueue = remaining;
+      localStorage.setItem('offline_queue', JSON.stringify(remaining));
+      if (remaining.length === 0) showToast('오프라인 작업이 모두 동기화되었습니다.', 'success');
     };
 
-    const handleLocalUpdate = () => {
-      setCurrentUser(getLocalStorage('currentUser', null));
-      setOwnerViewModeState((localStorage.getItem('ownerViewMode') as 'desktop' | 'mobile') || 'desktop');
+    window.addEventListener('online', processQueue);
+    processQueue();
+
+    const startScopedListeners = (storeId: string) => {
+      console.info(`[Sync] Starting scoped listeners for Store: ${storeId}`);
+      
+      // Cleanup previous before starting new
+      unsubscribes.forEach(unsub => unsub());
+      unsubscribes = [];
+
+      const collectionMapping = [
+        { key: 'tables', coll: collections.tables, filterField: 'storeId' },
+        { key: 'visits', coll: collections.visits, filterField: 'storeId' },
+        { key: 'coupons', coll: collections.coupons, filterField: 'storeId' },
+        { key: 'communications', coll: collections.Communications, filterField: 'storeId' },
+        { key: 'sections', coll: collections.sections, filterField: 'storeId' },
+        { key: 'tierOverrides', coll: collections.tierOverrides, filterField: 'storeId' }
+      ];
+
+      collectionMapping.forEach(({ key, coll, filterField }) => {
+        const unsub = onSnapshot(query(coll, where(filterField, '==', storeId)), (snapshot) => {
+          const data = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as any));
+          globalState[key] = data;
+          
+          // Trigger React state updates for the specific key
+          switch(key) {
+            case 'tables': setTables(data as Table[]); break;
+            case 'visits': setVisits(data as Visit[]); break;
+            case 'coupons': setCoupons(data as Coupon[]); break;
+            case 'communications': setCommunications(data as Communication[]); break;
+            case 'sections': setSections(data as Section[]); break;
+            case 'tierOverrides': setTierOverrides(data as TierOverride[]); break;
+          }
+          notifyUpdate();
+        });
+        unsubscribes.push(unsub);
+      });
+
+      // Special case: Users belonging to this store
+      unsubscribes.push(onSnapshot(query(collections.users, where('storeId', '==', storeId)), (snapshot) => {
+        const storeCustomers = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as User));
+        // We merged global users and store customers for local view
+        globalState.users = Array.from(new Map([...globalState.users, ...storeCustomers].map(u => [u.id, u])).values());
+        setUsers(globalState.users);
+        notifyUpdate();
+      }));
     };
 
-    window.addEventListener('global-storage-update', handleGlobalUpdate);
-    window.addEventListener('local-storage-update', handleLocalUpdate);
-    window.addEventListener('storage', handleLocalUpdate);
-
-    handleGlobalUpdate();
+    // 사용자의 현재 매장 ID 감지
+    const activeStoreId = currentUser?.storeId || (currentUser?.role === 'owner' ? currentUser.id : null);
+    
+    if (activeStoreId) {
+      startScopedListeners(activeStoreId);
+    } else {
+      // 전역 사용자 정보만 구독 (로그인 전 또는 마스터용)
+      unsubscribes.push(onSnapshot(collections?.users, (snapshot) => {
+        const data = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as User));
+        globalState.users = data;
+        setUsers(data);
+        notifyUpdate();
+        setFirebaseStatus('stable');
+        globalIsReady = true;
+        setIsReady(true);
+      }));
+    }
 
     return () => {
-      window.removeEventListener('global-storage-update', handleGlobalUpdate);
-      window.removeEventListener('local-storage-update', handleLocalUpdate);
-      window.removeEventListener('storage', handleLocalUpdate);
+      unsubscribes.forEach(unsub => unsub());
+      window.removeEventListener('online', processQueue);
     };
-  }, []);
+  }, [currentUser, db, isFirebaseConfigured, collections]);
 
   const addSection = async (storeId: string, name: string) => {
     const newSection: Section = { id: generateId(), storeId, name, order: globalState.sections.length };
@@ -444,10 +542,21 @@ export const useStore = () => {
   const updateTableStatus = async (storeId: string, tableNumber: number, status: Table['status']) => {
     const id = `${storeId}_${tableNumber}`;
     const idx = globalState.tables.findIndex((t: any) => t.storeId === storeId && t.number === tableNumber);
+    
     if (idx !== -1) {
+      // Optimistic Update with Rollback
+      const previousStatus = globalState.tables[idx].status;
       globalState.tables[idx].status = status;
       notifyUpdate();
-      await updateFirestoreDoc('tables', id, { status });
+
+      try {
+        await updateFirestoreDoc('tables', id, { status });
+      } catch (e) {
+        console.error("Optimistic Update Failed, rolling back...", e);
+        globalState.tables[idx].status = previousStatus;
+        notifyUpdate();
+        showToast('네트워크 오류로 상태 업데이트에 실패했습니다. 다시 시도해 주세요.', 'error');
+      }
     }
   };
 
@@ -815,7 +924,7 @@ export const useStore = () => {
     showToast(`${tableNumber}번 테이블이 삭제되었습니다.`, 'info');
   };
 
-  const updateBrandSettings = async (storeId: string, settings: { tierNames?: Record<string, string>, tierRewards?: Record<string, string> }) => {
+  const updateBrandSettings = async (storeId: string, settings: Partial<User>) => {
     await updateFirestoreDoc('users', storeId, settings);
   };
 
@@ -985,25 +1094,53 @@ export const useStore = () => {
   };
 };
 
-// --- RFM ANALYSIS UTILITY ---
+// --- CRM ANALYSIS UTILITY (Advanced RFM) ---
 export const calculateRFMValue = (visits: Visit[], customerId: string, storeId: string) => {
   const customerVisits = visits.filter(v => v.customerId === customerId && v.storeId === storeId);
-  if (customerVisits.length === 0) return { r: 999, f: 0, m: 0 };
+  if (customerVisits.length === 0) return { r: 999, f: 0, m: 0, rScore: 0, fScore: 0, mScore: 0, total: 0 };
 
   const lastVisitDate = new Date(Math.max(...customerVisits.map(v => new Date(v.date).getTime())));
   const recency = Math.floor((new Date().getTime() - lastVisitDate.getTime()) / (1000 * 3600 * 24));
   const frequency = customerVisits.length;
   const monetary = customerVisits.reduce((sum, v) => sum + (v.totalAmount || 0), 0);
 
-  return { r: recency, f: frequency, m: monetary };
+  // Scoring (1-5 scale, relative logic)
+  const rScore = recency <= 7 ? 5 : recency <= 14 ? 4 : recency <= 30 ? 3 : recency <= 60 ? 2 : 1;
+  const fScore = frequency >= 10 ? 5 : frequency >= 5 ? 4 : frequency >= 3 ? 3 : frequency >= 2 ? 2 : 1;
+  const avgAmount = monetary / frequency;
+  const mScore = avgAmount >= 50000 ? 5 : avgAmount >= 30000 ? 4 : avgAmount >= 15000 ? 3 : avgAmount >= 8000 ? 2 : 1;
+
+  return { r: recency, f: frequency, m: monetary, rScore, fScore, mScore, total: rScore + fScore + mScore };
 };
 
 export const getRFMCluster = (r: number, f: number, m: number) => {
-  if (r <= 7 && f >= 5) return { name: 'VIP', color: 'bg-primary', icon: 'Trophy' };
-  if (r <= 14 && f >= 2) return { name: 'Active', color: 'bg-emerald-500', icon: 'Zap' };
-  if (r > 30) return { name: 'At Risk', color: 'bg-burgundy', icon: 'ShieldAlert' };
-  if (f === 1) return { name: 'New', color: 'bg-blue-500', icon: 'Sparkles' };
-  return { name: 'General', color: 'bg-on-surface-variant/20', icon: 'User' };
+  const { rScore, fScore, mScore } = {
+    rScore: r <= 7 ? 5 : r <= 14 ? 4 : r <= 30 ? 3 : r <= 60 ? 2 : 1,
+    fScore: f >= 10 ? 5 : f >= 5 ? 4 : f >= 3 ? 3 : f >= 2 ? 2 : 1,
+    mScore: (m/Math.max(f,1)) >= 30000 ? 5 : (m/Math.max(f,1)) >= 15000 ? 4 : (m/Math.max(f,1)) >= 8000 ? 3 : 2
+  };
+
+  if (rScore >= 4 && fScore >= 4) return { id: 'vip', name: 'VIP 레전드', color: 'bg-gold', icon: 'Trophy', desc: '절대 놓쳐선 안 될 핵심 고객' };
+  if (rScore >= 4 && fScore < 3) return { id: 'new', name: '유망 신규', color: 'bg-blue-500', icon: 'Sparkles', desc: '첫 만남이 좋았던 신규 고객' };
+  if (rScore < 3 && fScore >= 4) return { id: 'slipping', name: '이탈 위험 충성', color: 'bg-burgundy', icon: 'ShieldAlert', desc: '자주 왔었지만 최근 뜸한 고객' };
+  if (rScore < 2) return { id: 'cold', name: '장기 휴면', color: 'bg-on-surface-variant/40', icon: 'UserX', desc: '관심이 필요한 휴면 고객' };
+  if (fScore >= 4 && mScore >= 4) return { id: 'whale', name: '잠재 큰손', color: 'bg-primary', icon: 'Coins', desc: '재방문 시 가치가 매우 높은 고객' };
+  
+  return { id: 'general', name: '일반 고객', color: 'bg-on-surface-variant/20', icon: 'User', desc: '꾸준히 방문하는 일반 고객' };
+};
+
+export const getActionableInsights = (visits: Visit[], customerId: string, storeId: string, customInsights?: Record<string, string>) => {
+  const rfm = calculateRFMValue(visits, customerId, storeId);
+  const cluster = getRFMCluster(rfm.r, rfm.f, rfm.m);
+
+  if (customInsights && customInsights[cluster.id]) return customInsights[cluster.id];
+
+  if (cluster.id === 'slipping') return '지난 한 달간 방문이 없습니다. 안부 인사와 함께 재방문 쿠폰을 보내보세요.';
+  if (cluster.id === 'new') return '방금 데뷔한 신규 고객입니다. 웰컴 푸드나 무료 음료 쿠폰으로 첫 인상을 굳히세요.';
+  if (cluster.id === 'whale') return '객단가가 높은 우량 고객입니다. VIP 등급 수동 지정을 검토해 보세요.';
+  if (cluster.id === 'vip') return '우리 매장의 기둥입니다. 신메뉴 테스트나 특별 행사에 우선 초대하세요.';
+  
+  return '정기적인 메뉴 안내를 통해 방문 빈도를 높여보세요.';
 };
 
 export const getTierCustomName = (tier: string, tierNames?: Record<string, string>) => {
