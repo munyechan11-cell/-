@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useStore, getEffectiveTier, getTierColor, getNextTierVisits, getTierCustomName, showToast, calculateRFMValue, getRFMCluster } from '../../store';
+import { useStore, getEffectiveTier, getTierColor, getNextTierVisits, getTierCustomName, showToast, calculateRFMValue, getRFMCluster, calculateDistance } from '../../store';
 import { 
   LogOut, Ticket, Award, Calendar, X, ArrowLeft, 
   LogOut as LeaveIcon, MessageSquare, Bell, Edit3, 
@@ -45,6 +45,9 @@ export default function CustomerDashboard() {
   const [isSending, setIsSending] = useState(false);
   const [showReviewReward, setShowReviewReward] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [isLocationAllowed, setIsLocationAllowed] = useState<boolean | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [distanceAway, setDistanceAway] = useState<number | null>(null);
   const { linkSocialAccount, deleteAccount } = useStore();
 
   useEffect(() => {
@@ -73,6 +76,43 @@ export default function CustomerDashboard() {
     }
   }, [visits, currentUser]);
 
+  const owner = (users || []).find(u => u.id === storeId && u.role === 'owner');
+
+  // --- GEOFENCING PROTECTION LOGIC ---
+  useEffect(() => {
+    if (owner?.storeConfig?.locationAccessOnly && owner.lat && owner.lng) {
+      if (!navigator.geolocation) {
+        setLocationError('브라우저가 위치 정보를 지원하지 않습니다.');
+        setIsLocationAllowed(false);
+        return;
+      }
+
+      const checkLocation = () => {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const dist = calculateDistance(pos.coords.latitude, pos.coords.longitude, owner.lat!, owner.lng!);
+            const radius = owner.storeConfig?.allowedRadius || 50;
+            setDistanceAway(Math.round(dist));
+            setIsLocationAllowed(dist <= radius);
+          },
+          (err) => {
+            console.error('Location error:', err);
+            if (err.code === 1) setLocationError('위치 권한을 허용해 주세요.');
+            else setLocationError('위치 정보를 가져올 수 없습니다.');
+            setIsLocationAllowed(false);
+          },
+          { enableHighAccuracy: true }
+        );
+      };
+
+      checkLocation();
+      const interval = setInterval(checkLocation, 30000); // Check every 30s
+      return () => clearInterval(interval);
+    } else {
+      setIsLocationAllowed(true);
+    }
+  }, [owner, calculateDistance]);
+
   if (!currentUser || currentUser.storeId !== storeId) return null;
 
   if (!isReady) {
@@ -96,7 +136,6 @@ export default function CustomerDashboard() {
     );
   }
 
-  const owner = (users || []).find(u => u.id === storeId && u.role === 'owner');
   if (!owner) return null;
 
   const restaurantName = owner.restaurantName || '단골 매장';
@@ -128,6 +167,55 @@ export default function CustomerDashboard() {
   const rfm = calculateRFMValue(myVisits, currentUser.id, storeId!);
   const cluster = getRFMCluster(rfm.r, rfm.f, rfm.m);
   const activeCoupon = myCoupons.find(c => c.id === selectedCoupon);
+
+  // --- LOCATION BLOCKING OVERLAY ---
+  if (isLocationAllowed === false) {
+    return (
+      <div className="min-h-screen bg-sidebar-bg flex flex-col items-center justify-center p-8 text-center relative overflow-hidden">
+        <div className="absolute inset-0 bg-gyeol-pattern opacity-10"></div>
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="relative z-10 space-y-12 max-w-sm"
+        >
+           <div className="relative">
+              <div className="absolute inset-0 bg-burgundy/20 rounded-full blur-3xl animate-pulse"></div>
+              <div className="w-24 h-24 bg-burgundy/10 rounded-[2.5rem] flex items-center justify-center text-burgundy mx-auto relative border border-burgundy/20">
+                 <ShieldAlert className="w-12 h-12" />
+              </div>
+           </div>
+           
+           <div className="space-y-4">
+              <h2 className="text-3xl font-serif font-black text-white italic">접근이 제한되었습니다</h2>
+              <p className="text-white/40 text-[10px] font-black uppercase tracking-[0.4em] leading-relaxed px-4">
+                {locationError ? locationError : `${owner.restaurantName}의 보안 정책에 따라 매장 근처(50m)에서만 서비스 이용이 가능합니다.`}
+              </p>
+           </div>
+
+           {distanceAway !== null && (
+              <div className="bg-white/5 p-6 rounded-3xl border border-white/5 backdrop-blur-md">
+                 <p className="text-[9px] font-black text-gold uppercase tracking-widest mb-1">현재 내 위치와 매장의 거리</p>
+                 <p className="text-2xl font-serif font-black text-white italic">약 {distanceAway}m 떨어짐</p>
+              </div>
+           )}
+
+           <button 
+             onClick={() => window.location.reload()}
+             className="w-full py-6 bg-white text-primary rounded-[2rem] font-black text-[11px] uppercase tracking-[0.4em] shadow-premium active:scale-95 transition-all"
+           >
+             새로고침하여 다시 확인
+           </button>
+           
+           <button 
+             onClick={handleLogout}
+             className="text-white/20 hover:text-white text-[9px] font-black uppercase tracking-widest transition-colors"
+           >
+             다른 매장으로 이동하기
+           </button>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <motion.div 

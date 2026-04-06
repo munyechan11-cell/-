@@ -38,6 +38,8 @@ export interface StoreConfig {
   alimtalkSenderId?: string; // New: Kakao Alimtalk Sender Profile
   defaultDashboardView?: 'grid' | 'map'; // New: Default landing view
   crmCustomInsights?: Record<string, string>; // New: Customizable marketing insights
+  locationAccessOnly?: boolean; // New: Restrict access by GPS
+  allowedRadius?: number; // New: Allowed radius in meters
 }
 
 export interface User {
@@ -65,6 +67,8 @@ export interface User {
   smsGatewayUrl?: string;
   storeConfig?: StoreConfig; // New: Multi-tenancy config
   rewardBalance?: number; // New: Accumulated points or stamps
+  lat?: number; // New: Store Latitude
+  lng?: number; // New: Store Longitude
 }
 
 export interface Visit {
@@ -1104,11 +1108,29 @@ export const useStore = () => {
     addSection, updateSection, deleteSection, updateTableStatus,
     linkSocialAccount, deleteAccount,
     ownerViewMode, setOwnerViewMode,
-    updateStoreConfig, sendPhysicalSms, sendKakaoMessage
+    updateStoreConfig, sendPhysicalSms, sendKakaoMessage,
+    updateStoreLocation: async (storeId: string, lat: number, lng: number) => {
+      await updateFirestoreDoc('users', storeId, { lat, lng });
+    }
   };
 };
 
 // --- CRM ANALYSIS UTILITY (Advanced RFM) ---
+export const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+  const R = 6371e3; // Earth radius in meters
+  const φ1 = (lat1 * Math.PI) / 180;
+  const φ2 = (lat2 * Math.PI) / 180;
+  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+  const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+
+  const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+          Math.cos(φ1) * Math.cos(φ2) *
+          Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c; // Distance in meters
+};
+
 export const calculateRFMValue = (visits: Visit[] = [], customerId: string, storeId: string) => {
   const customerVisits = (visits || []).filter(v => v.customerId === customerId && v.storeId === storeId);
   if (!customerVisits || customerVisits.length === 0) return { r: 999, f: 0, m: 0, rScore: 0, fScore: 0, mScore: 0, total: 0 };

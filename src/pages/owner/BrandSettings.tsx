@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
-import { useStore, getTierCustomName } from '../../store';
+import { useStore, getTierCustomName, showToast } from '../../store';
 import { 
   ArrowLeft, Save, Sparkles, Gift, Trash2, Plus, 
   Loader2, ShieldCheck, Heart, Star, Award, 
   ChevronRight, LayoutGrid, Users, BarChart3, LogOut,
-  Store as StoreIcon, Edit2, Settings
+  Store as StoreIcon, Edit2, Settings, MapPin, ShieldAlert
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
 export default function BrandSettings() {
-  const { currentUser, updateBrandSettings, ownerViewMode } = useStore();
+  const { currentUser, updateBrandSettings, ownerViewMode, updateStoreLocation } = useStore();
   const navigate = useNavigate();
   
   const [tierNames, setTierNames] = useState<Record<string, string>>(currentUser?.tierNames || {
@@ -35,6 +35,9 @@ export default function BrandSettings() {
     'whale': '',
     'cold': ''
   });
+  const [locationAccessOnly, setLocationAccessOnly] = useState(currentUser?.storeConfig?.locationAccessOnly || false);
+  const [allowedRadius, setAllowedRadius] = useState(currentUser?.storeConfig?.allowedRadius || 50);
+  const [isLocating, setIsLocating] = useState(false);
 
   const [isSaving, setIsSaving] = useState(false);
 
@@ -52,9 +55,12 @@ export default function BrandSettings() {
         tierRewards,
         storeConfig: {
           ...currentUser.storeConfig,
-          crmCustomInsights
+          crmCustomInsights,
+          locationAccessOnly,
+          allowedRadius
         } as any
       });
+      showToast('브랜드 및 보안 설정이 저장되었습니다.', 'success');
       navigate('/owner');
     } catch (error) {
       console.error(error);
@@ -178,6 +184,90 @@ export default function BrandSettings() {
                     ))}
                  </div>
               </section>
+
+              <section className="bg-white/80 backdrop-blur-md p-10 rounded-[3rem] border border-primary/5 shadow-premium">
+                  <div className="flex items-center gap-4 mb-2">
+                     <h2 className="text-3xl font-sans font-black text-primary tracking-tight">매장 보안 및 위치 설정 (Geofencing)</h2>
+                     <div className="px-3 py-1 bg-emerald-500/10 text-emerald-600 text-[9px] font-black rounded-lg">SECURITY</div>
+                  </div>
+                  <p className="text-primary/40 text-sm mb-10 font-bold uppercase tracking-widest">실제 매장 방문객만 접속할 수 있도록 GPS 기반의 접속 제한을 설정하세요.</p>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                     <div className="bg-surface-bright p-8 rounded-3xl border border-primary/5 space-y-6">
+                        <div className="flex justify-between items-center">
+                           <div>
+                              <h4 className="text-sm font-black text-primary uppercase">위치 기반 접속 제한</h4>
+                              <p className="text-[10px] text-primary/40 font-bold mt-1">매장 50m 근처에서만 대시보드 접근 가능</p>
+                           </div>
+                           <button 
+                             onClick={() => setLocationAccessOnly(!locationAccessOnly)}
+                             className={`w-14 h-8 rounded-full transition-all relative ${locationAccessOnly ? 'bg-primary shadow-lg shadow-primary/20' : 'bg-primary/10'}`}
+                           >
+                              <div className={`absolute top-1 w-6 h-6 rounded-full bg-white transition-all ${locationAccessOnly ? 'left-7' : 'left-1'}`}></div>
+                           </button>
+                        </div>
+                        
+                        <div className="pt-4 border-t border-primary/5 space-y-4">
+                           <div className="flex justify-between items-end">
+                              <label className="text-[10px] font-black text-primary/30 uppercase tracking-widest">접속 허용 반경</label>
+                              <span className="text-sm font-black text-primary">{allowedRadius}m</span>
+                           </div>
+                           <input 
+                             type="range" 
+                             min="50" 
+                             max="1000" 
+                             step="50"
+                             className="w-full h-1.5 bg-primary/10 rounded-lg appearance-none cursor-pointer accent-primary"
+                             value={allowedRadius}
+                             onChange={e => setAllowedRadius(parseInt(e.target.value))}
+                           />
+                           <p className="text-[9px] text-primary/30 font-medium">※ 도심 오차를 고려해 최소 50m ~ 최대 1km 설정이 가능합니다.</p>
+                        </div>
+                     </div>
+
+                     <div className="bg-surface-bright p-8 rounded-3xl border border-primary/5 flex flex-col justify-between gap-6">
+                        <div className="flex items-start gap-4">
+                           <div className="w-12 h-12 bg-primary/5 rounded-2xl flex items-center justify-center text-primary shrink-0 transition-transform">
+                              <MapPin className="w-6 h-6" />
+                           </div>
+                           <div>
+                              <h4 className="text-sm font-black text-primary uppercase">매장 좌표 등록</h4>
+                              <p className="text-[10px] text-primary/40 font-bold mt-1 tracking-tight">
+                                {currentUser.lat && currentUser.lng 
+                                  ? `현재 등록됨: ${currentUser.lat.toFixed(4)}, ${currentUser.lng.toFixed(4)}` 
+                                  : '등록된 위치가 없습니다. 사장님 폰으로 매장에서 등록해 주세요.'}
+                              </p>
+                           </div>
+                        </div>
+                        
+                        <button 
+                          onClick={async () => {
+                            if (!navigator.geolocation) {
+                              showToast('위치 정보를 사용할 수 없는 브라우저입니다.', 'error');
+                              return;
+                            }
+                            setIsLocating(true);
+                            navigator.geolocation.getCurrentPosition(
+                              async (pos) => {
+                                await updateStoreLocation(currentUser.id, pos.coords.latitude, pos.coords.longitude);
+                                showToast('매장 좌표가 현재 위치로 성공적으로 업데이트되었습니다.', 'success');
+                                setIsLocating(false);
+                              },
+                              (err) => {
+                                showToast('위치 권한을 허용해 주세요.', 'error');
+                                setIsLocating(false);
+                              }
+                            );
+                          }}
+                          disabled={isLocating}
+                          className="w-full py-4 bg-white border border-primary/10 rounded-2xl text-[11px] font-black uppercase text-primary hover:bg-primary hover:text-white transition-all shadow-sm flex items-center justify-center gap-3"
+                        >
+                           {isLocating ? <Loader2 className="w-4 h-4 animate-spin" /> : <MapPin className="w-4 h-4" />}
+                           현재 브라우저 위치를 매장 위치로 강제 등록
+                        </button>
+                     </div>
+                  </div>
+               </section>
 
               <section className="bg-white/80 backdrop-blur-md p-10 rounded-[3rem] border border-primary/5 shadow-premium">
                  <div className="flex items-center gap-4 mb-2">
