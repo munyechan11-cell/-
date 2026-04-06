@@ -11,13 +11,20 @@ import { Link, useNavigate } from 'react-router-dom';
 type DateRange = '7일' | '30일' | '전체';
 
 export default function OwnerStatistics() {
-   const { currentUser, visits, coupons, tables, users, ownerViewMode } = useStore();
+   const { 
+     currentUser = null, 
+     visits = [], 
+     coupons = [], 
+     tables = [], 
+     users = [], 
+     ownerViewMode = 'desktop' 
+   } = useStore();
    const [selectedRange, setSelectedRange] = useState<DateRange>('7일');
    const navigate = useNavigate();
 
    if (!currentUser) return null;
 
-   const myTables = tables.filter(t => t.storeId === currentUser.id);
+   const myTables = (tables || []).filter(t => t.storeId === currentUser.id);
    const actualTables = myTables.filter(t => t.type === 'table');
 
    // Real-time calculation for Stats Cards
@@ -26,10 +33,10 @@ export default function OwnerStatistics() {
     weekAgo.setDate(weekAgo.getDate() - 7);
     
     // 1. 신규 단골 (Last 7 days)
-    const newCustomers = users.filter(u => 
+    const newCustomers = (users || []).filter(u => 
       u.role === 'customer' && 
       u.storeId === currentUser.id && 
-      visits.some(v => v.customerId === u.id && new Date(v.date) >= weekAgo)
+      (visits || []).some(v => v.customerId === u.id && new Date(v.date) >= weekAgo)
     ).length;
 
     // 2. 평균 이용시간
@@ -38,7 +45,7 @@ export default function OwnerStatistics() {
     const avgUsage = currentDurations.length > 0 ? Math.round(currentDurations.reduce((a, b) => a + b, 0) / currentDurations.length) : 45;
 
     // 3. 피크 시간대
-    const storeVisits = visits.filter(v => v.storeId === currentUser.id);
+    const storeVisits = (visits || []).filter(v => v.storeId === currentUser.id);
     const hourCounts: Record<number, number> = {};
     storeVisits.forEach(v => {
       const hour = new Date(v.date).getHours();
@@ -61,8 +68,8 @@ export default function OwnerStatistics() {
     navigate('/');
   };
 
-  const storeVisits = useMemo(() => visits.filter(v => v.storeId === currentUser.id), [visits, currentUser.id]);
-  const storeCoupons = useMemo(() => coupons.filter(c => c.storeId === currentUser.id), [coupons, currentUser.id]);
+  const storeVisits = useMemo(() => (visits || []).filter(v => v.storeId === currentUser.id), [visits, currentUser.id]);
+  const storeCoupons = useMemo(() => (coupons || []).filter(c => c.storeId === currentUser.id), [coupons, currentUser.id]);
 
   const { chartDays, visitsPerDay } = useMemo(() => {
     let dayCount = 7;

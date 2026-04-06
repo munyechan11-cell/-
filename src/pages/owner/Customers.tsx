@@ -11,7 +11,22 @@ import { Link, useNavigate } from 'react-router-dom';
 import MemoModal, { formatMemoDisplay } from '../../components/MemoModal';
 
 export default function OwnerCustomers() {
-  const { users, visits, issueCoupon, recordCommunication, communications, currentUser, tierOverrides, setCustomerTier, updateUserMemo, bulkIssueCoupon, bulkRecordCommunication, ownerViewMode, sendPhysicalSms, sendKakaoMessage } = useStore();
+  const { 
+    users = [], 
+    visits = [], 
+    issueCoupon = () => {}, 
+    recordCommunication = () => {}, 
+    communications = [], 
+    currentUser = null, 
+    tierOverrides = [], 
+    setCustomerTier = () => {}, 
+    updateUserMemo = () => {}, 
+    bulkIssueCoupon = () => {}, 
+    bulkRecordCommunication = () => {}, 
+    ownerViewMode = 'desktop', 
+    sendPhysicalSms = async () => {}, 
+    sendKakaoMessage = async () => {} 
+  } = useStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterTier, setFilterTier] = useState<string>('all');
   const [selectedCustomer, setSelectedCustomer] = useState<string | null>(null);
@@ -42,10 +57,10 @@ export default function OwnerCustomers() {
     navigate('/');
   };
 
-  const customers = users.filter(u => u.role === 'customer' && u.storeId === currentUser.id);
+  const customers = (users || []).filter(u => u.role === 'customer' && u.storeId === currentUser?.id);
 
   const getCustomerStats = (customerId: string) => {
-    const customerVisits = visits.filter(v => v.customerId === customerId && v.storeId === currentUser.id);
+    const customerVisits = (visits || []).filter(v => v.customerId === customerId && v.storeId === currentUser?.id);
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const recentVisitsData = customerVisits.filter(v => new Date(v.date) >= thirtyDaysAgo);
@@ -144,7 +159,7 @@ export default function OwnerCustomers() {
 
   const activeCustomer = customers.find(c => c.id === selectedCustomer);
   const activeHistoryCustomer = customers.find(c => c.id === historyCustomer);
-  const customerHistory = communications.filter(c => c.customerId === historyCustomer && c.storeId === currentUser.id).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const customerHistory = (communications || []).filter(c => c.customerId === historyCustomer && c.storeId === currentUser.id).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   const toggleCustomerSelection = (id: string) => {
     setSelectedCustomers(prev => prev.includes(id) ? prev.filter(cId => cId !== id) : [...prev, id]);
@@ -165,7 +180,7 @@ export default function OwnerCustomers() {
     const csvContent = [
       '\uFEFF' + '손님 명부 (결)', 
       '이름,전화번호,연동계정,성별,방문횟수', 
-      ...storeCustomers.map(c => `${c.name},${c.phone},${(c.linkedProviders || []).join('/') || '전화번호'},${c.gender || '미선택'},${visits.filter(v => v.customerId === c.id && v.storeId === currentUser.id).length}`)
+      ...storeCustomers.map(c => `${c.name},${c.phone},${(c.linkedProviders || []).join('/') || '전화번호'},${c.gender || '미선택'},${(visits || []).filter(v => v.customerId === c.id && v.storeId === currentUser.id).length}`)
     ].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);

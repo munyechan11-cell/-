@@ -60,10 +60,14 @@ function Toast() {
 }
 
 function PrivateRoute({ children, role }: { children: React.ReactNode, role: 'customer' | 'owner' }) {
-  const { currentUser, users, logout } = useStore();
+  const { 
+    currentUser = null, 
+    users = [], 
+    logout = () => {} 
+  } = useStore();
   const location = useLocation();
   
-  const userExists = currentUser && users.some(u => u.id === currentUser.id);
+  const userExists = currentUser && (users || []).some(u => u.id === currentUser.id);
 
   React.useEffect(() => {
     if (currentUser && !userExists) {

@@ -8,7 +8,17 @@ import {
 } from 'lucide-react';
 
 export default function Master() {
-  const { users, visits, coupons, tables, tierOverrides, masterPassword, setMasterPassword, deleteUser, updateStoreConfig } = useStore();
+  const { 
+    users = [], 
+    visits = [], 
+    coupons = [], 
+    tables = [], 
+    tierOverrides = [], 
+    masterPassword = '', 
+    setMasterPassword = () => {}, 
+    deleteUser = () => {}, 
+    updateStoreConfig = () => {} 
+  } = useStore();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const [error, setError] = useState('');

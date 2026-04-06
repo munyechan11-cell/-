@@ -19,11 +19,33 @@ import Skeleton, { DashboardStatsSkeleton } from '../../components/Skeleton';
 
 export default function OwnerDashboard() {
   const { 
-    isReady, currentUser, tables, users, visits, coupons, sections, communications, logout, leaveTable, 
-    initTables, tierOverrides, approveCouponUse, rejectCouponUse, issueCoupon,
-    updateTableLayout, addTable, deleteTable, addSection, updateSection, 
-    deleteSection, updateTableStatus, linkSocialAccount, deleteAccount,
-    ownerViewMode, sendPhysicalSms, sendKakaoMessage
+    isReady = true, 
+    currentUser = null, 
+    tables = [], 
+    users = [], 
+    visits = [], 
+    coupons = [], 
+    sections = [], 
+    communications = [], 
+    logout = () => {}, 
+    leaveTable = () => {}, 
+    initTables = () => {}, 
+    tierOverrides = [], 
+    approveCouponUse = () => {}, 
+    rejectCouponUse = () => {}, 
+    issueCoupon = () => {},
+    updateTableLayout = () => {}, 
+    addTable = () => {}, 
+    deleteTable = () => {}, 
+    addSection = () => {}, 
+    updateSection = () => {}, 
+    deleteSection = () => {}, 
+    updateTableStatus = () => {}, 
+    linkSocialAccount = () => {}, 
+    deleteAccount = () => {},
+    ownerViewMode = 'desktop', 
+    sendPhysicalSms = async () => {}, 
+    sendKakaoMessage = async () => {}
   } = useStore();
   
   const navigate = useNavigate();
@@ -42,7 +64,7 @@ export default function OwnerDashboard() {
    const mapInnerRef = useRef<HTMLDivElement>(null);
    const qrRef = useRef<HTMLDivElement>(null);
   
-  const currentStoreSections = sections.filter(s => s.storeId === currentUser?.id);
+  const currentStoreSections = (sections || []).filter(s => s.storeId === currentUser?.id);
   const [activeSectionId, setActiveSectionId] = useState<string | 'all' | 'unassigned'>('all');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   interface NotificationItem {
@@ -55,7 +77,7 @@ export default function OwnerDashboard() {
     tier?: string;
     content?: string;
   }
-
+  
   const [localNotifications, setLocalNotifications] = useState<NotificationItem[]>([]);
   const processedVisitIds = useRef<Set<string>>(new Set());
   const processedCommIds = useRef<Set<string>>(new Set());
@@ -77,9 +99,11 @@ export default function OwnerDashboard() {
   // CRM 데이터 계산 (RFM 세그먼트 분포)
   const crmSegments = useMemo(() => {
     const segments = { 'vip': 0, 'new': 0, 'slipping': 0, 'cold': 0, 'whale': 0, 'general': 0 };
-    const myUsers = users.filter(u => u.role === 'customer' && u.storeId === currentUser?.id);
+    if (!currentUser || !users) return segments;
+
+    const myUsers = (users || []).filter(u => u.role === 'customer' && u.storeId === currentUser.id);
     myUsers.forEach(u => {
-      const userVisits = visits.filter(v => v.customerId === u.id);
+      const userVisits = (visits || []).filter(v => v.customerId === u.id);
       const rfm = calculateRFMValue(userVisits, u.id, currentUser.id);
       const cluster = getRFMCluster(rfm.r, rfm.f, rfm.m);
       if (segments[cluster.id as keyof typeof segments] !== undefined) {
@@ -87,7 +111,7 @@ export default function OwnerDashboard() {
       }
     });
     return segments;
-  }, [users, visits, currentUser?.id]);
+  }, [users, visits, currentUser]);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
@@ -96,7 +120,7 @@ export default function OwnerDashboard() {
 
   useEffect(() => {
     if (currentUser && currentUser.role === 'owner') {
-      const myTables = tables.filter(t => t.storeId === currentUser.id);
+      const myTables = (tables || []).filter(t => t.storeId === currentUser.id);
       if (myTables.length === 0) {
         initTables(currentUser.id);
       }
@@ -285,31 +309,27 @@ export default function OwnerDashboard() {
   };
 
   const stats = (() => {
+    if (!currentUser) return { newCustomers: 0, occupancyRate: 0, avgUsage: 45, rfmSegments: crmSegments, healthScore: 0, atRisk: 0, inactiveCustomers: 0 };
+    
     const weekAgo = new Date();
     weekAgo.setDate(weekAgo.getDate() - 7);
-    const newCustomers = new Set(visits.filter(v => v.storeId === currentUser.id && new Date(v.date) >= weekAgo).map(v => v.customerId)).size;
+    const newCustomers = new Set((visits || []).filter(v => v.storeId === currentUser.id && new Date(v.date) >= weekAgo).map(v => v.customerId)).size;
+    const myTables = (tables || []).filter(t => t.storeId === currentUser.id);
+    const actualTables = myTables.filter(t => t.type === 'table');
     const occupiedTables = actualTables.filter(t => t.currentCustomerId);
     const occupancyRate = actualTables.length > 0 ? Math.round((occupiedTables.length / actualTables.length) * 100) : 0;
     const currentDurations = occupiedTables.map(t => (currentTime.getTime() - new Date(t.sessionStartTime!).getTime()) / 60000);
     const avgUsage = currentDurations.length > 0 ? Math.round(currentDurations.reduce((a, b) => a + b, 0) / currentDurations.length) : 45;
     
-    // RFM Segments
-    const storeCustomers = users.filter(u => u.role === 'customer' && u.storeId === currentUser.id);
-    const rfmSegments = storeCustomers.reduce((acc, c) => {
-      const { r, f, m } = calculateRFMValue(visits, c.id, currentUser.id);
-      const cluster = getRFMCluster(r, f, m);
-      acc[cluster.name] = (acc[cluster.name] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-
-    const turnoverRate = 2.4; // Simulated real-time turnover
+    const turnoverRate = 2.4; 
     const healthScore = Math.min(100, Math.round((occupancyRate * 0.4) + (turnoverRate * 30) + (100 - (crmSegments.slipping * 5))));
 
     return { 
       newCustomers, occupancyRate, avgUsage, 
       rfmSegments: crmSegments, 
       healthScore,
-      atRisk: crmSegments.slipping + crmSegments.cold
+      atRisk: crmSegments.slipping + crmSegments.cold,
+      inactiveCustomers: crmSegments.slipping + crmSegments.cold
     };
   })();
 
@@ -826,7 +846,7 @@ export default function OwnerDashboard() {
           </div>
 
           {/* Trigger Awareness Bar */}
-          {stats.inactiveCustomers.length > 0 && (
+          {stats.inactiveCustomers > 0 && (
              <motion.div 
                initial={{ opacity: 0, y: 20 }}
                animate={{ opacity: 1, y: 0 }}
@@ -840,7 +860,7 @@ export default function OwnerDashboard() {
                    <div>
                       <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/50 mb-1">타겟 마케팅 기회 포착</p>
                       <h3 className="text-xl lg:text-3xl font-sans font-black tracking-tight underline decoration-white/20 underline-offset-8">
-                        {stats.inactiveCustomers.length}명의 고객이 '이탈 위험' 단계입니다.
+                        {stats.inactiveCustomers}명의 고객이 '이탈 위험' 단계입니다.
                       </h3>
                    </div>
                 </div>
@@ -853,7 +873,7 @@ export default function OwnerDashboard() {
                    </Link>
                    <button 
                      onClick={async () => {
-                        const confirmSend = window.confirm(`${stats.inactiveCustomers.length}명의 고객에게 복귀 권유 문자와 카카오톡을 즉시 발송하시겠습니까?`);
+                        const confirmSend = window.confirm(`${stats.inactiveCustomers}명의 고객에게 복귀 권유 문자와 카카오톡을 즉시 발송하시겠습니까?`);
                         if (confirmSend) {
                            const msg = `[${currentUser.restaurantName}] 고객님, 오랜만이에요! 재방문 시 사용 가능한 특별 쿠폰이 발송되었습니다.`;
                            if (currentUser.role === 'owner') {
