@@ -8,12 +8,13 @@ import {
   ChevronRight, Activity, Zap, Store as StoreIcon,
   ArrowUpRight, QrCode, User, Settings as SettingsIcon,
   ShieldAlert, Trash2, Mail, History, Leaf, Coins,
-  Sparkles, Trophy, Globe, Wifi, WifiOff
+  Sparkles, Trophy, Globe, Wifi, WifiOff, Utensils
 } from 'lucide-react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import MemoModal, { formatMemoDisplay } from '../../components/MemoModal';
 import Skeleton, { CustomerCardSkeleton } from '../../components/Skeleton';
+import OrderingSystem from '../../components/OrderingSystem';
 
 export default function CustomerDashboard() {
   const { 
@@ -48,6 +49,7 @@ export default function CustomerDashboard() {
   const [isLocationAllowed, setIsLocationAllowed] = useState<boolean | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [distanceAway, setDistanceAway] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState<'home' | 'menu' | 'coupon'>('home');
   const { linkSocialAccount, deleteAccount } = useStore();
 
   useEffect(() => {
@@ -310,210 +312,200 @@ export default function CustomerDashboard() {
         </div>
 
         {/* Content Flow */}
-        <div className="px-8 space-y-12 flex-1 pb-10">
-          
-           {/* VIP Membership Card with Dynamic Holographic Effect */}
-           <section className="relative perspective-1000 group/card">
-              <motion.div 
-                whileHover={{ rotateY: 5, rotateX: -5 }}
-                onMouseMove={(e) => {
-                   const card = e.currentTarget;
-                   const rect = card.getBoundingClientRect();
-                   const x = e.clientX - rect.left;
-                   const y = e.clientY - rect.top;
-                   card.style.setProperty('--mouse-x', `${x}px`);
-                   card.style.setProperty('--mouse-y', `${y}px`);
-                }}
-                className="relative h-[22rem] w-full rounded-[3.5rem] bg-[#1c1412] p-12 text-white shadow-premium overflow-hidden border border-white/10 flex flex-col justify-between transition-all duration-300"
-              >
-                 {/* Dynamic Reflection Layer */}
-                 <div className="absolute inset-0 opacity-0 group-hover/card:opacity-30 pointer-events-none transition-opacity duration-500 bg-[radial-gradient(circle_at_var(--mouse-x)_var(--mouse-y),rgba(198,163,79,0.4),transparent_40%)]"></div>
-                 <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/10 opacity-50"></div>
-                 
-                 <div className="relative z-10 flex flex-col h-full justify-between">
-                    {/* Tier-based Holographic Glow */}
-                    {currentTier === 'gold' && <div className="absolute -top-20 -left-20 w-64 h-64 bg-gold/20 rounded-full blur-[80px] animate-pulse"></div>}
-                    {currentTier === 'silver' && <div className="absolute -top-20 -left-20 w-64 h-64 bg-white/10 rounded-full blur-[80px] animate-pulse"></div>}
+        <div className="flex-1 overflow-y-auto no-scrollbar scroll-smooth">
+          {activeTab === 'home' && (
+            <div className="px-6 lg:px-12 pt-10 space-y-16 pb-32">
+               {/* Identity Section: The Status Symbol */}
+               <section className="relative perspective-1000 group/card">
+                  <motion.div 
+                    whileHover={{ rotateY: 5, rotateX: -5 }}
+                    onMouseMove={(e) => {
+                       const card = e.currentTarget;
+                       const rect = card.getBoundingClientRect();
+                       const x = e.clientX - rect.left;
+                       const y = e.clientY - rect.top;
+                       card.style.setProperty('--mouse-x', `${x}px`);
+                       card.style.setProperty('--mouse-y', `${y}px`);
+                    }}
+                    className="relative h-[22rem] w-full rounded-[3.5rem] bg-[#1c1412] p-12 text-white shadow-premium overflow-hidden border border-white/10 flex flex-col justify-between transition-all duration-300"
+                  >
+                     {/* Dynamic Reflection Layer */}
+                     <div className="absolute inset-0 opacity-0 group-hover/card:opacity-30 pointer-events-none transition-opacity duration-500 bg-[radial-gradient(circle_at_var(--mouse-x)_var(--mouse-y),rgba(198,163,79,0.4),transparent_40%)]"></div>
+                     <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/10 opacity-50"></div>
+                     
+                     <div className="relative z-10 flex flex-col h-full justify-between">
+                        {/* Tier-based Holographic Glow */}
+                        {currentTier === 'gold' && <div className="absolute -top-20 -left-20 w-64 h-64 bg-gold/20 rounded-full blur-[80px] animate-pulse"></div>}
+                        {currentTier === 'silver' && <div className="absolute -top-20 -left-20 w-64 h-64 bg-white/10 rounded-full blur-[80px] animate-pulse"></div>}
 
-                    <div className="flex justify-between items-start">
-                       <div className="flex gap-6 items-center">
-                          <div className="w-20 h-20 rounded-[2rem] bg-white/10 border border-white/20 p-1 flex items-center justify-center overflow-hidden shadow-2xl backdrop-blur-md">
-                             {currentUser.avatarUrl ? (
-                                <img src={currentUser.avatarUrl} className="w-full h-full object-cover" alt="" />
-                             ) : (
-                                <User className="w-10 h-10 text-white/40" />
-                             )}
-                          </div>
-                          <div>
-                             <h2 className="text-2xl font-serif font-black italic tracking-tight leading-tight">{currentUser.name}</h2>
-                             <p className="text-[9px] font-black text-white/50 uppercase tracking-[0.4em] mt-1">
-                               {currentTier === 'gold' ? 'Royal Legend' : currentTier === 'silver' ? 'Elite Member' : 'Welcome Star'}
-                             </p>
-                          </div>
-                       </div>
-                       <div className={`px-6 py-3 rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] shadow-2xl ${getTierColor(currentTier)} border border-white/20 backdrop-blur-lg`}>
-                          {getTierCustomName(currentTier, owner?.tierNames)}
-                       </div>
-                    </div>
-
-                    <div className="space-y-6 pt-8 border-t border-white/10">
-                       <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-[0.2em] text-white/40">
-                          <span className="flex items-center gap-2 text-gold/80"><Sparkles className="w-3 h-3 text-gold" /> 멤버십 정체성</span>
-                          {getNextTierVisits(uniqueVisitDays) ? (
-                             <span className="text-white/60">NEXT: {getTierCustomName(getNextTierVisits(uniqueVisitDays)!.next, owner?.tierNames)}까지 {getNextTierVisits(uniqueVisitDays)?.remaining}회</span>
-                          ) : (
-                             <span className="flex items-center gap-2 text-gold"><Trophy className="w-3 h-3" /> MASTER STATUS</span>
-                          )}
-                       </div>
-                       
-                       <div className="h-2.5 w-full bg-white/5 rounded-full overflow-hidden border border-white/5 p-0.5">
-                          <motion.div 
-                            initial={{ width: 0 }}
-                            animate={{ 
-                              width: getNextTierVisits(uniqueVisitDays) 
-                                ? `${(uniqueVisitDays / getNextTierVisits(uniqueVisitDays)!.total) * 100}%` 
-                                : '100%' 
-                            }}
-                            className={`h-full rounded-full ${currentTier === 'gold' ? 'bg-gold shadow-[0_0_20px_rgba(198,163,79,0.8)]' : 'bg-white shadow-[0_0_15px_rgba(255,255,255,0.4)]'}`}
-                          />
-                       </div>
-                       
-                       <div className="flex justify-between items-end">
-                          <div className="space-y-1">
-                             <p className="text-[9px] font-black uppercase tracking-widest text-white/20">Monthly Influence</p>
-                             <p className="text-4xl font-serif font-black italic leading-none">{myVisits.length}<span className="text-[12px] ml-2 opacity-30 uppercase font-sans not-italic tracking-[0.2em]">Visits</span></p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-white/20 italic font-sans">#ST_{currentUser.id.slice(0, 8).toUpperCase()}</p>
-                          </div>
-                       </div>
-                    </div>
-                 </div>
-              </motion.div>
-           </section>
-
-           {/* Table Active Session HUD - Enhanced with auto-restore logic */}
-           {currentTable ? (
-             <motion.div 
-               initial={{ scale: 0.95, opacity: 0 }}
-               animate={{ scale: 1, opacity: 1 }}
-               className="bg-primary/5 border border-primary/20 rounded-[3rem] p-8 lg:p-10 flex justify-between items-center relative overflow-hidden"
-             >
-                <div className="absolute top-0 right-0 w-2 h-full bg-primary/20"></div>
-                <div className="flex items-center gap-8">
-                   <div className="relative">
-                     <div className="absolute inset-0 bg-primary/20 rounded-3xl animate-ping opacity-40"></div>
-                     <div className="w-16 h-16 bg-primary rounded-[1.5rem] flex items-center justify-center text-white shadow-xl relative z-10"><MapPin className="w-7 h-7" /></div>
-                   </div>
-                   <div>
-                      <div className="flex items-center gap-3 mb-2">
-                         <span className="text-[9px] lg:text-[10px] font-black uppercase text-primary tracking-[0.2em] opacity-60 whitespace-nowrap">현재 이용 중</span>
-                         <div className="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
-                      </div>
-                      <p className="text-3xl font-serif font-black text-primary italic leading-none">{currentTable.number}번 테이블</p>
-                   </div>
-                </div>
-                <motion.button 
-                  whileTap={{ scale: 0.9 }}
-                  onClick={handleLeaveStore} 
-                  className="p-5 bg-white rounded-2xl text-burgundy shadow-sm border border-burgundy/10 hover:bg-burgundy hover:text-white transition-all group"
-                >
-                  <LeaveIcon className="w-7 h-7 group-hover:scale-110 transition-transform" />
-                </motion.button>
-             </motion.div>
-           ) : (
-             <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                onClick={() => navigate('/scan')}
-                className="bg-surface-container rounded-[3rem] p-12 text-center border-2 border-dashed border-primary/10 cursor-pointer hover:border-primary/30 transition-all group"
-             >
-                <div className="w-20 h-20 bg-primary/5 rounded-[2.5rem] flex items-center justify-center text-primary/20 mx-auto mb-6 group-hover:bg-primary group-hover:text-white transition-all">
-                  <QrCode className="w-10 h-10" />
-                </div>
-                <h3 className="text-xl font-serif font-black text-primary italic mb-2">테이블 연동이 필요합니다</h3>
-                <p className="text-[10px] font-black text-primary/30 uppercase tracking-[0.3em]">이곳을 터치하거나 하단의 QR 스캐너를 실행하세요</p>
-             </motion.div>
-           )}
-
-          {/* Exclusive Benefits (Coupons) */}
-          <section className="space-y-8">
-             <div className="flex justify-between items-center px-4">
-                <div className="flex items-center gap-4">
-                   <Ticket className="w-6 h-6 text-primary opacity-30" />
-                   <h3 className="font-serif font-black text-xl italic text-primary uppercase tracking-tight">나의 특권</h3>
-                </div>
-                <span className="text-[10px] font-black uppercase text-primary bg-primary/5 px-4 py-1.5 rounded-full ring-1 ring-primary/10">{myCoupons.length}개 보유</span>
-             </div>
-             
-             {myCoupons.length === 0 ? (
-                <div className="bg-white py-20 rounded-[4rem] border border-dashed border-primary/10 text-center relative overflow-hidden group">
-                   <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                   <Sparkles className="w-12 h-12 text-primary/10 mx-auto mb-6 group-hover:scale-110 transition-transform" />
-                   <p className="text-[11px] font-black text-primary/30 uppercase tracking-[0.3em]">새로운 혜택을 사냥하는 중...</p>
-                </div>
-             ) : (
-                <div className="space-y-6">
-                   {myCoupons.map(coupon => (
-                     <motion.button 
-                       layout
-                       initial={{ opacity: 0, y: 10 }}
-                       animate={{ opacity: 1, y: 0 }}
-                       key={coupon.id} 
-                       onClick={() => coupon.status === 'available' ? setSelectedCoupon(coupon.id) : setCancelingCoupon(coupon.id)}
-                       className={`w-full p-8 rounded-[3rem] border transition-all flex justify-between items-center group relative overflow-hidden ${coupon.status === 'pending' ? 'bg-primary/5 border-primary/20' : 'bg-white border-primary/5 shadow-premium hover:scale-[1.01]'}`}
-                     >
-                        {coupon.status === 'pending' && <div className="absolute top-0 left-0 w-2 h-full bg-primary/40 animate-pulse"></div>}
-                        <div className="text-left flex items-center gap-8">
-                           <div className={`w-16 h-16 rounded-[1.5rem] flex items-center justify-center ${coupon.status === 'pending' ? 'bg-primary/10 text-primary' : 'bg-gold/10 text-gold'}`}>
-                              <Ticket className="w-7 h-7" />
+                        <div className="flex justify-between items-start">
+                           <div className="flex gap-6 items-center">
+                              <div className="w-20 h-20 rounded-[2rem] bg-white/10 border border-white/20 p-1 flex items-center justify-center overflow-hidden shadow-2xl backdrop-blur-md">
+                                 {currentUser.avatarUrl ? (
+                                    <img src={currentUser.avatarUrl} className="w-full h-full object-cover" alt="" />
+                                 ) : (
+                                    <User className="w-10 h-10 text-white/40" />
+                                 )}
+                              </div>
+                              <div>
+                                 <h2 className="text-2xl font-serif font-black italic tracking-tight leading-tight">{currentUser.name}</h2>
+                                 <p className="text-[9px] font-black text-white/50 uppercase tracking-[0.4em] mt-1">
+                                   {currentTier === 'gold' ? 'Royal Legend' : currentTier === 'silver' ? 'Elite Member' : 'Welcome Star'}
+                                 </p>
+                              </div>
                            </div>
-                           <div>
-                              <p className="text-[10px] font-black uppercase text-primary/40 mb-1">{coupon.status === 'pending' ? '사용 승인 대기 중' : '즉시 사용 가능'}</p>
-                              <p className="text-2xl font-serif font-black text-primary italic leading-tight">{coupon.description}</p>
+                           <div className={`px-6 py-3 rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] shadow-2xl ${getTierColor(currentTier)} border border-white/20 backdrop-blur-lg`}>
+                              {getTierCustomName(currentTier, owner?.tierNames)}
                            </div>
                         </div>
-                        <div className={`p-5 rounded-full ${coupon.status === 'pending' ? 'bg-burgundy/10 text-burgundy' : 'bg-primary/5 text-primary group-hover:bg-primary group-hover:text-white transition-all shadow-sm'}`}>
-                           {coupon.status === 'pending' ? <X className="w-6 h-6" /> : <ChevronRight className="w-6 h-6" />}
-                        </div>
-                     </motion.button>
-                   ))}
-                </div>
-             )}
-          </section>
 
-          {/* Chronicles: Visit History */}
-          <section className="space-y-8 pb-10">
-             <div className="flex items-center gap-4 px-4">
-                <History className="w-6 h-6 text-primary opacity-30" />
-                <h3 className="font-serif font-black text-xl italic text-primary uppercase tracking-tight">방문의 기록</h3>
-             </div>
-             
-             {myVisits.length === 0 ? (
-                <div className="bg-white py-20 rounded-[4rem] border border-dashed border-primary/10 text-center">
-                   <p className="text-[11px] font-black text-primary/30 uppercase tracking-[0.3em]">역사가 시작되기를 기다립니다.</p>
-                </div>
-             ) : (
-                <div className="bg-white rounded-[3.5rem] border border-primary/5 overflow-hidden shadow-premium">
-                   {myVisits.slice(0, 5).map((visit, idx) => (
-                      <div key={visit.id} className={`p-8 flex justify-between items-center ${idx !== 0 ? 'border-t border-primary/5' : ''} hover:bg-primary/[0.01] transition-colors`}>
-                         <div className="flex items-center gap-6">
-                            <div className="w-12 h-12 rounded-2xl bg-surface-bright flex items-center justify-center text-primary/30 border border-primary/5 shadow-inner"><Clock className="w-6 h-6" /></div>
-                            <div>
-                               <p className="text-base font-black text-primary italic mb-0.5">{new Date(visit.date).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}</p>
-                               <p className="text-[10px] font-bold text-primary/30 uppercase tracking-widest">{visit.tableNumber}번 테이블 (오후 {new Date(visit.date).getHours()}:{new Date(visit.date).getMinutes() < 10 ? '0' : ''}{new Date(visit.date).getMinutes()})</p>
-                            </div>
-                         </div>
-                         <div className="w-10 h-10 rounded-full bg-primary/5 flex items-center justify-center text-[11px] font-black text-primary/30 italic ring-1 ring-primary/10">#{myVisits.length - idx}</div>
-                      </div>
-                   ))}
-                   <button className="w-full py-6 bg-surface-bright/50 text-center block border-t border-primary/5 group transition-all">
-                      <p className="text-[10px] font-black uppercase text-primary/20 tracking-[0.3em] group-hover:text-primary group-hover:tracking-[0.4em] transition-all">지난 기록 보기</p>
-                   </button>
-                </div>
-             )}
-          </section>
+                        <div className="space-y-6 pt-8 border-t border-white/10">
+                           <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-[0.2em] text-white/40">
+                              <span className="flex items-center gap-2 text-gold/80"><Sparkles className="w-3 h-3 text-gold" /> 멤버십 정체성</span>
+                              {getNextTierVisits(uniqueVisitDays) ? (
+                                 <span className="text-white/60">NEXT: {getTierCustomName(getNextTierVisits(uniqueVisitDays)!.next, owner?.tierNames)}까지 {getNextTierVisits(uniqueVisitDays)?.remaining}회</span>
+                              ) : (
+                                 <span className="flex items-center gap-2 text-gold"><Trophy className="w-3 h-3" /> MASTER STATUS</span>
+                              )}
+                           </div>
+                           
+                           <div className="h-2.5 w-full bg-white/5 rounded-full overflow-hidden border border-white/5 p-0.5">
+                              <motion.div 
+                                initial={{ width: 0 }}
+                                animate={{ 
+                                  width: getNextTierVisits(uniqueVisitDays) 
+                                    ? `${(uniqueVisitDays / getNextTierVisits(uniqueVisitDays)!.total) * 100}%` 
+                                    : '100%' 
+                                }}
+                                className={`h-full rounded-full ${currentTier === 'gold' ? 'bg-gold shadow-[0_0_20px_rgba(198,163,79,0.8)]' : 'bg-white shadow-[0_0_15px_rgba(255,255,255,0.4)]'}`}
+                              />
+                           </div>
+                           
+                           <div className="flex justify-between items-end">
+                              <div className="space-y-1">
+                                 <p className="text-[9px] font-black uppercase tracking-widest text-white/20">Monthly Influence</p>
+                                 <p className="text-4xl font-serif font-black italic leading-none">{myVisits.length}<span className="text-[12px] ml-2 opacity-30 uppercase font-sans not-italic tracking-[0.2em]">Visits</span></p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-white/20 italic font-sans">#ST_{currentUser.id.slice(0, 8).toUpperCase()}</p>
+                              </div>
+                           </div>
+                        </div>
+                     </div>
+                  </motion.div>
+               </section>
+
+               {/* Table Active Session HUD */}
+               {currentTable ? (
+                 <motion.div 
+                   initial={{ scale: 0.95, opacity: 0 }}
+                   animate={{ scale: 1, opacity: 1 }}
+                   className="bg-primary/5 border border-primary/20 rounded-[3rem] p-8 lg:p-10 flex justify-between items-center relative overflow-hidden"
+                 >
+                    <div className="absolute top-0 right-0 w-2 h-full bg-primary/20"></div>
+                    <div className="flex items-center gap-8">
+                       <div className="relative">
+                         <div className="absolute inset-0 bg-primary/20 rounded-3xl animate-ping opacity-40"></div>
+                         <div className="w-16 h-16 bg-primary rounded-[1.5rem] flex items-center justify-center text-white shadow-xl relative z-10"><MapPin className="w-7 h-7" /></div>
+                       </div>
+                       <div>
+                          <div className="flex items-center gap-3 mb-2">
+                             <span className="text-[9px] lg:text-[10px] font-black uppercase text-primary tracking-[0.2em] opacity-60 whitespace-nowrap">현재 이용 중</span>
+                             <div className="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
+                          </div>
+                          <p className="text-3xl font-serif font-black text-primary italic leading-none">{currentTable.number}번 테이블</p>
+                       </div>
+                    </div>
+                    <motion.button 
+                      whileTap={{ scale: 0.9 }}
+                      onClick={handleLeaveStore} 
+                      className="p-5 bg-white rounded-2xl text-burgundy shadow-sm border border-burgundy/10 hover:bg-burgundy hover:text-white transition-all group"
+                    >
+                      <LeaveIcon className="w-7 h-7 group-hover:scale-110 transition-transform" />
+                    </motion.button>
+                 </motion.div>
+               ) : (
+                 <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    onClick={() => navigate('/scan')}
+                    className="bg-surface-container rounded-[3rem] p-12 text-center border-2 border-dashed border-primary/10 cursor-pointer hover:border-primary/30 transition-all group"
+                 >
+                    <div className="w-20 h-20 bg-primary/5 rounded-[2.5rem] flex items-center justify-center text-primary/20 mx-auto mb-6 group-hover:bg-primary group-hover:text-white transition-all">
+                      <QrCode className="w-10 h-10" />
+                    </div>
+                    <h3 className="text-xl font-serif font-black text-primary italic mb-2">테이블 연동이 필요합니다</h3>
+                    <p className="text-[10px] font-black text-primary/30 uppercase tracking-[0.3em]">이곳을 터치하거나 하단의 QR 스캐너를 실행하세요</p>
+                 </motion.div>
+               )}
+
+               {/* Chronicles: Visit History */}
+               <section className="space-y-8 pb-10">
+                  <div className="flex items-center gap-4 px-4">
+                     <History className="w-6 h-6 text-primary opacity-30" />
+                     <h3 className="font-serif font-black text-xl italic text-primary uppercase tracking-tight">방문의 기록</h3>
+                  </div>
+                  
+                  {myVisits.length === 0 ? (
+                     <div className="bg-white py-20 rounded-[4rem] border border-dashed border-primary/10 text-center">
+                        <p className="text-[11px] font-black text-primary/30 uppercase tracking-[0.3em]">역사가 시작되기를 기다립니다.</p>
+                     </div>
+                  ) : (
+                     <div className="bg-white rounded-[3.5rem] border border-primary/5 overflow-hidden shadow-premium">
+                        {myVisits.slice(0, 5).map((visit, idx) => (
+                           <div key={visit.id} className={`p-8 flex justify-between items-center ${idx !== 0 ? 'border-t border-primary/5' : ''} hover:bg-primary/[0.01] transition-colors`}>
+                              <div className="flex items-center gap-6">
+                                 <div className="w-12 h-12 rounded-2xl bg-surface-bright flex items-center justify-center text-primary/30 border border-primary/5 shadow-inner"><Clock className="w-6 h-6" /></div>
+                                 <div>
+                                    <p className="text-base font-black text-primary italic mb-0.5">{new Date(visit.date).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}</p>
+                                    <p className="text-[10px] font-bold text-primary/30 uppercase tracking-widest">{visit.tableNumber}번 테이블 (오후 {new Date(visit.date).getHours()}:{new Date(visit.date).getMinutes() < 10 ? '0' : ''}{new Date(visit.date).getMinutes()})</p>
+                                 </div>
+                              </div>
+                              <div className="w-10 h-10 rounded-full bg-primary/5 flex items-center justify-center text-[11px] font-black text-primary/30 italic ring-1 ring-primary/10">#{myVisits.length - idx}</div>
+                           </div>
+                        ))}
+                        <button className="w-full py-6 bg-surface-bright/50 text-center block border-t border-primary/5 group transition-all">
+                           <p className="text-[10px] font-black uppercase text-primary/20 tracking-[0.3em] group-hover:text-primary group-hover:tracking-[0.4em] transition-all">지난 기록 보기</p>
+                        </button>
+                     </div>
+                  )}
+               </section>
+            </div>
+          )}
+
+          {activeTab === 'menu' && (
+            <div className="h-full">
+              <OrderingSystem storeId={storeId!} tableNumber={currentTable?.number || 0} />
+            </div>
+          )}
+
+          {activeTab === 'coupon' && (
+            <div className="px-6 lg:px-12 pt-10 pb-32">
+               <p className="text-center py-20 text-primary/30 font-black tracking-widest text-xs uppercase">준비 중인 특권입니다</p>
+            </div>
+          )}
         </div>
+
+        {/* Floating Bottom Navigator - Premium Tab-based Navigation */}
+        <nav className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-2xl border-t border-primary/5 px-8 pt-4 pb-10 z-[100] flex justify-between items-center safe-area-bottom">
+           {[
+             { id: 'home', icon: Heart, label: '단골홈' },
+             { id: 'menu', icon: Utensils, label: '메뉴판' },
+             { id: 'coupon', icon: Ticket, label: '특권쿠폰' },
+             { id: 'settings', icon: SettingsIcon, label: '나의정보', onClick: () => setIsSettingsOpen(true) }
+           ].map((tab) => (
+             <button 
+               key={tab.id}
+               onClick={() => tab.onClick ? tab.onClick() : setActiveTab(tab.id as any)}
+               className={`flex flex-col items-center gap-2 transition-all ${activeTab === tab.id ? 'text-primary scale-110' : 'text-primary/20 hover:text-primary/40'}`}
+             >
+                <div className={`p-4 rounded-3xl transition-all ${activeTab === tab.id ? 'bg-primary/5 shadow-premium' : ''}`}>
+                  <tab.icon className="w-6 h-6" />
+                </div>
+                <span className={`text-[9px] font-black uppercase tracking-widest ${activeTab === tab.id ? 'opacity-100' : 'opacity-0 scale-0'}`}>{tab.label}</span>
+             </button>
+           ))}
+        </nav>
 
         <div className="fixed bottom-10 left-1/2 -translate-x-1/2 w-[calc(100%-48px)] max-w-[400px] bg-sidebar-bg/95 backdrop-blur-2xl px-12 py-7 rounded-[3rem] flex justify-between items-center z-50 shadow-3xl border border-white/10 ring-1 ring-white/5">
            <Link to={`/customer/store/${storeId}`} className="flex flex-col items-center gap-2 text-gold transition-all group">

@@ -16,6 +16,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { motion, AnimatePresence } from 'motion/react';
 import { formatMemoDisplay } from '../../components/MemoModal';
 import Skeleton, { DashboardStatsSkeleton } from '../../components/Skeleton';
+import OwnerTutorial from '../../components/OwnerTutorial';
 
 export default function OwnerDashboard() {
   const { 
@@ -45,7 +46,9 @@ export default function OwnerDashboard() {
     deleteAccount = () => {},
     ownerViewMode = 'desktop', 
     sendPhysicalSms = async () => {}, 
-    sendKakaoMessage = async () => {}
+    sendKakaoMessage = async () => {},
+    orders = [],
+    updateOrderStatus = async () => {}
   } = useStore();
   
   const navigate = useNavigate();
@@ -67,6 +70,7 @@ export default function OwnerDashboard() {
   const currentStoreSections = (sections || []).filter(s => s.storeId === currentUser?.id);
   const [activeSectionId, setActiveSectionId] = useState<string | 'all' | 'unassigned'>('all');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
   interface NotificationItem {
     id: string;
     name: string;
@@ -82,6 +86,7 @@ export default function OwnerDashboard() {
   const processedVisitIds = useRef<Set<string>>(new Set());
   const processedCommIds = useRef<Set<string>>(new Set());
   const processedCouponIds = useRef<Set<string>>(new Set());
+  const processedOrderIds = useRef<Set<string>>(new Set());
   const isInitialLoad = useRef(true);
   const [highlightedTable, setHighlightedTable] = useState<number | null>(null);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
@@ -228,8 +233,31 @@ export default function OwnerDashboard() {
       });
     }
 
+    // 4. New Order Notifications
+    const myOrders = orders.filter(o => o.storeId === myId && o.status === 'pending');
+    if (isInitialLoad.current) {
+      myOrders.forEach(o => processedOrderIds.current.add(o.id));
+    } else {
+      const newOrders = myOrders.filter(o => !processedOrderIds.current.has(o.id));
+      newOrders.forEach(o => {
+        processedOrderIds.current.add(o.id);
+        playSound('alert');
+        showToast(`${o.tableNumber}번 테이블에서 새로운 주문이 들어왔습니다!`, 'success');
+        setHighlightedTable(o.tableNumber);
+        setTimeout(() => setHighlightedTable(null), 15000);
+        setLocalNotifications(prev => [{ 
+          id: o.id, 
+          type: 'message' as any, // Reuse message type or add order type if UI supports it
+          name: `${o.tableNumber}번 주문`, 
+          content: `${o.items.length}개 항목 주문됨`, 
+          time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+          table: o.tableNumber 
+        }, ...prev].slice(0, 15));
+      });
+    }
+
     if (isInitialLoad.current) isInitialLoad.current = false;
-  }, [visits, communications, coupons, currentUser, users, isReady]);
+  }, [visits, communications, coupons, orders, currentUser, users, isReady]);
 
   if (!currentUser) return null;
 
@@ -426,6 +454,13 @@ export default function OwnerDashboard() {
                   <Printer className="w-3.5 h-3.5 group-hover:animate-bounce" />
                   QR 프린트 키트
                </Link>
+               <button 
+                  onClick={() => setShowTutorial(true)}
+                  className="text-[11px] font-black uppercase tracking-[0.3em] text-gold/60 hover:text-gold px-4 py-2 flex items-center gap-2 group transition-all"
+                >
+                   <Sparkles className="w-3.5 h-3.5 group-hover:animate-pulse" />
+                   시스템 튜토리얼
+                </button>
             </nav>
           </div>
 

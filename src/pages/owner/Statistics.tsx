@@ -4,8 +4,9 @@ import {
   Users, LayoutGrid, BarChart3, TrendingUp, Ticket, 
   LogOut, Store as StoreIcon, ShieldCheck, Heart, 
   Calendar, ArrowUpRight, Clock, MapPin, Search, Filter,
-  ChevronRight, Activity, Settings
+  ChevronRight, Activity, Settings, Sparkles, Loader2
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 
 type DateRange = '7일' | '30일' | '전체';
@@ -17,9 +18,13 @@ export default function OwnerStatistics() {
      coupons = [], 
      tables = [], 
      users = [], 
-     ownerViewMode = 'desktop' 
+     ownerViewMode = 'desktop',
+     queryAI
    } = useStore();
    const [selectedRange, setSelectedRange] = useState<DateRange>('7일');
+   const [aiQuery, setAiQuery] = useState('');
+   const [aiResponse, setAiResponse] = useState<string | null>(null);
+   const [isAiLoading, setIsAiLoading] = useState(false);
    const navigate = useNavigate();
 
    if (!currentUser) return null;
@@ -190,7 +195,68 @@ export default function OwnerStatistics() {
           </button>
         </header>
 
-        <div className="flex-1 overflow-y-auto no-scrollbar p-8 space-y-12 pb-24 bg-gyeol-pattern">
+        <div className="flex-1 overflow-y-auto no-scrollbar p-10 space-y-16 pb-24 bg-gyeol-pattern">
+          
+          {/* AI Intelligence Hub - Optimized for 4050 Owners */}
+          <section className="bg-primary p-12 rounded-[3.5rem] shadow-heavy relative overflow-hidden group">
+             <div className="absolute inset-0 bg-gyeol-pattern opacity-10"></div>
+             <div className="relative z-10 flex flex-col md:flex-row gap-8 items-center justify-between">
+                <div className="space-y-3 text-center md:text-left">
+                   <h3 className="text-3xl font-serif font-black text-white italic tracking-tight">AI 비즈니스 조언</h3>
+                   <p className="text-white/60 text-sm font-medium tracking-wide">궁금한 매출이나 손님 정보를 자연어로 물어보세요.</p>
+                </div>
+                
+                <div className="flex-1 w-full max-w-xl relative">
+                   <input 
+                     type="text" 
+                     className="w-full bg-white/10 border-2 border-white/20 rounded-3xl py-6 pl-8 pr-20 text-white placeholder:text-white/30 text-lg font-bold focus:bg-white focus:text-primary focus:border-white transition-all outline-none"
+                     placeholder="'5월 매출 요약해줘' 또는 '가장 많이 오는 손님은?'"
+                     value={aiQuery}
+                     onChange={(e) => setAiQuery(e.target.value)}
+                     onKeyDown={async (e) => {
+                       if (e.key === 'Enter' && aiQuery.trim()) {
+                         setIsAiLoading(true);
+                         const res = await queryAI(aiQuery);
+                         setAiResponse(res);
+                         setIsAiLoading(false);
+                       }
+                     }}
+                   />
+                   <button 
+                     onClick={async () => {
+                        if (aiQuery.trim()) {
+                          setIsAiLoading(true);
+                          const res = await queryAI(aiQuery);
+                          setAiResponse(res);
+                          setIsAiLoading(false);
+                        }
+                     }}
+                     className="absolute right-3 top-3 bottom-3 bg-gold text-primary p-4 rounded-2xl hover:scale-105 active:scale-95 transition-all"
+                   >
+                     {isAiLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : <Sparkles className="w-6 h-6" />}
+                   </button>
+                </div>
+             </div>
+
+             <AnimatePresence>
+                {aiResponse && (
+                   <motion.div 
+                     initial={{ height: 0, opacity: 0 }}
+                     animate={{ height: 'auto', opacity: 1 }}
+                     className="mt-8 pt-8 border-t border-white/10"
+                   >
+                     <div className="bg-white/10 rounded-3xl p-8 border border-white/10">
+                        <div className="flex items-center gap-3 mb-4">
+                           <ShieldCheck className="w-5 h-5 text-gold" />
+                           <span className="text-[10px] font-black text-gold uppercase tracking-[0.4em]">AI Analysis Result</span>
+                        </div>
+                        <p className="text-xl font-bold text-white leading-relaxed">{aiResponse}</p>
+                     </div>
+                   </motion.div>
+                )}
+             </AnimatePresence>
+          </section>
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
              {[
                { icon: Users, label: '신규 단골', value: `${newCustomersInWeek}명`, trend: '최근' },

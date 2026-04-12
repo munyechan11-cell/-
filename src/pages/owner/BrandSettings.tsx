@@ -4,7 +4,7 @@ import {
   ArrowLeft, Save, Sparkles, Gift, Trash2, Plus, 
   Loader2, ShieldCheck, Heart, Star, Award, 
   ChevronRight, LayoutGrid, Users, BarChart3, LogOut,
-  Store as StoreIcon, Edit2, Settings, MapPin, ShieldAlert
+  Store as StoreIcon, Edit2, Settings, MapPin, ShieldAlert, Utensils
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -19,6 +19,12 @@ export default function BrandSettings() {
     '실버': '실버 회원',
     '브론즈': '일반 단골'
   });
+
+  const { menus, addMenuItem, deleteMenuItem, updateMenuItem, isProcessing } = useStore();
+  const [newMenuName, setNewMenuName] = useState('');
+  const [newMenuPrice, setNewMenuPrice] = useState('');
+  const [newMenuCategory, setNewMenuCategory] = useState('식사');
+  const [newMenuDesc, setNewMenuDesc] = useState('');
 
   const [tierRewards, setTierRewards] = useState<Record<string, string>>(currentUser?.tierRewards || {
     'VIP': '전 메뉴 10% 상시 할인 + 사장님 특별 모듬 서비스',
@@ -268,6 +274,91 @@ export default function BrandSettings() {
                      </div>
                   </div>
                </section>
+
+              <section className="bg-white/80 backdrop-blur-md p-10 rounded-[3rem] border border-primary/5 shadow-premium">
+                 <div className="flex items-center gap-4 mb-2">
+                    <h2 className="text-3xl font-sans font-black text-primary tracking-tight">디지털 메뉴판 관리</h2>
+                    <div className="px-3 py-1 bg-primary/5 text-primary text-[9px] font-black rounded-lg">COMMERCE</div>
+                 </div>
+                 <p className="text-primary/40 text-sm mb-10 font-bold uppercase tracking-widest">손님들이 자리에서 직접 주문할 메뉴들을 등록하세요.</p>
+                 
+                 <div className="bg-primary/5 p-8 rounded-[2.5rem] mb-10 space-y-6 border border-primary/10">
+                    <h4 className="text-xs font-black text-primary uppercase tracking-widest">새 메뉴 등록</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                       <input 
+                         className="w-full bg-white rounded-2xl px-6 py-4 text-sm font-black focus:ring-1 focus:ring-primary shadow-sm"
+                         placeholder="메뉴 이름 (예: 김치찌개)"
+                         value={newMenuName}
+                         onChange={e => setNewMenuName(e.target.value)}
+                       />
+                       <input 
+                         type="number"
+                         className="w-full bg-white rounded-2xl px-6 py-4 text-sm font-black focus:ring-1 focus:ring-primary shadow-sm"
+                         placeholder="가격 (숫자만 입력)"
+                         value={newMenuPrice}
+                         onChange={e => setNewMenuPrice(e.target.value)}
+                       />
+                       <select 
+                         className="w-full bg-white rounded-2xl px-6 py-4 text-sm font-black focus:ring-1 focus:ring-primary shadow-sm appearance-none"
+                         value={newMenuCategory}
+                         onChange={e => setNewMenuCategory(e.target.value)}
+                       >
+                          <option value="식사">식사류</option>
+                          <option value="음료">음료/주류</option>
+                          <option value="사이드">사이드</option>
+                          <option value="세트">세트메뉴</option>
+                       </select>
+                       <input 
+                         className="w-full bg-white rounded-2xl px-6 py-4 text-sm font-black focus:ring-1 focus:ring-primary shadow-sm"
+                         placeholder="간단 설명"
+                         value={newMenuDesc}
+                         onChange={e => setNewMenuDesc(e.target.value)}
+                       />
+                    </div>
+                    <button 
+                      onClick={async () => {
+                         if (!newMenuName || !newMenuPrice) return;
+                         await addMenuItem({
+                            name: newMenuName,
+                            price: parseInt(newMenuPrice),
+                            category: newMenuCategory,
+                            description: newMenuDesc,
+                            storeId: currentUser.id
+                         });
+                         setNewMenuName('');
+                         setNewMenuPrice('');
+                         setNewMenuDesc('');
+                      }}
+                      disabled={isProcessing}
+                      className="w-full bg-primary text-white py-5 rounded-2xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:scale-[1.01] transition-all"
+                    >
+                       <Plus className="w-4 h-4" /> 메뉴 추가하기
+                    </button>
+                 </div>
+
+                 <div className="space-y-4">
+                    {menus.filter(m => m.storeId === currentUser.id).map(m => (
+                       <div key={m.id} className="flex items-center justify-between p-6 bg-white rounded-3xl border border-primary/5 hover:border-primary/20 transition-all group">
+                          <div className="flex gap-6 items-center">
+                             <div className="w-16 h-16 bg-primary/5 rounded-2xl flex items-center justify-center text-primary/20"><Utensils className="w-8 h-8" /></div>
+                             <div>
+                                <div className="flex items-center gap-3">
+                                   <p className="text-lg font-black text-primary">{m.name}</p>
+                                   <span className="text-[9px] px-2 py-0.5 bg-gold/10 text-gold rounded font-black uppercase">{m.category}</span>
+                                </div>
+                                <p className="text-sm font-serif font-black italic text-primary/40">₩{m.price.toLocaleString()}</p>
+                             </div>
+                          </div>
+                          <button 
+                            onClick={() => deleteMenuItem(m.id)}
+                            className="p-4 rounded-xl text-primary/20 hover:text-burgundy hover:bg-burgundy/5 transition-all opacity-0 group-hover:opacity-100"
+                          >
+                             <Trash2 className="w-5 h-5" />
+                          </button>
+                       </div>
+                    ))}
+                 </div>
+              </section>
 
               <section className="bg-white/80 backdrop-blur-md p-10 rounded-[3rem] border border-primary/5 shadow-premium">
                  <div className="flex items-center gap-4 mb-2">

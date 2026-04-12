@@ -2,42 +2,42 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useStore } from '../../store';
 import { motion, AnimatePresence } from 'motion/react';
-import { ShieldCheck, Sparkles, Store } from 'lucide-react';
+import { ShieldCheck, Sparkles, Store, ChevronRight } from 'lucide-react';
 
 export default function TableEntry() {
   const { storeId, tableNumber } = useParams<{ storeId: string, tableNumber: string }>();
   const navigate = useNavigate();
-  const { isReady, users, recordVisit, currentUser } = useStore();
-  const [status, setStatus] = useState<'syncing' | 'verifying' | 'linking'>('syncing');
+  const { isReady, users, recordVisit, currentUser, login, formatPhoneNumber } = useStore();
+  const [status, setStatus] = useState<'syncing' | 'verifying' | 'linking' | 'guest'>('syncing');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [name, setName] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!isReady || !storeId || !tableNumber || !currentUser) return;
+    if (!isReady || !storeId || !tableNumber) return;
 
     const syncAndEntry = async () => {
-      // Step 1: Syncing data (Wait for store to be available in users)
       setStatus('syncing');
       let retryCount = 0;
       const maxRetries = 10;
-      
-      const checkStore = () => {
-        const store = users.find(u => u.id === storeId && u.role === 'owner');
-        return !!store;
-      };
+      const checkStore = () => users.find(u => u.id === storeId && u.role === 'owner');
 
       while (!checkStore() && retryCount < maxRetries) {
         await new Promise(resolve => setTimeout(resolve, 300));
         retryCount++;
       }
 
-      // Step 2: Verifying session
+      if (!currentUser) {
+        setStatus('guest');
+        return;
+      }
+
       setStatus('verifying');
       await new Promise(resolve => setTimeout(resolve, 600));
 
-      // Step 3: Linking table
       setStatus('linking');
       await recordVisit(currentUser.id, parseInt(tableNumber), storeId);
       
-      // Complete
       setTimeout(() => {
         navigate(`/customer/store/${storeId}`);
       }, 500);
@@ -45,6 +45,25 @@ export default function TableEntry() {
 
     syncAndEntry();
   }, [isReady, storeId, tableNumber, users, currentUser, recordVisit, navigate]);
+
+  const handleGuestEntry = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!phoneNumber || !name || !storeId || !tableNumber) return;
+    
+    setIsSubmitting(true);
+    try {
+      const user = await login(phoneNumber, name, 'customer', undefined, storeId);
+      if (user) {
+        setStatus('linking');
+        await recordVisit(user.id, parseInt(tableNumber), storeId);
+        setTimeout(() => navigate(`/customer/store/${storeId}`), 1000);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-surface-bright flex flex-col items-center justify-center p-12 text-center selection:bg-primary/10 overflow-hidden relative">
@@ -102,13 +121,54 @@ export default function TableEntry() {
                {status === 'syncing' && "매장 동기화 중"}
                {status === 'verifying' && "세션 인증 확인"}
                {status === 'linking' && "테이블 연동 완료"}
+               {status === 'guest' && "반갑습니다!"}
              </h2>
              
-             <p className="text-xs font-medium text-primary/30 max-w-xs mx-auto leading-relaxed">
-               {status === 'syncing' && "클라우드 데이터베이스와 실시간 정보를 맞추고 있습니다."}
-               {status === 'verifying' && "고객님의 안전하고 프라이빗한 입장을 검증하고 있습니다."}
-               {status === 'linking' && `${tableNumber}번 테이블로 곧 안내해 드리겠습니다.`}
-             </p>
+             {status === 'guest' ? (
+               <form onSubmit={handleGuestEntry} className="w-full max-w-sm mt-12 space-y-6">
+                 <div className="space-y-4">
+                   <div className="relative">
+                      <input 
+                        type="text" 
+                        required
+                        placeholder="전화번호를 입력해 주세요"
+                        className="w-full bg-white border-2 border-primary/10 rounded-3xl py-6 px-8 text-xl font-bold text-primary placeholder:text-primary/20 focus:border-primary outline-none transition-all shadow-premium"
+                        value={phoneNumber}
+                        onChange={(e) => setPhoneNumber(formatPhoneNumber(e.target.value))}
+                      />
+                   </div>
+                   <div className="relative">
+                      <input 
+                        type="text" 
+                        required
+                        placeholder="성함을 입력해 주세요"
+                        className="w-full bg-white border-2 border-primary/10 rounded-3xl py-6 px-8 text-xl font-bold text-primary placeholder:text-primary/20 focus:border-primary outline-none transition-all shadow-premium"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                      />
+                   </div>
+                 </div>
+                 
+                 <button 
+                   type="submit"
+                   disabled={isSubmitting}
+                   className="w-full bg-primary text-white text-xl font-black py-6 rounded-3xl shadow-heavy hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3"
+                 >
+                   {isSubmitting ? "입장 처리 중..." : "매장 입장하기"}
+                   <ChevronRight className="w-6 h-6" />
+                 </button>
+                 
+                 <p className="text-[10px] text-primary/30 font-bold uppercase tracking-widest">
+                   단 한 번의 입력으로 단골 등급 혜택이 시작됩니다
+                 </p>
+               </form>
+             ) : (
+               <p className="text-xs font-medium text-primary/30 max-w-xs mx-auto leading-relaxed">
+                 {status === 'syncing' && "클라우드 데이터베이스와 실시간 정보를 맞추고 있습니다."}
+                 {status === 'verifying' && "고객님의 안전하고 프라이빗한 입장을 검증하고 있습니다."}
+                 {status === 'linking' && `${tableNumber}번 테이블로 곧 안내해 드리겠습니다.`}
+               </p>
+             )}
           </div>
 
           {/* Progress Indicator */}

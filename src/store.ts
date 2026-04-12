@@ -132,6 +132,33 @@ export interface TierOverride {
   tier: string;
 }
 
+export interface MenuItem {
+  id: string;
+  storeId: string;
+  name: string;
+  price: number;
+  category: string;
+  imageUrl?: string;
+  description?: string;
+  isAvailable?: boolean;
+}
+
+export interface StoreOrder {
+  id: string;
+  storeId: string;
+  tableNumber: number;
+  customerId: string;
+  items: { 
+    menuId: string; 
+    name: string; 
+    quantity: number; 
+    price: number; 
+  }[];
+  totalAmount: number;
+  status: 'pending' | 'accepted' | 'cooking' | 'served' | 'cancelled';
+  createdAt: string;
+}
+
 // Global in-memory state
 const globalState: Record<string, any> = {
   users: [],
@@ -141,6 +168,8 @@ const globalState: Record<string, any> = {
   sections: [],
   communications: [],
   tierOverrides: [],
+  menus: [],
+  orders: [],
   masterPassword: 'IMC',
   offlineQueue: [] // New: Queue for offline mutations
 };
@@ -161,7 +190,9 @@ let globalReadyStates: Record<string, boolean> = {
   users: false,
   visits: false,
   coupons: false,
-  tables: false
+  tables: false,
+  menus: false,
+  orders: false
 };
 let globalFirebaseStatus: 'connecting' | 'connected' | 'error' | 'offline' = isFirebaseConfigured ? 'connecting' : 'offline';
 let globalFirebaseError: string | null = null;
@@ -246,6 +277,8 @@ const startSync = (database: any, colls: any) => {
   syncCollection('sections', 'sections'); // New: Sync sections
   syncCollection('Communications', 'communications');
   syncCollection('tierOverrides', 'tierOverrides');
+  syncCollection('menus', 'menus');
+  syncCollection('orders', 'orders');
   
   const unsubSettings = onSnapshot(doc(database, 'appState', 'settings'), (snap) => {
     if (snap.exists()) {
@@ -281,7 +314,7 @@ if (!isFirebaseConfigured) {
       if (snap.exists()) {
         const data = snap.data();
         const batch = writeBatch(db);
-        const cats = ['users', 'visits', 'coupons', 'tables', 'sections', 'communications', 'tierOverrides'];
+        const cats = ['users', 'visits', 'coupons', 'tables', 'sections', 'communications', 'tierOverrides', 'menus', 'orders'];
         for (const cat of cats) {
           if (Array.isArray(data[cat])) {
             for (const item of data[cat]) {
@@ -403,6 +436,8 @@ export const useStore = () => {
   const [sections, setSections] = useState<Section[]>(getGlobalStorage('sections', []));
   const [communications, setCommunications] = useState<Communication[]>(getGlobalStorage('communications', []));
   const [tierOverrides, setTierOverrides] = useState<TierOverride[]>(getGlobalStorage('tierOverrides', []));
+  const [menus, setMenus] = useState<MenuItem[]>(getGlobalStorage('menus', []));
+  const [orders, setOrders] = useState<StoreOrder[]>(getGlobalStorage('orders', []));
   const [masterPassword, setMasterPasswordState] = useState<string>(globalState.masterPassword);
   const [currentUser, setCurrentUser] = useState<User | null>(getLocalStorage('currentUser', null));
   const [ownerViewMode, setOwnerViewModeState] = useState<'desktop' | 'mobile'>(
@@ -470,7 +505,9 @@ export const useStore = () => {
         { key: 'coupons', coll: collections.coupons, filterField: 'storeId' },
         { key: 'communications', coll: collections.Communications, filterField: 'storeId' },
         { key: 'sections', coll: collections.sections, filterField: 'storeId' },
-        { key: 'tierOverrides', coll: collections.tierOverrides, filterField: 'storeId' }
+        { key: 'tierOverrides', coll: collections.tierOverrides, filterField: 'storeId' },
+        { key: 'menus', coll: collections.menus, filterField: 'storeId' },
+        { key: 'orders', coll: collections.orders, filterField: 'storeId' }
       ];
 
       collectionMapping.forEach(({ key, coll, filterField }) => {
@@ -488,6 +525,8 @@ export const useStore = () => {
             case 'communications': setCommunications(data as Communication[]); break;
             case 'sections': setSections(data as Section[]); break;
             case 'tierOverrides': setTierOverrides(data as TierOverride[]); break;
+            case 'menus': setMenus(data as MenuItem[]); break;
+            case 'orders': setOrders(data as StoreOrder[]); break;
           }
           notifyUpdate();
         });
@@ -1098,20 +1137,72 @@ export const useStore = () => {
     }
   };
 
+  const addMenuItem = async (item: Omit<MenuItem, 'id'>) => {
+    const id = generateId();
+    const newItem = { ...item, id };
+    await updateFirestoreDoc('menus', id, newItem);
+    showToast(`${item.name} 메뉴가 등록되었습니다.`, 'success');
+  };
+
+  const updateMenuItem = async (id: string, data: Partial<MenuItem>) => {
+    await updateFirestoreDoc('menus', id, data);
+  };
+
+  const deleteMenuItem = async (id: string) => {
+    await updateFirestoreDoc('menus', id, null, true);
+    showToast('메뉴가 삭제되었습니다.', 'info');
+  };
+
+  const placeOrder = async (order: Omit<StoreOrder, 'id' | 'createdAt' | 'status'>) => {
+    const id = generateId();
+    const newOrder: StoreOrder = { 
+      ...order, 
+      id, 
+      status: 'pending', 
+      createdAt: new Date().toISOString() 
+    };
+    await updateFirestoreDoc('orders', id, newOrder);
+    showToast('주문이 완료되었습니다. 사장님께 전송됩니다.', 'success');
+    return id;
+  };
+
+  const updateOrderStatus = async (id: string, status: StoreOrder['status']) => {
+    await updateFirestoreDoc('orders', id, { status });
+    showToast('주문 상태가 업데이트되었습니다.', 'info');
+  };
+
+  const queryAI = async (prompt: string) => {
+    const lowerPrompt = prompt.toLowerCase();
+    if (lowerPrompt.includes('5월') || lowerPrompt.includes('오월') || lowerPrompt.includes('may')) {
+      const mayVisits = globalState.visits.filter((v: any) => new Date(v.date).getMonth() === 4);
+      const totalAmount = mayVisits.reduce((acc: number, v: any) => acc + (v.totalAmount || 0), 0);
+      return `5월 한 달 동안 총 ${mayVisits.length}건의 방문이 있었으며, 예상 총 매출은 약 ${totalAmount.toLocaleString()}원입니다.`;
+    }
+    if (lowerPrompt.includes('단골') || lowerPrompt.includes('customer')) {
+      const topCustomers = [...globalState.users].filter(u => u.role === 'customer')
+        .sort((a, b) => (b.rewardBalance || 0) - (a.rewardBalance || 0))
+        .slice(0, 3);
+      return `현재 상위 단골 고객은 ${topCustomers.map(c => c.name).join(', ')}님입니다.`;
+    }
+    return "죄송합니다. 아직 학습 중인 질문입니다. 매출이나 단골 멤버에 대해 질문해 보세요!";
+  };
+
   return {
     isReady, isProcessing, firebaseStatus, firebaseError, users, visits, coupons, tables, sections, communications, tierOverrides,
-    currentUser, masterPassword, login, logout, recordVisit, leaveTable, issueCoupon, 
-    requestCouponUse, cancelCouponRequest, approveCouponUse, rejectCouponUse, 
-    initTables, setCustomerTier, setMasterPassword, deleteUser, updateUserMemo, 
-    recordCommunication, bulkIssueCoupon, bulkRecordCommunication,
-    updateTableLayout, updateBrandSettings, addTable, deleteTable,
-    addSection, updateSection, deleteSection, updateTableStatus,
-    linkSocialAccount, deleteAccount,
-    ownerViewMode, setOwnerViewMode,
-    updateStoreConfig, sendPhysicalSms, sendKakaoMessage,
+    menus, orders,
+    masterPassword, currentUser, ownerViewMode, setOwnerViewMode,
+    login, logout, linkSocialAccount, deleteAccount, 
+    recordVisit, leaveTable, issueCoupon, requestCouponUse, cancelCouponRequest, approveCouponUse, rejectCouponUse,
+    initTables, setCustomerTier, updateTableLayout, addTable, deleteTable, updateTableStatus,
+    updateBrandSettings, setMasterPassword, deleteUser,
+    updateUserMemo, recordCommunication, bulkIssueCoupon, bulkRecordCommunication,
+    sendPhysicalSms, sendKakaoMessage, updateStoreConfig,
+    calculateDistance,
     updateStoreLocation: async (storeId: string, lat: number, lng: number) => {
       await updateFirestoreDoc('users', storeId, { lat, lng });
-    }
+    },
+    addMenuItem, deleteMenuItem, updateMenuItem, placeOrder, updateOrderStatus, queryAI,
+    formatPhoneNumber
   };
 };
 

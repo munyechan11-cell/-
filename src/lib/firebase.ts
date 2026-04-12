@@ -52,6 +52,8 @@ export const getCollections = (database: Firestore | null) => {
     Communications: collection(database, 'Communications'),
     tierOverrides: collection(database, 'tierOverrides'),
     sections: collection(database, 'sections'),
+    menus: collection(database, 'menus'),
+    orders: collection(database, 'orders'),
     appState: collection(database, 'appState')
   };
 };
