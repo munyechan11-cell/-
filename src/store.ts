@@ -1209,6 +1209,7 @@ export const useStore = () => {
     login, logout, linkSocialAccount, deleteAccount, 
     recordVisit, leaveTable, issueCoupon, requestCouponUse, cancelCouponRequest, approveCouponUse, rejectCouponUse,
     initTables, setCustomerTier, updateTableLayout, addTable, deleteTable, updateTableStatus,
+    addSection, updateSection, deleteSection,
     updateBrandSettings, setMasterPassword, deleteUser,
     updateUserMemo, recordCommunication, bulkIssueCoupon, bulkRecordCommunication,
     sendPhysicalSms, sendKakaoMessage, updateStoreConfig,

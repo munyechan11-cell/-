@@ -410,12 +410,13 @@ export default function OwnerDashboard() {
 
       {/* Mobile Bottom Navigation */}
       {ownerViewMode === 'mobile' && (
-        <nav className="fixed bottom-0 left-0 right-0 bg-sidebar-bg/95 backdrop-blur-xl border-t border-white/5 z-[100] px-6 py-4 flex justify-between items-center safe-area-bottom">
+        <nav className="fixed bottom-0 left-0 right-0 bg-sidebar-bg/95 backdrop-blur-xl border-t border-white/5 z-[100] px-4 py-3 flex justify-between items-center safe-area-bottom">
            {([
-             { to: '/owner', icon: LayoutGrid, label: '홈', active: true },
+             { to: '/owner', icon: LayoutGrid, label: '대시보드', active: true },
              { to: '/owner/customers', icon: Users, label: '단골' },
+             { to: '/owner/brand-settings', icon: Utensils, label: '메뉴관리' },
              { to: '/owner/statistics', icon: BarChart3, label: '통계' },
-             { onClick: () => setIsSettingsOpen(true), icon: Settings, label: '설정' }
+             { onClick: () => setShowTutorial(true), icon: Sparkles, label: '튜토리얼' }
            ] as any[]).map((item, idx) => {
              const Comp = (item.to ? Link : 'button') as any;
              return (
@@ -425,7 +426,7 @@ export default function OwnerDashboard() {
                  className={`flex flex-col items-center gap-1.5 transition-all ${item.active ? 'text-gold' : 'text-white/40'}`}
                >
                  <item.icon className="w-5 h-5" />
-                 <span className="text-[9px] font-black uppercase tracking-widest">{item.label}</span>
+                 <span className="text-[9px] font-black tracking-widest">{item.label}</span>
                </Comp>
              );
            })}
@@ -439,7 +440,7 @@ export default function OwnerDashboard() {
             <div>
                 <div className="flex items-center gap-2 mb-0.5 lg:mb-1">
                   <h1 className="text-lg lg:text-3xl font-sans font-black text-primary tracking-tight">실시간 매장 현황</h1>
-                  <div className="px-2 py-0.5 rounded-md bg-primary/5 border border-primary/10 text-[7px] lg:text-[8px] font-black text-primary uppercase tracking-widest">LIVE</div>
+                  <div className="px-2 py-0.5 rounded-md bg-primary/5 border border-primary/10 text-[7px] lg:text-[8px] font-black text-primary uppercase tracking-widest">실시간</div>
                 </div>
                <div className="flex items-center gap-2 lg:gap-3">
                   <div className="w-1.5 lg:w-2 h-1.5 lg:h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>
@@ -467,8 +468,8 @@ export default function OwnerDashboard() {
           <div className="flex items-center gap-6">
              <div className="flex items-center gap-3">
                 <div className="flex flex-col items-end hidden md:flex">
-                   <span className="text-[8px] font-black text-emerald-600 uppercase tracking-widest">Live Sync Active</span>
-                   <span className="text-[7px] font-bold text-primary/30 uppercase">Secure Cloud Link</span>
+                   <span className="text-[8px] font-black text-emerald-600 uppercase tracking-widest">실시간 동기화 완료</span>
+                   <span className="text-[7px] font-bold text-primary/30 uppercase">보안 클라우드 연결</span>
                 </div>
                 
                 {/* Notification Hub */}
@@ -557,10 +558,10 @@ export default function OwnerDashboard() {
                {/* Proactive Operational HUD - Top Intelligence Bar */}
                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8 lg:mb-12">
                   {[
-                    { label: '매장 건강 지수', val: `${stats.healthScore}pt`, icon: Activity, color: 'text-emerald-600', bg: 'bg-emerald-50', trend: '+5%' },
-                    { label: '실시간 점유율', val: `${stats.occupancyRate}%`, icon: Users, color: 'text-primary', bg: 'bg-primary/5', trend: 'STABLE' },
-                    { label: '예상 일일 회전율', val: `${turnoverRate}회`, icon: History, color: 'text-gold', bg: 'bg-gold/10', trend: 'HIGH' },
-                    { label: '집중 관리 필요', val: `${stats.atRisk}명`, icon: ShieldAlert, color: 'text-burgundy', bg: 'bg-burgundy/5', trend: 'ACTION REQ' }
+                    { label: '매장 건강 지수', val: `${stats.healthScore}pt`, icon: Activity, color: 'text-emerald-600', bg: 'bg-emerald-50', trend: '양호' },
+                    { label: '실시간 점유율', val: `${stats.occupancyRate}%`, icon: Users, color: 'text-primary', bg: 'bg-primary/5', trend: '안정' },
+                    { label: '예상 일일 회전율', val: `${turnoverRate}회`, icon: History, color: 'text-gold', bg: 'bg-gold/10', trend: '활발' },
+                    { label: '집중 관리 필요', val: `${stats.atRisk}명`, icon: ShieldAlert, color: 'text-burgundy', bg: 'bg-burgundy/5', trend: '관리 필요' }
                   ].map((stat, i) => (
                     <motion.div 
                       key={i}
@@ -588,8 +589,8 @@ export default function OwnerDashboard() {
                      <div className="relative z-10 flex flex-col h-full">
                         <div className="flex justify-between items-center mb-12">
                            <div>
-                              <h3 className="text-2xl lg:text-4xl font-sans font-black italic tracking-tight mb-2">고객 가치 매트릭스 (CRM)</h3>
-                              <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.4em]">Advanced RFM Analytics Engine</p>
+                              <h3 className="text-2xl lg:text-4xl font-sans font-black italic tracking-tight mb-2">고객 가치 매트릭스</h3>
+                              <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.4em]">RFM 고급 분석 엔진</p>
                            </div>
                            <div className="flex gap-4">
                               <div className="px-6 py-3 bg-white/5 rounded-2xl border border-white/10 flex items-center gap-3">
@@ -625,7 +626,7 @@ export default function OwnerDashboard() {
                   <div className="bg-white rounded-[4rem] p-10 lg:p-16 shadow-premium border border-primary/5 flex flex-col justify-between relative overflow-hidden">
                      <div className="relative z-10 h-full flex flex-col">
                         <div className="flex justify-between items-start mb-8">
-                           <h3 className="text-2xl font-serif font-black italic tracking-tight text-primary">Proactive Insight</h3>
+                           <h3 className="text-2xl font-serif font-black italic tracking-tight text-primary">주요 인사이트</h3>
                            <Zap className="w-6 h-6 text-gold animate-pulse" />
                         </div>
                         
