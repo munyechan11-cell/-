@@ -46,6 +46,8 @@ export default function CustomerDashboard() {
   const [isSending, setIsSending] = useState(false);
   const [showReviewReward, setShowReviewReward] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [tutorialStep, setTutorialStep] = useState<'welcome' | 'tutorial' | null>(null);
+  const [tutorialPage, setTutorialPage] = useState(0);
   const [isLocationAllowed, setIsLocationAllowed] = useState<boolean | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [distanceAway, setDistanceAway] = useState<number | null>(null);
@@ -56,6 +58,7 @@ export default function CustomerDashboard() {
     if (storeId && !localStorage.getItem(`gyeol_visited_${storeId}`)) {
       const timer = setTimeout(() => {
         setShowOnboarding(true);
+        setTutorialStep('welcome');
         localStorage.setItem(`gyeol_visited_${storeId}`, 'true');
       }, 1500);
       return () => clearTimeout(timer);
@@ -776,45 +779,115 @@ export default function CustomerDashboard() {
 
         {/* Onboarding Welcome Overlay */}
         <AnimatePresence>
-          {showOnboarding && (
-            <div className="fixed inset-0 z-[300] flex items-center justify-center p-8 bg-primary/20 backdrop-blur-2xl">
+          {showOnboarding && tutorialStep === 'welcome' && (
+            <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-primary/20 backdrop-blur-2xl">
               <motion.div 
                 initial={{ scale: 0.9, opacity: 0, y: 20 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
                 exit={{ scale: 0.9, opacity: 0, y: 20 }}
-                className="bg-white w-full max-w-sm rounded-[4rem] p-12 shadow-3xl text-center relative overflow-hidden flex flex-col items-center"
+                className="bg-white w-full max-w-sm rounded-[4rem] shadow-3xl text-center relative overflow-hidden flex flex-col items-center"
+                style={{ maxHeight: '90vh', overflowY: 'auto' }}
               >
-                 <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-gold via-white to-gold animate-shimmer"></div>
-                 <div className="w-24 h-24 bg-primary/5 rounded-[2.5rem] flex items-center justify-center mb-10 relative">
-                    <Sparkles className="w-10 h-10 text-gold animate-pulse" />
-                    <div className="absolute inset-0 bg-gold/10 rounded-full blur-2xl animate-pulse"></div>
-                 </div>
-                 
-                 <h2 className="text-3xl font-serif font-black italic text-primary mb-4 leading-tight">
-                    환영합니다!<br/>{restaurantName}입니다.
-                 </h2>
-                 <p className="text-xs font-medium text-primary/40 mb-12 leading-relaxed text-center">
-                    사장님이 정성껏 준비한 단골 서비스를<br/>
-                    이제 '결'에서 스마트하게 관리해 보세요.
-                 </p>
+                 <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-gold via-white to-gold animate-shimmer z-10"></div>
 
-                 <div className="w-full space-y-4 mb-12">
-                    {[
-                      { icon: QrCode, text: '테이블 QR로 즉시 입장' },
-                      { icon: Ticket, text: '방문 시마다 포인트/스탬프 적립' },
-                      { icon: Award, text: '등급별 특별한 단골 혜택' }
-                    ].map((guide, i) => (
-                      <div key={i} className="flex items-center gap-4 p-4 bg-primary/5 rounded-2xl border border-primary/5 text-left w-full">
-                         <guide.icon className="w-5 h-5 text-primary/40 shrink-0" />
-                         <span className="text-[11px] font-black text-primary/60 uppercase tracking-tight">{guide.text}</span>
-                      </div>
-                    ))}
+                 {/* 첫 번째 사진: 테이블 리스트뷰 목업 (리스트 위) */}
+                 <div className="w-full bg-[#1c1412] rounded-t-[4rem] overflow-hidden relative" style={{ height: '180px' }}>
+                   <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 50% 50%, rgba(198,163,79,0.3) 0%, transparent 70%)' }}></div>
+                   {/* 매장 현황 목업 */}
+                   <div className="p-6 pt-8">
+                     <p className="text-[8px] font-black text-gold/60 uppercase tracking-[0.4em] mb-3">실시간 매장 현황</p>
+                     <div className="grid grid-cols-4 gap-1.5">
+                       {[1,2,3,4,5,6,7,8].map(n => (
+                         <div key={n} className={`rounded-xl p-2 text-center ${n === 2 || n === 5 ? 'bg-gold/30 border border-gold/40' : 'bg-white/10 border border-white/10'}`}>
+                           <div className={`w-6 h-6 rounded-lg mx-auto mb-1 flex items-center justify-center text-[8px] font-black ${n === 2 || n === 5 ? 'bg-gold text-primary' : 'bg-white/20 text-white/60'}`}>{n}</div>
+                           <p className="text-[6px] font-black text-white/40">{n === 2 || n === 5 ? '이용중' : '없음'}</p>
+                         </div>
+                       ))}
+                     </div>
+                   </div>
                  </div>
 
-                 <button 
-                   onClick={() => setShowOnboarding(false)}
-                   className="w-full py-6 bg-primary text-white rounded-[2rem] font-black text-xs uppercase tracking-[0.4em] shadow-2xl hover:scale-[1.02] active:scale-95 transition-all outline-none"
-                 >매장 이용 시작하기</button>
+                 {/* 환영 텍스트 및 설명 */}
+                 <div className="px-10 pt-8 pb-4">
+                   <div className="w-16 h-16 bg-primary/5 rounded-[2rem] flex items-center justify-center mb-6 relative mx-auto">
+                     <Sparkles className="w-8 h-8 text-gold animate-pulse" />
+                     <div className="absolute inset-0 bg-gold/10 rounded-full blur-2xl animate-pulse"></div>
+                   </div>
+                   <h2 className="text-2xl font-serif font-black italic text-primary mb-3 leading-tight">
+                     환영합니다!<br/>{restaurantName}입니다.
+                   </h2>
+                   <p className="text-xs font-medium text-primary/40 mb-8 leading-relaxed text-center">
+                     사장님이 정성껏 준비한 단골 서비스를<br/>
+                     이제 '결'에서 스마트하게 관리해 보세요.
+                   </p>
+                 </div>
+
+                 {/* 가이드 리스트 */}
+                 <div className="w-full px-10 space-y-3 mb-6">
+                   {[
+                     { icon: QrCode, text: '테이블 QR로 즉시 입장' },
+                     { icon: Ticket, text: '방문 시마다 포인트/스탬프 적립' },
+                     { icon: Award, text: '등급별 특별한 단골 혜택' }
+                   ].map((guide, i) => (
+                     <div key={i} className="flex items-center gap-4 p-4 bg-primary/5 rounded-2xl border border-primary/5 text-left w-full">
+                        <guide.icon className="w-5 h-5 text-primary/40 shrink-0" />
+                        <span className="text-[11px] font-black text-primary/60 uppercase tracking-tight">{guide.text}</span>
+                     </div>
+                   ))}
+                 </div>
+
+                 {/* 2번째 사진: 메뉴 목업 (리스트 아래) */}
+                 <div className="w-full mx-0 px-4 mb-3">
+                   <div className="w-full bg-[#1c1412] rounded-[2rem] overflow-hidden relative" style={{ height: '110px' }}>
+                     <div className="p-4 flex gap-3 items-stretch h-full">
+                       <div className="text-left">
+                         <p className="text-[7px] font-black text-gold/60 uppercase tracking-[0.3em] mb-2">고객가지 메뉴판</p>
+                         <div className="flex gap-1.5">
+                           {['VIP레전드', '유행선글', '이별', '잠재관주', '성기변민'].map((cat, i) => (
+                             <div key={i} className={`rounded-xl px-2 py-3 flex flex-col items-center justify-end gap-1 text-center flex-shrink-0 ${i===0?'bg-yellow-700/80':i===1?'bg-blue-900/80':i===2?'bg-red-900/80':i===3?'bg-gray-700/80':'bg-gray-600/80'}`} style={{minWidth:36, height:62}}>
+                               <p className="text-[8px] font-black text-white leading-none">{i===0?'1':`0`}</p>
+                               <p className="text-[5px] font-black text-white/60 leading-tight">{cat}</p>
+                             </div>
+                           ))}
+                         </div>
+                       </div>
+                     </div>
+                   </div>
+                 </div>
+
+                 {/* 3번째 사진: KPI 목업 (리스트 아래) */}
+                 <div className="w-full mx-0 px-4 mb-8">
+                   <div className="w-full bg-white rounded-[2rem] overflow-hidden border border-primary/10" style={{ height: '100px' }}>
+                     <div className="p-4">
+                       <p className="text-[7px] font-black text-primary/30 uppercase tracking-[0.3em] mb-3">매장 성과 지표</p>
+                       <div className="grid grid-cols-4 gap-2">
+                         {[
+                           { label: '매장 건강 지수', value: '100pt', color: 'text-emerald-600', bg: 'bg-emerald-50' },
+                           { label: '실시간 현황율', value: '0%', color: 'text-primary', bg: 'bg-surface-container' },
+                           { label: '방문 일일 회전률', value: '2.4회', color: 'text-amber-600', bg: 'bg-amber-50' },
+                           { label: '전문관리필요', value: '0명', color: 'text-primary', bg: 'bg-surface-container' },
+                         ].map((kpi, i) => (
+                           <div key={i} className={`${kpi.bg} rounded-xl p-2 text-center`}>
+                             <p className="text-[5px] font-black text-primary/30 mb-1 uppercase leading-tight">{kpi.label}</p>
+                             <p className={`text-[11px] font-black ${kpi.color}`}>{kpi.value}</p>
+                           </div>
+                         ))}
+                       </div>
+                     </div>
+                   </div>
+                 </div>
+
+                 {/* 튜토리얼 시작 버튼 */}
+                 <div className="w-full px-10 pb-10 space-y-3">
+                   <button 
+                     onClick={() => { setTutorialStep('tutorial'); setTutorialPage(0); }}
+                     className="w-full py-6 bg-primary text-white rounded-[2rem] font-black text-xs uppercase tracking-[0.4em] shadow-2xl hover:scale-[1.02] active:scale-95 transition-all outline-none"
+                   >튜토리얼 시작하기</button>
+                   <button 
+                     onClick={() => { setShowOnboarding(false); setTutorialStep(null); }}
+                     className="w-full py-3 text-primary/30 font-black text-[10px] uppercase tracking-[0.4em] transition-all"
+                   >건너뛰기</button>
+                 </div>
               </motion.div>
               
               {/* Confetti-like background elements */}
@@ -832,7 +905,169 @@ export default function CustomerDashboard() {
           )}
         </AnimatePresence>
 
+        {/* Tutorial Step Overlay */}
+        <AnimatePresence>
+          {showOnboarding && tutorialStep === 'tutorial' && (() => {
+            const TUTORIAL_STEPS = [
+              {
+                step: 1,
+                title: 'QR 스캔으로 입장하기',
+                desc: '매장에 도착하면 테이블의 QR 코드를 스캔해 주세요. 자동으로 테이블에 연결되고 카운터가 시작됩니다.',
+                illustration: (
+                  <div className="w-full bg-[#1c1412] rounded-[2rem] overflow-hidden relative flex flex-col items-center justify-center" style={{ height: 200 }}>
+                    <div className="absolute inset-0 opacity-10 bg-gradient-radial from-gold to-transparent"></div>
+                    <div className="relative z-10 flex flex-col items-center gap-4">
+                      <div className="w-28 h-28 border-4 border-gold/60 rounded-3xl flex items-center justify-center relative">
+                        <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-gold rounded-tl-xl -translate-x-1 -translate-y-1"></div>
+                        <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-gold rounded-tr-xl translate-x-1 -translate-y-1"></div>
+                        <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-gold rounded-bl-xl -translate-x-1 translate-y-1"></div>
+                        <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-gold rounded-br-xl translate-x-1 translate-y-1"></div>
+                        <QrCode className="w-12 h-12 text-gold" />
+                      </div>
+                      <p className="text-[10px] font-black text-gold/70 uppercase tracking-[0.3em]">QR 스캔 중...</p>
+                    </div>
+                  </div>
+                ),
+                hint: '📱 화면 하단의 QR 버튼을 누르면 테이블 연동이 가능합니다'
+              },
+              {
+                step: 2,
+                title: '멤버십 카드 & 방문 기록',
+                desc: '방문할 때마다 자动으로 기록됩니다. 단골 등급이 올라갈수록 더 많은 특별 혜택을 받을 수 있어요.',
+                illustration: (
+                  <div className="w-full bg-[#1c1412] rounded-[2rem] overflow-hidden relative" style={{ height: 200 }}>
+                    <div className="p-6 flex flex-col gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center">
+                          <User className="w-6 h-6 text-white/40" />
+                        </div>
+                        <div>
+                          <p className="text-white font-black text-sm">단골 회원</p>
+                          <p className="text-[9px] font-black text-gold/70 uppercase tracking-widest">GOLD MEMBER</p>
+                        </div>
+                        <div className="ml-auto px-4 py-2 bg-gold/30 rounded-xl border border-gold/50">
+                          <span className="text-[9px] font-black text-gold uppercase">GOLD</span>
+                        </div>
+                      </div>
+                      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                        <div className="h-full w-3/4 bg-gold rounded-full shadow-[0_0_10px_rgba(198,163,79,0.5)]"></div>
+                      </div>
+                      <div className="flex justify-between">
+                        <div className="text-center">
+                          <p className="text-[8px] font-black text-white/30 uppercase mb-1">총 방문</p>
+                          <p className="text-2xl font-black text-white italic font-serif">12<span className="text-[10px] ml-1 opacity-30">회</span></p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-[8px] font-black text-white/30 uppercase mb-1">다음 등급까지</p>
+                          <p className="text-2xl font-black text-gold italic font-serif">3<span className="text-[10px] ml-1 opacity-70">회</span></p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ),
+                hint: '⭐ 브론즈 → 실버 → 골드 순으로 등급이 올라갑니다'
+              },
+              {
+                step: 3,
+                title: '사장님 특별 혜택 받기',
+                desc: '쿠폰함에 적립된 쿠폰을 사용하거나, 사장님께 직접 메시지를 보낼 수 있습니다. 단골일수록 더 특별한 관계가 만들어집니다.',
+                illustration: (
+                  <div className="w-full rounded-[2rem] overflow-hidden relative" style={{ height: 200 }}>
+                    <div className="p-5 grid grid-cols-2 gap-3 h-full">
+                      <div className="bg-primary rounded-[1.5rem] flex flex-col items-center justify-center gap-2 shadow-lg">
+                        <Ticket className="w-8 h-8 text-white" />
+                        <p className="text-[8px] font-black text-white uppercase tracking-widest">쿠폰함</p>
+                        <div className="bg-white/20 px-3 py-1 rounded-full">
+                          <p className="text-[9px] font-black text-white">2장 보유</p>
+                        </div>
+                      </div>
+                      <div className="bg-sidebar-bg rounded-[1.5rem] flex flex-col items-center justify-center gap-2 border border-white/10">
+                        <MessageSquare className="w-8 h-8 text-gold" />
+                        <p className="text-[8px] font-black text-gold uppercase tracking-widest">메시지</p>
+                        <div className="bg-gold/20 px-3 py-1 rounded-full">
+                          <p className="text-[9px] font-black text-gold">사장님께 전달</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ),
+                hint: '🎁 쿠폰은 테이블 연동 후 사장님 승인으로 사용됩니다'
+              }
+            ];
+
+            const currentTutorial = TUTORIAL_STEPS[tutorialPage];
+            const isLast = tutorialPage === TUTORIAL_STEPS.length - 1;
+
+            return (
+              <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-sidebar-bg/80 backdrop-blur-2xl">
+                <motion.div
+                  key={tutorialPage}
+                  initial={{ opacity: 0, x: 40 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -40 }}
+                  transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                  className="bg-white w-full max-w-sm rounded-[4rem] p-8 shadow-3xl relative overflow-hidden flex flex-col"
+                >
+                  <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-gold via-white to-gold"></div>
+
+                  {/* 진행 표시 */}
+                  <div className="flex items-center justify-between mb-6">
+                    <button 
+                      onClick={() => tutorialPage > 0 ? setTutorialPage(p => p - 1) : setTutorialStep('welcome')}
+                      className="p-3 bg-surface-container rounded-2xl text-primary/30 hover:text-primary transition-colors"
+                    >
+                      <ArrowLeft className="w-5 h-5" />
+                    </button>
+                    <div className="flex gap-2">
+                      {TUTORIAL_STEPS.map((_, i) => (
+                        <div key={i} className={`h-1.5 rounded-full transition-all duration-300 ${i === tutorialPage ? 'w-8 bg-primary' : i < tutorialPage ? 'w-4 bg-primary/40' : 'w-4 bg-primary/10'}`}></div>
+                      ))}
+                    </div>
+                    <button 
+                      onClick={() => { setShowOnboarding(false); setTutorialStep(null); }}
+                      className="p-3 bg-surface-container rounded-2xl text-primary/20 hover:text-primary transition-colors"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  {/* 일러스트 */}
+                  {currentTutorial.illustration}
+
+                  {/* 콘텐츠 */}
+                  <div className="mt-6 mb-4">
+                    <div className="flex items-center gap-3 mb-3">
+                      <span className="text-[9px] font-black text-primary/30 uppercase tracking-[0.4em]">STEP {currentTutorial.step} / {TUTORIAL_STEPS.length}</span>
+                    </div>
+                    <h3 className="text-2xl font-serif font-black italic text-primary mb-3 leading-tight">{currentTutorial.title}</h3>
+                    <p className="text-[12px] text-primary/50 leading-relaxed mb-4">{currentTutorial.desc}</p>
+                    <div className="bg-primary/5 rounded-2xl p-4 border border-primary/5">
+                      <p className="text-[11px] font-black text-primary/60 leading-relaxed">{currentTutorial.hint}</p>
+                    </div>
+                  </div>
+
+                  {/* 버튼 */}
+                  <button
+                    onClick={() => {
+                      if (isLast) {
+                        setShowOnboarding(false);
+                        setTutorialStep(null);
+                      } else {
+                        setTutorialPage(p => p + 1);
+                      }
+                    }}
+                    className="w-full py-6 bg-primary text-white rounded-[2rem] font-black text-xs uppercase tracking-[0.4em] shadow-2xl hover:scale-[1.02] active:scale-95 transition-all outline-none mt-2"
+                  >
+                    {isLast ? '✓ 이용 시작하기' : `다음 단계 →`}
+                  </button>
+                </motion.div>
+              </div>
+            );
+          })()}
+        </AnimatePresence>
+
       </div>
+
     </motion.div>
   );
 }
