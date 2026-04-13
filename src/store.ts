@@ -410,10 +410,17 @@ const updateFirestoreDoc = async (coll: string, id: string, data: any, isDelete 
     } else {
       await setDoc(docRef, data, { merge: true });
     }
-  } catch (e) {
+  } catch (e: any) {
     console.error(`[Firebase] Mutation failed for ${coll}/${id}. Rolling back...`, e);
     rollback(snapshot);
-    showToast('네트워크 오류로 작업이 취소되었습니다. 다시 시도해 주세요.', 'error');
+    
+    // Provide specific error messages for better debugging
+    let userMsg = '네트워크 오류로 작업이 취소되었습니다.';
+    if (e.code === 'permission-denied') userMsg = '접근 권한이 없습니다. (Firebase 보안 규칙 확인 필요)';
+    if (e.code === 'not-found') userMsg = '데이터베이스 경로를 찾을 수 없습니다.';
+    if (e.message?.includes('database')) userMsg = '데이터베이스 설정 오류가 발생했습니다.';
+    
+    showToast(`${userMsg} 다시 시도해 주세요.`, 'error');
     
     // Fail-safe: add to offline queue if it was a network issue rather than auth/schema issue
     if ((e as any).code === 'unavailable' || (e as any).code === 'deadline-exceeded') {
@@ -683,7 +690,7 @@ export const useStore = () => {
         if (socialAvatar) updates.avatarUrl = socialAvatar;
       }
       
-      if (Object.keys(updates).length > 1) {
+      if (Object.keys(updates).length > 0) {
         user = { ...user, ...updates };
         await updateFirestoreDoc('users', user.id, updates);
       }
@@ -709,7 +716,11 @@ export const useStore = () => {
       await updateFirestoreDoc('users', user.id, user);
       
       if (role === 'owner') {
-        const batch = writeBatch(db!);
+        if (!db) {
+          showToast('데이터베이스가 연결되지 않아 초기화가 불가능합니다.', 'error');
+          return user;
+        }
+        const batch = writeBatch(db);
         for (let i = 1; i <= 15; i++) {
           const tableId = `${user.id}_${i}`;
           const x = ((i - 1) % 5) * 120 + 40;
