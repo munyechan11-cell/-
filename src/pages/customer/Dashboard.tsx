@@ -55,13 +55,9 @@ export default function CustomerDashboard() {
   const { linkSocialAccount, deleteAccount } = useStore();
 
   useEffect(() => {
-    if (storeId && !localStorage.getItem(`gyeol_visited_${storeId}`)) {
-      const timer = setTimeout(() => {
-        setShowOnboarding(true);
-        setTutorialStep('welcome');
-        localStorage.setItem(`gyeol_visited_${storeId}`, 'true');
-      }, 1500);
-      return () => clearTimeout(timer);
+    if (storeId) {
+      setShowOnboarding(true);
+      setTutorialStep('welcome');
     }
   }, [storeId]);
 
