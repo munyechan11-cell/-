@@ -408,7 +408,11 @@ const updateFirestoreDoc = async (coll: string, id: string, data: any, isDelete 
     if (isDelete) {
       await deleteDoc(docRef);
     } else {
-      await setDoc(docRef, data, { merge: true });
+      // Remove undefined fields before sending to Firestore
+      const sanitizedData = Object.fromEntries(
+        Object.entries(data).filter(([_, v]) => v !== undefined)
+      );
+      await setDoc(docRef, sanitizedData, { merge: true });
     }
   } catch (e: any) {
     console.error(`[Firebase] Mutation failed for ${coll}/${id}. Rolling back...`, e);
