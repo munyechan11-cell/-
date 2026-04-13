@@ -54,7 +54,7 @@ export default function OwnerDashboard() {
   const navigate = useNavigate();
   const [selectedTable, setSelectedTable] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'map'>('grid');
-  const [isInitialViewModeSet, setIsInitialViewModeSet] = useState(false);
+  const [isInitialViewModeSet, setIsInitialViewModeSet] = useState(true); // Don't allow config to override if user wants it now
   const [isLayoutMode, setIsLayoutMode] = useState(false);
   const [draggedTable, setDraggedTable] = useState<number | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -719,7 +719,7 @@ export default function OwnerDashboard() {
                                 border: table.type === 'room' 
                                   ? `8px solid ${isOccupied ? '#1c1412' : '#f0e6dd'}` 
                                   : `3px solid ${isOccupied ? '#1c1412' : (selectedTable === table.number ? '#4a0e0e' : (isLayoutMode ? '#e5ddd6' : '#f0e6dd'))}`,
-                                borderRadius: table.type === 'room' ? '4rem' : '1.2rem',
+                                borderRadius: table.type === 'room' ? '4rem' : '50%',
                                 zIndex: isBeingDragged ? 100 : (selectedTable === table.number ? 40 : 10),
                                 touchAction: 'none'
                               }}
@@ -775,10 +775,10 @@ export default function OwnerDashboard() {
                         whileHover={{ y: -3 }}
                         key={table.number} 
                         onClick={() => setSelectedTable(table.number)} 
-                        className={`bg-white rounded-[1.5rem] lg:rounded-[2.5rem] ${ownerViewMode === 'mobile' ? 'p-4' : 'p-6'} border border-primary/5 flex flex-col gap-3 lg:gap-4 cursor-pointer shadow-premium relative min-h-[120px] lg:min-h-[150px] flex-shrink-0 animate-in fade-in zoom-in-95 duration-500`}
+                        className={`bg-white rounded-[1.5rem] lg:rounded-[2.5rem] ${ownerViewMode === 'mobile' ? 'p-4' : 'p-6'} border border-primary/5 flex flex-col gap-3 lg:gap-4 cursor-pointer shadow-premium relative min-h-[120px] lg:min-h-[150px] flex-shrink-0 animate-in fade-in zoom-in-95 duration-500 active:scale-95 touch-manipulation`}
                       >
                          <div className="flex justify-between items-start">
-                            <div className="w-8 h-8 lg:w-14 lg:h-14 bg-gyeol-wood text-white rounded-lg lg:rounded-2xl flex items-center justify-center font-black text-sm lg:text-xl shadow-premium">{table.number}</div>
+                            <div className="w-8 h-8 lg:w-14 lg:h-14 bg-gyeol-wood text-white rounded-full flex items-center justify-center font-black text-sm lg:text-xl shadow-premium">{table.number}</div>
                             <div className={`px-2 py-0.5 rounded-full text-[7px] lg:text-[8px] font-black uppercase tracking-widest ${table.currentCustomerId ? 'bg-emerald-50 text-emerald-600' : 'bg-primary/5 text-primary/30'}`}>
                                {table.currentCustomerId ? '이용중' : '가능'}
                             </div>

@@ -230,7 +230,7 @@ export default function CustomerDashboard() {
         {/* Elite Header */}
         <header className="px-8 py-8 flex justify-between items-center bg-surface-bright/80 backdrop-blur-xl sticky top-0 z-40 border-b border-primary/5">
           <div className="flex items-center gap-4">
-             <div className="w-12 h-12 rounded-2xl bg-gyeol-wood flex items-center justify-center text-white font-serif italic text-2xl shadow-premium">결</div>
+             <div className="w-12 h-12 rounded-full bg-gyeol-wood flex items-center justify-center text-white font-serif italic text-2xl shadow-premium">결</div>
              <div>
                 <h1 className="font-serif font-black text-xl italic tracking-tight text-primary">{restaurantName}</h1>
                 <div className="flex items-center gap-2">
@@ -795,7 +795,7 @@ export default function CustomerDashboard() {
                      <div className="grid grid-cols-4 gap-1.5">
                        {[1,2,3,4,5,6,7,8].map(n => (
                          <div key={n} className={`rounded-xl p-2 text-center ${n === 2 || n === 5 ? 'bg-gold/30 border border-gold/40' : 'bg-white/10 border border-white/10'}`}>
-                           <div className={`w-6 h-6 rounded-lg mx-auto mb-1 flex items-center justify-center text-[8px] font-black ${n === 2 || n === 5 ? 'bg-gold text-primary' : 'bg-white/20 text-white/60'}`}>{n}</div>
+                           <div className={`w-6 h-6 rounded-full mx-auto mb-1 flex items-center justify-center text-[8px] font-black ${n === 2 || n === 5 ? 'bg-gold text-primary' : 'bg-white/20 text-white/60'}`}>{n}</div>
                            <p className="text-[6px] font-black text-white/40">{n === 2 || n === 5 ? '이용중' : '없음'}</p>
                          </div>
                        ))}
