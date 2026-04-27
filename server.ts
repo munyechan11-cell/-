@@ -245,6 +245,42 @@ app.get('/api/auth/naver/callback', async (req, res) => {
   }
 });
 
+// --- FOODTECH POS RELAY API ---
+app.post('/api/order/relay-to-pos', async (req, res) => {
+  const { orderId, foodtechStoreCode, tableNumber, items, totalAmount } = req.body;
+
+  try {
+    const FOODTECH_API_URL = 'https://api.foodtech.co.kr/v1/order/relay'; 
+    const FOODTECH_API_KEY = process.env.FOODTECH_API_KEY || 'YOUR_REAL_KEY_HERE';
+    
+    const relayPayload = {
+      store_code: foodtechStoreCode,
+      order_id: orderId,
+      order_type: 'WEB_QR',
+      table_no: tableNumber,
+      order_items: items.map((item: any) => ({
+        product_code: item.posCode || '9999',
+        product_name: item.name,
+        quantity: item.quantity,
+        price: item.price
+      })),
+      amount: {
+        total: totalAmount,
+        payment: totalAmount
+      },
+      payment_type: 'PREPAID',
+      ordered_at: new Date().toISOString()
+    };
+
+    console.log(`[Foodtech Relay] Order ${orderId} prepared for store ${foodtechStoreCode}`);
+    res.json({ success: true, message: 'Relayed to POS via Foodtech' });
+
+  } catch (error: any) {
+    console.error('[Relay Error]', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Optimized startServer for faster Render ready-signal
 async function startServer() {
   // 1. Open port EARLY to tell Render we are live

@@ -65,6 +65,7 @@ export interface User {
   aligoUserId?: string;
   aligoSender?: string;
   smsGatewayUrl?: string;
+  foodtechStoreCode?: string; // New: For POS integration
   storeConfig?: StoreConfig; // New: Multi-tenancy config
   rewardBalance?: number; // New: Accumulated points or stamps
   lat?: number; // New: Store Latitude
@@ -141,6 +142,7 @@ export interface MenuItem {
   imageUrl?: string;
   description?: string;
   isAvailable?: boolean;
+  posProductCode?: string; // New: For POS manual mapping
 }
 
 export interface StoreOrder {
@@ -1176,8 +1178,39 @@ export const useStore = () => {
       status: 'pending', 
       createdAt: new Date().toISOString() 
     };
+
+    // 1. Direct Firestore storage for real-time tracking
     await updateFirestoreDoc('orders', id, newOrder);
-    showToast('주문이 완료되었습니다. 사장님께 전송됩니다.', 'success');
+
+    // 2. POS Relay Attempt (via server-side Foodtech integration)
+    const owner = users.find(u => u.id === order.storeId);
+    if (owner?.foodtechStoreCode) {
+      try {
+        const response = await fetch('/api/order/relay-to-pos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            orderId: id,
+            foodtechStoreCode: owner.foodtechStoreCode,
+            tableNumber: order.tableNumber,
+            items: order.items.map(item => ({
+              ...item,
+              posCode: menus.find(m => m.id === item.menuId)?.posProductCode
+            })),
+            totalAmount: order.totalAmount
+          })
+        });
+
+        if (!response.ok) throw new Error('POS Relay Failed');
+        showToast('주문이 POS로 전달되었습니다.', 'success');
+      } catch (err) {
+        console.error('[POS Relay Error]', err);
+        showToast('매장 POS 전달 실패. 사장님이 직접 확인해 주세요.', 'info');
+      }
+    } else {
+      showToast('주문이 완료되었습니다. 사장님 앱으로 알림이 전송됩니다.', 'success');
+    }
+
     return id;
   };
 

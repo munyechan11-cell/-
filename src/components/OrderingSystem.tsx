@@ -13,7 +13,8 @@ interface OrderingSystemProps {
 }
 
 export default function OrderingSystem({ storeId, tableNumber }: OrderingSystemProps) {
-  const { menus, placeOrder, currentUser } = useStore();
+  const { menus, placeOrder, currentUser, users } = useStore();
+  const owner = useMemo(() => users.find(u => u.id === storeId), [users, storeId]);
   const [cart, setCart] = useState<{ item: MenuItem; quantity: number }[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string>('전체');
@@ -59,9 +60,37 @@ export default function OrderingSystem({ storeId, tableNumber }: OrderingSystemP
   const totalAmount = cart.reduce((sum, p) => sum + (p.item.price * p.quantity), 0);
   const totalQuantity = cart.reduce((sum, p) => sum + p.quantity, 0);
 
+  const generateId = () => Math.random().toString(36).substring(2, 15);
+
   const handlePlaceOrder = async () => {
     if (cart.length === 0 || !currentUser) return;
     
+    // Toss Payments 연동 (가맹점 Client Key가 설정된 경우)
+    const clientKey = owner?.storeConfig?.pointRate !== undefined ? 'test_ck_D5PzByrj8E6pZ596PbX86979zYda' : null; // 예시용 테스트 키
+    
+    if (clientKey && (window as any).loadPaymentWidget) {
+      try {
+        const paymentWidget = (window as any).loadPaymentWidget(clientKey, currentUser.id);
+        
+        await paymentWidget.renderPaymentMethods('#payment-method', { value: totalAmount });
+        await paymentWidget.renderAgreement('#agreement');
+
+        // Note: Real implementation would show a payment UI modal here.
+        // For this demo, we'll proceed to request payment directly or show the order button.
+        await paymentWidget.requestPayment({
+          orderId: generateId(),
+          orderName: `${cart[0].item.name} 외 ${cart.length - 1}건`,
+          customerName: currentUser.name,
+          successUrl: `${window.location.origin}/customer/payment/success?storeId=${storeId}&table=${tableNumber}&cart=${encodeURIComponent(JSON.stringify(cart))}`,
+          failUrl: `${window.location.origin}/customer/payment/fail`,
+        });
+        return;
+      } catch (err) {
+        console.error('Payment Error:', err);
+      }
+    }
+
+    // 결제 연동이 없거나 실패한 경우 기존 방식(후불)으로 진행
     setIsOrdering(true);
     try {
       await placeOrder({
@@ -233,6 +262,11 @@ export default function OrderingSystem({ storeId, tableNumber }: OrderingSystemP
                     <span className="text-sm font-bold uppercase tracking-widest opacity-40">총 합계액</span>
                     <span className="text-4xl font-serif font-black italic">₩{totalAmount.toLocaleString()}</span>
                  </div>
+
+                 {/* Payment Widget Anchors (Will be shown if payment logic is triggered) */}
+                 <div id="payment-method" className="bg-white rounded-2xl overflow-hidden mb-4 hidden"></div>
+                 <div id="agreement" className="bg-white rounded-2xl overflow-hidden mb-4 hidden"></div>
+
                  <button 
                    onClick={handlePlaceOrder}
                    disabled={isOrdering || cart.length === 0}

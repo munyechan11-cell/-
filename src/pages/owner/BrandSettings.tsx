@@ -25,6 +25,8 @@ export default function BrandSettings() {
   const [newMenuPrice, setNewMenuPrice] = useState('');
   const [newMenuCategory, setNewMenuCategory] = useState('식사');
   const [newMenuDesc, setNewMenuDesc] = useState('');
+  const [newMenuPosCode, setNewMenuPosCode] = useState('');
+  const [newMenuImageUrl, setNewMenuImageUrl] = useState('');
 
   const [tierRewards, setTierRewards] = useState<Record<string, string>>(currentUser?.tierRewards || {
     'VIP': '전 메뉴 10% 상시 할인 + 사장님 특별 모듬 서비스',
@@ -43,6 +45,8 @@ export default function BrandSettings() {
   });
   const [locationAccessOnly, setLocationAccessOnly] = useState(currentUser?.storeConfig?.locationAccessOnly || false);
   const [allowedRadius, setAllowedRadius] = useState(currentUser?.storeConfig?.allowedRadius || 50);
+  const [foodtechStoreCode, setFoodtechStoreCode] = useState(currentUser?.foodtechStoreCode || '');
+  const [tossClientKey, setTossClientKey] = useState(currentUser?.storeConfig?.pointRate !== undefined ? '' : ''); // Placeholder for Toss Key (can use pointRate field or add to config)
   const [isLocating, setIsLocating] = useState(false);
 
   const [isSaving, setIsSaving] = useState(false);
@@ -59,6 +63,7 @@ export default function BrandSettings() {
       await updateBrandSettings(currentUser.id, { 
         tierNames, 
         tierRewards,
+        foodtechStoreCode,
         storeConfig: {
           ...currentUser.storeConfig,
           crmCustomInsights,
@@ -275,6 +280,51 @@ export default function BrandSettings() {
                   </div>
                </section>
 
+                   </div>
+               </section>
+
+               <section className="bg-white/80 backdrop-blur-md p-10 rounded-[3rem] border border-primary/5 shadow-premium">
+                  <div className="flex items-center gap-4 mb-2">
+                     <h2 className="text-3xl font-sans font-black text-primary tracking-tight">온라인 결제 설정 (Payment)</h2>
+                     <div className="px-3 py-1 bg-primary/5 text-primary text-[9px] font-black rounded-lg">FINTECH</div>
+                  </div>
+                  <p className="text-primary/40 text-sm mb-10 font-bold uppercase tracking-widest">토스, 카카오페이, 네이버페이를 한 번에 연동하세요. (토스페이먼츠 위젯 지원)</p>
+                  
+                  <div className="bg-surface-bright p-8 rounded-3xl border border-primary/5 space-y-6">
+                     <div className="space-y-2">
+                        <label className="text-[10px] font-black text-primary/30 uppercase tracking-[0.3em]">토스페이먼츠 클라이언트 키 (Client Key)</label>
+                        <input 
+                           className="w-full bg-white border border-primary/10 rounded-xl px-6 py-4 text-sm font-black focus:ring-1 focus:ring-primary shadow-sm"
+                           value={tossClientKey}
+                           onChange={e => setTossClientKey(e.target.value)}
+                           placeholder="test_ck_XXXXXXXXXXXX"
+                        />
+                        <p className="text-[9px] text-primary/30 font-medium">※ 토스 개발자 센터에서 발급받은 '클라이언트 키'를 입력해 주세요.</p>
+                     </div>
+                  </div>
+               </section>
+
+               <section className="bg-white/80 backdrop-blur-md p-10 rounded-[3rem] border border-primary/5 shadow-premium">
+                  <div className="flex items-center gap-4 mb-2">
+                     <h2 className="text-3xl font-sans font-black text-primary tracking-tight">주문 중계 및 연동 (POS Relay)</h2>
+                     <div className="px-3 py-1 bg-burgundy/10 text-burgundy text-[9px] font-black rounded-lg">POS SYNC</div>
+                  </div>
+                  <p className="text-primary/40 text-sm mb-10 font-bold uppercase tracking-widest">OKPOS 등 실제 매장 포스기와의 실시간 주문 연동 설정을 관리합니다.</p>
+                  
+                  <div className="bg-surface-bright p-8 rounded-3xl border border-primary/5 space-y-6">
+                     <div className="space-y-2">
+                        <label className="text-[10px] font-black text-primary/30 uppercase tracking-[0.3em]">푸드테크(M-Kitchen) 매장코드</label>
+                        <input 
+                           className="w-full bg-white border border-primary/10 rounded-xl px-6 py-4 text-sm font-black focus:ring-1 focus:ring-primary shadow-sm"
+                           value={foodtechStoreCode}
+                           onChange={e => setFoodtechStoreCode(e.target.value)}
+                           placeholder="FT_XXXXXX_XXXX"
+                        />
+                        <p className="text-[9px] text-primary/30 font-medium">※ 푸드테크에서 발급받은 정식 코드를 입력하면 POS 연동 주문이 활성화됩니다.</p>
+                     </div>
+                  </div>
+               </section>
+
               <section className="bg-white/80 backdrop-blur-md p-10 rounded-[3rem] border border-primary/5 shadow-premium">
                  <div className="flex items-center gap-4 mb-2">
                     <h2 className="text-3xl font-sans font-black text-primary tracking-tight">디지털 메뉴판 관리</h2>
@@ -314,20 +364,41 @@ export default function BrandSettings() {
                          value={newMenuDesc}
                          onChange={e => setNewMenuDesc(e.target.value)}
                        />
-                    </div>
+                        <input 
+                          className="w-full bg-white rounded-2xl px-6 py-4 text-sm font-black focus:ring-1 focus:ring-primary shadow-sm"
+                          placeholder="POS 메뉴코드 (예: 01)"
+                          value={newMenuPosCode}
+                          onChange={e => setNewMenuPosCode(e.target.value)}
+                        />
+                        <input 
+                          className="w-full bg-white rounded-2xl px-6 py-4 text-sm font-black focus:ring-1 focus:ring-primary shadow-sm"
+                          placeholder="이미지 URL (Unsplash 등)"
+                          value={newMenuImageUrl}
+                          onChange={e => setNewMenuImageUrl(e.target.value)}
+                        />
+                     </div>
+                     {newMenuImageUrl && (
+                       <div className="mt-4 w-32 h-32 rounded-2xl overflow-hidden border border-primary/10 shadow-inner">
+                         <img src={newMenuImageUrl} alt="Preview" className="w-full h-full object-cover" />
+                       </div>
+                     )}
                     <button 
                       onClick={async () => {
                          if (!newMenuName || !newMenuPrice) return;
-                         await addMenuItem({
-                            name: newMenuName,
-                            price: parseInt(newMenuPrice),
-                            category: newMenuCategory,
-                            description: newMenuDesc,
-                            storeId: currentUser.id
-                         });
-                         setNewMenuName('');
-                         setNewMenuPrice('');
-                         setNewMenuDesc('');
+                          await addMenuItem({
+                             name: newMenuName,
+                             price: parseInt(newMenuPrice),
+                             category: newMenuCategory,
+                             description: newMenuDesc,
+                             posProductCode: newMenuPosCode,
+                             imageUrl: newMenuImageUrl,
+                             storeId: currentUser.id
+                          });
+                          setNewMenuName('');
+                          setNewMenuPrice('');
+                          setNewMenuDesc('');
+                          setNewMenuPosCode('');
+                          setNewMenuImageUrl('');
                       }}
                       disabled={isProcessing}
                       className="w-full bg-primary text-white py-5 rounded-2xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:scale-[1.01] transition-all"
@@ -340,11 +411,20 @@ export default function BrandSettings() {
                     {menus.filter(m => m.storeId === currentUser.id).map(m => (
                        <div key={m.id} className="flex items-center justify-between p-6 bg-white rounded-3xl border border-primary/5 hover:border-primary/20 transition-all group">
                           <div className="flex gap-6 items-center">
-                             <div className="w-16 h-16 bg-primary/5 rounded-2xl flex items-center justify-center text-primary/20"><Utensils className="w-8 h-8" /></div>
+                             <div className="w-16 h-16 bg-primary/5 rounded-2xl flex items-center justify-center text-primary/20 overflow-hidden">
+                                {m.imageUrl ? (
+                                   <img src={m.imageUrl} alt={m.name} className="w-full h-full object-cover" />
+                                ) : (
+                                   <Utensils className="w-8 h-8" />
+                                )}
+                             </div>
                              <div>
                                 <div className="flex items-center gap-3">
                                    <p className="text-lg font-black text-primary">{m.name}</p>
                                    <span className="text-[9px] px-2 py-0.5 bg-gold/10 text-gold rounded font-black uppercase">{m.category}</span>
+                                   {m.posProductCode && (
+                                      <span className="text-[8px] px-2 py-0.5 bg-primary/5 text-primary/40 rounded font-bold uppercase">POS: {m.posProductCode}</span>
+                                   )}
                                 </div>
                                 <p className="text-sm font-serif font-black italic text-primary/40">₩{m.price.toLocaleString()}</p>
                              </div>
