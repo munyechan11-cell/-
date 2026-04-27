@@ -280,9 +280,6 @@ export default function BrandSettings() {
                   </div>
                </section>
 
-                   </div>
-               </section>
-
                <section className="bg-white/80 backdrop-blur-md p-10 rounded-[3rem] border border-primary/5 shadow-premium">
                   <div className="flex items-center gap-4 mb-2">
                      <h2 className="text-3xl font-sans font-black text-primary tracking-tight">온라인 결제 설정 (Payment)</h2>
