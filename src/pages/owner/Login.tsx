@@ -145,6 +145,48 @@ export default function OwnerLogin() {
                  <div className="w-5 h-5 bg-[#3c1e1e] rounded-full flex items-center justify-center text-[8px] text-[#FEE500] font-black">K</div>
                  <span className="text-[10px] font-black text-[#3c1e1e] uppercase tracking-widest">Kakao로 시작하기</span>
               </button>
+
+              <button 
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (!(window as any).Kakao) return alert('카카오 SDK가 없습니다.');
+                  (window as any).Kakao.Auth.login({
+                    scope: 'profile_nickname,profile_image,friends,talk_message',
+                    success: function() {
+                      (window as any).Kakao.API.request({
+                        url: '/v1/api/talk/friends',
+                        success: function(res: any) {
+                          alert("친구목록 가져오기 테스트 통과! (친구 수: " + (res.elements?.length || 0) + ")");
+                          if (res.elements && res.elements.length > 0) {
+                            (window as any).Kakao.API.request({
+                              url: '/v1/api/talk/friends/message/default/send',
+                              data: {
+                                receiver_uuids: [res.elements[0].uuid],
+                                template_object: {
+                                  object_type: 'text',
+                                  text: '카카오 비즈니스 심사용 테스트 메시지입니다.',
+                                  link: { web_url: 'https://gyeol.onrender.com', mobile_web_url: 'https://gyeol.onrender.com' },
+                                },
+                              },
+                              success: function() { alert("메시지 전송 테스트까지 완료! 카카오 심사를 다시 신청하세요."); },
+                              fail: function(err: any) { alert("메시지 전송 실패: " + JSON.stringify(err)); }
+                            });
+                          } else {
+                            alert("앱을 사용하는 친구가 없습니다.\n\n먼저 지인/직원 한 명을 앱에 한 번 로그인하게 한 뒤, 다시 이 버튼을 눌러 메시지 전송까지 완료해야 심사에 100% 통과합니다.");
+                          }
+                        },
+                        fail: function(err: any) {
+                          alert("친구 목록 호출 실패: " + JSON.stringify(err));
+                        }
+                      });
+                    },
+                    fail: function(err: any) { alert("로그인/동의 실패: " + JSON.stringify(err)); }
+                  });
+                }}
+                className="w-full py-2 bg-gray-100 text-gray-500 rounded-2xl flex items-center justify-center gap-2 text-[9px] font-bold border border-dashed border-gray-300"
+              >
+                 ⚠️ (심사제출용) 카카오 API 친구/메시지 테스트 실행
+              </button>
            </div>
 
            <button 
