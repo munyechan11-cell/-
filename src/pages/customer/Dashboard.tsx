@@ -115,7 +115,16 @@ export default function CustomerDashboard() {
     }
   }, [owner, calculateDistance]);
 
-  if (!currentUser || currentUser.storeId !== storeId) return null;
+  if (!currentUser || currentUser.storeId !== storeId) {
+    return (
+      <div className="min-h-screen bg-surface-bright flex flex-col items-center justify-center p-8 text-center">
+        <div className="w-20 h-20 bg-primary/5 rounded-[2.5rem] flex items-center justify-center text-primary/20 mx-auto mb-6"><Loader2 className="w-10 h-10 animate-spin" /></div>
+        <h3 className="text-xl font-serif font-black text-primary italic mb-2">세션 확인 중...</h3>
+        <p className="text-[10px] font-black text-primary/30 uppercase tracking-[0.3em] mb-8">로그인 정보를 확인하고 있습니다</p>
+        <button onClick={() => navigate(`/customer/store/${storeId}/login`)} className="px-8 py-4 bg-primary text-white rounded-2xl text-sm font-black">로그인 화면으로 이동</button>
+      </div>
+    );
+  }
 
   if (!isReady) {
     return (
@@ -138,7 +147,15 @@ export default function CustomerDashboard() {
     );
   }
 
-  if (!owner) return null;
+  if (!owner) {
+    return (
+      <div className="min-h-screen bg-surface-bright flex flex-col items-center justify-center p-8 text-center">
+        <div className="w-20 h-20 bg-primary/5 rounded-[2.5rem] flex items-center justify-center text-primary/20 mx-auto mb-6"><Loader2 className="w-10 h-10 animate-spin" /></div>
+        <h3 className="text-xl font-serif font-black text-primary italic mb-2">매장 정보 로딩 중...</h3>
+        <p className="text-[10px] font-black text-primary/30 uppercase tracking-[0.3em] mb-8">데이터베이스에서 매장 정보를 불러오고 있습니다</p>
+      </div>
+    );
+  }
 
   const restaurantName = owner.restaurantName || '단골 매장';
   const myVisits = (visits || []).filter(v => v.customerId === currentUser.id && v.storeId === storeId);
@@ -520,8 +537,61 @@ export default function CustomerDashboard() {
           )}
 
           {activeTab === 'coupon' && (
-            <div className="px-6 lg:px-12 pt-10 pb-32">
-               <p className="text-center py-20 text-primary/30 font-black tracking-widest text-xs uppercase">준비 중인 특권입니다</p>
+            <div className="px-6 lg:px-12 pt-10 pb-32 space-y-10">
+               <div className="flex items-center gap-4 px-2">
+                  <Ticket className="w-6 h-6 text-gold" />
+                  <h3 className="font-serif font-black text-xl italic text-primary">나의 특권</h3>
+                  <span className="text-[9px] font-black text-primary/30 uppercase tracking-widest">{myCoupons.length}장 보유</span>
+               </div>
+
+               {myCoupons.length === 0 ? (
+                  <div className="bg-white py-20 rounded-[4rem] border border-dashed border-primary/10 text-center">
+                     <div className="w-16 h-16 bg-gold/5 rounded-[2rem] flex items-center justify-center text-gold/30 mx-auto mb-6"><Ticket className="w-8 h-8" /></div>
+                     <p className="text-[11px] font-black text-primary/30 uppercase tracking-[0.3em]">아직 보유한 쿠폰이 없습니다</p>
+                     <p className="text-[10px] text-primary/20 mt-2">방문 횟수에 따라 자동으로 쿠폰이 발행됩니다</p>
+                  </div>
+               ) : (
+                  <div className="space-y-4">
+                     {myCoupons.map((coupon) => (
+                        <motion.div
+                          key={coupon.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className={`bg-white rounded-[3rem] p-8 border shadow-premium relative overflow-hidden ${
+                            coupon.status === 'pending' ? 'border-gold/30' : 'border-primary/5'
+                          }`}
+                        >
+                           {coupon.status === 'pending' && <div className="absolute top-0 left-0 right-0 h-1 bg-gold animate-pulse" />}
+                           <div className="flex justify-between items-center">
+                              <div className="flex items-center gap-5">
+                                 <div className={`w-14 h-14 rounded-[1.5rem] flex items-center justify-center text-white shadow-lg ${
+                                   coupon.status === 'pending' ? 'bg-gold' : 'bg-primary'
+                                 }`}>
+                                    <Ticket className="w-7 h-7" />
+                                 </div>
+                                 <div>
+                                    <p className="text-base font-black text-primary mb-1">{coupon.description || '특별 혜택 쿠폰'}</p>
+                                    <p className="text-[9px] font-black uppercase tracking-widest text-primary/30">
+                                      {coupon.status === 'pending' ? '사장님 승인 대기 중...' : '사용 가능'}
+                                    </p>
+                                 </div>
+                              </div>
+                              {coupon.status === 'available' ? (
+                                 <button
+                                   onClick={() => setSelectedCoupon(coupon.id)}
+                                   className="px-6 py-3 bg-primary text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-lg"
+                                 >사용하기</button>
+                              ) : coupon.status === 'pending' ? (
+                                 <button
+                                   onClick={() => { cancelCouponRequest(coupon.id); setCancelingCoupon(null); }}
+                                   className="px-6 py-3 bg-burgundy/10 text-burgundy rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-burgundy hover:text-white transition-all"
+                                 >취소</button>
+                              ) : null}
+                           </div>
+                        </motion.div>
+                     ))}
+                  </div>
+               )}
             </div>
           )}
         </div>
@@ -547,7 +617,7 @@ export default function CustomerDashboard() {
            ))}
         </nav>
 
-        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 w-[calc(100%-48px)] max-w-[400px] bg-sidebar-bg/95 backdrop-blur-2xl px-12 py-7 rounded-[3rem] flex justify-between items-center z-50 shadow-3xl border border-white/10 ring-1 ring-white/5">
+        <div style={{display:'none'}} className="fixed bottom-10 left-1/2 -translate-x-1/2 w-[calc(100%-48px)] max-w-[400px] bg-sidebar-bg/95 backdrop-blur-2xl px-12 py-7 rounded-[3rem] flex justify-between items-center z-50 shadow-3xl border border-white/10 ring-1 ring-white/5">
            <Link to={`/customer/store/${storeId}`} className="flex flex-col items-center gap-2 text-gold transition-all group">
               <Zap className="w-6 h-6 group-hover:scale-110 transition-transform" />
               <span className="text-[8px] font-black uppercase tracking-[0.2em] opacity-80">홈</span>

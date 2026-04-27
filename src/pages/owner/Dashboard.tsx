@@ -555,6 +555,81 @@ export default function OwnerDashboard() {
         </header>
 
         <div className={`flex-1 overflow-y-auto p-6 lg:p-12 space-y-8 lg:space-y-12 bg-gyeol-pattern ${ownerViewMode === 'mobile' ? 'no-scrollbar' : ''}`}>
+
+               {/* ═══ ORDER MANAGEMENT PANEL (TOP PRIORITY) ═══ */}
+               {(() => {
+                 const activeOrders = (orders || []).filter((o: any) => o.storeId === currentUser.id && o.status !== 'served' && o.status !== 'cancelled');
+                 if (activeOrders.length === 0) return null;
+                 return (
+                   <div className="bg-white rounded-[3rem] lg:rounded-[4rem] p-8 lg:p-12 shadow-premium border-2 border-gold/20 relative overflow-hidden">
+                      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-gold via-primary to-gold"></div>
+                      <div className="flex justify-between items-center mb-8">
+                         <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 bg-gold/10 rounded-2xl flex items-center justify-center text-gold animate-pulse"><Bell className="w-6 h-6" /></div>
+                            <div>
+                               <h3 className="text-xl font-sans font-black text-primary tracking-tight">주문 관리</h3>
+                               <p className="text-[10px] font-black text-primary/30 uppercase tracking-widest">{activeOrders.length}건 처리 대기 중</p>
+                            </div>
+                         </div>
+                      </div>
+                      <div className="space-y-4">
+                         {activeOrders.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((order: any) => (
+                            <motion.div 
+                              key={order.id}
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className={`p-6 lg:p-8 rounded-[2.5rem] border-2 transition-all ${
+                                order.status === 'pending' ? 'border-gold/30 bg-gold/5' :
+                                order.status === 'accepted' ? 'border-blue-200 bg-blue-50' :
+                                order.status === 'cooking' ? 'border-primary/20 bg-primary/5' :
+                                'border-primary/5 bg-white'
+                              }`}
+                            >
+                               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                                  <div className="flex items-center gap-6">
+                                     <div className="w-16 h-16 bg-primary text-white rounded-2xl flex items-center justify-center font-black text-2xl shadow-premium">{order.tableNumber}</div>
+                                     <div>
+                                        <div className="flex items-center gap-3 mb-2">
+                                           <span className={`text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-widest ${
+                                             order.status === 'pending' ? 'bg-gold text-white' :
+                                             order.status === 'accepted' ? 'bg-blue-500 text-white' :
+                                             order.status === 'cooking' ? 'bg-primary text-white' :
+                                             'bg-emerald-500 text-white'
+                                           }`}>
+                                             {order.status === 'pending' ? '신규 주문' : order.status === 'accepted' ? '접수 완료' : order.status === 'cooking' ? '조리 중' : order.status}
+                                           </span>
+                                           <span className="text-[9px] text-primary/30 font-bold">{new Date(order.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</span>
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                           {order.items.map((item: any, idx: number) => (
+                                              <span key={idx} className="text-xs font-bold text-primary/60 bg-primary/5 px-3 py-1 rounded-full">{item.name} ×{item.quantity}</span>
+                                           ))}
+                                        </div>
+                                        <p className="text-lg font-serif font-black italic text-primary mt-2">₩{order.totalAmount.toLocaleString()}</p>
+                                     </div>
+                                  </div>
+                                  <div className="flex gap-2 flex-shrink-0">
+                                     {order.status === 'pending' && (
+                                        <>
+                                           <button onClick={() => updateOrderStatus(order.id, 'accepted')} className="px-6 py-3 bg-blue-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-lg">접수</button>
+                                           <button onClick={() => updateOrderStatus(order.id, 'cancelled')} className="px-6 py-3 bg-burgundy/10 text-burgundy rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-burgundy hover:text-white transition-all">거절</button>
+                                        </>
+                                     )}
+                                     {order.status === 'accepted' && (
+                                        <button onClick={() => updateOrderStatus(order.id, 'cooking')} className="px-6 py-3 bg-primary text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-lg">조리 시작</button>
+                                     )}
+                                     {order.status === 'cooking' && (
+                                        <button onClick={() => updateOrderStatus(order.id, 'served')} className="px-6 py-3 bg-emerald-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-lg">서빙 완료</button>
+                                     )}
+                                  </div>
+                               </div>
+                            </motion.div>
+                         ))}
+                      </div>
+                   </div>
+                 );
+               })()}
+
                {/* Proactive Operational HUD - Top Intelligence Bar */}
                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8 lg:mb-12">
                   {[
