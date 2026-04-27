@@ -413,6 +413,44 @@ export default function OwnerCustomers() {
                <div className="flex bg-surface-container p-1 rounded-xl mb-6">
                   <button type="button" onClick={() => setSendType('coupon')} className={`flex-1 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${sendType === 'coupon' ? 'bg-white text-primary shadow-sm' : 'text-on-surface-variant/40'}`}>쿠폰 서비스</button>
                   <button type="button" onClick={() => setSendType('message')} className={`flex-1 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${sendType === 'message' ? 'bg-white text-primary shadow-sm' : 'text-on-surface-variant/40'}`}>문자 발송</button>
+                  <button 
+                    type="button" 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (!(window as any).Kakao) return alert('카카오 SDK가 없습니다.');
+                      (window as any).Kakao.Auth.login({
+                        scope: 'profile_nickname,profile_image,friends,talk_message',
+                        success: function() {
+                          (window as any).Kakao.API.request({
+                            url: '/v1/api/talk/friends',
+                            success: function(res: any) {
+                              alert("친구목록 가져오기 테스트 통과! (친구 수: " + (res.elements?.length || 0) + ")");
+                              if (res.elements && res.elements.length > 0) {
+                                (window as any).Kakao.API.request({
+                                  url: '/v1/api/talk/friends/message/default/send',
+                                  data: {
+                                    receiver_uuids: [res.elements[0].uuid],
+                                    template_object: {
+                                      object_type: 'text',
+                                      text: '카카오 비즈니스 심사용 테스트 메시지입니다.',
+                                      link: { web_url: 'https://gyeol.onrender.com', mobile_web_url: 'https://gyeol.onrender.com' },
+                                    },
+                                  },
+                                  success: function() { alert("메시지 전송 테스트까지 완료! 카카오 심사를 다시 신청하세요."); },
+                                  fail: function(err: any) { alert("메시지 전송 실패: " + JSON.stringify(err)); }
+                                });
+                              } else {
+                                alert("앱을 사용하는 친구가 없습니다.\n\n먼저 지인/직원 한 명을 앱에 로그인하게 한 뒤 다시 테스트하세요.");
+                              }
+                            },
+                            fail: function(err: any) { alert("친구 목록 호출 실패: " + JSON.stringify(err)); }
+                          });
+                        },
+                        fail: function(err: any) { alert("로그인/동의 실패: " + JSON.stringify(err)); }
+                      });
+                    }} 
+                    className="flex-1 ml-1 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all bg-[#FEE500] text-[#3c1e1e] hover:shadow-md"
+                  >심사 테스트</button>
                </div>
 
                {sendType === 'coupon' ? (
