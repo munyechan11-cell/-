@@ -32,7 +32,8 @@ export default function CustomerDashboard() {
     cancelCouponRequest = () => {}, 
     updateUserMemo = () => {}, 
     recordCommunication = async () => {}, 
-    firebaseStatus = 'offline' 
+    firebaseStatus = 'offline',
+    orders = []
   } = useStore();
   const navigate = useNavigate();
   const { storeId } = useParams<{ storeId: string }>();
@@ -437,6 +438,46 @@ export default function CustomerDashboard() {
                     <p className="text-[10px] font-black text-primary/30 uppercase tracking-[0.3em]">이곳을 터치하거나 하단의 QR 스캐너를 실행하세요</p>
                  </motion.div>
                )}
+
+                {/* ═══ ORDER STATUS TRACKING ═══ */}
+                {(() => {
+                  const myOrders = (orders || []).filter((o: any) => o.customerId === currentUser.id && o.storeId === storeId && o.status !== 'served' && o.status !== 'cancelled');
+                  if (myOrders.length === 0) return null;
+                  const statusSteps = ['pending', 'accepted', 'cooking', 'served'] as const;
+                  const statusLabels: Record<string, string> = { pending: '접수 대기', accepted: '확인 완료', cooking: '조리 중', served: '서빙 완료' };
+                  return myOrders.map((order: any) => {
+                    const currentStepIdx = statusSteps.indexOf(order.status);
+                    return (
+                      <motion.div 
+                        key={order.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="bg-white rounded-[3rem] p-8 border border-gold/20 shadow-premium"
+                      >
+                        <div className="flex justify-between items-center mb-6">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-gold/10 rounded-xl flex items-center justify-center text-gold"><Utensils className="w-5 h-5" /></div>
+                            <div>
+                              <p className="text-sm font-black text-primary">내 주문 현황</p>
+                              <p className="text-[9px] font-bold text-primary/30">{order.items.map((i: any) => i.name).join(', ')}</p>
+                            </div>
+                          </div>
+                          <p className="text-lg font-serif font-black italic text-primary">₩{order.totalAmount.toLocaleString()}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {statusSteps.map((step, idx) => (
+                            <div key={step} className={`flex-1 h-2 rounded-full transition-all ${idx <= currentStepIdx ? 'bg-gold shadow-[0_0_8px_rgba(198,163,79,0.4)]' : 'bg-primary/5'}`} />
+                          ))}
+                        </div>
+                        <div className="flex justify-between mt-3">
+                          {statusSteps.map((step, idx) => (
+                            <span key={step} className={`text-[8px] font-black uppercase tracking-widest ${idx <= currentStepIdx ? 'text-gold' : 'text-primary/15'}`}>{statusLabels[step]}</span>
+                          ))}
+                        </div>
+                      </motion.div>
+                    );
+                  });
+                })()}
 
                {/* Chronicles: Visit History */}
                <section className="space-y-8 pb-10">

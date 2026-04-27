@@ -249,9 +249,15 @@ app.get('/api/auth/naver/callback', async (req, res) => {
 app.post('/api/order/relay-to-pos', async (req, res) => {
   const { orderId, foodtechStoreCode, tableNumber, items, totalAmount } = req.body;
 
+  const FOODTECH_API_KEY = process.env.FOODTECH_API_KEY;
+  
+  if (!FOODTECH_API_KEY || FOODTECH_API_KEY === 'YOUR_REAL_KEY_HERE') {
+    console.warn(`[Foodtech Relay] API Key not set. Order ${orderId} logged locally only.`);
+    return res.json({ success: true, mode: 'test', message: 'POS relay skipped (no API key). Order saved to Firestore only.' });
+  }
+
   try {
-    const FOODTECH_API_URL = 'https://api.foodtech.co.kr/v1/order/relay'; 
-    const FOODTECH_API_KEY = process.env.FOODTECH_API_KEY || 'YOUR_REAL_KEY_HERE';
+    const FOODTECH_API_URL = process.env.FOODTECH_API_URL || 'https://api.foodtech.co.kr/v1/order/relay';
     
     const relayPayload = {
       store_code: foodtechStoreCode,
@@ -272,13 +278,76 @@ app.post('/api/order/relay-to-pos', async (req, res) => {
       ordered_at: new Date().toISOString()
     };
 
-    console.log(`[Foodtech Relay] Order ${orderId} prepared for store ${foodtechStoreCode}`);
-    res.json({ success: true, message: 'Relayed to POS via Foodtech' });
+    const response = await fetch(FOODTECH_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${FOODTECH_API_KEY}`,
+        'X-Request-Id': orderId
+      },
+      body: JSON.stringify(relayPayload)
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      console.error(`[Foodtech Relay] HTTP ${response.status}: ${errorBody}`);
+      return res.status(502).json({ success: false, error: `POS relay failed (HTTP ${response.status})` });
+    }
+
+    const result = await response.json();
+    console.log(`[Foodtech Relay] Order ${orderId} successfully relayed to store ${foodtechStoreCode}`);
+    res.json({ success: true, mode: 'live', posResponse: result });
 
   } catch (error: any) {
-    console.error('[Relay Error]', error);
+    console.error('[Relay Error]', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// --- TOSS PAYMENTS CONFIRM API ---
+app.post('/api/payment/confirm', async (req, res) => {
+  const { paymentKey, orderId, amount } = req.body;
+  const TOSS_SECRET_KEY = process.env.TOSS_SECRET_KEY;
+
+  if (!TOSS_SECRET_KEY) {
+    return res.status(500).json({ error: 'Toss Secret Key not configured on server.' });
+  }
+
+  try {
+    const response = await fetch('https://api.tosspayments.com/v1/payments/confirm', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Basic ${Buffer.from(TOSS_SECRET_KEY + ':').toString('base64')}`
+      },
+      body: JSON.stringify({ paymentKey, orderId, amount })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error('[Toss Confirm Error]', data);
+      return res.status(response.status).json({ error: data.message || 'Payment confirmation failed' });
+    }
+
+    console.log(`[Toss] Payment confirmed: ${orderId}, amount: ${amount}`);
+    res.json({ success: true, payment: data });
+  } catch (error: any) {
+    console.error('[Toss Error]', error.message);
     res.status(500).json({ error: error.message });
   }
+});
+
+// --- ORDER STATUS WEBHOOK (from Foodtech or internal) ---
+app.post('/api/webhook/order-status', async (req, res) => {
+  const { orderId, status, timestamp } = req.body;
+  console.log(`[Webhook] Order ${orderId} status changed to: ${status} at ${timestamp || new Date().toISOString()}`);
+  
+  // Note: In this architecture, Firestore updates are handled client-side via the store.
+  // This webhook endpoint is for external POS systems (e.g., Foodtech) to notify status changes.
+  // If Firebase Admin SDK is configured, server-side updates can be added here.
+  
+  res.json({ received: true, orderId, status });
 });
 
 // Optimized startServer for faster Render ready-signal

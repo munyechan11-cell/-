@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link, useSearchParams } from 'react-router-dom';
 import { useStore, formatPhoneNumber } from '../../store';
-import { QrCode, ArrowLeft, Heart, Sparkles, UserCircle, Phone, Loader2 } from 'lucide-react';
+import { QrCode, ArrowLeft, Heart, Sparkles, UserCircle, Phone, Loader2, Calendar, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function CustomerLogin() {
@@ -13,6 +13,7 @@ export default function CustomerLogin() {
   const [phone, setPhone] = useState('');
   const [isPohangResident, setIsPohangResident] = useState(false);
   const [gender, setGender] = useState<'male' | 'female' | null>(null);
+  const [birthYear, setBirthYear] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
@@ -52,7 +53,7 @@ export default function CustomerLogin() {
          if (!gender) throw new Error('성별을 선택해주세요.');
       }
       // For existing customers (isLogin=true), only phone is required
-      const user = await login(phone, isLogin ? '' : name, 'customer', undefined, storeId, undefined, isPohangResident, gender || undefined);
+      const user = await login(phone, isLogin ? '' : name, 'customer', undefined, storeId, undefined, isPohangResident, gender || undefined, birthYear ? parseInt(birthYear) : undefined);
       if (tableNumber && storeId) {
         await recordVisit(user.id, parseInt(tableNumber), storeId);
       }
@@ -123,42 +124,69 @@ export default function CustomerLogin() {
                           <motion.div 
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: 'auto' }}
-                            className="space-y-4 overflow-hidden"
+                            className="space-y-6 overflow-hidden"
                           >
-                             <div className="relative group">
-                                <UserCircle className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-primary/20 group-focus-within:text-gold transition-colors" />
-                                <input
-                                  type="text"
-                                  className="w-full h-16 bg-surface-container border-none rounded-[2rem] pl-14 pr-6 font-bold text-primary placeholder:text-primary/20 focus:ring-2 focus:ring-gold/20 shadow-inner transition-all text-lg"
-                                  placeholder="성함 또는 닉네임"
-                                  value={name}
-                                  onChange={e => setName(e.target.value)}
-                                  required
-                                />
-                             </div>
-                             
-                             <div className="flex gap-3">
-                                {(['male', 'female'] as const).map(g => (
-                                   <button 
-                                     key={g}
-                                     type="button" 
-                                     onClick={() => setGender(g)} 
-                                     className={`flex-1 py-4 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all border ${gender === g ? 'bg-primary text-white border-primary shadow-xl' : 'bg-white text-primary/30 border-primary/5 hover:border-primary/20'}`}
-                                   >
-                                      {g === 'male' ? 'Gentleman' : 'Lady'}
-                                   </button>
-                                ))}
+                             {/* 필수 회원정보 */}
+                             <div className="space-y-1">
+                                <div className="flex items-center gap-2 mb-3">
+                                   <div className="px-3 py-1 bg-primary text-white text-[8px] font-black rounded-lg uppercase tracking-widest">필수 회원정보</div>
+                                </div>
+                                <div className="relative group">
+                                   <UserCircle className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-primary/20 group-focus-within:text-gold transition-colors" />
+                                   <input
+                                     type="text"
+                                     className="w-full h-16 bg-surface-container border-none rounded-[2rem] pl-14 pr-6 font-bold text-primary placeholder:text-primary/20 focus:ring-2 focus:ring-gold/20 shadow-inner transition-all text-lg"
+                                     placeholder="이름 (성함 또는 닉네임)"
+                                     value={name}
+                                     onChange={e => setName(e.target.value)}
+                                     required
+                                   />
+                                </div>
+                                <p className="text-[9px] text-primary/20 font-bold pl-6">※ 연락처는 위에서 입력하셨습니다</p>
                              </div>
 
-                             <label className="flex items-center gap-4 px-6 py-5 bg-surface-container rounded-[2rem] cursor-pointer hover:bg-gold/5 transition-colors border border-transparent hover:border-gold/10">
-                                <input 
-                                  type="checkbox" 
-                                  checked={isPohangResident} 
-                                  onChange={e => setIsPohangResident(e.target.checked)} 
-                                  className="w-5 h-5 rounded-lg border-primary/10 text-gold focus:ring-gold bg-white" 
-                                />
-                                <span className="text-[11px] font-black text-primary/50 uppercase tracking-widest">Local Resident Verification</span>
-                             </label>
+                             {/* 선택 회원정보 */}
+                             <div className="space-y-4">
+                                <div className="flex items-center gap-2 mb-1">
+                                   <div className="px-3 py-1 bg-gold/20 text-gold text-[8px] font-black rounded-lg uppercase tracking-widest">선택 회원정보</div>
+                                </div>
+                                
+                                <div className="flex gap-3">
+                                   {(['male', 'female'] as const).map(g => (
+                                      <button 
+                                        key={g}
+                                        type="button" 
+                                        onClick={() => setGender(g)} 
+                                        className={`flex-1 py-4 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all border ${gender === g ? 'bg-primary text-white border-primary shadow-xl' : 'bg-white text-primary/30 border-primary/5 hover:border-primary/20'}`}
+                                      >
+                                         {g === 'male' ? '남성' : '여성'}
+                                      </button>
+                                   ))}
+                                </div>
+
+                                <div className="relative group">
+                                   <Calendar className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-primary/20 group-focus-within:text-gold transition-colors" />
+                                   <input
+                                     type="number"
+                                     className="w-full h-16 bg-surface-container border-none rounded-[2rem] pl-14 pr-6 font-bold text-primary placeholder:text-primary/20 focus:ring-2 focus:ring-gold/20 shadow-inner transition-all text-lg"
+                                     placeholder="출생년도 (예: 1995)"
+                                     value={birthYear}
+                                     onChange={e => setBirthYear(e.target.value)}
+                                     min={1920}
+                                     max={new Date().getFullYear()}
+                                   />
+                                </div>
+
+                                <label className="flex items-center gap-4 px-6 py-5 bg-surface-container rounded-[2rem] cursor-pointer hover:bg-gold/5 transition-colors border border-transparent hover:border-gold/10">
+                                   <input 
+                                     type="checkbox" 
+                                     checked={isPohangResident} 
+                                     onChange={e => setIsPohangResident(e.target.checked)} 
+                                     className="w-5 h-5 rounded-lg border-primary/10 text-gold focus:ring-gold bg-white" 
+                                   />
+                                   <span className="text-[11px] font-black text-primary/50 uppercase tracking-widest">포항 지역 주민 인증</span>
+                                </label>
+                             </div>
                           </motion.div>
                        )}
                     </div>

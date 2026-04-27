@@ -40,6 +40,7 @@ export interface StoreConfig {
   crmCustomInsights?: Record<string, string>; // New: Customizable marketing insights
   locationAccessOnly?: boolean; // New: Restrict access by GPS
   allowedRadius?: number; // New: Allowed radius in meters
+  tossClientKey?: string; // New: Toss Payments Client Key
 }
 
 export interface User {
@@ -70,6 +71,7 @@ export interface User {
   rewardBalance?: number; // New: Accumulated points or stamps
   lat?: number; // New: Store Latitude
   lng?: number; // New: Store Longitude
+  birthYear?: number; // New: Birth year for age demographics
 }
 
 export interface Visit {
@@ -158,6 +160,7 @@ export interface StoreOrder {
   }[];
   totalAmount: number;
   status: 'pending' | 'accepted' | 'cooking' | 'served' | 'cancelled';
+  paymentStatus?: 'unpaid' | 'paid' | 'refunded';
   createdAt: string;
 }
 
@@ -630,7 +633,7 @@ export const useStore = () => {
     }
   };
 
-  const login = async (phone: string, name: string, role: Role, restaurantName?: string, storeId?: string, socialProvider?: 'google' | 'kakao', isPohangResident?: boolean, gender?: 'male' | 'female') => {
+  const login = async (phone: string, name: string, role: Role, restaurantName?: string, storeId?: string, socialProvider?: 'google' | 'kakao', isPohangResident?: boolean, gender?: 'male' | 'female', birthYear?: number) => {
     let socialId = '';
     let socialEmail = '';
     let socialName = '';
@@ -717,7 +720,8 @@ export const useStore = () => {
         linkedProviders: socialProvider ? [socialProvider] : [],
         isPohangResident,
         gender,
-        avatarUrl: socialAvatar
+        avatarUrl: socialAvatar,
+        birthYear
       };
       await updateFirestoreDoc('users', user.id, user);
       
@@ -882,11 +886,21 @@ export const useStore = () => {
     const recentVisits = allVisits.filter(v => v.customerId === customerId && v.storeId === storeId && new Date(v.date) >= thirtyDaysAgo);
     const uniqueVisitDays = new Set(recentVisits.map(v => new Date(v.date).toDateString())).size;
 
-    let reward = null, tier = '';
+    let reward: string | null = null;
+    let tier = '';
+    if (uniqueVisitDays >= 12) { tier = 'VIP'; reward = '사장님 특별 서비스'; }
+    else if (uniqueVisitDays >= 8) { tier = '다이아'; reward = '메인 메뉴 할인 쿠폰'; }
+    else if (uniqueVisitDays >= 6) { tier = '골드'; reward = '사이드 메뉴 무료권'; }
+    else if (uniqueVisitDays >= 4) { tier = '실버'; reward = '음료 무료 쿠폰'; }
+    else if (uniqueVisitDays >= 2) { tier = '브론즈'; reward = '재방문 스탬프 추가 적립'; }
+    
     if (reward) {
-      const owner = users.find(u => u.id === storeId);
-      const customReward = owner?.tierRewards?.[tier];
-      issueCoupon(customerId, storeId, `${owner?.tierNames?.[tier] || tier} 등급 달성`, customReward || reward);
+      const alreadyIssued = coupons.some(c => c.customerId === customerId && c.storeId === storeId && c.type.includes(tier));
+      if (!alreadyIssued) {
+        const owner = users.find(u => u.id === storeId);
+        const customReward = owner?.tierRewards?.[tier];
+        issueCoupon(customerId, storeId, `${owner?.tierNames?.[tier] || tier} 등급 달성`, customReward || reward);
+      }
     }
   };
 

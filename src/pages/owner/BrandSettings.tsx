@@ -68,7 +68,8 @@ export default function BrandSettings() {
           ...currentUser.storeConfig,
           crmCustomInsights,
           locationAccessOnly,
-          allowedRadius
+          allowedRadius,
+          tossClientKey: tossClientKey || undefined
         } as any
       });
       showToast('브랜드 및 보안 설정이 저장되었습니다.', 'success');
@@ -417,7 +418,7 @@ export default function BrandSettings() {
                              </div>
                              <div>
                                 <div className="flex items-center gap-3">
-                                   <p className="text-lg font-black text-primary">{m.name}</p>
+                                   <p className={`text-lg font-black ${m.isAvailable === false ? 'text-primary/20 line-through' : 'text-primary'}`}>{m.name}</p>
                                    <span className="text-[9px] px-2 py-0.5 bg-gold/10 text-gold rounded font-black uppercase">{m.category}</span>
                                    {m.posProductCode && (
                                       <span className="text-[8px] px-2 py-0.5 bg-primary/5 text-primary/40 rounded font-bold uppercase">POS: {m.posProductCode}</span>

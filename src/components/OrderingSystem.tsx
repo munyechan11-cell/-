@@ -1,10 +1,10 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useStore, MenuItem, StoreOrder } from '../store';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   ShoppingBag, Plus, Minus, X, ChevronRight, 
   Utensils, Coffee, Beer, Pizza, Info, Clock, 
-  Sparkles, CheckCircle2
+  Sparkles, CheckCircle2, CreditCard, Banknote, AlertCircle
 } from 'lucide-react';
 
 interface OrderingSystemProps {
@@ -19,9 +19,11 @@ export default function OrderingSystem({ storeId, tableNumber }: OrderingSystemP
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string>('전체');
   const [isOrdering, setIsOrdering] = useState(false);
+  const [orderSuccess, setOrderSuccess] = useState(false);
+  const [paymentMode, setPaymentMode] = useState<'prepay' | 'postpay'>('postpay');
 
-  // Filter menus for the current store
-  const storeMenus = useMemo(() => menus.filter(m => m.storeId === storeId), [menus, storeId]);
+  // Filter menus for the current store (only available ones)
+  const storeMenus = useMemo(() => menus.filter(m => m.storeId === storeId && m.isAvailable !== false), [menus, storeId]);
   
   const categories = useMemo(() => {
     const cats = ['전체', ...new Set(storeMenus.map(m => m.category))];
@@ -32,6 +34,9 @@ export default function OrderingSystem({ storeId, tableNumber }: OrderingSystemP
     if (activeCategory === '전체') return storeMenus;
     return storeMenus.filter(m => m.category === activeCategory);
   }, [storeMenus, activeCategory]);
+
+  // Check if store has payment configured
+  const hasPaymentConfig = useMemo(() => !!owner?.storeConfig?.tossClientKey, [owner]);
 
   const addToCart = (item: MenuItem) => {
     setCart(prev => {
@@ -65,32 +70,38 @@ export default function OrderingSystem({ storeId, tableNumber }: OrderingSystemP
   const handlePlaceOrder = async () => {
     if (cart.length === 0 || !currentUser) return;
     
-    // Toss Payments 연동 (가맹점 Client Key가 설정된 경우)
-    const clientKey = owner?.storeConfig?.pointRate !== undefined ? 'test_ck_D5PzByrj8E6pZ596PbX86979zYda' : null; // 예시용 테스트 키
-    
-    if (clientKey && (window as any).loadPaymentWidget) {
-      try {
-        const paymentWidget = (window as any).loadPaymentWidget(clientKey, currentUser.id);
-        
-        await paymentWidget.renderPaymentMethods('#payment-method', { value: totalAmount });
-        await paymentWidget.renderAgreement('#agreement');
+    // Toss Payments 선결제 모드
+    if (paymentMode === 'prepay' && hasPaymentConfig) {
+      const clientKey = owner?.storeConfig?.tossClientKey;
+      if (clientKey && (window as any).PaymentWidget) {
+        try {
+          const paymentWidget = (window as any).PaymentWidget(clientKey, currentUser.id);
+          
+          await paymentWidget.renderPaymentMethods('#payment-method', { value: totalAmount });
+          await paymentWidget.renderAgreement('#agreement');
 
-        // Note: Real implementation would show a payment UI modal here.
-        // For this demo, we'll proceed to request payment directly or show the order button.
-        await paymentWidget.requestPayment({
-          orderId: generateId(),
-          orderName: `${cart[0].item.name} 외 ${cart.length - 1}건`,
-          customerName: currentUser.name,
-          successUrl: `${window.location.origin}/customer/payment/success?storeId=${storeId}&table=${tableNumber}&cart=${encodeURIComponent(JSON.stringify(cart))}`,
-          failUrl: `${window.location.origin}/customer/payment/fail`,
-        });
-        return;
-      } catch (err) {
-        console.error('Payment Error:', err);
+          // Show payment UI
+          const paymentMethodEl = document.getElementById('payment-method');
+          const agreementEl = document.getElementById('agreement');
+          if (paymentMethodEl) paymentMethodEl.classList.remove('hidden');
+          if (agreementEl) agreementEl.classList.remove('hidden');
+
+          await paymentWidget.requestPayment({
+            orderId: generateId(),
+            orderName: cart.length === 1 ? cart[0].item.name : `${cart[0].item.name} 외 ${cart.length - 1}건`,
+            customerName: currentUser.name,
+            successUrl: `${window.location.origin}/customer/payment/success?storeId=${storeId}&table=${tableNumber}&cart=${encodeURIComponent(JSON.stringify(cart))}`,
+            failUrl: `${window.location.origin}/customer/payment/fail`,
+          });
+          return;
+        } catch (err) {
+          console.error('Payment Error:', err);
+          // Fall through to postpay
+        }
       }
     }
 
-    // 결제 연동이 없거나 실패한 경우 기존 방식(후불)으로 진행
+    // 후불 모드 또는 결제 미설정 시
     setIsOrdering(true);
     try {
       await placeOrder({
@@ -107,6 +118,8 @@ export default function OrderingSystem({ storeId, tableNumber }: OrderingSystemP
       });
       setCart([]);
       setIsCartOpen(false);
+      setOrderSuccess(true);
+      setTimeout(() => setOrderSuccess(false), 4000);
     } catch (err) {
       console.error(err);
     } finally {
@@ -116,6 +129,30 @@ export default function OrderingSystem({ storeId, tableNumber }: OrderingSystemP
 
   return (
     <div className="flex flex-col h-full bg-gyeol-pattern/20">
+      {/* Order Success Overlay */}
+      <AnimatePresence>
+        {orderSuccess && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-primary/90 backdrop-blur-md z-[100] flex flex-col items-center justify-center text-white"
+          >
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: "spring", stiffness: 200, damping: 15 }}
+              className="w-32 h-32 bg-white/10 rounded-[4rem] flex items-center justify-center mb-10"
+            >
+              <CheckCircle2 className="w-16 h-16 text-gold" />
+            </motion.div>
+            <h2 className="text-4xl font-serif font-black italic mb-4">주문 완료!</h2>
+            <p className="text-sm opacity-60 font-bold uppercase tracking-widest">{tableNumber}번 테이블 | 사장님께 주문이 전달되었습니다</p>
+            <p className="text-3xl font-serif font-black italic mt-8 text-gold">₩{totalAmount.toLocaleString()}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Category Horizontal Scroll */}
       <div className="flex gap-4 overflow-x-auto no-scrollbar px-6 py-8">
         {categories.map(cat => (
@@ -133,7 +170,7 @@ export default function OrderingSystem({ storeId, tableNumber }: OrderingSystemP
         ))}
       </div>
 
-      {/* Menu Grid - Optimized for Legibility (4050 Users) */}
+      {/* Menu Grid */}
       <div className="flex-1 overflow-y-auto px-6 pb-32">
         <div className="grid grid-cols-1 gap-6">
           {filteredMenus.map(item => (
@@ -176,6 +213,7 @@ export default function OrderingSystem({ storeId, tableNumber }: OrderingSystemP
              <div className="text-center py-20 space-y-4">
                 <Utensils className="w-16 h-16 text-primary/10 mx-auto" />
                 <p className="text-lg font-bold text-primary/20">등록된 메뉴가 없습니다.</p>
+                <p className="text-sm text-primary/10">사장님이 메뉴를 등록하면 여기에 표시됩니다.</p>
              </div>
           )}
         </div>
@@ -198,8 +236,8 @@ export default function OrderingSystem({ storeId, tableNumber }: OrderingSystemP
                   <ShoppingBag className="w-6 h-6" />
                </div>
                <div className="text-left">
-                  <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40">Cart Summary</p>
-                  <p className="text-2xl font-serif font-black italic">{totalQuantity}개 항목 담기 완료</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40">장바구니</p>
+                  <p className="text-2xl font-serif font-black italic">{totalQuantity}개 항목</p>
                </div>
             </div>
             <p className="relative z-10 text-2xl font-serif font-black italic">₩{totalAmount.toLocaleString()}</p>
@@ -245,7 +283,7 @@ export default function OrderingSystem({ storeId, tableNumber }: OrderingSystemP
                       </div>
                       <div className="flex-1 space-y-1">
                          <h5 className="text-lg font-black text-primary tracking-tight">{p.item.name}</h5>
-                         <p className="text-sm font-bold text-gold italic">₩{p.item.price.toLocaleString()}</p>
+                         <p className="text-sm font-bold text-gold italic">₩{(p.item.price * p.quantity).toLocaleString()}</p>
                       </div>
                       <div className="flex items-center gap-3 bg-primary/5 rounded-2xl p-2 px-3">
                          <button onClick={() => updateQuantity(p.item.id, -1)} className="p-1.5 text-primary hover:bg-white rounded-lg transition-all"><Minus className="w-4 h-4" /></button>
@@ -258,12 +296,34 @@ export default function OrderingSystem({ storeId, tableNumber }: OrderingSystemP
               </div>
 
               <div className="p-10 bg-primary rounded-tl-[4rem] space-y-8">
+                 {/* Payment Mode Selector */}
+                 {hasPaymentConfig && (
+                   <div className="flex gap-3">
+                     <button 
+                       onClick={() => setPaymentMode('postpay')}
+                       className={`flex-1 py-4 rounded-2xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all ${
+                         paymentMode === 'postpay' ? 'bg-white text-primary' : 'bg-white/10 text-white/50'
+                       }`}
+                     >
+                       <Banknote className="w-4 h-4" /> 후불 결제
+                     </button>
+                     <button 
+                       onClick={() => setPaymentMode('prepay')}
+                       className={`flex-1 py-4 rounded-2xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all ${
+                         paymentMode === 'prepay' ? 'bg-gold text-primary' : 'bg-white/10 text-white/50'
+                       }`}
+                     >
+                       <CreditCard className="w-4 h-4" /> 선결제
+                     </button>
+                   </div>
+                 )}
+
                  <div className="flex justify-between items-center text-white">
                     <span className="text-sm font-bold uppercase tracking-widest opacity-40">총 합계액</span>
                     <span className="text-4xl font-serif font-black italic">₩{totalAmount.toLocaleString()}</span>
                  </div>
 
-                 {/* Payment Widget Anchors (Will be shown if payment logic is triggered) */}
+                 {/* Payment Widget Anchors */}
                  <div id="payment-method" className="bg-white rounded-2xl overflow-hidden mb-4 hidden"></div>
                  <div id="agreement" className="bg-white rounded-2xl overflow-hidden mb-4 hidden"></div>
 
@@ -276,8 +336,11 @@ export default function OrderingSystem({ storeId, tableNumber }: OrderingSystemP
                      <Sparkles className="w-6 h-6 animate-spin" />
                    ) : (
                      <>
-                        <CheckCircle2 className="w-6 h-6" />
-                        주문하기
+                        {paymentMode === 'prepay' && hasPaymentConfig ? (
+                          <><CreditCard className="w-6 h-6" /> 결제하기</>
+                        ) : (
+                          <><CheckCircle2 className="w-6 h-6" /> 주문하기 (후불)</>
+                        )}
                      </>
                    )}
                  </button>
