@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { db, auth, isFirebaseConfigured, collections } from './lib/firebase';
 import { 
   doc, onSnapshot, setDoc, updateDoc, addDoc, deleteDoc, 
@@ -440,7 +440,9 @@ const updateFirestoreDoc = async (coll: string, id: string, data: any, isDelete 
   }
 };
 
-export const useStore = () => {
+const StoreContext = createContext<any>(null);
+
+export const StoreProvider = ({ children }: { children: ReactNode }) => {
   const [isReady, setIsReady] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [firebaseStatus, setFirebaseStatus] = useState<'loading' | 'stable' | 'error' | 'offline'>('loading');
@@ -1249,7 +1251,7 @@ export const useStore = () => {
     return "죄송합니다. 아직 학습 중인 질문입니다. 매출이나 단골 멤버에 대해 질문해 보세요!";
   };
 
-  return {
+  const storeValue = {
     isReady, isProcessing, firebaseStatus, firebaseError, users, visits, coupons, tables, sections, communications, tierOverrides,
     menus, orders,
     masterPassword, currentUser, ownerViewMode, setOwnerViewMode,
@@ -1267,6 +1269,16 @@ export const useStore = () => {
     addMenuItem, deleteMenuItem, updateMenuItem, placeOrder, updateOrderStatus, queryAI,
     formatPhoneNumber
   };
+
+  return <StoreContext.Provider value={storeValue}>{children}</StoreContext.Provider>;
+};
+
+export const useStore = () => {
+  const context = useContext(StoreContext);
+  if (!context) {
+    throw new Error('useStore must be used within a StoreProvider');
+  }
+  return context;
 };
 
 // --- CRM ANALYSIS UTILITY (Advanced RFM) ---

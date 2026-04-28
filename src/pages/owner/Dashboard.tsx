@@ -18,6 +18,17 @@ import { formatMemoDisplay } from '../../components/MemoModal';
 import Skeleton, { DashboardStatsSkeleton } from '../../components/Skeleton';
 import OwnerTutorial from '../../components/OwnerTutorial';
 
+const SessionTimer = ({ startTime }: { startTime: string }) => {
+  const [currentTime, setCurrentTime] = useState(new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+  const start = new Date(startTime);
+  const diff = Math.floor((currentTime.getTime() - start.getTime()) / 60000);
+  return <>{diff}m</>;
+};
+
 export default function OwnerDashboard() {
   const { 
     isReady = true, 
@@ -57,7 +68,6 @@ export default function OwnerDashboard() {
   const [isInitialViewModeSet, setIsInitialViewModeSet] = useState(true); // Don't allow config to override if user wants it now
   const [isLayoutMode, setIsLayoutMode] = useState(false);
   const [draggedTable, setDraggedTable] = useState<number | null>(null);
-  const [currentTime, setCurrentTime] = useState(new Date());
   const [zoom, setZoom] = useState(1);
   const [dragPosition, setDragPosition] = useState<{x: number, y: number} | null>(null);
   const [dragStart, setDragStart] = useState<{x: number, y: number} | null>(null);
@@ -118,10 +128,7 @@ export default function OwnerDashboard() {
     return segments;
   }, [users, visits, currentUser]);
 
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
-    return () => clearInterval(timer);
-  }, []);
+
 
   useEffect(() => {
     if (currentUser && currentUser.role === 'owner') {
@@ -808,11 +815,7 @@ export default function OwnerDashboard() {
                                     {isOccupied && (
                                        <div className="mt-2 px-3 py-1 bg-white/10 rounded-full border border-white/10 backdrop-blur-md">
                                           <p className="text-[9px] font-black text-white/50 tracking-[0.2em] uppercase">
-                                             {(() => {
-                                                const start = new Date(table.sessionStartTime!);
-                                                const diff = Math.floor((currentTime.getTime() - start.getTime()) / 60000);
-                                                return `${diff}m`;
-                                             })()}
+                                             <SessionTimer startTime={table.sessionStartTime!} />
                                           </p>
                                        </div>
                                     )}
@@ -1292,6 +1295,10 @@ export default function OwnerDashboard() {
              </motion.div>
           </div>
         )}
+      </AnimatePresence>
+      
+      <AnimatePresence>
+        {showTutorial && <OwnerTutorial onClose={() => setShowTutorial(false)} />}
       </AnimatePresence>
     </div>
   );

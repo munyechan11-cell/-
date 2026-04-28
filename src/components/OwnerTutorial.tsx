@@ -74,6 +74,7 @@ export default function OwnerTutorial({ onClose }: OwnerTutorialProps) {
       <motion.div 
         initial={{ scale: 0.9, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.9, opacity: 0, y: 20 }}
         className="bg-white w-full max-w-xl rounded-[4rem] p-12 lg:p-16 shadow-3xl text-center relative overflow-hidden"
       >
         <button 
