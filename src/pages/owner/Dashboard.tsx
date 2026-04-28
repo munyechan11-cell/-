@@ -29,6 +29,15 @@ const SessionTimer = ({ startTime }: { startTime: string }) => {
   return <>{diff}m</>;
 };
 
+const LiveClock = () => {
+  const [time, setTime] = useState(new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setTime(new Date()), 10000); // update every 10s
+    return () => clearInterval(timer);
+  }, []);
+  return <>{time.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</>;
+};
+
 export default function OwnerDashboard() {
   const { 
     isReady = true, 
@@ -451,7 +460,7 @@ export default function OwnerDashboard() {
                 </div>
                <div className="flex items-center gap-2 lg:gap-3">
                   <div className="w-1.5 lg:w-2 h-1.5 lg:h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>
-                  <span className="text-[8px] lg:text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em]">현재 시각: {currentTime.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</span>
+                  <span className="text-[8px] lg:text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em]">현재 시각: <LiveClock /></span>
                </div>
             </div>
             
