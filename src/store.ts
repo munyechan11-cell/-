@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
+import React, { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { db, auth, isFirebaseConfigured, collections } from './lib/firebase';
 import { 
   doc, onSnapshot, setDoc, updateDoc, addDoc, deleteDoc, 
@@ -1270,7 +1270,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     formatPhoneNumber
   };
 
-  return <StoreContext.Provider value={storeValue}>{children}</StoreContext.Provider>;
+  return React.createElement(StoreContext.Provider, { value: storeValue }, children);
 };
 
 export const useStore = () => {
