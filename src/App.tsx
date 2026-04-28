@@ -1,7 +1,7 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useStore } from './store';
-import { CheckCircle2, AlertCircle, Info, Loader2, WifiOff } from 'lucide-react';
+import { CheckCircle2, Info, WifiOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 const CustomerLogin = lazy(() => import('./pages/customer/Login'));
@@ -88,47 +88,7 @@ function PrivateRoute({ children, role }: { children: React.ReactNode, role: 'cu
   return <>{children}</>;
 }
 
-class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: Error | null }> {
-  constructor(props: { children: React.ReactNode }) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
-
-  static getDerivedStateFromError(error: Error) {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error("Critical Runtime Error:", error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="min-h-screen bg-surface-bright flex flex-col items-center justify-center p-8 text-center text-primary font-sans">
-          <div className="bg-white p-12 rounded-[3.5rem] shadow-3xl max-w-sm w-full border border-primary/10">
-             <div className="w-20 h-20 bg-burgundy/5 rounded-3xl flex items-center justify-center mx-auto mb-8">
-                <AlertCircle className="w-10 h-10 text-burgundy" />
-             </div>
-             <h2 className="text-3xl font-serif font-black italic mb-4">서비스 일시 중지</h2>
-             <p className="text-xs font-medium text-on-surface-variant/60 mb-10 leading-relaxed">
-                일시적인 시스템 충돌이 발생했습니다. <br/>
-                하단의 버튼을 눌러 복구해 주세요.
-             </p>
-             <button 
-               onClick={() => window.location.reload()}
-               className="w-full py-5 bg-primary text-white rounded-2xl font-bold uppercase tracking-widest text-[10px] shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all"
-             >앱 다시 시작하기</button>
-             {this.state.error && (
-                <div className="mt-8 text-[8px] font-mono opacity-20 break-all">{this.state.error.message}</div>
-             )}
-          </div>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
+// ErrorBoundary is provided by main.tsx via components/ErrorBoundary.tsx
 
 function PageLoader() {
   return (
@@ -219,15 +179,7 @@ function NavigationRoutes() {
 
 export default function App() {
   const { isReady, firebaseStatus, firebaseError } = useStore();
-  const [showSlowHint, setShowSlowHint] = useState(false);
   const [forceOffline, setForceOffline] = useState(false);
-
-  useEffect(() => {
-    if (!isReady) {
-      const timer = setTimeout(() => setShowSlowHint(true), 12000);
-      return () => clearTimeout(timer);
-    }
-  }, [isReady]);
 
   if (!isReady) {
     return <PageLoader />;
@@ -280,7 +232,6 @@ export default function App() {
   }
 
   return (
-    <ErrorBoundary>
       <Router>
         <div className="min-h-screen bg-surface-bright selection:bg-primary/20">
           <Toast />
@@ -291,6 +242,5 @@ export default function App() {
           </div>
         </div>
       </Router>
-    </ErrorBoundary>
   );
 }

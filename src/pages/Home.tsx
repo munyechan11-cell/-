@@ -2,8 +2,7 @@ import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Store, UserCircle, ShieldCheck, ArrowRight, 
-  Sparkles, Award, Star, Zap, QrCode,
-  Shield, Heart, Leaf, Globe, MousePointer2
+  Sparkles, Star, QrCode, Heart, Zap
 } from 'lucide-react';
 import { motion, useScroll, useTransform } from 'motion/react';
 

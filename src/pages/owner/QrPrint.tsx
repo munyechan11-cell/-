@@ -60,7 +60,7 @@ export default function QrPrint() {
 
       {/* QR Grid - The actual printable content */}
       <div ref={printRef} className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-3 gap-8 print:gap-4 print:grid-cols-3">
-        {tables.map((table) => (
+        {tables.filter(t => t.storeId === currentUser.id && (t.type === 'table' || t.type === 'room' || !t.type)).map((table) => (
           <div 
             key={table.number} 
             className="aspect-[3/4] bg-white border-2 border-dashed border-primary/10 rounded-[2rem] p-8 flex flex-col items-center justify-between shadow-premium print:shadow-none print:border-primary/5 print:m-2"

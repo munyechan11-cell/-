@@ -583,7 +583,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       unsubscribes.forEach(unsub => unsub());
       window.removeEventListener('online', processQueue);
     };
-  }, [currentUser, db, isFirebaseConfigured, collections]);
+  }, [currentUser]);
 
   const addSection = async (storeId: string, name: string) => {
     const newSection: Section = { id: generateId(), storeId, name, order: globalState.sections.length };
@@ -1019,21 +1019,23 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const setMasterPassword = async (newPassword: string) => {
-    const settingsRef = doc(db!, 'appState', 'settings');
+    if (!db) { showToast('데이터베이스가 연결되지 않았습니다.', 'error'); return; }
+    const settingsRef = doc(db, 'appState', 'settings');
     await setDoc(settingsRef, { masterPassword: newPassword }, { merge: true });
   };
 
   const deleteUser = async (userId: string, role: Role) => {
-    const batch = writeBatch(db!);
+    if (!db || !collections) { showToast('데이터베이스가 연결되지 않았습니다.', 'error'); return; }
+    const batch = writeBatch(db);
     if (role === 'owner') {
       const relatedColls = ['users', 'visits', 'coupons', 'tables', 'communications', 'tierOverrides'];
       for (const collName of relatedColls) {
-        const q = query(collections![collName as keyof typeof collections], where('storeId', '==', userId));
+        const q = query(collections[collName as keyof typeof collections], where('storeId', '==', userId));
         const snaps = await getDocs(q);
         snaps.forEach(d => batch.delete(d.ref));
       }
     } else {
-      batch.delete(doc(db!, 'users', userId));
+      batch.delete(doc(db, 'users', userId));
       // Cleanup related data
       const related = [
         { coll: 'visits', field: 'customerId' },
@@ -1042,7 +1044,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
         { coll: 'tierOverrides', field: 'customerId' }
       ];
       for (const item of related) {
-        const q = query(collections![item.coll as keyof typeof collections], where(item.field, '==', userId));
+        const q = query(collections[item.coll as keyof typeof collections], where(item.field, '==', userId));
         const snaps = await getDocs(q);
         snaps.forEach(d => batch.delete(d.ref));
       }
@@ -1061,7 +1063,8 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const bulkIssueCoupon = async (customerIds: string[], storeId: string, type: string, description: string) => {
-    const batch = writeBatch(db!);
+    if (!db || !collections) { showToast('데이터베이스가 연결되지 않았습니다.', 'error'); return; }
+    const batch = writeBatch(db);
     customerIds.forEach(id => {
       const couponRef = doc(collections!.coupons);
       batch.set(couponRef, { id: couponRef.id, customerId: id, storeId, type, description, status: 'available', issuedAt: new Date().toISOString() });
@@ -1153,7 +1156,8 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const bulkRecordCommunication = async (customerIds: string[], storeId: string, type: 'coupon' | 'message', content: string, senderRole: Role = 'owner') => {
-    const batch = writeBatch(db!);
+    if (!db || !collections) { showToast('데이터베이스가 연결되지 않았습니다.', 'error'); return; }
+    const batch = writeBatch(db);
     customerIds.forEach(id => {
       const commRef = doc(collections!.Communications);
       batch.set(commRef, { id: commRef.id, customerId: id, storeId, type, content, senderRole, date: new Date().toISOString() });

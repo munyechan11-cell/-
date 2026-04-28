@@ -20,6 +20,7 @@ export default function OrderingSystem({ storeId, tableNumber }: OrderingSystemP
   const [activeCategory, setActiveCategory] = useState<string>('전체');
   const [isOrdering, setIsOrdering] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
+  const [lastOrderAmount, setLastOrderAmount] = useState(0);
   const [paymentMode, setPaymentMode] = useState<'prepay' | 'postpay'>('postpay');
 
   // Filter menus for the current store (only available ones)
@@ -116,6 +117,7 @@ export default function OrderingSystem({ storeId, tableNumber }: OrderingSystemP
         })),
         totalAmount
       });
+      setLastOrderAmount(totalAmount);
       setCart([]);
       setIsCartOpen(false);
       setOrderSuccess(true);
@@ -148,7 +150,7 @@ export default function OrderingSystem({ storeId, tableNumber }: OrderingSystemP
             </motion.div>
             <h2 className="text-4xl font-serif font-black italic mb-4">주문 완료!</h2>
             <p className="text-sm opacity-60 font-bold uppercase tracking-widest">{tableNumber}번 테이블 | 사장님께 주문이 전달되었습니다</p>
-            <p className="text-3xl font-serif font-black italic mt-8 text-gold">₩{totalAmount.toLocaleString()}</p>
+            <p className="text-3xl font-serif font-black italic mt-8 text-gold">₩{lastOrderAmount.toLocaleString()}</p>
           </motion.div>
         )}
       </AnimatePresence>

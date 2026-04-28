@@ -19,12 +19,14 @@ export const app = isFirebaseConfigured
   : null;
 
 // Dynamic DB helper to allow fallback at runtime
+let persistenceInitialized = false;
 export const getDb = (databaseId?: string): Firestore | null => {
   if (!app) return null;
   const id = databaseId || firebaseConfig.firestoreDatabaseId;
   const database = getFirestore(app, id);
   
-  if (typeof window !== 'undefined' && database) {
+  if (typeof window !== 'undefined' && database && !persistenceInitialized) {
+    persistenceInitialized = true;
     enableIndexedDbPersistence(database).catch((err) => {
       if (err.code === 'failed-precondition') {
         console.warn('Multiple tabs open, persistence can only be enabled in one tab at a time.');
