@@ -198,19 +198,19 @@ export default function OwnerStatistics() {
         <div className="flex-1 overflow-y-auto no-scrollbar p-10 space-y-16 pb-24 bg-gyeol-pattern">
           
           {/* AI Intelligence Hub - Optimized for 4050 Owners */}
-          <section className="bg-primary p-12 rounded-[3.5rem] shadow-heavy relative overflow-hidden group">
-             <div className="absolute inset-0 bg-gyeol-pattern opacity-10"></div>
-             <div className="relative z-10 flex flex-col md:flex-row gap-8 items-center justify-between">
-                <div className="space-y-3 text-center md:text-left">
-                   <h3 className="text-3xl font-serif font-black text-white italic tracking-tight">AI 비즈니스 조언</h3>
-                   <p className="text-white/60 text-sm font-medium tracking-wide">궁금한 매출이나 손님 정보를 자연어로 물어보세요.</p>
+          <section className="bg-gradient-to-br from-[#5C162E] to-[#3D0D1D] p-6 lg:p-10 rounded-3xl shadow-md relative overflow-hidden group">
+             <div className="relative z-10 flex flex-col gap-5">
+                <div className="flex items-center gap-2">
+                   <h3 className="text-xl font-bold text-white tracking-tight">AI 비즈니스 조언</h3>
+                   <Sparkles className="w-4 h-4 text-[#DEBD7A]" />
                 </div>
+                <p className="text-white/80 text-[11px] font-bold tracking-widest">궁금한 매출이나 손님 정보를 자연어로 물어보세요.</p>
                 
-                <div className="flex-1 w-full max-w-xl relative">
+                <div className="w-full relative mt-2">
                    <input 
                      type="text" 
-                     className="w-full bg-white/10 border-2 border-white/20 rounded-3xl py-6 pl-8 pr-20 text-white placeholder:text-white/30 text-lg font-bold focus:bg-white focus:text-primary focus:border-white transition-all outline-none"
-                     placeholder="'5월 매출 요약해줘' 또는 '가장 많이 오는 손님은?'"
+                     className="w-full bg-[#3D0D1D]/50 border border-white/10 rounded-2xl py-4 pl-4 pr-12 text-white placeholder:text-white/30 text-sm font-bold focus:bg-[#3D0D1D] focus:border-white/30 transition-all outline-none"
+                     placeholder="5월 매출 요약해줘 / 가장 많이 오는 손님은?"
                      value={aiQuery}
                      onChange={(e) => setAiQuery(e.target.value)}
                      onKeyDown={async (e) => {
@@ -231,9 +231,9 @@ export default function OwnerStatistics() {
                           setIsAiLoading(false);
                         }
                      }}
-                     className="absolute right-3 top-3 bottom-3 bg-gold text-primary p-4 rounded-2xl hover:scale-105 active:scale-95 transition-all"
+                     className="absolute right-2 top-2 bottom-2 text-[#DEBD7A] p-2 hover:scale-110 active:scale-95 transition-all"
                    >
-                     {isAiLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : <Sparkles className="w-6 h-6" />}
+                     {isAiLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
                    </button>
                 </div>
              </div>
@@ -243,33 +243,39 @@ export default function OwnerStatistics() {
                    <motion.div 
                      initial={{ height: 0, opacity: 0 }}
                      animate={{ height: 'auto', opacity: 1 }}
-                     className="mt-8 pt-8 border-t border-white/10"
+                     className="mt-6 pt-6 border-t border-white/10"
                    >
-                     <div className="bg-white/10 rounded-3xl p-8 border border-white/10">
-                        <div className="flex items-center gap-3 mb-4">
-                           <ShieldCheck className="w-5 h-5 text-gold" />
-                           <span className="text-[10px] font-black text-gold uppercase tracking-[0.4em]">AI Analysis Result</span>
+                     <div className="bg-white/5 rounded-2xl p-5 border border-white/10">
+                        <div className="flex items-center gap-2 mb-3">
+                           <ShieldCheck className="w-4 h-4 text-[#DEBD7A]" />
+                           <span className="text-[9px] font-black text-[#DEBD7A] uppercase tracking-[0.2em]">AI Analysis Result</span>
                         </div>
-                        <p className="text-xl font-bold text-white leading-relaxed">{aiResponse}</p>
+                        <p className="text-sm font-bold text-white leading-relaxed">{aiResponse}</p>
                      </div>
                    </motion.div>
                 )}
              </AnimatePresence>
           </section>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
              {[
                { icon: Users, label: '신규 단골', value: `${newCustomersInWeek}명`, trend: '최근' },
                { icon: Clock, label: '평균 이용시간', value: `${avgUsageTime}분`, trend: '안정' },
                { icon: MapPin, label: '피크 시간대', value: peakTimeString, trend: '예측' },
                { icon: Activity, label: '매장 가동률', value: `${occupancyRate}%`, trend: '양호' }
              ].map((item, idx) => (
-                <div key={idx} className="bg-white/80 backdrop-blur-md p-8 rounded-3xl border border-primary/5 shadow-premium flex flex-col group hover:scale-[1.02] transition-all duration-500">
-                  <item.icon className="w-8 h-8 text-primary opacity-20 group-hover:opacity-100 transition-opacity mb-6" />
-                  <p className="text-[9px] font-bold text-primary/30 uppercase mb-2 tracking-widest">{item.label}</p>
+                <div key={idx} className="bg-white p-5 rounded-2xl border border-primary/10 shadow-sm flex flex-col hover:shadow-md transition-all">
+                  <div className="flex items-center gap-2 mb-4">
+                     <div className="w-6 h-6 rounded-full bg-surface-dim flex items-center justify-center">
+                        <item.icon className="w-3.5 h-3.5 text-primary/60" />
+                     </div>
+                     <p className="text-[11px] font-bold text-primary/60 tracking-widest">{item.label}</p>
+                  </div>
                   <div className="flex items-end justify-between">
-                     <p className="text-2xl font-sans font-black text-primary tracking-tight">{item.value}</p>
-                     <p className={`text-[9px] font-black text-primary/30 uppercase tracking-[0.2em]`}>{item.trend}</p>
+                     <p className="text-xl font-bold text-primary">{item.value}</p>
+                     <div className="flex items-center gap-1 text-[9px] font-bold text-primary/40 tracking-widest">
+                        {item.trend} <ChevronRight className="w-3 h-3" />
+                     </div>
                   </div>
                </div>
              ))}

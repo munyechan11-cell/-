@@ -844,26 +844,28 @@ export default function OwnerDashboard() {
                    </div>
                 </div>
              ) : (
-                <div className="flex-1 p-4 lg:p-8 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 lg:gap-4 overflow-y-auto no-scrollbar bg-surface-bright/30">
-                   {filteredTables.map(table => (
+                <div className="flex-1 p-4 grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 lg:gap-4 overflow-y-auto no-scrollbar bg-surface-bright">
+                   {filteredTables.map(table => {
+                      const isOccupied = !!table.currentCustomerId;
+                      const customerName = isOccupied ? users.find(u => u.id === table.currentCustomerId)?.name : '없음';
+                      return (
                       <motion.div 
                         whileHover={{ y: -3 }}
                         key={table.number} 
                         onClick={() => setSelectedTable(table.number)} 
-                        className={`bg-white rounded-[1.5rem] lg:rounded-[2.5rem] ${ownerViewMode === 'mobile' ? 'p-4' : 'p-6'} border border-primary/5 flex flex-col gap-3 lg:gap-4 cursor-pointer shadow-premium relative min-h-[120px] lg:min-h-[150px] flex-shrink-0 animate-in fade-in zoom-in-95 duration-500 active:scale-95 touch-manipulation`}
+                        className="bg-white rounded-2xl p-4 border border-primary/10 flex flex-col items-center justify-center gap-3 cursor-pointer shadow-sm relative min-h-[120px] flex-shrink-0 active:scale-95 touch-manipulation"
                       >
-                         <div className="flex justify-between items-start">
-                            <div className="w-8 h-8 lg:w-14 lg:h-14 bg-gyeol-wood text-white rounded-full flex items-center justify-center font-black text-sm lg:text-xl shadow-premium">{table.number}</div>
-                            <div className={`px-2 py-0.5 rounded-full text-[7px] lg:text-[8px] font-black uppercase tracking-widest ${table.currentCustomerId ? 'bg-emerald-50 text-emerald-600' : 'bg-primary/5 text-primary/30'}`}>
-                               {table.currentCustomerId ? '이용중' : '가능'}
+                         <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg ${isOccupied ? 'bg-primary text-white shadow-md' : 'bg-white border-2 border-primary text-primary'}`}>
+                            {table.number}
+                         </div>
+                         <div className="flex flex-col items-center gap-1">
+                            <p className="text-[12px] font-bold text-primary truncate w-full text-center">{customerName}</p>
+                            <div className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold tracking-widest ${isOccupied ? 'bg-[#E6F4EA] text-[#137333]' : 'bg-surface-dim text-primary/40'}`}>
+                               {isOccupied ? '이용중' : '가능'}
                             </div>
                          </div>
-                         <div className="space-y-0.5">
-                            <p className="text-[7px] lg:text-[8px] font-black uppercase text-primary/30 tracking-widest">손님</p>
-                            <p className="text-xs lg:text-base font-sans font-black text-primary leading-tight truncate">{table.currentCustomerId ? users.find(u => u.id === table.currentCustomerId)?.name : '없음'}</p>
-                         </div>
                       </motion.div>
-                   ))}
+                   )})}
                 </div>
              )}
 

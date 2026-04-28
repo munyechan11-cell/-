@@ -316,82 +316,54 @@ export default function OwnerCustomers() {
              </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+          <div className="flex flex-col gap-4">
             {filteredCustomers.map(customer => {
               const stats = getCustomerStats(customer.id);
               const isSelected = selectedCustomers.includes(customer.id);
               return (
                 <div 
                   key={customer.id} 
-                  className={`bg-white rounded-[2rem] p-8 shadow-sm border transition-all relative group ${isMultiSelectMode && isSelected ? 'border-primary ring-2 ring-primary/10' : 'border-outline-variant/30 hover:shadow-xl hover:-translate-y-1'}`}
+                  className={`bg-white rounded-2xl p-5 shadow-sm border transition-all relative group ${isMultiSelectMode && isSelected ? 'border-primary ring-2 ring-primary/10' : 'border-primary/10 hover:shadow-md'}`}
                   onClick={() => isMultiSelectMode && toggleCustomerSelection(customer.id)}
                 >
-                  <div className="absolute top-6 right-6 flex gap-2">
-                     <button onClick={(e) => { e.stopPropagation(); setHistoryCustomer(customer.id); }} className="p-2.5 bg-surface-container rounded-xl text-on-surface-variant hover:text-primary transition-all"><History className="w-4 h-4" /></button>
+                  <div className="absolute top-5 right-5 flex gap-2">
+                     <button onClick={(e) => { e.stopPropagation(); setHistoryCustomer(customer.id); }} className="text-primary/40 hover:text-primary transition-all"><History className="w-4 h-4" /></button>
                   </div>
 
-                  <div className="flex items-start gap-6 mb-8">
-                     <div className="w-16 h-16 rounded-2xl bg-surface-container flex items-center justify-center font-sans text-2xl font-black text-primary">{customer.name.charAt(0)}</div>
+                  <div className="flex items-center gap-4 mb-4">
+                     <div className="w-12 h-12 rounded-full bg-surface-dim flex items-center justify-center font-serif text-xl font-black text-primary border border-primary/5">{customer.name.charAt(0)}</div>
                      <div>
-                        <div className="flex items-center gap-3 mb-1">
-                           <h3 className="text-xl font-sans font-black text-primary">{customer.name}</h3>
+                        <div className="flex items-center gap-2 mb-1">
+                           <h3 className="text-base font-bold text-primary">{customer.name}</h3>
                            <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-widest ${getTierColor(stats.tier)} text-white`}>
                               {getTierCustomName(stats.tier, currentUser?.tierNames)}
                            </span>
                         </div>
-                        <div className="flex items-center gap-3">
-                           <p className="text-[10px] font-bold text-on-surface-variant/40 uppercase tracking-widest">{customer.phone}</p>
-                           <div className="flex items-center gap-1.5 ml-2 border-l border-outline-variant/30 pl-3">
-                              <Smartphone className={`w-3 h-3 ${customer.phone ? 'text-primary/60' : 'text-on-surface-variant/20'}`} />
-                              {customer.linkedProviders?.includes('google') && <Globe className="w-3 h-3 text-emerald-600" />}
-                              {customer.linkedProviders?.includes('kakao') && <MessageSquare className="w-3 h-3 text-gold" />}
-                           </div>
-                        </div>
+                        <p className="text-[11px] font-bold text-primary/40 tracking-widest">{customer.phone}</p>
                      </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4 mb-4">
-                     <div className="p-4 bg-surface-container rounded-2xl border border-outline-variant/30 text-center relative overflow-hidden group/tile">
-                        <div className={`absolute top-0 right-0 w-1 h-full ${stats.cluster.color} opacity-30`}></div>
-                        <p className="text-[9px] font-bold text-on-surface-variant/40 uppercase mb-1">CRM 분석</p>
-                        <p className={`text-sm font-black uppercase tracking-widest ${stats.cluster.color.replace('bg-', 'text-')}`}>{stats.cluster.name}</p>
-                     </div>
-                     <div className="p-4 bg-surface-container rounded-2xl border border-outline-variant/30 text-center">
-                        <p className="text-[9px] font-bold text-on-surface-variant/40 uppercase mb-1">{currentUser.storeConfig?.rewardType === 'stamp' ? '누적 스탬프' : '보유 포인트'}</p>
-                        <p className="text-sm font-black text-primary">
-                          {customer.rewardBalance?.toLocaleString() || 0}
-                          <span className="text-[10px] ml-1 opacity-40">{currentUser.storeConfig?.rewardType === 'stamp' ? 'STAMPS' : 'P'}</span>
-                        </p>
-                     </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4 mb-8">
-                     <div className="p-4 bg-surface-container rounded-2xl border border-outline-variant/30 text-center hover:bg-white transition-colors">
-                        <p className="text-[9px] font-bold text-on-surface-variant/40 uppercase mb-1">총 방문</p>
-                        <p className="text-xl font-serif font-black text-primary">{stats.totalVisits}회</p>
-                     </div>
-                     <div className="p-4 bg-surface-container rounded-2xl border border-outline-variant/30 text-center hover:bg-white transition-colors">
-                        <p className="text-[9px] font-bold text-on-surface-variant/40 uppercase mb-1">마지막 방문</p>
-                        <p className="text-xl font-serif font-black text-primary">{stats.daysSinceLastVisit ?? 0}일 전</p>
-                     </div>
+                  <div className="flex items-center gap-4 text-[11px] font-bold text-primary/60 mb-4 bg-surface-bright px-4 py-2.5 rounded-xl border border-primary/5">
+                     <div className="flex-1 text-center border-r border-primary/10">정상결제 <span className="text-primary">{stats.totalVisits}회</span></div>
+                     <div className="flex-1 text-center border-r border-primary/10">마지막 방문 <span className="text-primary">{stats.daysSinceLastVisit ?? 0}일 전</span></div>
+                     <div className="flex-1 text-center">포인트 <span className="text-primary">{customer.rewardBalance || 0}</span></div>
                   </div>
 
                   {customer.memo && (
-                    <div className="mb-8 p-4 bg-primary/5 rounded-2xl border-l-4 border-primary italic text-xs text-primary/80 line-clamp-2">
+                    <div className="mb-4 p-3 bg-primary/5 rounded-xl border-l-2 border-primary text-[10px] text-primary/70 line-clamp-2">
                        {formatMemoDisplay(customer.memo)}
                     </div>
                   )}
-                
 
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 mt-2">
                      <button 
                        onClick={(e) => { e.stopPropagation(); setEditingMemoCustomer(customer.id); }}
-                       className="flex-1 bg-primary text-white py-4 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-accent-burgundy transition-all shadow-md"
+                       className="flex-1 bg-primary text-white py-3 rounded-xl text-[11px] font-bold uppercase tracking-widest shadow-md hover:bg-accent-burgundy transition-all"
                      >사장님 메모</button>
                      <button 
                        onClick={(e) => { e.stopPropagation(); setSelectedCustomer(customer.id); }}
-                       className="p-4 rounded-xl border border-outline-variant/50 text-primary hover:bg-surface-container transition-all"
-                     ><Send className="w-5 h-5" /></button>
+                       className="p-3 rounded-xl border border-primary/10 text-primary hover:bg-primary/5 transition-all"
+                     ><Send className="w-4 h-4" /></button>
                   </div>
                 </div>
               );

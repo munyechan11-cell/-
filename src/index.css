@@ -8,33 +8,33 @@
   --font-serif: "Noto Serif KR", serif;
 
   /* Premium Gyeol Palette */
-  --color-primary: #4a0e0e;
-  --color-primary-container: #5d1a1a;
-  --color-primary-soft: #8b3a3a;
-  --color-primary-dark: #2a0808;
-  --color-burgundy: #4a0e0e;
-  --color-accent-burgundy: #5e1212;
+  --color-primary: #5C162E;
+  --color-primary-container: #7A203F;
+  --color-primary-soft: #A33A5E;
+  --color-primary-dark: #3D0D1D;
+  --color-burgundy: #5C162E;
+  --color-accent-burgundy: #7A203F;
   
-  --color-sidebar-bg: #1c1412;
-  --color-surface-bright: #fdfaf7;
-  --color-surface-dim: #f3ede7;
-  --color-surface-container: #f9f4f0;
-  --color-surface-container-high: #f0e6dd;
-  --color-surface-container-highest: #e8dcd0;
+  --color-sidebar-bg: #2B1E1C;
+  --color-surface-bright: #FCF9F6;
+  --color-surface-dim: #F2EBE5;
+  --color-surface-container: #F7EFE9;
+  --color-surface-container-high: #EDE3DA;
+  --color-surface-container-highest: #E3D6CA;
   
-  --color-on-surface: #2d1b18;
-  --color-on-surface-variant: #6b5a57;
-  --color-outline-variant: #e5ddd6;
-  --color-tertiary: #3a2c2a;
+  --color-on-surface: #362A28;
+  --color-on-surface-variant: #756360;
+  --color-outline-variant: #E8DFD8;
+  --color-tertiary: #4A3A38;
 
-  --color-gold: #c6a34f;
-  --color-gold-soft: #e2c07d;
-  --color-cream: #fffcf9;
+  --color-gold: #C29B4A;
+  --color-gold-soft: #DEBD7A;
+  --color-cream: #FFFCF9;
   
   /* Elevation Shadows */
-  --shadow-premium: 0 20px 50px -12px rgba(74, 14, 14, 0.15);
-  --shadow-glass: 0 8px 32px 0 rgba(74, 14, 14, 0.08);
-  --shadow-heavy: 0 30px 60px -12px rgba(0, 0, 0, 0.25);
+  --shadow-premium: 0 16px 40px -12px rgba(92, 22, 46, 0.12);
+  --shadow-glass: 0 8px 32px 0 rgba(92, 22, 46, 0.06);
+  --shadow-heavy: 0 24px 48px -12px rgba(43, 30, 28, 0.15);
 }
 
 /* Base Refinements */

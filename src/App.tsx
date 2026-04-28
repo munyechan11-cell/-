@@ -134,35 +134,31 @@ function PageLoader() {
   return (
     <div className="min-h-screen bg-surface-bright flex flex-col items-center justify-center p-8 text-center text-primary selection:bg-primary/10">
       <motion.div 
-        initial={{ opacity: 0, scale: 0.8 }}
+        initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="relative mb-12"
+        transition={{ duration: 0.8, ease: "easeOut" }}
+        className="relative mb-16"
       >
-         <div className="w-24 h-24 rounded-[3rem] border-[3px] border-primary/5 border-t-primary/60 animate-[spin_1.5s_linear_infinite]"></div>
+         <div className="w-28 h-28 rounded-full border-[2px] border-primary/20 border-t-primary/80 border-l-primary/60 animate-[spin_2s_linear_infinite]"></div>
          <div className="absolute inset-0 flex items-center justify-center">
-            <motion.div 
-              initial={{ rotate: -12 }}
-              animate={{ rotate: 12 }}
-              transition={{ repeat: Infinity, repeatType: "reverse", duration: 2, ease: "easeInOut" }}
-              className="text-4xl font-serif italic font-black text-primary drop-shadow-sm select-none"
-            >
+            <div className="text-5xl font-serif font-black text-primary select-none mt-1">
               결
-            </motion.div>
+            </div>
          </div>
       </motion.div>
-      <div className="space-y-4">
-         <p className="text-primary font-serif font-black italic text-lg tracking-tighter opacity-80 animate-pulse">정성을 담아 연결 중...</p>
-         <div className="flex justify-center gap-1.5 translate-x-1">
+      <div className="space-y-6">
+         <p className="text-primary font-serif text-lg tracking-widest opacity-90 animate-pulse">정성을 담아 연결 중...</p>
+         <div className="flex justify-center gap-1.5 translate-x-0.5">
             {[0, 1, 2].map(i => (
               <motion.div 
                 key={i} 
                 animate={{ scaleY: [1, 1.5, 1], opacity: [0.3, 1, 0.3] }}
-                transition={{ repeat: Infinity, duration: 1, delay: i * 0.2 }}
-                className="w-0.5 h-3 bg-primary rounded-full"
+                transition={{ repeat: Infinity, duration: 1.2, delay: i * 0.2 }}
+                className="w-[2px] h-4 bg-primary/60 rounded-full"
               />
             ))}
          </div>
-         <p className="text-on-surface-variant/30 font-bold text-[9px] uppercase tracking-[0.4em] pt-4">Gyeol Integrated Cloud System</p>
+         <p className="text-primary/70 font-serif text-[10px] uppercase tracking-[0.2em] pt-4">Gyeol Integrated Cloud System</p>
       </div>
     </div>
   );
