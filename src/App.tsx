@@ -1,7 +1,7 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useStore } from './store';
-import { CheckCircle2, Info, WifiOff } from 'lucide-react';
+import { CheckCircle2, Info, WifiOff, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 const CustomerLogin = lazy(() => import('./pages/customer/Login'));
