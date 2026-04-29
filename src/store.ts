@@ -71,7 +71,10 @@ export interface User {
   rewardBalance?: number; // New: Accumulated points or stamps
   lat?: number; // New: Store Latitude
   lng?: number; // New: Store Longitude
-  birthYear?: number; // New: Birth year for age demographics
+  birthYear?: number; // Birth year for age demographics
+  birthday?: string; // MM-DD format for Kakao compliance
+  ageGroup?: string; // e.g. '20대', '30대'
+  privacyAgreedAt?: string; // ISO date when user agreed to privacy policy
 }
 
 export interface Visit {
@@ -635,7 +638,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const login = async (phone: string, name: string, role: Role, restaurantName?: string, storeId?: string, socialProvider?: 'google' | 'kakao', isPohangResident?: boolean, gender?: 'male' | 'female', birthYear?: number) => {
+  const login = async (phone: string, name: string, role: Role, restaurantName?: string, storeId?: string, socialProvider?: 'google' | 'kakao', isPohangResident?: boolean, gender?: 'male' | 'female', birthYear?: number, birthday?: string, ageGroup?: string, privacyAgreedAt?: string) => {
     let socialId = '';
     let socialEmail = '';
     let socialName = '';
@@ -723,7 +726,10 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
         isPohangResident,
         gender,
         avatarUrl: socialAvatar,
-        birthYear
+        birthYear,
+        birthday,
+        ageGroup,
+        privacyAgreedAt
       };
       await updateFirestoreDoc('users', user.id, user);
       
