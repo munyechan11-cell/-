@@ -1,15 +1,16 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useStore, getEffectiveTier, getTierColor, getTierCustomName, showToast, calculateRFMValue, getRFMCluster, getActionableInsights } from '../../store';
-import { 
-  Users, LayoutGrid, LogOut, X, Bell, BarChart3, 
-  Settings, Map as MapIcon, List, Move, Plus, 
+import {
+  Users, LayoutGrid, LogOut, X, Bell, BarChart3,
+  Settings, Map as MapIcon, List, Move, Plus,
   Minus, Trash2, Layers, Clock, Maximize2,
   TrendingUp, Calendar, History, Store,
   Utensils, Hourglass, GripVertical, Monitor,
   User, Mail, Settings as SettingsIcon, ShieldAlert,
   Send, ChevronRight, Activity, Zap, Sparkles,
   Trophy, Globe, Leaf, Target, ArrowRight, MessageSquare, Ticket,
-  TrendingUp as TrendingUpIcon, AlertCircle, Gift, AlertTriangle, Coins, ShieldCheck, Printer
+  TrendingUp as TrendingUpIcon, AlertCircle, Gift, AlertTriangle, Coins, ShieldCheck, Printer,
+  Camera as CameraIcon
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
@@ -17,6 +18,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { formatMemoDisplay } from '../../components/MemoModal';
 import Skeleton, { DashboardStatsSkeleton } from '../../components/Skeleton';
 import OwnerTutorial from '../../components/OwnerTutorial';
+import PhotoCaptureModal from '../../components/PhotoCaptureModal';
+import { printOrder, isPrinterConnected } from '../../lib/escposPrinter';
 
 const SessionTimer = ({ startTime }: { startTime: string }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -65,10 +68,12 @@ export default function OwnerDashboard() {
     linkSocialAccount = () => {}, 
     deleteAccount = () => {},
     ownerViewMode = 'desktop', 
-    sendPhysicalSms = async () => {}, 
+    sendPhysicalSms = async () => {},
     sendKakaoMessage = async () => {},
     orders = [],
-    updateOrderStatus = async () => {}
+    updateOrderStatus = async () => {},
+    addPhoto = async () => {},
+    reservations = []
   } = useStore();
   
   const navigate = useNavigate();
@@ -102,6 +107,8 @@ export default function OwnerDashboard() {
   }
   
   const [localNotifications, setLocalNotifications] = useState<NotificationItem[]>([]);
+  const [servePhotoOrder, setServePhotoOrder] = useState<any | null>(null);
+  const [servePhotoMenuName, setServePhotoMenuName] = useState('');
   const processedVisitIds = useRef<Set<string>>(new Set());
   const processedCommIds = useRef<Set<string>>(new Set());
   const processedCouponIds = useRef<Set<string>>(new Set());
@@ -261,14 +268,31 @@ export default function OwnerDashboard() {
         showToast(`${o.tableNumber}번 테이블에서 새로운 주문이 들어왔습니다!`, 'success');
         setHighlightedTable(o.tableNumber);
         setTimeout(() => setHighlightedTable(null), 15000);
-        setLocalNotifications(prev => [{ 
-          id: o.id, 
-          type: 'message' as any, // Reuse message type or add order type if UI supports it
-          name: `${o.tableNumber}번 주문`, 
-          content: `${o.items.length}개 항목 주문됨`, 
+        setLocalNotifications(prev => [{
+          id: o.id,
+          type: 'message' as any,
+          name: `${o.tableNumber}번 주문`,
+          content: `${o.items.length}개 항목 주문됨`,
           time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
-          table: o.tableNumber 
+          table: o.tableNumber
         }, ...prev].slice(0, 15));
+
+        // 영수증 프린터 자동 출력 (연결 시에만)
+        if (isPrinterConnected()) {
+          const customer = users.find(u => u.id === o.customerId);
+          printOrder({
+            storeName: currentUser.restaurantName || '매장',
+            tableNumber: o.tableNumber,
+            customerName: customer?.name,
+            orderId: o.id,
+            items: o.items,
+            totalAmount: o.totalAmount,
+            createdAt: o.createdAt
+          }).catch((err: any) => {
+            console.error('[Printer] 자동 출력 실패:', err);
+            showToast('프린터 출력 실패 — 연결을 확인해 주세요.', 'error');
+          });
+        }
       });
     }
 
@@ -300,6 +324,32 @@ export default function OwnerDashboard() {
 
   const myTables = tables.filter(t => t.storeId === currentUser.id);
   const actualTables = myTables.filter(t => t.type === 'table');
+
+  // 오늘 예약 — 테이블별 그룹핑 (시간순)
+  const todayDateStr = (() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  })();
+  const todayReservations = (reservations || [])
+    .filter((r: any) => r.storeId === currentUser.id && r.date === todayDateStr && r.status === 'confirmed')
+    .sort((a: any, b: any) => a.time.localeCompare(b.time));
+  const reservationsByTable: Record<number, any[]> = {};
+  todayReservations.forEach((r: any) => {
+    (reservationsByTable[r.tableNumber] = reservationsByTable[r.tableNumber] || []).push(r);
+  });
+  const minutesUntilReservation = (timeStr: string): number => {
+    const [h, m] = (timeStr || '00:00').split(':').map(Number);
+    const r = new Date();
+    r.setHours(h, m, 0, 0);
+    return Math.round((r.getTime() - Date.now()) / 60_000);
+  };
+  const reservationTone = (timeStr: string): 'now' | 'soon' | 'later' | 'past' => {
+    const diff = minutesUntilReservation(timeStr);
+    if (diff < -30) return 'past';
+    if (diff <= 30) return 'now';   // -30분 ~ +30분 = 임박/진행
+    if (diff <= 120) return 'soon'; // 30분 ~ 2시간 후
+    return 'later';
+  };
   
   const activeTable = myTables.find(t => t.number === selectedTable);
   const activeCustomer = activeTable?.currentCustomerId 
@@ -381,68 +431,69 @@ export default function OwnerDashboard() {
 
   return (
     <div className={`flex h-screen overflow-hidden bg-surface-bright font-sans text-on-surface ${ownerViewMode === 'mobile' ? 'flex-col' : ''}`}>
-      {/* Elite Sidebar */}
+      {/* 사이드바 — 가독성 강화 */}
       {ownerViewMode === 'desktop' && (
-        <aside className="h-screen w-20 lg:w-72 fixed left-0 bg-sidebar-bg shadow-premium flex flex-col py-10 z-50 border-r border-white/5">
-          <div className="px-10 mb-16">
-            <Link to="/" className="text-white font-sans text-4xl font-black tracking-tighter drop-shadow-xl">결</Link>
-            <div className="mt-6 hidden lg:block opacity-60">
-              <p className="text-white font-sans text-sm font-bold">{currentUser.restaurantName}</p>
-              <p className="text-gold uppercase tracking-[0.3em] text-[9px] font-black mt-1">결 공식 인증 매장</p>
+        <aside className="h-screen w-24 lg:w-72 fixed left-0 bg-stone-900 shadow-2xl flex flex-col py-8 z-50">
+          <div className="px-8 mb-10">
+            <Link to="/" className="text-white font-sans text-3xl font-black">결</Link>
+            <div className="mt-6 hidden lg:block">
+              <p className="text-white font-sans text-lg font-black leading-tight">{currentUser.restaurantName}</p>
+              <p className="text-stone-400 text-sm font-bold mt-1">사장님 대시보드</p>
             </div>
           </div>
-          
+
           <nav className="flex-1 space-y-1">
             {[
               { to: '/owner', icon: LayoutGrid, label: '대시보드', active: true },
+              { to: '/owner/reservations', icon: Calendar, label: '예약 관리' },
               { to: '/owner/customers', icon: Users, label: '단골 관리' },
-              { to: '/owner/statistics', icon: BarChart3, label: '매장 현황 분석' },
-              { to: '/owner/brand-settings', icon: Settings, label: '매장 프로필 관리' }
+              { to: '/owner/photos', icon: CameraIcon, label: '사진 보관' },
+              { to: '/owner/statistics', icon: BarChart3, label: '매출 통계' },
+              { to: '/owner/brand-settings', icon: Settings, label: '매장 설정' }
             ].map((item, idx) => (
-              <Link 
+              <Link
                 key={idx}
-                to={item.to} 
-                className={`group flex items-center gap-4 px-10 py-5 transition-all relative ${item.active ? 'text-white' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
+                to={item.to}
+                className={`flex items-center gap-4 px-8 py-4 transition-all ${item.active ? 'bg-white text-stone-900 mx-3 rounded-2xl shadow-lg' : 'text-stone-300 hover:bg-white/10 hover:text-white'}`}
               >
-                {item.active && <motion.div layoutId="nav-glow" className="absolute left-0 w-1.5 h-8 bg-gold rounded-r-full shadow-[0_0_15px_rgba(198,163,79,0.5)]" />}
-                <item.icon className={`w-5 h-5 flex-shrink-0 transition-transform ${item.active ? 'scale-110' : 'group-hover:scale-110'}`} />
-                <span className="text-xs font-black uppercase tracking-[0.2em] hidden lg:block">{item.label}</span>
+                <item.icon className="w-6 h-6 flex-shrink-0" />
+                <span className="text-base font-black hidden lg:block">{item.label}</span>
               </Link>
             ))}
           </nav>
 
-          <div className="px-10 mt-auto space-y-6">
-             <button onClick={() => setIsSettingsOpen(true)} className="flex items-center gap-4 text-white/40 hover:text-white transition-all group">
-                <User className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                <span className="text-[10px] font-black uppercase tracking-widest hidden lg:block">프로필 설정</span>
+          <div className="px-8 mt-auto space-y-3">
+             <button onClick={() => setIsSettingsOpen(true)} className="flex items-center gap-3 text-stone-300 hover:text-white py-3 w-full">
+                <User className="w-5 h-5" />
+                <span className="text-base font-bold hidden lg:block">프로필 설정</span>
              </button>
-             <button onClick={handleLogout} className="flex items-center gap-4 text-burgundy/40 hover:text-burgundy transition-all group">
-                <LogOut className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                <span className="text-[10px] font-black uppercase tracking-widest hidden lg:block">로그아웃</span>
+             <button onClick={handleLogout} className="flex items-center gap-3 text-stone-400 hover:text-red-400 py-3 w-full">
+                <LogOut className="w-5 h-5" />
+                <span className="text-base font-bold hidden lg:block">로그아웃</span>
              </button>
           </div>
         </aside>
       )}
 
-      {/* Mobile Bottom Navigation */}
+      {/* 모바일 하단 탭 — 큰 글자/터치 영역 */}
       {ownerViewMode === 'mobile' && (
-        <nav className="fixed bottom-0 left-0 right-0 bg-sidebar-bg/95 backdrop-blur-xl border-t border-white/5 z-[100] px-4 py-3 flex justify-between items-center safe-area-bottom">
+        <nav className="fixed bottom-0 left-0 right-0 bg-stone-900 border-t-2 border-stone-800 z-[100] px-2 py-2 flex justify-between items-center safe-area-bottom">
            {([
-             { to: '/owner', icon: LayoutGrid, label: '대시보드', active: true },
+             { to: '/owner', icon: LayoutGrid, label: '홈', active: true },
+             { to: '/owner/reservations', icon: Calendar, label: '예약' },
              { to: '/owner/customers', icon: Users, label: '단골' },
-             { to: '/owner/brand-settings', icon: Utensils, label: '메뉴관리' },
-             { to: '/owner/statistics', icon: BarChart3, label: '통계' },
-             { onClick: () => setShowTutorial(true), icon: Sparkles, label: '튜토리얼' }
+             { to: '/owner/brand-settings', icon: Utensils, label: '메뉴' },
+             { to: '/owner/photos', icon: CameraIcon, label: '사진' }
            ] as any[]).map((item, idx) => {
              const Comp = (item.to ? Link : 'button') as any;
              return (
-               <Comp 
+               <Comp
                  key={idx}
                  {...(item.to ? { to: item.to } : { onClick: item.onClick })}
-                 className={`flex flex-col items-center gap-1.5 transition-all ${item.active ? 'text-gold' : 'text-white/40'}`}
+                 className={`flex flex-col items-center gap-1 px-2 py-2 rounded-xl transition-all min-w-[60px] ${item.active ? 'bg-white text-stone-900' : 'text-stone-400'}`}
                >
-                 <item.icon className="w-5 h-5" />
-                 <span className="text-[9px] font-black tracking-widest">{item.label}</span>
+                 <item.icon className="w-6 h-6" />
+                 <span className="text-xs font-black">{item.label}</span>
                </Comp>
              );
            })}
@@ -451,17 +502,14 @@ export default function OwnerDashboard() {
 
       <main className={`${ownerViewMode === 'desktop' ? 'ml-20 lg:ml-72' : 'flex-1 pb-24'} flex-1 h-screen flex flex-col overflow-hidden`}>
         {/* Intelligence Header */}
-        <header className="bg-white/80 backdrop-blur-xl px-4 lg:px-12 py-4 lg:py-8 border-b border-primary/5 flex justify-between items-center z-40">
+        <header className="bg-white border-b-2 border-stone-200 px-5 lg:px-10 pb-5 lg:pb-6 pt-[calc(env(safe-area-inset-top)+1.25rem)] lg:pt-6 flex justify-between items-center z-40">
           <div className="flex items-center gap-6 lg:gap-10">
             <div>
-                <div className="flex items-center gap-2 mb-0.5 lg:mb-1">
-                  <h1 className="text-lg lg:text-3xl font-sans font-black text-primary tracking-tight">실시간 매장 현황</h1>
-                  <div className="px-2 py-0.5 rounded-md bg-primary/5 border border-primary/10 text-[7px] lg:text-[8px] font-black text-primary uppercase tracking-widest">실시간</div>
+                <h1 className="text-2xl lg:text-4xl font-black text-stone-900">실시간 매장 현황</h1>
+                <div className="flex items-center gap-2 mt-1.5">
+                   <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                   <span className="text-base lg:text-lg font-bold text-stone-700">현재 <LiveClock /></span>
                 </div>
-               <div className="flex items-center gap-2 lg:gap-3">
-                  <div className="w-1.5 lg:w-2 h-1.5 lg:h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>
-                  <span className="text-[8px] lg:text-[10px] font-black text-emerald-600 uppercase tracking-[0.2em]">현재 시각: <LiveClock /></span>
-               </div>
             </div>
             
             <nav className="hidden lg:flex gap-10">
@@ -560,12 +608,12 @@ export default function OwnerDashboard() {
                 </div>
              </div>
 
-             <motion.button 
+             <motion.button
                whileTap={{ scale: 0.95 }}
-               onClick={() => setIsLayoutMode(!isLayoutMode)} 
-               className={`px-6 lg:px-10 py-3 lg:py-4 rounded-[1.2rem] lg:rounded-[1.5rem] font-sans font-black text-[11px] lg:text-sm transition-all shadow-xl whitespace-nowrap flex-shrink-0 ${isLayoutMode ? 'bg-primary text-white ring-8 ring-primary/10' : 'bg-surface-bright border border-primary/10 text-primary hover:shadow-premium'}`}
+               onClick={() => setIsLayoutMode(!isLayoutMode)}
+               className={`px-5 lg:px-7 py-3 lg:py-4 rounded-2xl font-black text-base lg:text-lg transition-all shadow-md whitespace-nowrap flex-shrink-0 ${isLayoutMode ? 'bg-emerald-600 text-white' : 'bg-stone-100 border-2 border-stone-200 text-stone-800 hover:bg-stone-200'}`}
              >
-                {isLayoutMode ? '배치 저장 완료' : '테이블 배치 수정'}
+                {isLayoutMode ? '저장 완료' : '테이블 배치 수정'}
              </motion.button>
           </div>
         </header>
@@ -577,14 +625,13 @@ export default function OwnerDashboard() {
                  const activeOrders = (orders || []).filter((o: any) => o.storeId === currentUser.id && o.status !== 'served' && o.status !== 'cancelled');
                  if (activeOrders.length === 0) return null;
                  return (
-                   <div className="bg-white rounded-[3rem] lg:rounded-[4rem] p-8 lg:p-12 shadow-premium border-2 border-gold/20 relative overflow-hidden">
-                      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-gold via-primary to-gold"></div>
-                      <div className="flex justify-between items-center mb-8">
+                   <div className="bg-white rounded-3xl p-6 lg:p-8 shadow-lg border-2 border-amber-300">
+                      <div className="flex justify-between items-center mb-6">
                          <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 bg-gold/10 rounded-2xl flex items-center justify-center text-gold animate-pulse"><Bell className="w-6 h-6" /></div>
+                            <div className="w-14 h-14 bg-amber-100 rounded-2xl flex items-center justify-center text-amber-700 animate-pulse"><Bell className="w-7 h-7" /></div>
                             <div>
-                               <h3 className="text-xl font-sans font-black text-primary tracking-tight">주문 관리</h3>
-                               <p className="text-[10px] font-black text-primary/30 uppercase tracking-widest">{activeOrders.length}건 처리 대기 중</p>
+                               <h3 className="text-2xl lg:text-3xl font-black text-stone-900">신규 주문</h3>
+                               <p className="text-base font-bold text-amber-700 mt-1">처리 대기 {activeOrders.length}건</p>
                             </div>
                          </div>
                       </div>
@@ -601,41 +648,41 @@ export default function OwnerDashboard() {
                                 'border-primary/5 bg-white'
                               }`}
                             >
-                               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-                                  <div className="flex items-center gap-6">
-                                     <div className="w-16 h-16 bg-primary text-white rounded-2xl flex items-center justify-center font-black text-2xl shadow-premium">{order.tableNumber}</div>
-                                     <div>
-                                        <div className="flex items-center gap-3 mb-2">
-                                           <span className={`text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-widest ${
-                                             order.status === 'pending' ? 'bg-gold text-white' :
-                                             order.status === 'accepted' ? 'bg-blue-500 text-white' :
-                                             order.status === 'cooking' ? 'bg-primary text-white' :
-                                             'bg-emerald-500 text-white'
+                               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+                                  <div className="flex items-center gap-5">
+                                     <div className="w-20 h-20 bg-stone-900 text-white rounded-2xl flex items-center justify-center font-black text-3xl shadow-lg flex-shrink-0">{order.tableNumber}</div>
+                                     <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-3 mb-3 flex-wrap">
+                                           <span className={`text-base font-black px-3 py-1.5 rounded-xl ${
+                                             order.status === 'pending' ? 'bg-amber-500 text-white' :
+                                             order.status === 'accepted' ? 'bg-blue-600 text-white' :
+                                             order.status === 'cooking' ? 'bg-stone-700 text-white' :
+                                             'bg-emerald-600 text-white'
                                            }`}>
                                              {order.status === 'pending' ? '신규 주문' : order.status === 'accepted' ? '접수 완료' : order.status === 'cooking' ? '조리 중' : order.status}
                                            </span>
-                                           <span className="text-[9px] text-primary/30 font-bold">{new Date(order.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</span>
+                                           <span className="text-base font-bold text-stone-600">{new Date(order.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</span>
                                         </div>
-                                        <div className="flex flex-wrap gap-2">
+                                        <div className="flex flex-wrap gap-2 mb-3">
                                            {order.items.map((item: any, idx: number) => (
-                                              <span key={idx} className="text-xs font-bold text-primary/60 bg-primary/5 px-3 py-1 rounded-full">{item.name} ×{item.quantity}</span>
+                                              <span key={idx} className="text-base font-bold text-stone-800 bg-stone-100 px-3 py-1.5 rounded-xl border border-stone-200">{item.name} ×{item.quantity}</span>
                                            ))}
                                         </div>
-                                        <p className="text-lg font-serif font-black italic text-primary mt-2">₩{order.totalAmount.toLocaleString()}</p>
+                                        <p className="text-2xl font-black text-stone-900">합계 {order.totalAmount.toLocaleString()}원</p>
                                      </div>
                                   </div>
-                                  <div className="flex gap-2 flex-shrink-0">
+                                  <div className="flex gap-2 flex-shrink-0 flex-wrap">
                                      {order.status === 'pending' && (
                                         <>
-                                           <button onClick={() => updateOrderStatus(order.id, 'accepted')} className="px-6 py-3 bg-blue-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-lg">접수</button>
-                                           <button onClick={() => updateOrderStatus(order.id, 'cancelled')} className="px-6 py-3 bg-burgundy/10 text-burgundy rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-burgundy hover:text-white transition-all">거절</button>
+                                           <button onClick={() => updateOrderStatus(order.id, 'accepted')} className="px-6 py-4 bg-blue-600 text-white rounded-2xl text-lg font-black hover:bg-blue-700 transition-all shadow-lg">접수하기</button>
+                                           <button onClick={() => updateOrderStatus(order.id, 'cancelled')} className="px-6 py-4 bg-white border-2 border-red-300 text-red-700 rounded-2xl text-lg font-black hover:bg-red-50 transition-all">거절</button>
                                         </>
                                      )}
                                      {order.status === 'accepted' && (
-                                        <button onClick={() => updateOrderStatus(order.id, 'cooking')} className="px-6 py-3 bg-primary text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-lg">조리 시작</button>
+                                        <button onClick={() => updateOrderStatus(order.id, 'cooking')} className="px-6 py-4 bg-stone-800 text-white rounded-2xl text-lg font-black hover:bg-stone-900 transition-all shadow-lg">조리 시작</button>
                                      )}
                                      {order.status === 'cooking' && (
-                                        <button onClick={() => updateOrderStatus(order.id, 'served')} className="px-6 py-3 bg-emerald-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-lg">서빙 완료</button>
+                                        <button onClick={() => { setServePhotoOrder(order); setServePhotoMenuName(order.items?.[0]?.name || ''); }} className="px-6 py-4 bg-emerald-600 text-white rounded-2xl text-lg font-black hover:bg-emerald-700 transition-all shadow-lg flex items-center gap-2"><CameraIcon className="w-5 h-5" />서빙 + 사진</button>
                                      )}
                                   </div>
                                </div>
@@ -646,29 +693,27 @@ export default function OwnerDashboard() {
                  );
                })()}
 
-               {/* Proactive Operational HUD - Top Intelligence Bar */}
-               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8 lg:mb-12">
+               {/* 매장 현황 통계 */}
+               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-5 mb-8 lg:mb-10">
                   {[
-                    { label: '매장 건강 지수', val: `${stats.healthScore}pt`, icon: Activity, color: 'text-emerald-600', bg: 'bg-emerald-50', trend: '양호' },
-                    { label: '실시간 점유율', val: `${stats.occupancyRate}%`, icon: Users, color: 'text-primary', bg: 'bg-primary/5', trend: '안정' },
-                    { label: '예상 일일 회전율', val: `${turnoverRate}회`, icon: History, color: 'text-gold', bg: 'bg-gold/10', trend: '활발' },
-                    { label: '집중 관리 필요', val: `${stats.atRisk}명`, icon: ShieldAlert, color: 'text-burgundy', bg: 'bg-burgundy/5', trend: '관리 필요' }
+                    { label: '매장 점수', val: `${stats.healthScore}점`, icon: Activity, color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200', trend: '양호' },
+                    { label: '테이블 점유율', val: `${stats.occupancyRate}%`, icon: Users, color: 'text-stone-900', bg: 'bg-stone-100 border-stone-200', trend: '안정' },
+                    { label: '오늘 회전율', val: `${turnoverRate}회`, icon: History, color: 'text-amber-700', bg: 'bg-amber-50 border-amber-200', trend: '활발' },
+                    { label: '관리 필요', val: `${stats.atRisk}명`, icon: ShieldAlert, color: 'text-red-700', bg: 'bg-red-50 border-red-200', trend: '주의' }
                   ].map((stat, i) => (
                     <motion.div 
                       key={i}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.1 }}
-                      className={`${stat.bg} p-8 lg:p-11 rounded-[2.5rem] lg:rounded-[4rem] border border-primary/5 shadow-premium flex flex-col justify-between group overflow-hidden relative min-h-[160px] lg:min-h-[220px]`}
+                      className={`${stat.bg} p-5 lg:p-7 rounded-3xl border-2 flex flex-col gap-3 min-h-[130px] lg:min-h-[160px]`}
                     >
-                      <stat.icon className={`absolute -right-4 -bottom-4 w-28 h-28 ${stat.color} opacity-[0.03] group-hover:scale-110 transition-transform`} />
-                      <div className="relative z-10 flex flex-col h-full justify-between">
-                         <div className="flex justify-between items-start">
-                            <p className="text-[9px] lg:text-[10px] font-black uppercase tracking-[0.3em] opacity-40">{stat.label}</p>
-                            <span className={`text-[7px] font-black px-2 py-0.5 rounded-full bg-white/50 border border-current/10 ${stat.color}`}>{stat.trend}</span>
-                         </div>
-                         <p className={`text-3xl lg:text-5xl font-sans font-black italic tracking-tighter ${stat.color}`}>{stat.val}</p>
+                      <div className="flex justify-between items-start">
+                         <stat.icon className={`w-7 h-7 lg:w-8 lg:h-8 ${stat.color}`} />
+                         <span className={`text-sm font-black px-2.5 py-1 rounded-lg bg-white/70 ${stat.color}`}>{stat.trend}</span>
                       </div>
+                      <p className={`text-base lg:text-lg font-black ${stat.color}`}>{stat.label}</p>
+                      <p className={`text-3xl lg:text-4xl font-black ${stat.color} mt-auto`}>{stat.val}</p>
                     </motion.div>
                   ))}
                </div>
@@ -791,7 +836,9 @@ export default function OwnerDashboard() {
                           const isOccupied = table.currentCustomerId !== null;
                           const isBeingDragged = draggedTable === table.number;
                           const isHighlighted = highlightedTable === table.number;
-                          
+                          const tableRes = reservationsByTable[table.number] || [];
+                          const upcomingRes = tableRes.find((r: any) => reservationTone(r.time) !== 'past');
+
                           return (
                             <motion.div
                               key={table.number}
@@ -837,6 +884,23 @@ export default function OwnerDashboard() {
                                   </div>
                               )}
 
+                              {/* 오늘 예약 배지 — 비어있을 때만 노출 */}
+                              {!isOccupied && upcomingRes && (table.type === 'table' || table.type === 'room') && (() => {
+                                 const tone = reservationTone(upcomingRes.time);
+                                 const toneStyle = tone === 'now'
+                                   ? 'bg-burgundy text-white animate-pulse-premium'
+                                   : tone === 'soon'
+                                     ? 'bg-gold text-white'
+                                     : 'bg-primary/90 text-white';
+                                 return (
+                                   <div className={`absolute -top-2 -left-2 px-2 py-1 ${toneStyle} rounded-full text-[8px] font-black uppercase tracking-widest shadow-lg flex items-center gap-1 border-2 border-white`}>
+                                     <Calendar className="w-2.5 h-2.5" />
+                                     {upcomingRes.time}
+                                     {tableRes.length > 1 && <span className="opacity-70">+{tableRes.length - 1}</span>}
+                                   </div>
+                                 );
+                              })()}
+
                               {isLayoutMode && !isOccupied && (
                                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-white/80 rounded-[inherit] z-20">
                                     <button 
@@ -860,20 +924,37 @@ export default function OwnerDashboard() {
                    {filteredTables.map(table => {
                       const isOccupied = !!table.currentCustomerId;
                       const customerName = isOccupied ? users.find(u => u.id === table.currentCustomerId)?.name : '없음';
+                      const tableRes = reservationsByTable[table.number] || [];
+                      const upcomingRes = tableRes.find((r: any) => reservationTone(r.time) !== 'past');
+                      const tone = upcomingRes ? reservationTone(upcomingRes.time) : null;
                       return (
-                      <motion.div 
+                      <motion.div
                         whileHover={{ y: -3 }}
-                        key={table.number} 
-                        onClick={() => setSelectedTable(table.number)} 
-                        className="bg-white rounded-2xl p-4 border border-primary/10 flex flex-col items-center justify-center gap-3 cursor-pointer shadow-sm relative min-h-[120px] flex-shrink-0 active:scale-95 touch-manipulation"
+                        key={table.number}
+                        onClick={() => setSelectedTable(table.number)}
+                        className={`bg-white rounded-2xl p-4 border flex flex-col items-center justify-center gap-3 cursor-pointer shadow-sm relative min-h-[120px] flex-shrink-0 active:scale-95 touch-manipulation ${!isOccupied && tone === 'now' ? 'border-burgundy/40 ring-2 ring-burgundy/20' : !isOccupied && upcomingRes ? 'border-gold/40' : 'border-primary/10'}`}
                       >
+                         {!isOccupied && upcomingRes && (
+                           <div className={`absolute -top-2 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-widest shadow-lg flex items-center gap-1 border-2 border-white ${tone === 'now' ? 'bg-burgundy text-white' : tone === 'soon' ? 'bg-gold text-white' : 'bg-primary/90 text-white'}`}>
+                             <Calendar className="w-2.5 h-2.5" />
+                             {upcomingRes.time}
+                             {tableRes.length > 1 && <span className="opacity-70">+{tableRes.length - 1}</span>}
+                           </div>
+                         )}
                          <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg ${isOccupied ? 'bg-primary text-white shadow-md' : 'bg-white border-2 border-primary text-primary'}`}>
                             {table.number}
                          </div>
-                         <div className="flex flex-col items-center gap-1">
-                            <p className="text-[12px] font-bold text-primary truncate w-full text-center">{customerName}</p>
-                            <div className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold tracking-widest ${isOccupied ? 'bg-[#E6F4EA] text-[#137333]' : 'bg-surface-dim text-primary/40'}`}>
-                               {isOccupied ? '이용중' : '가능'}
+                         <div className="flex flex-col items-center gap-1 w-full">
+                            <p className="text-[12px] font-bold text-primary truncate w-full text-center">
+                              {isOccupied ? customerName : (upcomingRes ? upcomingRes.customerName : '없음')}
+                            </p>
+                            <div className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold tracking-widest ${
+                              isOccupied ? 'bg-[#E6F4EA] text-[#137333]'
+                              : tone === 'now' ? 'bg-burgundy/10 text-burgundy'
+                              : upcomingRes ? 'bg-gold/10 text-gold'
+                              : 'bg-surface-dim text-primary/40'
+                            }`}>
+                               {isOccupied ? '이용중' : tone === 'now' ? '예약 임박' : upcomingRes ? `예약 ${upcomingRes.partySize}명` : '가능'}
                             </div>
                          </div>
                       </motion.div>
@@ -1309,6 +1390,43 @@ export default function OwnerDashboard() {
       <AnimatePresence>
         {showTutorial && <OwnerTutorial onClose={() => setShowTutorial(false)} />}
       </AnimatePresence>
+
+      <PhotoCaptureModal
+        open={!!servePhotoOrder}
+        title="서빙 사진 촬영"
+        hint="메뉴 사진을 찍어 손님에게 전송됩니다"
+        cameraFacing="environment"
+        submitLabel="사진 전송 + 서빙 완료"
+        extraField={{
+          label: '메뉴명',
+          value: servePhotoMenuName,
+          onChange: setServePhotoMenuName,
+          placeholder: '예: 한우 모듬 등심'
+        }}
+        onClose={() => { setServePhotoOrder(null); setServePhotoMenuName(''); }}
+        onCapture={async (dataUrl) => {
+          if (!servePhotoOrder || !currentUser) return;
+          const order = servePhotoOrder;
+          const menuName = servePhotoMenuName.trim() || (order.items?.[0]?.name || '메뉴 사진');
+          // 1) 사진 보관함에 저장
+          await addPhoto({
+            storeId: currentUser.id,
+            type: 'menu',
+            imageData: dataUrl,
+            orderId: order.id,
+            tableNumber: order.tableNumber,
+            customerId: order.customerId,
+            menuName,
+            snsConsent: false
+          });
+          // 2) 서빙 완료 처리
+          await updateOrderStatus(order.id, 'served');
+          showToast(`${order.tableNumber}번 테이블로 사진이 전송되었습니다.`, 'success');
+          setServePhotoOrder(null);
+          setServePhotoMenuName('');
+        }}
+      />
+
     </div>
   );
 }

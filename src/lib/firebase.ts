@@ -56,6 +56,8 @@ export const getCollections = (database: Firestore | null) => {
     sections: collection(database, 'sections'),
     menus: collection(database, 'menus'),
     orders: collection(database, 'orders'),
+    reservations: collection(database, 'reservations'),
+    photos: collection(database, 'photos'),
     appState: collection(database, 'appState')
   };
 };

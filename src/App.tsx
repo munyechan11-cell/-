@@ -16,6 +16,8 @@ const BrandSettings = lazy(() => import('./pages/owner/BrandSettings'));
 const Home = lazy(() => import('./pages/Home'));
 const Master = lazy(() => import('./pages/Master'));
 const QrPrint = lazy(() => import('./pages/owner/QrPrint'));
+const OwnerReservations = lazy(() => import('./pages/owner/Reservations'));
+const OwnerPhotoVault = lazy(() => import('./pages/owner/PhotoVault'));
 
 function Toast() {
   const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' | 'info', id: number } | null>(null);
@@ -170,6 +172,16 @@ function NavigationRoutes() {
         <Route path="/owner/qr-print" element={
           <PrivateRoute role="owner">
             <QrPrint />
+          </PrivateRoute>
+        } />
+        <Route path="/owner/reservations" element={
+          <PrivateRoute role="owner">
+            <OwnerReservations />
+          </PrivateRoute>
+        } />
+        <Route path="/owner/photos" element={
+          <PrivateRoute role="owner">
+            <OwnerPhotoVault />
           </PrivateRoute>
         } />
       </Routes>

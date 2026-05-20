@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -NoProfile -Command \"if ((git status --porcelain) -ne $null) { git add -A; git commit -m 'auto: Claude 작업 자동 커밋' --quiet; git push --quiet 2>&1 | Out-Null }\""
+          }
+        ]
+      }
+    ]
+  }
+}

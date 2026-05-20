@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { useStore, getTierCustomName, showToast } from '../../store';
-import { 
-  ArrowLeft, Save, Sparkles, Gift, Trash2, Plus, 
-  Loader2, ShieldCheck, Heart, Star, Award, 
+import {
+  ArrowLeft, Save, Sparkles, Gift, Trash2, Plus,
+  Loader2, ShieldCheck, Heart, Star, Award,
   ChevronRight, LayoutGrid, Users, BarChart3, LogOut,
-  Store as StoreIcon, Edit2, Settings, MapPin, ShieldAlert, Utensils
+  Store as StoreIcon, Edit2, Settings, MapPin, ShieldAlert, Utensils,
+  Calendar as CalendarIcon, Camera as CameraIcon
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
+import PrinterSettings from '../../components/PrinterSettings';
 
 export default function BrandSettings() {
   const { currentUser, updateBrandSettings, ownerViewMode, updateStoreLocation } = useStore();
@@ -95,68 +97,74 @@ export default function BrandSettings() {
   return (
     <div className={`flex h-screen overflow-hidden bg-surface-bright font-sans text-on-surface selection:bg-primary/20 ${ownerViewMode === 'mobile' ? 'flex-col' : ''}`}>
       
-      {/* Sidebar - Consistent */}
+      {/* Sidebar */}
       {ownerViewMode === 'desktop' && (
-        <aside className="h-screen w-20 lg:w-64 fixed left-0 bg-sidebar-bg shadow-2xl flex flex-col py-8 z-50">
-          <div className="px-8 mb-12">
-            <Link to="/" className="text-[#fcfcfc] font-sans font-black text-2xl">결</Link>
-            <div className="mt-8 hidden lg:block">
-              <p className="text-[#fcfcfc] font-sans font-bold text-sm">{currentUser.restaurantName}</p>
-              <p className="text-[#fcfcfc]/50 uppercase tracking-widest text-[10px]">브랜드 아이덴티티 관리</p>
+        <aside className="h-screen w-24 lg:w-72 fixed left-0 bg-stone-900 shadow-2xl flex flex-col py-8 z-50">
+          <div className="px-8 mb-10">
+            <Link to="/" className="text-white font-sans font-black text-3xl">결</Link>
+            <div className="mt-6 hidden lg:block">
+              <p className="text-white font-sans font-black text-lg leading-tight">{currentUser.restaurantName}</p>
+              <p className="text-stone-400 text-sm font-bold mt-1">매장 설정</p>
             </div>
           </div>
-          <nav className="flex-1 space-y-2">
-            <Link to="/owner" className="text-white/60 hover:text-white px-8 py-3 flex items-center gap-4 hover:bg-white/5 transition-all">
-              <LayoutGrid className="w-5 h-5 flex-shrink-0" /><span className="text-xs hidden lg:block">대시보드</span>
-            </Link>
-            <Link to="/owner/customers" className="text-white/60 hover:text-white px-8 py-3 flex items-center gap-4 hover:bg-white/5 transition-all">
-              <Users className="w-5 h-5 flex-shrink-0" /><span className="text-xs hidden lg:block">단골 관리</span>
-            </Link>
-            <Link to="/owner/statistics" className="text-white/60 hover:text-white px-8 py-3 flex items-center gap-4 hover:bg-white/5 transition-all">
-              <BarChart3 className="w-5 h-5 flex-shrink-0" /><span className="text-xs hidden lg:block">매장 통계</span>
-            </Link>
-            <Link to="/owner/brand-settings" className="bg-white/10 text-white rounded-l-full ml-4 pl-4 py-3 flex items-center gap-4 transition-all">
-              <Settings className="w-5 h-5 flex-shrink-0" /><span className="text-xs hidden lg:block">매장 설정</span>
-            </Link>
+          <nav className="flex-1 space-y-1">
+            {[
+              { to: '/owner', icon: LayoutGrid, label: '대시보드' },
+              { to: '/owner/reservations', icon: CalendarIcon, label: '예약 관리' },
+              { to: '/owner/customers', icon: Users, label: '단골 관리' },
+              { to: '/owner/photos', icon: CameraIcon, label: '사진 보관' },
+              { to: '/owner/statistics', icon: BarChart3, label: '매출 통계' },
+              { to: '/owner/brand-settings', icon: Settings, label: '매장 설정', active: true }
+            ].map((item, idx) => (
+              <Link
+                key={idx}
+                to={item.to}
+                className={`flex items-center gap-4 px-8 py-4 transition-all ${item.active ? 'bg-white text-stone-900 mx-3 rounded-2xl shadow-lg' : 'text-stone-300 hover:bg-white/10 hover:text-white'}`}
+              >
+                <item.icon className="w-6 h-6 flex-shrink-0" />
+                <span className="text-base font-black hidden lg:block">{item.label}</span>
+              </Link>
+            ))}
           </nav>
-          <button onClick={handleLogout} className="px-8 mt-auto text-white/40 hover:text-white text-[10px] flex items-center gap-2 uppercase tracking-widest">
-            <LogOut className="w-4 h-4" /> <span className="hidden lg:block">시스템 로그아웃</span>
+          <button onClick={handleLogout} className="px-8 mt-auto text-stone-400 hover:text-white text-base font-bold flex items-center gap-3 py-3">
+            <LogOut className="w-5 h-5" /> <span className="hidden lg:block">로그아웃</span>
           </button>
         </aside>
       )}
 
       {/* Mobile Bottom Navigation */}
       {ownerViewMode === 'mobile' && (
-        <nav className="fixed bottom-0 left-0 right-0 bg-sidebar-bg/95 backdrop-blur-xl border-t border-white/5 z-[100] px-6 py-4 flex justify-between items-center safe-area-bottom">
-           {[
-             { to: '/owner', icon: LayoutGrid, label: '홈' },
-             { to: '/owner/customers', icon: Users, label: '단골' },
-             { to: '/owner/statistics', icon: BarChart3, label: '통계' },
-             { to: '/owner/brand-settings', icon: Settings, label: '설정', active: true }
-           ].map((item, idx) => (
-             <Link 
-               key={idx}
-               to={item.to} 
-               className={`flex flex-col items-center gap-1.5 transition-all ${item.active ? 'text-gold' : 'text-white/40'}`}
-             >
-               <item.icon className="w-5 h-5" />
-               <span className="text-[9px] font-black uppercase tracking-widest">{item.label}</span>
-             </Link>
-           ))}
+        <nav className="fixed bottom-0 left-0 right-0 bg-stone-900 border-t-2 border-stone-800 z-[100] px-2 py-2 flex justify-between items-center safe-area-bottom">
+          {[
+            { to: '/owner', icon: LayoutGrid, label: '홈' },
+            { to: '/owner/reservations', icon: CalendarIcon, label: '예약' },
+            { to: '/owner/customers', icon: Users, label: '단골' },
+            { to: '/owner/brand-settings', icon: Settings, label: '설정', active: true },
+            { to: '/owner/photos', icon: CameraIcon, label: '사진' }
+          ].map((item, idx) => (
+            <Link
+              key={idx}
+              to={item.to}
+              className={`flex flex-col items-center gap-1 px-2 py-2 rounded-xl transition-all min-w-[60px] ${item.active ? 'bg-white text-stone-900' : 'text-stone-400'}`}
+            >
+              <item.icon className="w-6 h-6" />
+              <span className="text-xs font-black">{item.label}</span>
+            </Link>
+          ))}
         </nav>
       )}
 
       {/* Main Workspace */}
       <main className={`${ownerViewMode === 'desktop' ? 'ml-20 lg:ml-64' : 'flex-1 pb-24'} flex-1 h-screen flex flex-col overflow-hidden`}>
-        <header className="bg-white/90 backdrop-blur-md sticky top-0 z-40 flex justify-between items-center w-full px-6 lg:px-8 py-4 border-b border-outline-variant/30">
-          <span className="font-sans text-xl lg:text-2xl font-black text-primary tracking-tight">매장 브랜딩 설정</span>
+        <header className="bg-white border-b-2 border-stone-200 px-5 lg:px-10 pb-5 pt-[calc(env(safe-area-inset-top)+1.25rem)] flex justify-between items-center gap-4">
+          <h1 className="text-2xl lg:text-4xl font-black text-stone-900">매장 설정</h1>
           <button
              onClick={handleSave}
              disabled={isSaving}
-             className="px-6 lg:px-8 py-2 bg-primary text-white rounded-full font-sans font-black text-xs lg:text-sm hover:bg-accent-burgundy transition-all shadow-lg flex items-center gap-2 disabled:opacity-50"
+             className="px-5 lg:px-7 py-4 bg-emerald-600 text-white rounded-2xl font-black text-base lg:text-lg hover:bg-emerald-700 transition-all shadow-lg flex items-center gap-2 disabled:opacity-50"
           >
-            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            {ownerViewMode === 'mobile' ? '저장' : '설정 저장하기'}
+            {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+            저장하기
           </button>
         </header>
 
@@ -311,15 +319,22 @@ export default function BrandSettings() {
                   
                   <div className="bg-surface-bright p-8 rounded-3xl border border-primary/5 space-y-6">
                      <div className="space-y-2">
-                        <label className="text-[10px] font-black text-primary/30 uppercase tracking-[0.3em]">푸드테크(M-Kitchen) 매장코드</label>
-                        <input 
-                           className="w-full bg-white border border-primary/10 rounded-xl px-6 py-4 text-sm font-black focus:ring-1 focus:ring-primary shadow-sm"
+                        <label className="text-base font-black text-primary">중계업체 매장코드 (선택)</label>
+                        <input
+                           className="w-full bg-white border-2 border-primary/10 rounded-2xl px-6 py-5 text-lg font-bold focus:ring-2 focus:ring-primary shadow-sm"
                            value={foodtechStoreCode}
                            onChange={e => setFoodtechStoreCode(e.target.value)}
-                           placeholder="FT_XXXXXX_XXXX"
+                           placeholder="예: FT_XXXXXX_XXXX"
                         />
-                        <p className="text-[9px] text-primary/30 font-medium">※ 푸드테크에서 발급받은 정식 코드를 입력하면 POS 연동 주문이 활성화됩니다.</p>
+                        <p className="text-sm font-bold text-primary/60 leading-relaxed">
+                           중계업체(푸드테크/솔드아웃 등)에서 발급받은 코드를 입력하면 POS 자동 등록이 활성화됩니다.
+                           코드를 아직 못 받으셨다면 아래 영수증 프린터를 먼저 사용하세요.
+                        </p>
                      </div>
+                  </div>
+
+                  <div className="mt-6">
+                    <PrinterSettings storeName={currentUser?.restaurantName || '매장'} />
                   </div>
                </section>
 

@@ -155,15 +155,45 @@ export interface StoreOrder {
   storeId: string;
   tableNumber: number;
   customerId: string;
-  items: { 
-    menuId: string; 
-    name: string; 
-    quantity: number; 
-    price: number; 
+  items: {
+    menuId: string;
+    name: string;
+    quantity: number;
+    price: number;
   }[];
   totalAmount: number;
   status: 'pending' | 'accepted' | 'cooking' | 'served' | 'cancelled';
   paymentStatus?: 'unpaid' | 'paid' | 'refunded';
+  createdAt: string;
+}
+
+export interface Reservation {
+  id: string;
+  storeId: string;
+  date: string;            // YYYY-MM-DD
+  time: string;            // HH:MM (24h)
+  tableNumber: number;
+  partySize: number;
+  customerName: string;
+  customerPhone: string;
+  memo?: string;
+  status: 'confirmed' | 'cancelled' | 'completed' | 'no-show';
+  createdAt: string;
+}
+
+export interface PhotoRecord {
+  id: string;
+  storeId: string;
+  type: 'menu' | 'customer';     // menu: 사장님 메뉴 사진, customer: 고객 추가 사진
+  imageData: string;             // data URL (base64) — 클라이언트에서 리사이즈 후 저장
+  orderId?: string;
+  tableNumber?: number;
+  customerId?: string;
+  customerName?: string;
+  menuName?: string;             // 메뉴 사진일 때 표시
+  snsConsent?: boolean;          // 손님 SNS 사용 동의 여부 (메뉴 사진 한정)
+  consentedAt?: string;          // 동의 시점 ISO
+  pairedPhotoId?: string;        // menu↔customer 짝 매핑
   createdAt: string;
 }
 
@@ -178,6 +208,8 @@ const globalState: Record<string, any> = {
   tierOverrides: [],
   menus: [],
   orders: [],
+  reservations: [],
+  photos: [],
   masterPassword: 'IMC',
   offlineQueue: [] // New: Queue for offline mutations
 };
@@ -287,6 +319,8 @@ const startSync = (database: any, colls: any) => {
   syncCollection('tierOverrides', 'tierOverrides');
   syncCollection('menus', 'menus');
   syncCollection('orders', 'orders');
+  syncCollection('reservations', 'reservations');
+  syncCollection('photos', 'photos');
   
   const unsubSettings = onSnapshot(doc(database, 'appState', 'settings'), (snap) => {
     if (snap.exists()) {
@@ -459,6 +493,8 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
   const [tierOverrides, setTierOverrides] = useState<TierOverride[]>(getGlobalStorage('tierOverrides', []));
   const [menus, setMenus] = useState<MenuItem[]>(getGlobalStorage('menus', []));
   const [orders, setOrders] = useState<StoreOrder[]>(getGlobalStorage('orders', []));
+  const [reservations, setReservations] = useState<Reservation[]>(getGlobalStorage('reservations', []));
+  const [photos, setPhotos] = useState<PhotoRecord[]>(getGlobalStorage('photos', []));
   const [masterPassword, setMasterPasswordState] = useState<string>(globalState.masterPassword);
   const [currentUser, setCurrentUser] = useState<User | null>(getLocalStorage('currentUser', null));
   const [ownerViewMode, setOwnerViewModeState] = useState<'desktop' | 'mobile'>(
@@ -528,7 +564,9 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
         { key: 'sections', coll: collections.sections, filterField: 'storeId' },
         { key: 'tierOverrides', coll: collections.tierOverrides, filterField: 'storeId' },
         { key: 'menus', coll: collections.menus, filterField: 'storeId' },
-        { key: 'orders', coll: collections.orders, filterField: 'storeId' }
+        { key: 'orders', coll: collections.orders, filterField: 'storeId' },
+        { key: 'reservations', coll: collections.reservations, filterField: 'storeId' },
+        { key: 'photos', coll: collections.photos, filterField: 'storeId' }
       ];
 
       collectionMapping.forEach(({ key, coll, filterField }) => {
@@ -548,6 +586,8 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
             case 'tierOverrides': setTierOverrides(data as TierOverride[]); break;
             case 'menus': setMenus(data as MenuItem[]); break;
             case 'orders': setOrders(data as StoreOrder[]); break;
+            case 'reservations': setReservations(data as Reservation[]); break;
+            case 'photos': setPhotos(data as PhotoRecord[]); break;
           }
           notifyUpdate();
         });
@@ -1245,6 +1285,51 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     showToast('주문 상태가 업데이트되었습니다.', 'info');
   };
 
+  // ─── 예약 관리 ─────────────────────────────────────────
+  const addReservation = async (data: Omit<Reservation, 'id' | 'createdAt' | 'status'> & { status?: Reservation['status'] }) => {
+    const id = generateId();
+    const newRes: Reservation = {
+      ...data,
+      id,
+      status: data.status || 'confirmed',
+      createdAt: new Date().toISOString()
+    };
+    await updateFirestoreDoc('reservations', id, newRes);
+    showToast(`${data.customerName}님 예약이 등록되었습니다.`, 'success');
+    return id;
+  };
+
+  const updateReservation = async (id: string, data: Partial<Reservation>) => {
+    await updateFirestoreDoc('reservations', id, data);
+    showToast('예약 정보가 수정되었습니다.', 'success');
+  };
+
+  const deleteReservation = async (id: string) => {
+    await updateFirestoreDoc('reservations', id, null, true);
+    showToast('예약이 삭제되었습니다.', 'info');
+  };
+
+  // ─── 사진 보관 ─────────────────────────────────────────
+  const addPhoto = async (data: Omit<PhotoRecord, 'id' | 'createdAt'>) => {
+    const id = generateId();
+    const newPhoto: PhotoRecord = {
+      ...data,
+      id,
+      createdAt: new Date().toISOString()
+    };
+    await updateFirestoreDoc('photos', id, newPhoto);
+    return id;
+  };
+
+  const updatePhoto = async (id: string, data: Partial<PhotoRecord>) => {
+    await updateFirestoreDoc('photos', id, data);
+  };
+
+  const deletePhoto = async (id: string) => {
+    await updateFirestoreDoc('photos', id, null, true);
+    showToast('사진이 삭제되었습니다.', 'info');
+  };
+
   const queryAI = async (prompt: string) => {
     const lowerPrompt = prompt.toLowerCase();
     if (lowerPrompt.includes('5월') || lowerPrompt.includes('오월') || lowerPrompt.includes('may')) {
@@ -1263,9 +1348,9 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
 
   const storeValue = {
     isReady, isProcessing, firebaseStatus, firebaseError, users, visits, coupons, tables, sections, communications, tierOverrides,
-    menus, orders,
+    menus, orders, reservations, photos,
     masterPassword, currentUser, ownerViewMode, setOwnerViewMode,
-    login, logout, linkSocialAccount, deleteAccount, 
+    login, logout, linkSocialAccount, deleteAccount,
     recordVisit, leaveTable, issueCoupon, requestCouponUse, cancelCouponRequest, approveCouponUse, rejectCouponUse,
     initTables, setCustomerTier, updateTableLayout, addTable, deleteTable, updateTableStatus,
     addSection, updateSection, deleteSection,
@@ -1277,6 +1362,8 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       await updateFirestoreDoc('users', storeId, { lat, lng });
     },
     addMenuItem, deleteMenuItem, updateMenuItem, placeOrder, updateOrderStatus, queryAI,
+    addReservation, updateReservation, deleteReservation,
+    addPhoto, updatePhoto, deletePhoto,
     formatPhoneNumber
   };
 

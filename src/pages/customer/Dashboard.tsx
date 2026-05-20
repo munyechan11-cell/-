@@ -1,20 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { useStore, getEffectiveTier, getTierColor, getNextTierVisits, getTierCustomName, showToast, calculateRFMValue, getRFMCluster, calculateDistance } from '../../store';
-import { 
-  LogOut, Ticket, Award, Calendar, X, ArrowLeft, 
-  LogOut as LeaveIcon, MessageSquare, Bell, Edit3, 
-  Send, Loader2, Star, ShieldCheck, Heart, 
+import {
+  LogOut, Ticket, Award, Calendar, X, ArrowLeft,
+  LogOut as LeaveIcon, MessageSquare, Bell, Edit3,
+  Send, Loader2, Star, ShieldCheck, Heart,
   TrendingUp, Clock, MapPin, Search, Filter,
   ChevronRight, Activity, Zap, Store as StoreIcon,
   ArrowUpRight, QrCode, User, Settings as SettingsIcon,
   ShieldAlert, Trash2, Mail, History, Leaf, Coins,
-  Sparkles, Trophy, Globe, Wifi, WifiOff, Utensils
+  Sparkles, Trophy, Globe, Wifi, WifiOff, Utensils,
+  Camera as CameraIcon, ShieldOff, Image as ImageIcon
 } from 'lucide-react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import MemoModal, { formatMemoDisplay } from '../../components/MemoModal';
 import Skeleton, { CustomerCardSkeleton } from '../../components/Skeleton';
 import OrderingSystem from '../../components/OrderingSystem';
+import PhotoCaptureModal from '../../components/PhotoCaptureModal';
 
 export default function CustomerDashboard() {
   const { 
@@ -33,7 +35,10 @@ export default function CustomerDashboard() {
     updateUserMemo = () => {}, 
     recordCommunication = async () => {}, 
     firebaseStatus = 'offline',
-    orders = []
+    orders = [],
+    photos = [],
+    addPhoto = async () => {},
+    updatePhoto = async () => {}
   } = useStore();
   const navigate = useNavigate();
   const { storeId } = useParams<{ storeId: string }>();
@@ -53,6 +58,10 @@ export default function CustomerDashboard() {
   const [locationError, setLocationError] = useState<string | null>(null);
   const [distanceAway, setDistanceAway] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<'home' | 'menu' | 'coupon'>('home');
+  const [reviewingPhoto, setReviewingPhoto] = useState<any | null>(null);
+  const [snsConsent, setSnsConsent] = useState<boolean | null>(null);
+  const [showCustomerPhotoModal, setShowCustomerPhotoModal] = useState(false);
+  const [pendingMenuPhotoId, setPendingMenuPhotoId] = useState<string | null>(null);
   const { linkSocialAccount, deleteAccount } = useStore();
 
   useEffect(() => {
@@ -79,6 +88,14 @@ export default function CustomerDashboard() {
   }, [visits, currentUser]);
 
   const owner = (users || []).find(u => u.id === storeId && u.role === 'owner');
+
+  // 내게 도착한 메뉴 사진 (사장님이 서빙 시 촬영)
+  const myMenuPhotos = (photos || [])
+    .filter((p: any) => p.type === 'menu'
+                     && p.storeId === storeId
+                     && p.customerId === currentUser?.id)
+    .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const pendingMenuPhotos = myMenuPhotos.filter((p: any) => p.snsConsent === undefined || p.snsConsent === false);
 
   // --- GEOFENCING PROTECTION LOGIC ---
   useEffect(() => {
@@ -246,7 +263,7 @@ export default function CustomerDashboard() {
       <div className="w-full max-w-md min-h-screen flex flex-col relative pb-40">
         
         {/* Elite Header */}
-        <header className="px-8 py-8 flex justify-between items-center bg-surface-bright/80 backdrop-blur-xl sticky top-0 z-40 border-b border-primary/5">
+        <header className="px-8 pb-8 pt-[calc(env(safe-area-inset-top)+2rem)] flex justify-between items-center bg-surface-bright/80 backdrop-blur-xl sticky top-0 z-40 border-b border-primary/5">
           <div className="flex items-center gap-4">
              <div className="w-12 h-12 rounded-full bg-gyeol-wood flex items-center justify-center text-white font-serif italic text-2xl shadow-premium">결</div>
              <div>
@@ -332,6 +349,53 @@ export default function CustomerDashboard() {
         <div className="flex-1 overflow-y-auto no-scrollbar scroll-smooth">
           {activeTab === 'home' && (
             <div className="px-6 lg:px-12 pt-10 space-y-16 pb-32">
+
+               {/* 메뉴 사진 알림 — 사장님이 서빙한 사진을 손님이 확인 + SNS 동의 */}
+               {myMenuPhotos.length > 0 && (
+                 <section className="space-y-3">
+                   <div className="flex items-center justify-between px-2">
+                     <h3 className="text-xs font-black text-primary uppercase tracking-[0.3em]">
+                       <CameraIcon className="w-3.5 h-3.5 inline mr-2 -mt-0.5" />
+                       매장에서 보내온 사진
+                     </h3>
+                     {pendingMenuPhotos.length > 0 && (
+                       <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-burgundy/10 text-burgundy border border-burgundy/20">
+                         확인 필요 {pendingMenuPhotos.length}
+                       </span>
+                     )}
+                   </div>
+                   <div className="grid grid-cols-2 gap-3">
+                     {myMenuPhotos.slice(0, 4).map((p: any) => (
+                       <button
+                         key={p.id}
+                         onClick={() => { setReviewingPhoto(p); setSnsConsent(p.snsConsent ?? null); }}
+                         className="group relative aspect-square bg-white rounded-[1.5rem] overflow-hidden shadow-sm hover:shadow-premium transition-all border border-primary/5 text-left"
+                       >
+                         <img src={p.imageData} alt={p.menuName || ''} className="w-full h-full object-cover" />
+                         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/0 to-black/0" />
+                         <div className="absolute top-2 left-2">
+                           {p.snsConsent ? (
+                             <span className="text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded-full bg-gold/90 text-white backdrop-blur-md flex items-center gap-1">
+                               <ShieldCheck className="w-2.5 h-2.5" /> 동의 완료
+                             </span>
+                           ) : (
+                             <span className="text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded-full bg-burgundy/90 text-white backdrop-blur-md animate-pulse">
+                               확인 필요
+                             </span>
+                           )}
+                         </div>
+                         <div className="absolute bottom-0 left-0 right-0 p-2.5 text-white">
+                           {p.menuName && <p className="text-[11px] font-black truncate">{p.menuName}</p>}
+                           <p className="text-[9px] font-bold opacity-70">
+                             {new Date(p.createdAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                           </p>
+                         </div>
+                       </button>
+                     ))}
+                   </div>
+                 </section>
+               )}
+
                {/* Identity Section: The Status Symbol */}
                <section className="relative perspective-1000 group/card">
                   <motion.div 
@@ -1174,6 +1238,137 @@ export default function CustomerDashboard() {
         </AnimatePresence>
 
       </div>
+
+      {/* 메뉴 사진 검토 + SNS 동의 모달 */}
+      <AnimatePresence>
+        {reviewingPhoto && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setReviewingPhoto(null)}
+            className="fixed inset-0 z-[200] bg-black/70 backdrop-blur-md flex items-end lg:items-center justify-center p-0 lg:p-6"
+          >
+            <motion.div
+              initial={{ y: 30, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 30, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white w-full max-w-md rounded-t-[3rem] lg:rounded-[3rem] shadow-premium overflow-hidden flex flex-col max-h-[92vh]"
+            >
+              <div className="px-7 pt-7 pb-4 flex justify-between items-start border-b border-primary/5">
+                <div>
+                  <h3 className="font-sans text-lg lg:text-xl font-black text-primary tracking-tight">매장에서 보내온 사진</h3>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-primary/40 mt-1">
+                    {reviewingPhoto.menuName || '메뉴 사진'} · {new Date(reviewingPhoto.createdAt).toLocaleString('ko-KR')}
+                  </p>
+                </div>
+                <button onClick={() => setReviewingPhoto(null)} className="p-2 text-primary/40 hover:text-primary">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="overflow-y-auto no-scrollbar">
+                <div className="bg-black flex items-center justify-center">
+                  <img src={reviewingPhoto.imageData} alt="" className="max-w-full max-h-[55vh] object-contain" />
+                </div>
+
+                <div className="px-7 py-6 space-y-5">
+                  <div>
+                    <h4 className="text-xs font-black text-primary uppercase tracking-widest mb-3">SNS 사용 동의</h4>
+                    <p className="text-xs text-primary/60 leading-relaxed mb-4">
+                      이 사진을 매장 SNS·홍보용으로 사용해도 괜찮을까요? 동의하시면 방문 인증 사진 한 장을 함께 추가할 수 있어요.
+                    </p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        onClick={() => setSnsConsent(true)}
+                        className={`py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${snsConsent === true ? 'bg-emerald-500 text-white shadow-lg' : 'bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20'}`}
+                      >
+                        <ShieldCheck className="w-4 h-4" /> 동의합니다
+                      </button>
+                      <button
+                        onClick={() => setSnsConsent(false)}
+                        className={`py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${snsConsent === false ? 'bg-burgundy text-white shadow-lg' : 'bg-burgundy/10 text-burgundy hover:bg-burgundy/20'}`}
+                      >
+                        <ShieldOff className="w-4 h-4" /> 거절합니다
+                      </button>
+                    </div>
+                  </div>
+
+                  {snsConsent === true && (
+                    <div className="bg-gold/5 border border-gold/20 rounded-2xl p-5">
+                      <div className="flex items-center gap-2 mb-2">
+                        <ImageIcon className="w-4 h-4 text-gold" />
+                        <h4 className="text-xs font-black text-primary uppercase tracking-widest">사진 한 장 추가 (선택)</h4>
+                      </div>
+                      <p className="text-[11px] text-primary/60 leading-relaxed mb-4">
+                        함께 식사하신 모습이나 매장 분위기를 담은 사진을 한 장 추가해 주시면 매장에 더 큰 도움이 됩니다.
+                      </p>
+                      <button
+                        onClick={() => { setPendingMenuPhotoId(reviewingPhoto.id); setShowCustomerPhotoModal(true); }}
+                        className="w-full py-3.5 bg-white border border-gold/30 text-primary rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-gold/10 transition-all flex items-center justify-center gap-2"
+                      >
+                        <CameraIcon className="w-4 h-4" /> 내 사진 추가하기
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="px-7 py-5 border-t border-primary/5 flex gap-3 bg-surface-bright/50">
+                <button
+                  onClick={() => setReviewingPhoto(null)}
+                  className="flex-1 py-3.5 bg-white border border-primary/10 text-primary rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-primary/5 transition-all"
+                >
+                  나중에
+                </button>
+                <button
+                  disabled={snsConsent === null}
+                  onClick={async () => {
+                    if (snsConsent === null) return;
+                    await updatePhoto(reviewingPhoto.id, {
+                      snsConsent,
+                      consentedAt: new Date().toISOString()
+                    });
+                    showToast(snsConsent ? '동의해 주셔서 감사합니다.' : '의견 감사합니다.', 'success');
+                    setReviewingPhoto(null);
+                    setSnsConsent(null);
+                  }}
+                  className="flex-[2] py-3.5 bg-primary text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-accent-burgundy transition-all shadow-lg disabled:opacity-50"
+                >
+                  의견 제출
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 손님이 추가하는 본인 사진 */}
+      <PhotoCaptureModal
+        open={showCustomerPhotoModal}
+        title="내 사진 한 장 추가"
+        hint="매장 SNS에 함께 사용될 사진입니다"
+        cameraFacing="user"
+        submitLabel="사진 보내기"
+        onClose={() => { setShowCustomerPhotoModal(false); setPendingMenuPhotoId(null); }}
+        onCapture={async (dataUrl) => {
+          if (!currentUser || !storeId || !pendingMenuPhotoId) return;
+          await addPhoto({
+            storeId,
+            type: 'customer',
+            imageData: dataUrl,
+            customerId: currentUser.id,
+            customerName: currentUser.name,
+            pairedPhotoId: pendingMenuPhotoId,
+            snsConsent: true,
+            consentedAt: new Date().toISOString()
+          });
+          showToast('소중한 사진 감사합니다!', 'success');
+          setShowCustomerPhotoModal(false);
+          setPendingMenuPhotoId(null);
+        }}
+      />
 
     </motion.div>
   );

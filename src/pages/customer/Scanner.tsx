@@ -102,7 +102,7 @@ export default function CustomerScanner() {
     <div className="min-h-screen bg-[#fdfaf7] text-[#261c1a] font-sans selection:bg-primary/10 flex flex-col items-center">
       
       {/* Header */}
-      <header className="w-full max-w-md p-6 flex justify-between items-center bg-white/80 backdrop-blur-md sticky top-0 z-40 border-b border-[#e5dcd3]">
+      <header className="w-full max-w-md px-6 pb-6 pt-[calc(env(safe-area-inset-top)+1.5rem)] flex justify-between items-center bg-white/80 backdrop-blur-md sticky top-0 z-40 border-b border-[#e5dcd3]">
         <Link to="/" className="p-2.5 bg-surface-container rounded-full text-on-surface-variant/40 hover:text-primary transition-all">
           <ArrowLeft className="w-5 h-5" />
         </Link>

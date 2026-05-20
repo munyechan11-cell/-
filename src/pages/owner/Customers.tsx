@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { useStore, getEffectiveTier, getTierColor, getCustomerTier, getTierCustomName, calculateRFMValue, getRFMCluster } from '../../store';
-import { 
-  Users, LayoutGrid, Search, Send, X, MessageSquare, Ticket, 
-  History, Loader2, CheckSquare, Square, Download, ChevronDown, 
-  BarChart3, LogOut, Store as StoreIcon, ShieldCheck, Heart, 
+import {
+  Users, LayoutGrid, Search, Send, X, MessageSquare, Ticket,
+  History, Loader2, CheckSquare, Square, Download, ChevronDown,
+  BarChart3, LogOut, Store as StoreIcon, ShieldCheck, Heart,
   TrendingUp, Calendar, Edit2, Filter, Trash2, Plus, ArrowUpRight,
-  Clock, MapPin, Settings, Globe, Smartphone, Target, Zap
+  Clock, MapPin, Settings, Globe, Smartphone, Target, Zap,
+  Calendar as CalendarIcon, Camera as CameraIcon, Utensils
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import MemoModal, { formatMemoDisplay } from '../../components/MemoModal';
@@ -192,65 +193,71 @@ export default function OwnerCustomers() {
   };
 
   return (
-    <div className={`flex h-screen overflow-hidden bg-surface-bright font-sans text-on-surface selection:bg-primary/20 ${ownerViewMode === 'mobile' ? 'flex-col' : ''}`}>
-      
-      {/* Sidebar - Consistent with Dashboard */}
+    <div className={`flex h-screen overflow-hidden bg-stone-50 font-sans text-stone-900 ${ownerViewMode === 'mobile' ? 'flex-col' : ''}`}>
+
+      {/* Sidebar */}
       {ownerViewMode === 'desktop' && (
-        <aside className="h-screen w-20 lg:w-64 fixed left-0 bg-sidebar-bg shadow-2xl flex flex-col py-8 z-50">
-          <div className="px-8 mb-12">
-            <Link to="/" className="text-[#fcfcfc] font-sans font-black text-2xl">결</Link>
-            <div className="mt-8 hidden lg:block">
-              <p className="text-[#fcfcfc] font-sans font-bold text-sm">{currentUser.restaurantName}</p>
-              <p className="text-[#fcfcfc]/50 uppercase tracking-widest text-[10px]">실시간 매장 관리</p>
+        <aside className="h-screen w-24 lg:w-72 fixed left-0 bg-stone-900 shadow-2xl flex flex-col py-8 z-50">
+          <div className="px-8 mb-10">
+            <Link to="/" className="text-white font-sans font-black text-3xl">결</Link>
+            <div className="mt-6 hidden lg:block">
+              <p className="text-white font-sans font-black text-lg leading-tight">{currentUser.restaurantName}</p>
+              <p className="text-stone-400 text-sm font-bold mt-1">단골 관리</p>
             </div>
           </div>
-          <nav className="flex-1 space-y-2">
-            <Link to="/owner" className="text-white/60 hover:text-white px-8 py-3 flex items-center gap-4 hover:bg-white/5 transition-all">
-              <LayoutGrid className="w-5 h-5 flex-shrink-0" /><span className="text-xs hidden lg:block">대시보드</span>
-            </Link>
-            <Link to="/owner/customers" className="bg-white/10 text-white rounded-l-full ml-4 pl-4 py-3 flex items-center gap-4 transition-all">
-              <Users className="w-5 h-5 flex-shrink-0" /><span className="text-xs hidden lg:block">단골 관리</span>
-            </Link>
-            <Link to="/owner/statistics" className="text-white/60 hover:text-white px-8 py-3 flex items-center gap-4 hover:bg-white/5 transition-all">
-              <BarChart3 className="w-5 h-5 flex-shrink-0" /><span className="text-xs hidden lg:block">매장 통계</span>
-            </Link>
-            <Link to="/owner/brand-settings" className="text-white/60 hover:text-white px-8 py-3 flex items-center gap-4 hover:bg-white/5 transition-all">
-              <Settings className="w-5 h-5 flex-shrink-0" /><span className="text-xs hidden lg:block">매장 설정</span>
-            </Link>
+          <nav className="flex-1 space-y-1">
+            {[
+              { to: '/owner', icon: LayoutGrid, label: '대시보드' },
+              { to: '/owner/reservations', icon: CalendarIcon, label: '예약 관리' },
+              { to: '/owner/customers', icon: Users, label: '단골 관리', active: true },
+              { to: '/owner/photos', icon: CameraIcon, label: '사진 보관' },
+              { to: '/owner/statistics', icon: BarChart3, label: '매출 통계' },
+              { to: '/owner/brand-settings', icon: Settings, label: '매장 설정' }
+            ].map((item, idx) => (
+              <Link
+                key={idx}
+                to={item.to}
+                className={`flex items-center gap-4 px-8 py-4 transition-all ${item.active ? 'bg-white text-stone-900 mx-3 rounded-2xl shadow-lg' : 'text-stone-300 hover:bg-white/10 hover:text-white'}`}
+              >
+                <item.icon className="w-6 h-6 flex-shrink-0" />
+                <span className="text-base font-black hidden lg:block">{item.label}</span>
+              </Link>
+            ))}
           </nav>
-          <button onClick={handleLogout} className="px-8 mt-auto text-white/40 hover:text-white text-[10px] flex items-center gap-2 uppercase tracking-widest">
-            <LogOut className="w-4 h-4" /> <span className="hidden lg:block">로그아웃</span>
+          <button onClick={handleLogout} className="px-8 mt-auto text-stone-400 hover:text-white text-base font-bold flex items-center gap-3 py-3">
+            <LogOut className="w-5 h-5" /> <span className="hidden lg:block">로그아웃</span>
           </button>
         </aside>
       )}
 
-      {/* Mobile Bottom Navigation (Consistent with Dashboard) */}
+      {/* Mobile Bottom Navigation */}
       {ownerViewMode === 'mobile' && (
-        <nav className="fixed bottom-0 left-0 right-0 bg-sidebar-bg/95 backdrop-blur-xl border-t border-white/5 z-[100] px-6 py-4 flex justify-between items-center safe-area-bottom">
-           {[
-             { to: '/owner', icon: LayoutGrid, label: '홈' },
-             { to: '/owner/customers', icon: Users, label: '단골', active: true },
-             { to: '/owner/statistics', icon: BarChart3, label: '통계' },
-             { to: '/owner/brand-settings', icon: Settings, label: '설정' }
-           ].map((item, idx) => (
-             <Link 
-               key={idx}
-               to={item.to} 
-               className={`flex flex-col items-center gap-1.5 transition-all ${item.active ? 'text-gold' : 'text-white/40'}`}
-             >
-               <item.icon className="w-5 h-5" />
-               <span className="text-[9px] font-black uppercase tracking-widest">{item.label}</span>
-             </Link>
-           ))}
+        <nav className="fixed bottom-0 left-0 right-0 bg-stone-900 border-t-2 border-stone-800 z-[100] px-2 py-2 flex justify-between items-center safe-area-bottom">
+          {[
+            { to: '/owner', icon: LayoutGrid, label: '홈' },
+            { to: '/owner/reservations', icon: CalendarIcon, label: '예약' },
+            { to: '/owner/customers', icon: Users, label: '단골', active: true },
+            { to: '/owner/brand-settings', icon: Utensils, label: '메뉴' },
+            { to: '/owner/photos', icon: CameraIcon, label: '사진' }
+          ].map((item, idx) => (
+            <Link
+              key={idx}
+              to={item.to}
+              className={`flex flex-col items-center gap-1 px-2 py-2 rounded-xl transition-all min-w-[60px] ${item.active ? 'bg-white text-stone-900' : 'text-stone-400'}`}
+            >
+              <item.icon className="w-6 h-6" />
+              <span className="text-xs font-black">{item.label}</span>
+            </Link>
+          ))}
         </nav>
       )}
 
       {/* Main Area */}
-      <main className={`${ownerViewMode === 'desktop' ? 'ml-20 lg:ml-64' : 'flex-1 pb-24'} flex-1 h-screen flex flex-col overflow-hidden`}>
+      <main className={`${ownerViewMode === 'desktop' ? 'ml-24 lg:ml-72' : 'flex-1 pb-24'} flex-1 h-screen flex flex-col overflow-hidden`}>
         {/* Header */}
-        <header className="bg-white/90 backdrop-blur-md sticky top-0 z-40 flex justify-between items-center w-full px-6 lg:px-8 py-4 border-b border-outline-variant/30">
+        <header className="bg-white border-b-2 border-stone-200 px-5 lg:px-10 pb-5 pt-[calc(env(safe-area-inset-top)+1.25rem)] flex justify-between items-center gap-4">
           <div className="flex items-center gap-6 lg:gap-12">
-            <span className="font-sans text-xl lg:text-2xl font-black text-primary">단골 관리</span>
+            <h1 className="text-2xl lg:text-4xl font-black text-stone-900">단골 관리</h1>
             <button 
               onClick={handleExportData}
               className="hidden lg:flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-primary/60 hover:text-primary transition-colors"
