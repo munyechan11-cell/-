@@ -1,11 +1,14 @@
-@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css");
-@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&display=swap');
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css");
+@import url('https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Gowun+Dodum&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Manrope", "Pretendard Variable", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  --font-serif: "Noto Serif KR", serif;
+  /* 본문: Pretendard Variable (humanist, 따뜻함)
+     강조: Gowun Batang (부드러운 한글 명조, 정성스러운 톤)
+     보조: Gowun Dodum (둥근 산세리프, 친근한 캡션·라벨) */
+  --font-sans: "Pretendard Variable", "Pretendard", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --font-serif: "Gowun Batang", "Noto Serif KR", serif;
+  --font-rounded: "Gowun Dodum", "Pretendard Variable", system-ui, sans-serif;
 
   /* Premium Gyeol Palette */
   --color-primary: #5C162E;
@@ -64,6 +67,12 @@ html {
 /* Simplified backgrounds for cleaner look */
 body {
   font-family: var(--font-sans);
+  font-weight: 450;
+  letter-spacing: -0.005em;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
   background: var(--color-surface-bright);
   color: var(--color-on-surface);
   -webkit-tap-highlight-color: transparent;
@@ -73,10 +82,18 @@ body {
   padding: 0;
   overflow-x: hidden;
   transition: background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  background-image: 
+  background-image:
     radial-gradient(at 0% 0%, rgba(74, 14, 14, 0.04) 0px, transparent 50%),
     radial-gradient(at 100% 100%, rgba(198, 163, 79, 0.04) 0px, transparent 50%);
 }
+
+/* Soften aggressive weights/letter-spacing — 진짜 사장님 손맛 느낌으로 */
+h1, h2, h3, h4 { letter-spacing: -0.02em; }
+.font-black { font-weight: 800 !important; letter-spacing: -0.015em; }
+.font-bold { font-weight: 650 !important; }
+/* 너무 좁고 강한 uppercase 라벨 톤을 살짝 풀어줌 */
+.tracking-\[0\.5em\], .tracking-\[0\.4em\] { letter-spacing: 0.28em !important; }
+.tracking-\[0\.3em\] { letter-spacing: 0.22em !important; }
 
 /* Grainy Texture Overlay */
 body::before {
