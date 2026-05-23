@@ -109,7 +109,8 @@ app.get('/api/auth/kakao/callback', async (req, res) => {
     
     res.send(`
       <html><body><script>
-        const tokenData = { type: 'OAUTH_AUTH_SUCCESS', token: '${customToken}', provider: 'kakao', timestamp: Date.now() };
+        const tokenData = ${JSON.stringify({ type: 'OAUTH_AUTH_SUCCESS', token: customToken, provider: 'kakao' })};
+        tokenData.timestamp = Date.now();
         
         // 1. Try postMessage
         if (window.opener && !window.opener.closed) {
@@ -134,12 +135,15 @@ app.get('/api/auth/kakao/callback', async (req, res) => {
     `);
   } catch (err: any) {
     console.error('Kakao Auth Error:', err);
+    const safeMessage = String(err?.message || 'Unknown error')
+      .replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
+    const errorPayload = JSON.stringify({ type: 'OAUTH_AUTH_ERROR', error: String(err?.message || 'Unknown error') });
     res.status(500).send(`
       <html><body>
-        <p>Authentication failed: ${err.message}</p>
+        <p>Authentication failed: ${safeMessage}</p>
         <script>
           if (window.opener) {
-            window.opener.postMessage({ type: 'OAUTH_AUTH_ERROR', error: '${err.message}' }, '*');
+            window.opener.postMessage(${errorPayload}, '*');
             setTimeout(() => window.close(), 2000);
           }
         </script>
@@ -206,7 +210,8 @@ app.get('/api/auth/naver/callback', async (req, res) => {
     
     res.send(`
       <html><body><script>
-        const tokenData = { type: 'OAUTH_AUTH_SUCCESS', token: '${customToken}', provider: 'naver', timestamp: Date.now() };
+        const tokenData = ${JSON.stringify({ type: 'OAUTH_AUTH_SUCCESS', token: customToken, provider: 'naver' })};
+        tokenData.timestamp = Date.now();
         
         // 1. Try postMessage
         if (window.opener && !window.opener.closed) {
@@ -231,12 +236,15 @@ app.get('/api/auth/naver/callback', async (req, res) => {
     `);
   } catch (err: any) {
     console.error('Naver Auth Error:', err);
+    const safeMessage = String(err?.message || 'Unknown error')
+      .replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
+    const errorPayload = JSON.stringify({ type: 'OAUTH_AUTH_ERROR', error: String(err?.message || 'Unknown error') });
     res.status(500).send(`
       <html><body>
-        <p>Authentication failed: ${err.message}</p>
+        <p>Authentication failed: ${safeMessage}</p>
         <script>
           if (window.opener) {
-            window.opener.postMessage({ type: 'OAUTH_AUTH_ERROR', error: '${err.message}' }, '*');
+            window.opener.postMessage(${errorPayload}, '*');
             setTimeout(() => window.close(), 2000);
           }
         </script>

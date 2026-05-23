@@ -144,11 +144,11 @@ export default function CustomerLogin() {
             <p className="text-[10px] text-primary/40 text-center font-bold uppercase tracking-widest">필수 수집 항목</p>
             <div className="relative group">
               <Phone className={iconClass} />
-              <input type="tel" className={inputClass} placeholder="전화번호 (카카오계정)" value={phone} onChange={e => setPhone(formatPhoneNumber(e.target.value))} maxLength={13} required />
+              <input type="tel" autoComplete="tel" inputMode="tel" className={inputClass} placeholder="전화번호 (카카오계정)" value={phone} onChange={e => setPhone(formatPhoneNumber(e.target.value))} maxLength={13} required />
             </div>
             <div className="relative group">
               <UserCircle className={iconClass} />
-              <input type="text" className={inputClass} placeholder="이름 (실명)" value={name} onChange={e => setName(e.target.value)} required />
+              <input type="text" autoComplete="name" className={inputClass} placeholder="이름 (실명)" value={name} onChange={e => setName(e.target.value)} required />
             </div>
             {error && <p className="text-[10px] font-black text-burgundy text-center">{error}</p>}
             <button type="button" onClick={() => validateStep1() && setStep(2)} className="w-full py-5 bg-primary text-white rounded-2xl font-black uppercase tracking-widest text-[11px] flex items-center justify-center gap-2 shadow-heavy active:scale-95 transition-all">
@@ -179,7 +179,7 @@ export default function CustomerLogin() {
               <label className="text-[10px] font-black text-primary/50 uppercase tracking-widest mb-2 block pl-1">출생 연도 *</label>
               <div className="relative group">
                 <Calendar className={iconClass} />
-                <input type="number" className={inputClass} placeholder="예: 1995" value={birthYear} onChange={e => setBirthYear(e.target.value.slice(0,4))} min={1920} max={new Date().getFullYear()} />
+                <input type="number" inputMode="numeric" className={inputClass} placeholder="예: 1995" value={birthYear} onChange={e => setBirthYear(e.target.value.slice(0,4))} min={1920} max={new Date().getFullYear()} />
               </div>
             </div>
 
@@ -187,8 +187,8 @@ export default function CustomerLogin() {
             <div>
               <label className="text-[10px] font-black text-primary/50 uppercase tracking-widest mb-2 block pl-1">생일 (월 / 일) *</label>
               <div className="flex gap-3">
-                <input type="number" className="flex-1 h-14 bg-surface-container border-none rounded-2xl px-6 font-bold text-primary placeholder:text-primary/20 focus:ring-2 focus:ring-gold/20 shadow-inner text-base text-center" placeholder="월" value={birthMonth} onChange={e => setBirthMonth(e.target.value.slice(0,2))} min={1} max={12} />
-                <input type="number" className="flex-1 h-14 bg-surface-container border-none rounded-2xl px-6 font-bold text-primary placeholder:text-primary/20 focus:ring-2 focus:ring-gold/20 shadow-inner text-base text-center" placeholder="일" value={birthDay} onChange={e => setBirthDay(e.target.value.slice(0,2))} min={1} max={31} />
+                <input type="number" inputMode="numeric" className="flex-1 h-14 bg-surface-container border-none rounded-2xl px-6 font-bold text-primary placeholder:text-primary/20 focus:ring-2 focus:ring-gold/20 shadow-inner text-base text-center" placeholder="월" value={birthMonth} onChange={e => setBirthMonth(e.target.value.slice(0,2))} min={1} max={12} />
+                <input type="number" inputMode="numeric" className="flex-1 h-14 bg-surface-container border-none rounded-2xl px-6 font-bold text-primary placeholder:text-primary/20 focus:ring-2 focus:ring-gold/20 shadow-inner text-base text-center" placeholder="일" value={birthDay} onChange={e => setBirthDay(e.target.value.slice(0,2))} min={1} max={31} />
               </div>
             </div>
 
@@ -259,7 +259,7 @@ export default function CustomerLogin() {
             {error && <p className="text-[10px] font-black text-burgundy text-center">{error}</p>}
             <div className="flex gap-3">
               <button type="button" onClick={() => { setError(''); setStep(2); }} className="flex-1 py-5 bg-primary/5 text-primary rounded-2xl font-black text-[11px] uppercase tracking-widest active:scale-95 transition-all">이전</button>
-              <button type="button" onClick={handleSubmit} disabled={isLoading} className="flex-[2] py-5 bg-primary text-white rounded-2xl font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-heavy active:scale-95 transition-all disabled:opacity-50">
+              <button type="button" onClick={handleSubmit} disabled={isLoading || !agreePrivacy || !agreeService} className="flex-[2] py-5 bg-primary text-white rounded-2xl font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-heavy active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
                 {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <><ShieldCheck className="w-4 h-4" /> 가입 완료</>}
               </button>
             </div>
@@ -300,7 +300,7 @@ export default function CustomerLogin() {
             <form onSubmit={handleLogin} className="space-y-5">
               <div className="relative group">
                 <Phone className={iconClass} />
-                <input type="tel" className={inputClass} placeholder="전화번호" value={phone} onChange={e => setPhone(formatPhoneNumber(e.target.value))} maxLength={13} required />
+                <input type="tel" autoComplete="tel" inputMode="tel" className={inputClass} placeholder="전화번호" value={phone} onChange={e => setPhone(formatPhoneNumber(e.target.value))} maxLength={13} required />
               </div>
               {error && <p className="text-[10px] font-black text-burgundy text-center">{error}</p>}
               <button type="submit" disabled={isLoading} className="w-full py-6 bg-primary text-white rounded-2xl font-black uppercase tracking-[0.3em] text-[11px] shadow-heavy active:scale-[0.98] transition-all disabled:opacity-50">

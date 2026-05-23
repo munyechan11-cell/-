@@ -15,6 +15,11 @@ export default defineConfig(({mode}) => {
         '@': path.resolve(__dirname, '.'),
       },
     },
+    esbuild: {
+      // Strip console.* (except warn/error) and debugger from production bundles
+      drop: mode === 'production' ? ['debugger'] : [],
+      pure: mode === 'production' ? ['console.log', 'console.info', 'console.debug', 'console.trace'] : [],
+    },
     build: {
       rollupOptions: {
         output: {

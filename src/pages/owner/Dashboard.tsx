@@ -412,7 +412,8 @@ export default function OwnerDashboard() {
     const actualTables = myTables.filter(t => t.type === 'table');
     const occupiedTables = actualTables.filter(t => t.currentCustomerId);
     const occupancyRate = actualTables.length > 0 ? Math.round((occupiedTables.length / actualTables.length) * 100) : 0;
-    const currentDurations = occupiedTables.map(t => (currentTime.getTime() - new Date(t.sessionStartTime!).getTime()) / 60000);
+    const now = Date.now();
+    const currentDurations = occupiedTables.map(t => (now - new Date(t.sessionStartTime!).getTime()) / 60000);
     const avgUsage = currentDurations.length > 0 ? Math.round(currentDurations.reduce((a, b) => a + b, 0) / currentDurations.length) : 45;
     
     const turnoverRate = 2.4; 

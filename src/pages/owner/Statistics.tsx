@@ -161,13 +161,13 @@ export default function OwnerStatistics() {
       {/* Mobile Bottom Navigation */}
       {ownerViewMode === 'mobile' && (
         <nav className="fixed bottom-0 left-0 right-0 bg-stone-900 border-t-2 border-stone-800 z-[100] px-2 py-2 flex justify-between items-center safe-area-bottom">
-          {[
+          {([
             { to: '/owner', icon: LayoutGrid, label: '홈' },
             { to: '/owner/reservations', icon: CalendarIcon, label: '예약' },
             { to: '/owner/customers', icon: Users, label: '단골' },
             { to: '/owner/brand-settings', icon: Utensils, label: '메뉴' },
             { to: '/owner/photos', icon: CameraIcon, label: '사진' }
-          ].map((item, idx) => (
+          ] as Array<{ to: string; icon: any; label: string; active?: boolean }>).map((item, idx) => (
             <Link
               key={idx}
               to={item.to}

@@ -24,11 +24,11 @@ export default function OrderingSystem({ storeId, tableNumber }: OrderingSystemP
   const [paymentMode, setPaymentMode] = useState<'prepay' | 'postpay'>('postpay');
 
   // Filter menus for the current store (only available ones)
-  const storeMenus = useMemo(() => menus.filter(m => m.storeId === storeId && m.isAvailable !== false), [menus, storeId]);
-  
-  const categories = useMemo(() => {
-    const cats = ['전체', ...new Set(storeMenus.map(m => m.category))];
-    return cats;
+  const storeMenus = useMemo<MenuItem[]>(() => (menus as MenuItem[]).filter(m => m.storeId === storeId && m.isAvailable !== false), [menus, storeId]);
+
+  const categories = useMemo<string[]>(() => {
+    const set = new Set<string>(storeMenus.map(m => m.category));
+    return ['전체', ...Array.from(set)];
   }, [storeMenus]);
 
   const filteredMenus = useMemo(() => {
