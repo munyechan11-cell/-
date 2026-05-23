@@ -621,6 +621,182 @@ export default function OwnerDashboard() {
 
         <div className={`flex-1 overflow-y-auto p-6 lg:p-12 space-y-8 lg:space-y-12 bg-gyeol-pattern ${ownerViewMode === 'mobile' ? 'no-scrollbar' : ''}`}>
 
+          {/* Main Content Area: Table Map or List Grid */}
+          <div className="relative bg-white rounded-[3rem] lg:rounded-[4rem] shadow-premium overflow-hidden border border-primary/5 min-h-[600px] lg:min-h-[800px] flex flex-col">
+             <div className="p-8 border-b border-primary/5 flex justify-between items-center bg-surface-bright/30">
+                <div className="flex items-center gap-6">
+                   <h4 className="text-[11px] font-black uppercase tracking-[0.4em] text-primary/40">라이브 모니터링</h4>
+                   {viewMode === 'map' && <div className="text-[9px] font-black text-gold/60 uppercase tracking-widest flex items-center gap-2"><Sparkles className="w-3 h-3" /> 인터랙티브 캔버스</div>}
+                </div>
+             </div>
+             {viewMode === 'map' ? (
+                <div className="flex-1 relative">
+                   {/* FIXED Zoom Controls - Always visible in the top-right of the white box */}
+                   <div className="flex flex-col gap-3 absolute top-6 right-6 lg:top-10 lg:right-10 z-[100]">
+                      <button onClick={() => setZoom(prev => Math.min(prev + 0.1, 2))} className="w-10 h-10 lg:w-12 lg:h-12 bg-white/90 backdrop-blur-md rounded-xl lg:rounded-2xl shadow-premium border border-primary/5 flex items-center justify-center text-primary/40 hover:text-primary transition-all active:scale-90"><Plus className="w-5 h-5" /></button>
+                      <button onClick={updateZoomToFit} className="w-10 h-10 lg:w-12 lg:h-12 bg-primary text-white rounded-xl lg:rounded-2xl shadow-premium border border-primary/5 flex items-center justify-center hover:scale-105 transition-all active:scale-90" title="화면에 맞춤"><Maximize2 className="w-5 h-5" /></button>
+                      <button onClick={() => setZoom(prev => Math.max(prev - 0.1, 0.1))} className="w-10 h-10 lg:w-12 lg:h-12 bg-white/90 backdrop-blur-md rounded-xl lg:rounded-2xl shadow-premium border border-primary/5 flex items-center justify-center text-primary/40 hover:text-primary transition-all active:scale-90"><Minus className="w-5 h-5" /></button>
+                   </div>
+
+                   <div ref={mapContainerRef} className={`absolute inset-0 overflow-auto ${ownerViewMode === 'mobile' ? 'p-4' : 'p-20'} bg-[radial-gradient(#4a0e0e15_2px,transparent_2px)] [background-size:40px_40px] no-scrollbar cursor-crosshair`}>
+                      <div
+                       ref={mapInnerRef}
+                       className="relative origin-top-left transition-transform duration-500"
+                       style={{ minWidth: '1400px', minHeight: '1200px', transform: `scale(${zoom})` }}
+                      >
+                         {/* Decorative Compass Label */}
+                         <div className="absolute -top-20 -left-20 flex flex-col gap-2 opacity-10">
+                            <Globe className="w-12 h-12 text-primary" />
+                            <p className="text-[10px] font-black uppercase tracking-[0.5em] text-primary">결 배치 구조도</p>
+                         </div>
+
+                        {filteredTables.map(table => {
+                          const isOccupied = table.currentCustomerId !== null;
+                          const isBeingDragged = draggedTable === table.number;
+                          const isHighlighted = highlightedTable === table.number;
+                          const tableRes = reservationsByTable[table.number] || [];
+                          const upcomingRes = tableRes.find((r: any) => reservationTone(r.time) !== 'past');
+
+                          return (
+                            <motion.div
+                              key={table.number}
+                              layout
+                              onPointerDown={(e) => handlePointerDown(e, table)}
+                              onPointerMove={handlePointerMove}
+                              onPointerUp={handlePointerUp}
+                              onClick={() => (isLayoutMode || table.type === 'table' || table.type === 'room') && setSelectedTable(table.number)}
+                              className={`absolute flex flex-col items-center justify-center group ${isOccupied ? 'shadow-[0_20px_50px_rgba(74,14,14,0.15)]' : 'shadow-sm hover:shadow-xl'} ${isBeingDragged ? 'z-[100] cursor-grabbing !transition-none' : 'duration-500 transition-all'} ${isHighlighted ? 'ring-4 ring-gold animate-pulse-premium z-50' : ''} ${table.type !== 'table' && table.type !== 'room' && !isLayoutMode ? 'pointer-events-none opacity-40' : 'cursor-pointer'}`}
+                              style={{
+                                left: isBeingDragged ? dragPosition?.x : table.x,
+                                top: isBeingDragged ? dragPosition?.y : table.y,
+                                width: table.width || 80,
+                                height: table.height || 80,
+                                backgroundColor: table.type === 'room' ? 'transparent' : (isOccupied ? '#1c1412' : (table.status === 'dirty' ? '#fcf1f1' : '#ffffff')),
+                                border: table.type === 'room'
+                                  ? `8px solid ${isOccupied ? '#1c1412' : '#f0e6dd'}`
+                                  : `3px solid ${isOccupied ? '#1c1412' : (selectedTable === table.number ? '#4a0e0e' : (isLayoutMode ? '#e5ddd6' : '#f0e6dd'))}`,
+                                borderRadius: table.type === 'room' ? '4rem' : '50%',
+                                zIndex: isBeingDragged ? 100 : (selectedTable === table.number ? 40 : 10),
+                                touchAction: 'none'
+                              }}
+                            >
+                              {table.type === 'pos' && <Monitor className="w-8 h-8 text-primary/10" />}
+                              {table.type === 'door' && <ArrowRight className="w-8 h-8 text-primary/10 rotate-90" />}
+
+                              {table.type === 'table' && (
+                                 <div className="flex flex-col items-center">
+                                    <span className={`text-2xl font-black ${isOccupied ? 'text-white' : 'text-primary/70'}`}>{table.number}</span>
+                                    {isOccupied && (
+                                       <div className="mt-2 px-3 py-1 bg-white/10 rounded-full border border-white/10 backdrop-blur-md">
+                                          <p className="text-[9px] font-black text-white/50 tracking-[0.2em] uppercase">
+                                             <SessionTimer startTime={table.sessionStartTime!} />
+                                          </p>
+                                       </div>
+                                    )}
+                                 </div>
+                              )}
+
+                              {isOccupied && (
+                                 <div className="absolute -top-3 -right-3 w-8 h-8 bg-gold rounded-full border-4 border-white flex items-center justify-center text-white shadow-xl animate-bounce">
+                                    <Sparkles className="w-3.5 h-3.5" />
+                                  </div>
+                              )}
+
+                              {/* 오늘 예약 배지 — 비어있을 때만 노출 */}
+                              {!isOccupied && upcomingRes && (table.type === 'table' || table.type === 'room') && (() => {
+                                 const tone = reservationTone(upcomingRes.time);
+                                 const toneStyle = tone === 'now'
+                                   ? 'bg-burgundy text-white animate-pulse-premium'
+                                   : tone === 'soon'
+                                     ? 'bg-gold text-white'
+                                     : 'bg-primary/90 text-white';
+                                 return (
+                                   <div className={`absolute -top-2 -left-2 px-2 py-1 ${toneStyle} rounded-full text-[8px] font-black uppercase tracking-widest shadow-lg flex items-center gap-1 border-2 border-white`}>
+                                     <Calendar className="w-2.5 h-2.5" />
+                                     {upcomingRes.time}
+                                     {tableRes.length > 1 && <span className="opacity-70">+{tableRes.length - 1}</span>}
+                                   </div>
+                                 );
+                              })()}
+
+                              {isLayoutMode && !isOccupied && (
+                                 <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-white/80 rounded-[inherit] z-20">
+                                    <button
+                                      onPointerDown={(e) => e.stopPropagation()}
+                                      onClick={(e) => { e.stopPropagation(); deleteTable(currentUser.id, table.number); }}
+                                      className="p-3 bg-burgundy/10 text-burgundy rounded-2xl hover:bg-burgundy hover:text-white transition-all mx-1"
+                                    >
+                                      <Trash2 className="w-5 h-5" />
+                                    </button>
+                                    <button className="p-3 bg-primary/10 text-primary rounded-2xl cursor-move mx-1"><GripVertical className="w-5 h-5" /></button>
+                                 </div>
+                              )}
+                            </motion.div>
+                          );
+                        })}
+                     </div>
+                   </div>
+                </div>
+             ) : (
+                <div className="flex-1 p-4 grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 lg:gap-4 overflow-y-auto no-scrollbar bg-surface-bright">
+                   {filteredTables.map(table => {
+                      const isOccupied = !!table.currentCustomerId;
+                      const customerName = isOccupied ? users.find(u => u.id === table.currentCustomerId)?.name : '없음';
+                      const tableRes = reservationsByTable[table.number] || [];
+                      const upcomingRes = tableRes.find((r: any) => reservationTone(r.time) !== 'past');
+                      const tone = upcomingRes ? reservationTone(upcomingRes.time) : null;
+                      return (
+                      <motion.div
+                        whileHover={{ y: -3 }}
+                        key={table.number}
+                        onClick={() => setSelectedTable(table.number)}
+                        className={`bg-white rounded-2xl p-4 border flex flex-col items-center justify-center gap-3 cursor-pointer shadow-sm relative min-h-[120px] flex-shrink-0 active:scale-95 touch-manipulation ${!isOccupied && tone === 'now' ? 'border-burgundy/40 ring-2 ring-burgundy/20' : !isOccupied && upcomingRes ? 'border-gold/40' : 'border-primary/10'}`}
+                      >
+                         {!isOccupied && upcomingRes && (
+                           <div className={`absolute -top-2 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-widest shadow-lg flex items-center gap-1 border-2 border-white ${tone === 'now' ? 'bg-burgundy text-white' : tone === 'soon' ? 'bg-gold text-white' : 'bg-primary/90 text-white'}`}>
+                             <Calendar className="w-2.5 h-2.5" />
+                             {upcomingRes.time}
+                             {tableRes.length > 1 && <span className="opacity-70">+{tableRes.length - 1}</span>}
+                           </div>
+                         )}
+                         <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg ${isOccupied ? 'bg-primary text-white shadow-md' : 'bg-white border-2 border-primary text-primary'}`}>
+                            {table.number}
+                         </div>
+                         <div className="flex flex-col items-center gap-1 w-full">
+                            <p className="text-[12px] font-bold text-primary truncate w-full text-center">
+                              {isOccupied ? customerName : (upcomingRes ? upcomingRes.customerName : '없음')}
+                            </p>
+                            <div className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold tracking-widest ${
+                              isOccupied ? 'bg-[#E6F4EA] text-[#137333]'
+                              : tone === 'now' ? 'bg-burgundy/10 text-burgundy'
+                              : upcomingRes ? 'bg-gold/10 text-gold'
+                              : 'bg-surface-dim text-primary/40'
+                            }`}>
+                               {isOccupied ? '이용중' : tone === 'now' ? '예약 임박' : upcomingRes ? `예약 ${upcomingRes.partySize}명` : '가능'}
+                            </div>
+                         </div>
+                      </motion.div>
+                   )})}
+                </div>
+             )}
+
+             {isLayoutMode && (
+                <div className="absolute bottom-16 left-1/2 -translate-x-1/2 flex items-center gap-6 bg-sidebar-bg p-4 rounded-[3rem] shadow-3xl z-50 animate-in slide-in-from-bottom-12 outline outline-8 outline-white/20">
+                   <div className="flex items-center bg-white/5 rounded-[2.5rem] p-1">
+                      {[
+                        { label: '테이블', icon: Utensils, type: 'table' },
+                        { label: '룸/보석함', icon: Maximize2, type: 'room' },
+                        { label: '출입문', icon: LogOut, type: 'door' },
+                        { label: '주방/포스', icon: Monitor, type: 'pos' }
+                      ].map((btn, idx) => (
+                        <button key={idx} onClick={() => addTable(currentUser.id, btn.type as any)} className="px-8 py-3 text-white hover:bg-white/10 rounded-[2rem] flex items-center gap-3 text-[11px] font-black uppercase tracking-[0.2em] transition-all"><btn.icon className="w-4 h-4 opacity-40" /> {btn.label}</button>
+                      ))}
+                   </div>
+                   <button onClick={() => initTables(currentUser.id)} className="p-4 bg-white/5 text-white/40 hover:bg-burgundy hover:text-white rounded-full transition-all" title="초기화"><History className="w-6 h-6" /></button>
+                </div>
+              )}
+           </div>
+
                {/* ═══ ORDER MANAGEMENT PANEL (TOP PRIORITY) ═══ */}
                {(() => {
                  const activeOrders = (orders || []).filter((o: any) => o.storeId === currentUser.id && o.status !== 'served' && o.status !== 'cancelled');
@@ -803,182 +979,6 @@ export default function OwnerDashboard() {
                      <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-gold/5 rounded-full blur-[60px]"></div>
                   </div>
                </div>
-
-          {/* Main Content Area: Table Map or List Grid */}
-          <div className="relative bg-white rounded-[3rem] lg:rounded-[4rem] shadow-premium overflow-hidden border border-primary/5 min-h-[600px] lg:min-h-[800px] flex flex-col">
-             <div className="p-8 border-b border-primary/5 flex justify-between items-center bg-surface-bright/30">
-                <div className="flex items-center gap-6">
-                   <h4 className="text-[11px] font-black uppercase tracking-[0.4em] text-primary/40">라이브 모니터링</h4>
-                   {viewMode === 'map' && <div className="text-[9px] font-black text-gold/60 uppercase tracking-widest flex items-center gap-2"><Sparkles className="w-3 h-3" /> 인터랙티브 캔버스</div>}
-                </div>
-             </div>
-             {viewMode === 'map' ? (
-                <div className="flex-1 relative">
-                   {/* FIXED Zoom Controls - Always visible in the top-right of the white box */}
-                   <div className="flex flex-col gap-3 absolute top-6 right-6 lg:top-10 lg:right-10 z-[100]">
-                      <button onClick={() => setZoom(prev => Math.min(prev + 0.1, 2))} className="w-10 h-10 lg:w-12 lg:h-12 bg-white/90 backdrop-blur-md rounded-xl lg:rounded-2xl shadow-premium border border-primary/5 flex items-center justify-center text-primary/40 hover:text-primary transition-all active:scale-90"><Plus className="w-5 h-5" /></button>
-                      <button onClick={updateZoomToFit} className="w-10 h-10 lg:w-12 lg:h-12 bg-primary text-white rounded-xl lg:rounded-2xl shadow-premium border border-primary/5 flex items-center justify-center hover:scale-105 transition-all active:scale-90" title="화면에 맞춤"><Maximize2 className="w-5 h-5" /></button>
-                      <button onClick={() => setZoom(prev => Math.max(prev - 0.1, 0.1))} className="w-10 h-10 lg:w-12 lg:h-12 bg-white/90 backdrop-blur-md rounded-xl lg:rounded-2xl shadow-premium border border-primary/5 flex items-center justify-center text-primary/40 hover:text-primary transition-all active:scale-90"><Minus className="w-5 h-5" /></button>
-                   </div>
-
-                   <div ref={mapContainerRef} className={`absolute inset-0 overflow-auto ${ownerViewMode === 'mobile' ? 'p-4' : 'p-20'} bg-[radial-gradient(#4a0e0e15_2px,transparent_2px)] [background-size:40px_40px] no-scrollbar cursor-crosshair`}>
-                      <div 
-                       ref={mapInnerRef}
-                       className="relative origin-top-left transition-transform duration-500" 
-                       style={{ minWidth: '1400px', minHeight: '1200px', transform: `scale(${zoom})` }}
-                      >
-                         {/* Decorative Compass Label */}
-                         <div className="absolute -top-20 -left-20 flex flex-col gap-2 opacity-10">
-                            <Globe className="w-12 h-12 text-primary" />
-                            <p className="text-[10px] font-black uppercase tracking-[0.5em] text-primary">결 배치 구조도</p>
-                         </div>
-                      
-                        {filteredTables.map(table => {
-                          const isOccupied = table.currentCustomerId !== null;
-                          const isBeingDragged = draggedTable === table.number;
-                          const isHighlighted = highlightedTable === table.number;
-                          const tableRes = reservationsByTable[table.number] || [];
-                          const upcomingRes = tableRes.find((r: any) => reservationTone(r.time) !== 'past');
-
-                          return (
-                            <motion.div
-                              key={table.number}
-                              layout
-                              onPointerDown={(e) => handlePointerDown(e, table)}
-                              onPointerMove={handlePointerMove}
-                              onPointerUp={handlePointerUp}
-                              onClick={() => (isLayoutMode || table.type === 'table' || table.type === 'room') && setSelectedTable(table.number)}
-                              className={`absolute flex flex-col items-center justify-center group ${isOccupied ? 'shadow-[0_20px_50px_rgba(74,14,14,0.15)]' : 'shadow-sm hover:shadow-xl'} ${isBeingDragged ? 'z-[100] cursor-grabbing !transition-none' : 'duration-500 transition-all'} ${isHighlighted ? 'ring-4 ring-gold animate-pulse-premium z-50' : ''} ${table.type !== 'table' && table.type !== 'room' && !isLayoutMode ? 'pointer-events-none opacity-40' : 'cursor-pointer'}`}
-                              style={{
-                                left: isBeingDragged ? dragPosition?.x : table.x,
-                                top: isBeingDragged ? dragPosition?.y : table.y,
-                                width: table.width || 80,
-                                height: table.height || 80,
-                                backgroundColor: table.type === 'room' ? 'transparent' : (isOccupied ? '#1c1412' : (table.status === 'dirty' ? '#fcf1f1' : '#ffffff')),
-                                border: table.type === 'room' 
-                                  ? `8px solid ${isOccupied ? '#1c1412' : '#f0e6dd'}` 
-                                  : `3px solid ${isOccupied ? '#1c1412' : (selectedTable === table.number ? '#4a0e0e' : (isLayoutMode ? '#e5ddd6' : '#f0e6dd'))}`,
-                                borderRadius: table.type === 'room' ? '4rem' : '50%',
-                                zIndex: isBeingDragged ? 100 : (selectedTable === table.number ? 40 : 10),
-                                touchAction: 'none'
-                              }}
-                            >
-                              {table.type === 'pos' && <Monitor className="w-8 h-8 text-primary/10" />}
-                              {table.type === 'door' && <ArrowRight className="w-8 h-8 text-primary/10 rotate-90" />}
-                              
-                              {table.type === 'table' && (
-                                 <div className="flex flex-col items-center">
-                                    <span className={`text-2xl font-black ${isOccupied ? 'text-white' : 'text-primary/70'}`}>{table.number}</span>
-                                    {isOccupied && (
-                                       <div className="mt-2 px-3 py-1 bg-white/10 rounded-full border border-white/10 backdrop-blur-md">
-                                          <p className="text-[9px] font-black text-white/50 tracking-[0.2em] uppercase">
-                                             <SessionTimer startTime={table.sessionStartTime!} />
-                                          </p>
-                                       </div>
-                                    )}
-                                 </div>
-                              )}
-
-                              {isOccupied && (
-                                 <div className="absolute -top-3 -right-3 w-8 h-8 bg-gold rounded-full border-4 border-white flex items-center justify-center text-white shadow-xl animate-bounce">
-                                    <Sparkles className="w-3.5 h-3.5" />
-                                  </div>
-                              )}
-
-                              {/* 오늘 예약 배지 — 비어있을 때만 노출 */}
-                              {!isOccupied && upcomingRes && (table.type === 'table' || table.type === 'room') && (() => {
-                                 const tone = reservationTone(upcomingRes.time);
-                                 const toneStyle = tone === 'now'
-                                   ? 'bg-burgundy text-white animate-pulse-premium'
-                                   : tone === 'soon'
-                                     ? 'bg-gold text-white'
-                                     : 'bg-primary/90 text-white';
-                                 return (
-                                   <div className={`absolute -top-2 -left-2 px-2 py-1 ${toneStyle} rounded-full text-[8px] font-black uppercase tracking-widest shadow-lg flex items-center gap-1 border-2 border-white`}>
-                                     <Calendar className="w-2.5 h-2.5" />
-                                     {upcomingRes.time}
-                                     {tableRes.length > 1 && <span className="opacity-70">+{tableRes.length - 1}</span>}
-                                   </div>
-                                 );
-                              })()}
-
-                              {isLayoutMode && !isOccupied && (
-                                 <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-white/80 rounded-[inherit] z-20">
-                                    <button 
-                                      onPointerDown={(e) => e.stopPropagation()}
-                                      onClick={(e) => { e.stopPropagation(); deleteTable(currentUser.id, table.number); }} 
-                                      className="p-3 bg-burgundy/10 text-burgundy rounded-2xl hover:bg-burgundy hover:text-white transition-all mx-1"
-                                    >
-                                      <Trash2 className="w-5 h-5" />
-                                    </button>
-                                    <button className="p-3 bg-primary/10 text-primary rounded-2xl cursor-move mx-1"><GripVertical className="w-5 h-5" /></button>
-                                 </div>
-                              )}
-                            </motion.div>
-                          );
-                        })}
-                     </div>
-                   </div>
-                </div>
-             ) : (
-                <div className="flex-1 p-4 grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 lg:gap-4 overflow-y-auto no-scrollbar bg-surface-bright">
-                   {filteredTables.map(table => {
-                      const isOccupied = !!table.currentCustomerId;
-                      const customerName = isOccupied ? users.find(u => u.id === table.currentCustomerId)?.name : '없음';
-                      const tableRes = reservationsByTable[table.number] || [];
-                      const upcomingRes = tableRes.find((r: any) => reservationTone(r.time) !== 'past');
-                      const tone = upcomingRes ? reservationTone(upcomingRes.time) : null;
-                      return (
-                      <motion.div
-                        whileHover={{ y: -3 }}
-                        key={table.number}
-                        onClick={() => setSelectedTable(table.number)}
-                        className={`bg-white rounded-2xl p-4 border flex flex-col items-center justify-center gap-3 cursor-pointer shadow-sm relative min-h-[120px] flex-shrink-0 active:scale-95 touch-manipulation ${!isOccupied && tone === 'now' ? 'border-burgundy/40 ring-2 ring-burgundy/20' : !isOccupied && upcomingRes ? 'border-gold/40' : 'border-primary/10'}`}
-                      >
-                         {!isOccupied && upcomingRes && (
-                           <div className={`absolute -top-2 left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-widest shadow-lg flex items-center gap-1 border-2 border-white ${tone === 'now' ? 'bg-burgundy text-white' : tone === 'soon' ? 'bg-gold text-white' : 'bg-primary/90 text-white'}`}>
-                             <Calendar className="w-2.5 h-2.5" />
-                             {upcomingRes.time}
-                             {tableRes.length > 1 && <span className="opacity-70">+{tableRes.length - 1}</span>}
-                           </div>
-                         )}
-                         <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg ${isOccupied ? 'bg-primary text-white shadow-md' : 'bg-white border-2 border-primary text-primary'}`}>
-                            {table.number}
-                         </div>
-                         <div className="flex flex-col items-center gap-1 w-full">
-                            <p className="text-[12px] font-bold text-primary truncate w-full text-center">
-                              {isOccupied ? customerName : (upcomingRes ? upcomingRes.customerName : '없음')}
-                            </p>
-                            <div className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold tracking-widest ${
-                              isOccupied ? 'bg-[#E6F4EA] text-[#137333]'
-                              : tone === 'now' ? 'bg-burgundy/10 text-burgundy'
-                              : upcomingRes ? 'bg-gold/10 text-gold'
-                              : 'bg-surface-dim text-primary/40'
-                            }`}>
-                               {isOccupied ? '이용중' : tone === 'now' ? '예약 임박' : upcomingRes ? `예약 ${upcomingRes.partySize}명` : '가능'}
-                            </div>
-                         </div>
-                      </motion.div>
-                   )})}
-                </div>
-             )}
-
-             {isLayoutMode && (
-                <div className="absolute bottom-16 left-1/2 -translate-x-1/2 flex items-center gap-6 bg-sidebar-bg p-4 rounded-[3rem] shadow-3xl z-50 animate-in slide-in-from-bottom-12 outline outline-8 outline-white/20">
-                   <div className="flex items-center bg-white/5 rounded-[2.5rem] p-1">
-                      {[
-                        { label: '테이블', icon: Utensils, type: 'table' },
-                        { label: '룸/보석함', icon: Maximize2, type: 'room' },
-                        { label: '출입문', icon: LogOut, type: 'door' },
-                        { label: '주방/포스', icon: Monitor, type: 'pos' }
-                      ].map((btn, idx) => (
-                        <button key={idx} onClick={() => addTable(currentUser.id, btn.type as any)} className="px-8 py-3 text-white hover:bg-white/10 rounded-[2rem] flex items-center gap-3 text-[11px] font-black uppercase tracking-[0.2em] transition-all"><btn.icon className="w-4 h-4 opacity-40" /> {btn.label}</button>
-                      ))}
-                   </div>
-                   <button onClick={() => initTables(currentUser.id)} className="p-4 bg-white/5 text-white/40 hover:bg-burgundy hover:text-white rounded-full transition-all" title="초기화"><History className="w-6 h-6" /></button>
-                </div>
-              )}
-           </div>
 
           {/* ═══ ORDER MANAGEMENT PANEL ═══ */}
            {(() => {
