@@ -2,15 +2,43 @@ services:
   - type: web
     name: gyeol-pos
     runtime: node
+    plan: free
+    region: singapore
+    # main 브랜치에 푸시되면 자동 배포
+    branch: main
+    autoDeploy: true
     buildCommand: npm install && npm run build
     startCommand: npm start
+    healthCheckPath: /
     envVars:
       - key: NODE_VERSION
         value: 22.x
       - key: APP_URL
         fromContext: instanceUrl
-      # Other placeholders for user to fill in Render dashboard
+      # ===== Render 대시보드에서 값 직접 입력 (sync: false) =====
       - key: FIREBASE_PROJECT_ID
         sync: false
+      - key: FIREBASE_CLIENT_EMAIL
+        sync: false
+      - key: FIREBASE_PRIVATE_KEY
+        sync: false
       - key: KAKAO_CLIENT_ID
+        sync: false
+      - key: KAKAO_CLIENT_SECRET
+        sync: false
+      - key: NAVER_CLIENT_ID
+        sync: false
+      - key: NAVER_CLIENT_SECRET
+        sync: false
+      - key: FOODTECH_API_KEY
+        sync: false
+      - key: FOODTECH_API_URL
+        sync: false
+      - key: TOSS_SECRET_KEY
+        sync: false
+      - key: VITE_FIREBASE_API_KEY
+        sync: false
+      - key: VITE_FIREBASE_PROJECT_ID
+        sync: false
+      - key: VITE_FIREBASE_AUTH_DOMAIN
         sync: false
