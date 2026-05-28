@@ -30,12 +30,16 @@ export function printReceipt({ storeName, order, footer }: PrintReceiptInput) {
     .map(
       (it) => `
       <tr>
-        <td class="name">${escape(it.name)}</td>
+        <td class="name">
+          ${escape(it.name)}
+          ${it.menuId ? `<span class="code">[${escape(it.menuId.slice(-6).toUpperCase())}]</span>` : ""}
+        </td>
         <td class="qty">${it.quantity}</td>
         <td class="price">${(it.price * it.quantity).toLocaleString()}</td>
       </tr>`
     )
     .join("");
+  const totalQty = order.items.reduce((s, it) => s + it.quantity, 0);
 
   win.document.write(`<!doctype html>
 <html lang="ko">
@@ -47,24 +51,53 @@ export function printReceipt({ storeName, order, footer }: PrintReceiptInput) {
   html, body { margin: 0; padding: 0; }
   body {
     font-family: "Pretendard Variable", "Pretendard", -apple-system, system-ui, sans-serif;
-    font-size: 12px;
+    font-size: 13px;
     color: #000;
     width: 76mm;
     margin: 0 auto;
     padding: 8px 6px;
+    font-weight: 500;
   }
   .center { text-align: center; }
   .right { text-align: right; }
-  .store { font-size: 16px; font-weight: 800; letter-spacing: -0.02em; }
-  .meta { font-size: 11px; color: #333; margin-top: 6px; }
+  .store { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; }
+  .meta { font-size: 12px; color: #222; margin-top: 6px; line-height: 1.45; }
+  .table-banner {
+    font-size: 28px;
+    font-weight: 900;
+    letter-spacing: -0.04em;
+    margin: 10px 0 6px;
+    text-align: center;
+    border: 2px solid #000;
+    padding: 8px 0;
+    border-radius: 4px;
+  }
   hr { border: none; border-top: 1px dashed #000; margin: 8px 0; }
   table { width: 100%; border-collapse: collapse; }
-  th, td { padding: 3px 2px; vertical-align: top; }
+  th, td { padding: 4px 2px; vertical-align: top; }
   th { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid #000; }
-  td.name { word-break: break-all; }
-  td.qty { width: 20px; text-align: right; }
-  td.price { width: 70px; text-align: right; font-feature-settings: "tnum"; }
-  .total { font-size: 14px; font-weight: 800; margin-top: 6px; display: flex; justify-content: space-between; }
+  td.name { word-break: break-all; font-size: 14px; font-weight: 700; }
+  td.qty { width: 24px; text-align: right; font-size: 15px; font-weight: 800; }
+  td.price { width: 76px; text-align: right; font-feature-settings: "tnum"; font-weight: 700; }
+  .code { display: block; font-family: monospace; font-size: 10px; color: #555; font-weight: 500; margin-top: 1px; }
+  .summary { display: flex; justify-content: space-between; font-size: 12px; color: #444; margin-top: 6px; }
+  .total {
+    font-size: 18px;
+    font-weight: 900;
+    margin-top: 6px;
+    display: flex;
+    justify-content: space-between;
+    border-top: 2px solid #000;
+    padding-top: 6px;
+  }
+  .pos-note {
+    margin-top: 10px;
+    border: 1px dashed #000;
+    padding: 6px;
+    font-size: 11px;
+    text-align: center;
+    line-height: 1.4;
+  }
   .footer { font-size: 11px; color: #444; margin-top: 10px; text-align: center; }
   .badge { display: inline-block; border: 1px solid #000; padding: 2px 8px; font-weight: 700; font-size: 10px; letter-spacing: 0.06em; margin-bottom: 6px; }
   .barcode { font-family: monospace; letter-spacing: 1px; font-size: 9px; margin-top: 6px; word-break: break-all; }
@@ -72,15 +105,15 @@ export function printReceipt({ storeName, order, footer }: PrintReceiptInput) {
 </head>
 <body>
   <div class="center">
-    <span class="badge">주문 접수</span>
+    <span class="badge">QR 주문 접수</span>
     <div class="store">${escape(storeName)}</div>
     <div class="meta">
       ${created.toLocaleString("ko-KR")}<br/>
-      테이블 ${order.tableNumber} · 주문번호 #${order.id.slice(-6).toUpperCase()}
+      주문번호 #${order.id.slice(-6).toUpperCase()}
     </div>
   </div>
 
-  <hr/>
+  <div class="table-banner">테이블 ${order.tableNumber}</div>
 
   <table>
     <thead>
@@ -89,15 +122,23 @@ export function printReceipt({ storeName, order, footer }: PrintReceiptInput) {
     <tbody>${rows}</tbody>
   </table>
 
-  <hr/>
+  <div class="summary">
+    <span>총 ${order.items.length}종 · ${totalQty}개</span>
+    <span>현장 결제 필요</span>
+  </div>
 
   <div class="total">
     <span>합계</span>
     <span>₩ ${order.totalAmount.toLocaleString()}</span>
   </div>
 
+  <div class="pos-note">
+    이 주문은 결(Gyeol)에서 접수된 QR 주문입니다.<br/>
+    매장 POS에 동일하게 입력해 주세요.
+  </div>
+
   <div class="footer">
-    ${footer ?? "감사합니다. 결(Gyeol)을 이용해 주셔서 고맙습니다."}
+    ${footer ?? "감사합니다."}
     <div class="barcode">${order.id}</div>
   </div>
 

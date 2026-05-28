@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { ChefHat, Check, XCircle, Ticket, Sparkles } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ChefHat, Check, XCircle, Ticket, Sparkles, Printer, Bell, BellOff, Volume2 } from "lucide-react";
 import { OwnerShell } from "../../components/layout/OwnerShell";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
@@ -7,6 +7,13 @@ import { useStore } from "../../store/store";
 import type { Order, OrderStatus } from "../../lib/types";
 import { TIER_BADGE } from "../../lib/tier";
 import { cn } from "../../lib/cn";
+import {
+  notifyNewOrder,
+  requestNotificationPermission,
+  playChime,
+} from "../../lib/notify";
+import { printReceipt } from "../../lib/receipt";
+import { showToast } from "../../lib/toast";
 
 const STATUS_LABELS: Record<OrderStatus, string> = {
   pending: "신규 접수",
@@ -18,7 +25,7 @@ const STATUS_LABELS: Record<OrderStatus, string> = {
 const STATUS_COLORS: Record<OrderStatus, string> = {
   pending: "bg-[var(--color-navy-100)] text-[var(--color-navy-700)]",
   accepted: "bg-[var(--color-mint-100)] text-[var(--color-mint-700)]",
-  cooking: "bg-[#fff1e0] text-[#b45309]",
+  cooking: "bg-[#fff1e0] text-[var(--color-warn)]",
   served: "bg-[var(--color-ink-50)] text-[var(--color-ink-500)]",
   cancelled: "bg-[#fef2f2] text-[var(--color-danger)]",
 };
@@ -30,9 +37,22 @@ const NEXT_STATUS: Record<OrderStatus, OrderStatus | null> = {
   cancelled: null,
 };
 
+const LS_SOUND = "gyeol:order-sound";
+
 export default function OwnerOrders() {
-  const { currentUser, orders, coupons, users, approveCouponUse, rejectCouponUse, updateOrderStatus } = useStore();
+  const {
+    currentUser,
+    orders,
+    coupons,
+    users,
+    approveCouponUse,
+    rejectCouponUse,
+    updateOrderStatus,
+  } = useStore();
   const storeId = currentUser?.id ?? "";
+
+  const [soundOn, setSoundOn] = useState(() => localStorage.getItem(LS_SOUND) !== "0");
+  const knownIdsRef = useRef<Set<string> | null>(null);
 
   const activeOrders = useMemo(
     () =>
@@ -46,8 +66,71 @@ export default function OwnerOrders() {
     [coupons, storeId]
   );
 
+  // 새 주문 도착 알림
+  useEffect(() => {
+    const allMine = orders.filter((o) => o.storeId === storeId);
+    const currentIds = new Set(allMine.map((o) => o.id));
+
+    if (knownIdsRef.current === null) {
+      // 첫 마운트: 기준선만 저장하고 알림은 안 울림
+      knownIdsRef.current = currentIds;
+      return;
+    }
+
+    const previous = knownIdsRef.current;
+    const newOrders = allMine.filter((o) => !previous.has(o.id) && o.status === "pending");
+
+    if (newOrders.length > 0 && soundOn) {
+      const summary = newOrders
+        .slice(0, 3)
+        .map((o) => `테이블 ${o.tableNumber} · ${o.items.length}개`)
+        .join(", ");
+      notifyNewOrder(summary);
+    }
+
+    knownIdsRef.current = currentIds;
+  }, [orders, storeId, soundOn]);
+
+  const toggleSound = async () => {
+    const next = !soundOn;
+    setSoundOn(next);
+    localStorage.setItem(LS_SOUND, next ? "1" : "0");
+    if (next) {
+      const perm = await requestNotificationPermission();
+      if (perm !== "granted") {
+        showToast("브라우저 알림은 차단되어 있어요. 사이트 권한에서 허용해 주세요.", "info");
+      }
+      playChime();
+    }
+  };
+
+  const reprintReceipt = (order: Order) => {
+    printReceipt({
+      storeName: currentUser?.restaurantName ?? "결",
+      order,
+      footer: "재인쇄 — Reprinted",
+    });
+  };
+
   return (
-    <OwnerShell title="주문·쿠폰 처리">
+    <OwnerShell
+      title="주문·쿠폰 처리"
+      headerRight={
+        <button
+          onClick={toggleSound}
+          className={cn(
+            "h-10 px-3 rounded-full inline-flex items-center gap-1.5 text-[13px] font-bold transition-colors",
+            soundOn
+              ? "bg-[var(--color-mint-100)] text-[var(--color-mint-700)]"
+              : "bg-[var(--color-ink-50)] text-[var(--color-ink-500)]"
+          )}
+          aria-label="새 주문 알림"
+        >
+          {soundOn ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
+          <span className="hidden sm:inline">{soundOn ? "알림 켜짐" : "알림 꺼짐"}</span>
+        </button>
+      }
+    >
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 lg:gap-6">
         {/* Coupon approvals */}
         {pendingCoupons.length > 0 && (
@@ -78,10 +161,20 @@ export default function OwnerOrders() {
                     </div>
                     <p className="text-[14px] font-bold text-[var(--color-navy-900)] mb-3">{c.description}</p>
                     <div className="grid grid-cols-2 gap-2">
-                      <Button size="md" variant="outline" onClick={() => rejectCouponUse(c.id)} leftIcon={<XCircle className="w-4 h-4" />}>
+                      <Button
+                        size="md"
+                        variant="outline"
+                        onClick={() => rejectCouponUse(c.id)}
+                        leftIcon={<XCircle className="w-4 h-4" />}
+                      >
                         반려
                       </Button>
-                      <Button size="md" variant="mint" onClick={() => approveCouponUse(c.id)} leftIcon={<Check className="w-4 h-4" />}>
+                      <Button
+                        size="md"
+                        variant="mint"
+                        onClick={() => approveCouponUse(c.id)}
+                        leftIcon={<Check className="w-4 h-4" />}
+                      >
                         승인
                       </Button>
                     </div>
@@ -101,6 +194,11 @@ export default function OwnerOrders() {
           {activeOrders.length === 0 ? (
             <Card padding="lg" className="text-center text-[14px] text-[var(--color-ink-500)]">
               현재 진행 중인 주문이 없습니다.
+              {soundOn && (
+                <p className="mt-2 text-[12px] text-[var(--color-mint-700)] inline-flex items-center gap-1">
+                  <Volume2 className="w-3 h-3" /> 새 주문이 들어오면 알려드릴게요
+                </p>
+              )}
             </Card>
           ) : (
             <div className="space-y-2">
@@ -114,6 +212,7 @@ export default function OwnerOrders() {
                     if (nxt) updateOrderStatus(o.id, nxt);
                   }}
                   onCancel={() => updateOrderStatus(o.id, "cancelled")}
+                  onReprint={() => reprintReceipt(o)}
                 />
               ))}
             </div>
@@ -138,24 +237,38 @@ function OrderCard({
   customerName,
   onAdvance,
   onCancel,
+  onReprint,
 }: {
   order: Order;
   customerName?: string;
   onAdvance: () => void;
   onCancel: () => void;
+  onReprint: () => void;
 }) {
   const nxt = NEXT_STATUS[order.status];
+  const isNew = order.status === "pending";
   return (
-    <Card padding="md">
+    <Card
+      padding="md"
+      className={cn(
+        isNew && "ring-2 ring-[var(--color-navy-700)] shadow-[var(--shadow-lifted)] animate-[gyeol-pop_.25s_ease-out]"
+      )}
+    >
       <div className="flex items-center gap-2 mb-2">
         <span className={cn("px-2 py-0.5 rounded-full text-[10px] font-bold", STATUS_COLORS[order.status])}>
           {STATUS_LABELS[order.status]}
         </span>
-        <span className="text-[12px] text-[var(--color-ink-500)] font-semibold">
-          테이블 {order.tableNumber} · {customerName ?? "—"}
+        <span className="text-[13px] text-[var(--color-navy-900)] font-bold">
+          테이블 {order.tableNumber}
         </span>
-        <span className="ml-auto text-[11px] text-[var(--color-ink-500)]">
-          {new Date(order.createdAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}
+        <span className="text-[11px] text-[var(--color-ink-500)] font-semibold truncate">
+          · {customerName ?? "—"}
+        </span>
+        <span className="ml-auto text-[11px] text-[var(--color-ink-500)] tabular-nums">
+          {new Date(order.createdAt).toLocaleTimeString("ko-KR", {
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
         </span>
       </div>
       <ul className="text-[14px] font-semibold text-[var(--color-navy-900)] space-y-0.5">
@@ -164,22 +277,33 @@ function OrderCard({
             <span>
               {it.name} <span className="text-[var(--color-ink-500)] font-medium">×{it.quantity}</span>
             </span>
-            <span>₩ {(it.price * it.quantity).toLocaleString()}</span>
+            <span className="tabular-nums">₩ {(it.price * it.quantity).toLocaleString()}</span>
           </li>
         ))}
       </ul>
       <div className="border-t border-[var(--color-line)] mt-2.5 pt-2.5 flex justify-between text-[14px] font-bold">
         <span className="text-[var(--color-ink-500)]">합계</span>
-        <span className="text-[var(--color-navy-900)]">₩ {order.totalAmount.toLocaleString()}</span>
+        <span className="text-[var(--color-navy-900)] tabular-nums">₩ {order.totalAmount.toLocaleString()}</span>
       </div>
-      <div className="grid grid-cols-3 gap-2 mt-3">
+      <div className="grid grid-cols-4 gap-2 mt-3">
         <Button size="md" variant="outline" onClick={onCancel} className="text-[var(--color-danger)] border-[var(--color-danger)]/30">
           취소
         </Button>
-        {nxt && (
+        <Button
+          size="md"
+          variant="ghost"
+          onClick={onReprint}
+          leftIcon={<Printer className="w-4 h-4" />}
+          title="영수증 재인쇄"
+        >
+          재인쇄
+        </Button>
+        {nxt ? (
           <Button size="md" className="col-span-2" onClick={onAdvance}>
-            {STATUS_LABELS[nxt]}(으)로
+            {STATUS_LABELS[nxt]}
           </Button>
+        ) : (
+          <div className="col-span-2" />
         )}
       </div>
     </Card>
