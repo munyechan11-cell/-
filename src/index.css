@@ -1,271 +1,249 @@
-@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css");
-@import url('https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Gowun+Dodum&display=swap');
 @import "tailwindcss";
 
+/* ============================================================
+   결 (Gyeol) Design System v3 — Final
+   톤: 현대해상 다이렉트 (Deep Navy + Mint + White)
+   모바일 + 데스크톱 가독성 양쪽 모두 최우선
+   ============================================================ */
+
 @theme {
-  /* 본문: Pretendard Variable (humanist, 따뜻함)
-     강조: Gowun Batang (부드러운 한글 명조, 정성스러운 톤)
-     보조: Gowun Dodum (둥근 산세리프, 친근한 캡션·라벨) */
-  --font-sans: "Pretendard Variable", "Pretendard", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
-  --font-serif: "Gowun Batang", "Noto Serif KR", serif;
-  --font-rounded: "Gowun Dodum", "Pretendard Variable", system-ui, sans-serif;
+  /* ===== Color tokens (AA 대비 검증) ===== */
+  --color-navy-50:  #f4f7fb;
+  --color-navy-100: #e3ebf5;
+  --color-navy-200: #c0d0e4;
+  --color-navy-300: #8ba9cc;
+  --color-navy-400: #547bad;
+  --color-navy-500: #2a5391;
+  --color-navy-600: #1f4079;
+  --color-navy-700: #173762; /* Brand primary - bolder */
+  --color-navy-800: #102849;
+  --color-navy-900: #061731;
 
-  /* Premium Gyeol Palette */
-  --color-primary: #5C162E;
-  --color-primary-container: #7A203F;
-  --color-primary-soft: #A33A5E;
-  --color-primary-dark: #3D0D1D;
-  --color-burgundy: #5C162E;
-  --color-accent-burgundy: #7A203F;
-  
-  --color-sidebar-bg: #2B1E1C;
-  --color-surface-bright: #FCF9F6;
-  --color-surface-dim: #F2EBE5;
-  --color-surface-container: #F7EFE9;
-  --color-surface-container-high: #EDE3DA;
-  --color-surface-container-highest: #E3D6CA;
-  
-  --color-on-surface: #362A28;
-  --color-on-surface-variant: #756360;
-  --color-outline-variant: #E8DFD8;
-  --color-tertiary: #4A3A38;
+  --color-mint-50:  #e6fbfa;
+  --color-mint-100: #c5f5f2;
+  --color-mint-200: #8ee9e3;
+  --color-mint-300: #4fd6cf;
+  --color-mint-400: #1cc1ba;
+  --color-mint-500: #00a39e; /* deeper for contrast on white */
+  --color-mint-600: #007e7b;
+  --color-mint-700: #005f5d;
 
-  --color-gold: #C29B4A;
-  --color-gold-soft: #DEBD7A;
-  --color-cream: #FFFCF9;
-  
-  /* Elevation Shadows */
-  --shadow-premium: 0 16px 40px -12px rgba(92, 22, 46, 0.12);
-  --shadow-glass: 0 8px 32px 0 rgba(92, 22, 46, 0.06);
-  --shadow-heavy: 0 24px 48px -12px rgba(43, 30, 28, 0.15);
+  --color-sky-500:  #2f76d6;
+
+  /* Neutral - higher contrast text */
+  --color-ink-900: #0b1220;
+  --color-ink-800: #1a2236;
+  --color-ink-700: #2c3650; /* primary body */
+  --color-ink-600: #475066;
+  --color-ink-500: #5b647a; /* secondary - was too light */
+  --color-ink-400: #8893a9;
+  --color-ink-300: #b8c1d1;
+  --color-ink-200: #d6dde9;
+  --color-ink-100: #e3e8f1;
+  --color-ink-50:  #f1f4f9;
+
+  --color-bg:      #f5f7fb;
+  --color-bg-alt:  #eef2f8;
+  --color-surface: #ffffff;
+  --color-line:    #dfe6f0;
+  --color-line-soft: #ecf0f6;
+
+  --color-success: #128a3f;
+  --color-warn:    #d97706;
+  --color-danger:  #c1182f;
+
+  /* Typography */
+  --font-sans: "Pretendard Variable", "Pretendard", -apple-system, BlinkMacSystemFont,
+               "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Radius */
+  --radius-xs:  6px;
+  --radius-sm:  10px;
+  --radius-md:  14px;
+  --radius-lg:  20px;
+  --radius-xl:  28px;
+  --radius-2xl: 36px;
+
+  /* Shadows */
+  --shadow-card:    0 1px 2px rgba(11, 18, 32, 0.04), 0 4px 16px rgba(11, 18, 32, 0.06);
+  --shadow-lifted:  0 4px 8px rgba(11, 18, 32, 0.06), 0 12px 32px rgba(11, 18, 32, 0.10);
+  --shadow-press:   0 1px 0 rgba(11, 18, 32, 0.04);
+  --shadow-navy:    0 8px 24px rgba(23, 55, 98, 0.30);
+  --shadow-mint:    0 8px 24px rgba(0, 163, 158, 0.26);
+  --shadow-focus:   0 0 0 4px rgba(23, 55, 98, 0.18);
 }
 
-/* Base Refinements */
+/* ===== Pretendard ===== */
+@font-face {
+  font-family: "Pretendard Variable";
+  font-weight: 45 920;
+  font-style: normal;
+  font-display: swap;
+  src: url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/PretendardVariable.woff2") format("woff2-variations");
+}
+
+/* ===== Base ===== */
 html {
-  scrollbar-gutter: stable;
-}
-
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: var(--color-surface-bright);
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--color-primary-soft);
-  border-radius: 10px;
-  border: 2px solid var(--color-surface-bright);
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--color-primary);
-}
-
-/* Simplified backgrounds for cleaner look */
-body {
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
   font-family: var(--font-sans);
-  font-weight: 450;
-  letter-spacing: -0.005em;
-  line-height: 1.55;
+  /* Smooth scroll within sidebar nav etc */
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-ink-900);
+  font-family: var(--font-sans);
+  font-feature-settings: "ss01", "ss02", "cv01", "cv11";
+  letter-spacing: -0.01em;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
-  background: var(--color-surface-bright);
-  color: var(--color-on-surface);
-  -webkit-tap-highlight-color: transparent;
-  -webkit-touch-callout: none;
-  user-select: none;
-  margin: 0;
-  padding: 0;
-  overflow-x: hidden;
-  transition: background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  background-image:
-    radial-gradient(at 0% 0%, rgba(74, 14, 14, 0.04) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, rgba(198, 163, 79, 0.04) 0px, transparent 50%);
+  font-size: 16px;
+  line-height: 1.5;
 }
 
-/* Soften aggressive weights/letter-spacing — 진짜 사장님 손맛 느낌으로 */
-h1, h2, h3, h4 { letter-spacing: -0.02em; }
-.font-black { font-weight: 800 !important; letter-spacing: -0.015em; }
-.font-bold { font-weight: 650 !important; }
-/* 너무 좁고 강한 uppercase 라벨 톤을 살짝 풀어줌 */
-.tracking-\[0\.5em\], .tracking-\[0\.4em\] { letter-spacing: 0.28em !important; }
-.tracking-\[0\.3em\] { letter-spacing: 0.22em !important; }
-
-/* Grainy Texture Overlay */
-body::before {
-  content: "";
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  opacity: 0.02;
-  z-index: 9999;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+/* 데스크톱에선 본문/UI를 살짝 키워 가독성 강화 */
+@media (min-width: 1024px) {
+  body { font-size: 17px; }
 }
 
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
+/* ============================================================
+   Typography utilities (반응형)
+   ============================================================ */
+@utility headline-hero {
+  font-weight: 800;
+  font-size: clamp(32px, 5vw, 56px);
+  letter-spacing: -0.035em;
+  line-height: 1.08;
+  color: var(--color-navy-900);
 }
-
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+@utility headline-display {
+  font-weight: 800;
+  font-size: clamp(26px, 4vw, 38px);
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  color: var(--color-navy-900);
 }
-
-@utility pb-safe {
-  padding-bottom: env(safe-area-inset-bottom);
+@utility headline-section {
+  font-weight: 800;
+  font-size: clamp(20px, 2.4vw, 24px);
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  color: var(--color-navy-900);
 }
-
-@utility pt-safe {
-  padding-top: env(safe-area-inset-top);
-}
-
-@utility px-safe {
-  padding-left: env(safe-area-inset-left);
-  padding-right: env(safe-area-inset-right);
-}
-
-.material-symbols-outlined {
-  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
-  vertical-align: middle;
-}
-
-.clean-shadow {
-  box-shadow: 0 4px 15px rgba(74, 14, 14, 0.05);
-}
-
-/* Glassmorphism Refinement */
-.glass-effect {
-  background: rgba(255, 252, 249, 0.7);
-  backdrop-filter: blur(12px) saturate(180%);
-  border: 1px solid rgba(74, 14, 14, 0.08);
-  box-shadow: var(--shadow-glass);
-}
-
-.glass-dark {
-  background: rgba(28, 20, 18, 0.8);
-  backdrop-filter: blur(12px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-/* Premium Textures (Gyeol) */
-.bg-gyeol-pattern {
-  background-color: var(--color-surface-bright);
-  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 60c.11-1.35.32-2.7.63-4.03.77-3.32 2.1-6.47 3.96-9.4 1.86-2.93 4.14-5.61 6.81-8.03 2.67-2.42 5.67-4.52 9-6.3 3.33-1.78 6.88-3.23 10.61-4.32a48.13 48.13 0 0 1 11.83-1.8 48.13 48.13 0 0 1 11.23 1.25c3.62.8 7.1 1.98 10.4 3.52 3.3 1.54 6.38 3.44 9.21 5.66a46.2 46.2 0 0 1 8.04 7.6 46.1 46.1 0 0 1 6.03 9.07 46.5 46.5 0 0 1 3.5 10.3c.78 3.32 1.17 6.7 1.17 10.1v1h-1c-3.4 0-6.78-.39-10.1-1.17a46.5 46.5 0 0 0-10.3-3.5 46.1 46.1 0 0 0-9.07-6.03 46.2 46.2 0 0 0-7.6-8.04 46.8 46.8 0 0 0-9.21-5.66c-3.3-1.54-6.78-2.72-10.4-3.52a48.13 48.13 0 0 0-11.23-1.25c-4-.01-8 1.05-11.83 1.8-3.73 1.09-7.28 2.54-10.61 4.32-3.33 1.78-6.33 3.88-9 6.3-2.67 2.42-4.95 5.1-6.81 8.03-1.86 2.93-3.19 6.08-3.96 9.4A48.26 48.26 0 0 0 .63 56c-.31 1.33-.52 2.68-.63 4.03V60z' fill='%234a0e0e' fill-opacity='0.02' fill-rule='evenodd'/%3E%3C/svg%3E");
-}
-
-.bg-gyeol-wood {
-  background-color: var(--color-primary);
-  background-image: url("data:image/svg+xml,%3Csvg width='32' height='64' viewBox='0 0 32 64' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 28h20V16h-4V8h4V4h4v4h4v12h-4v12h8v4H4v8h24v4H0v-4h4v-12h8V28H0z' fill='%23ffffff' fill-opacity='0.03' fill-rule='evenodd'/%3E%3C/svg%3E");
-}
-
-/* Shimmer Animation (Skeleton Loaders) */
-@keyframes shimmer {
-  0% { background-position: -468px 0; }
-  100% { background-position: 468px 0; }
-}
-
-.animate-shimmer {
-  background: linear-gradient(to right, #f6f7f8 8%, #edeef1 18%, #f6f7f8 33%);
-  background-size: 800px 104px;
-  animation: shimmer 1.5s linear infinite forwards;
-}
-
-/* Pulse Highlight (Real-time Events) */
-@keyframes pulse-premium {
-  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(74, 14, 14, 0.4); }
-  70% { transform: scale(1.05); box-shadow: 0 0 20px 10px rgba(74, 14, 14, 0); }
-  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(74, 14, 14, 0); }
-}
-
-.animate-pulse-premium {
-  animation: pulse-premium 2s infinite ease-out;
-}
-
-/* ───────── Reusable design tokens ───────── */
-.btn-primary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  height: 3.5rem;
-  padding: 0 1.75rem;
-  border-radius: 1.25rem;
-  background: var(--color-primary);
-  color: #fff;
-  font-weight: 900;
-  font-size: 11px;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  box-shadow: var(--shadow-heavy);
-  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s, opacity 0.2s;
-}
-.btn-primary:hover { box-shadow: 0 28px 56px -16px rgba(43, 30, 28, 0.22); }
-.btn-primary:active { transform: scale(0.97); }
-.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-
-.btn-ghost {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  height: 3.5rem;
-  padding: 0 1.5rem;
-  border-radius: 1.25rem;
-  background: rgba(92, 22, 46, 0.05);
-  color: var(--color-primary);
-  font-weight: 900;
-  font-size: 11px;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  transition: background 0.2s, transform 0.2s;
-}
-.btn-ghost:hover { background: rgba(92, 22, 46, 0.08); }
-.btn-ghost:active { transform: scale(0.97); }
-
-.input-gyeol {
-  width: 100%;
-  height: 3.5rem;
-  border-radius: 1rem;
-  background: var(--color-surface-container);
-  border: 1px solid transparent;
-  padding: 0 1.5rem;
+@utility headline-sub {
   font-weight: 700;
-  color: var(--color-primary);
-  font-size: 15px;
-  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+  font-size: clamp(15px, 1.6vw, 17px);
+  letter-spacing: -0.015em;
+  color: var(--color-navy-900);
 }
-.input-gyeol::placeholder { color: rgba(92, 22, 46, 0.25); font-weight: 600; }
-.input-gyeol:focus {
-  outline: none;
-  border-color: rgba(194, 155, 74, 0.5);
-  box-shadow: 0 0 0 4px rgba(194, 155, 74, 0.12);
-  background: #fff;
-}
-
-.card-gyeol {
-  background: #fff;
-  border-radius: 2rem;
-  border: 1px solid rgba(92, 22, 46, 0.05);
-  box-shadow: var(--shadow-premium);
+@utility body-lg { font-size: clamp(15px, 1.4vw, 17px); line-height: 1.65; color: var(--color-ink-700); font-weight: 500; }
+@utility body-md { font-size: 15px; line-height: 1.6; color: var(--color-ink-700); }
+@utility body-sm { font-size: 13px; line-height: 1.55; color: var(--color-ink-600); }
+@utility label-xs {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-ink-500);
 }
 
-/* Smooth focus-visible for keyboard users */
-*:focus-visible {
-  outline: 2px solid var(--color-gold);
-  outline-offset: 2px;
-  border-radius: 6px;
+@utility container-app {
+  width: 100%;
+  max-width: 1240px;
+  margin-inline: auto;
+  padding-inline: clamp(16px, 4vw, 40px);
 }
 
-/* Tap-target safety on small screens */
-@media (max-width: 640px) {
-  button, a[role="button"], input[type="submit"] {
-    min-height: 44px;
+@utility container-narrow {
+  width: 100%;
+  max-width: 720px;
+  margin-inline: auto;
+  padding-inline: clamp(16px, 4vw, 32px);
+}
+
+@utility card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+@utility input-field {
+  width: 100%;
+  background: white;
+  border: 1.5px solid var(--color-line);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  font-size: 16px; /* iOS 줌 방지 */
+  font-weight: 500;
+  color: var(--color-ink-900);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  line-height: 1.4;
+}
+@utility input-field {
+  &:focus {
+    outline: none;
+    border-color: var(--color-navy-700);
+    box-shadow: var(--shadow-focus);
   }
+  &::placeholder { color: var(--color-ink-300); font-weight: 400; }
+}
+
+@utility chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--color-navy-50);
+  color: var(--color-navy-700);
+  font-weight: 700;
+  font-size: 12px;
+  border-radius: 999px;
+  letter-spacing: -0.01em;
+}
+
+/* ===== Scrollbar — 얇고 단정 ===== */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-ink-200); border-radius: 6px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-ink-300); background-clip: padding-box; border: 2px solid transparent; }
+
+/* ===== Focus ring 일관성 ===== */
+:focus-visible {
+  outline: 2px solid var(--color-navy-700);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+button:focus-visible, a:focus-visible {
+  outline-offset: 3px;
+}
+
+/* ===== Selection ===== */
+::selection {
+  background: var(--color-navy-100);
+  color: var(--color-navy-900);
+}
+
+/* ===== Animation utilities ===== */
+@keyframes gyeol-pop { from { transform: scale(0.94); opacity: 0 } to { transform: scale(1); opacity: 1 } }
+@keyframes gyeol-slide-up { from { transform: translateY(8px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
+@keyframes gyeol-fade { from { opacity: 0 } to { opacity: 1 } }
+
+/* 모션 줄임 환경 존중 */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ===== Print ===== */
+@media print {
+  body { background: white !important; }
+  .no-print { display: none !important; }
 }

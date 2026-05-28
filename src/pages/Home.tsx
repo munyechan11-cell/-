@@ -1,219 +1,207 @@
-import { useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { 
-  Store, UserCircle, ShieldCheck, ArrowRight, 
-  Sparkles, Star, QrCode, Shield, Heart, Zap
-} from 'lucide-react';
-import { motion, useScroll, useTransform } from 'motion/react';
+import { Link } from "react-router-dom";
+import { QrCode, Store, ArrowRight, Shield, ShieldCheck, Sparkles, Zap, User as UserIcon } from "lucide-react";
+import { useStore } from "../store/store";
 
 export default function Home() {
-  const { scrollY } = useScroll();
-  const y1 = useTransform(scrollY, [0, 500], [0, 200]);
-  const y2 = useTransform(scrollY, [0, 500], [0, -150]);
-
-  useEffect(() => {
-    document.title = "결 (Gyeol) - 단골과 사장님이 만나는 정성의 숨결";
-    const metaDesc = document.querySelector('meta[name="description"]');
-    if (metaDesc) {
-      metaDesc.setAttribute("content", "가장 편리하고 품격 있는 단골 매니지먼트 플랫폼 '결'. 매장의 진심과 손님의 발걸음이 만나는 가장 아름다운 결을 경험하세요.");
-    }
-  }, []);
-
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: { 
-      opacity: 1,
-      transition: { 
-        staggerChildren: 0.15,
-        delayChildren: 0.2
-      }
-    }
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 30 },
-    visible: { 
-      opacity: 1, 
-      y: 0,
-      transition: { 
-        type: "spring" as const, 
-        damping: 25, 
-        stiffness: 120 
-      }
-    }
-  };
+  const { currentUser } = useStore();
+  const isCustomer = currentUser?.role === "customer";
+  const isOwner = currentUser?.role === "owner";
 
   return (
-    <motion.div 
-      initial="hidden"
-      animate="visible"
-      variants={containerVariants}
-      className="min-h-screen bg-gyeol-pattern flex flex-col items-center selection:bg-primary/20 relative overflow-x-hidden"
-    >
-      {/* Dynamic Background Grain Particles */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
-        {[...Array(6)].map((_, i) => (
-          <motion.div
-            key={i}
-            initial={{ 
-              x: Math.random() * 100 + "%", 
-              y: Math.random() * 100 + "%",
-              opacity: 0 
-            }}
-            animate={{ 
-              y: [null, "-20%", "120%"],
-              opacity: [0, 0.2, 0]
-            }}
-            transition={{ 
-              duration: 15 + Math.random() * 10, 
-              repeat: Infinity, 
-              ease: "linear",
-              delay: i * 2 
-            }}
-            style={{ y: i % 2 === 0 ? y1 : y2 }}
-            className="absolute w-24 h-24 bg-primary/5 rounded-full blur-3xl"
-          />
-        ))}
-      </div>
+    <div className="min-h-screen bg-gradient-to-b from-white to-[var(--color-bg)]">
+      {/* Top bar */}
+      <header className="container-app flex items-center justify-between h-16 lg:h-20">
+        <div className="flex items-center gap-2.5">
+          <span className="w-9 h-9 lg:w-10 lg:h-10 rounded-xl bg-[var(--color-navy-700)] text-white text-lg lg:text-xl font-extrabold flex items-center justify-center shadow-[var(--shadow-navy)]">
+            결
+          </span>
+          <span className="text-[15px] font-bold text-[var(--color-navy-900)] tracking-tight">
+            Gyeol Cloud
+          </span>
+        </div>
+        <Link
+          to="/master"
+          className="hidden sm:inline-flex items-center gap-1.5 text-[12px] font-semibold text-[var(--color-ink-500)] hover:text-[var(--color-navy-700)] transition-colors"
+        >
+          <Shield className="w-3.5 h-3.5" />
+          시스템 관리자
+        </Link>
+      </header>
 
-      {/* Decorative Elements */}
-      <div className="absolute top-0 left-0 w-full h-[800px] bg-gradient-to-b from-primary/10 to-transparent pointer-events-none"></div>
+      {/* Hero */}
+      <section className="container-app pt-8 lg:pt-20 pb-10 lg:pb-24 grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+        <div>
+          <span className="chip mb-5">
+            <Sparkles className="w-3.5 h-3.5" />
+            손님과 사장님의 결, 하나로
+          </span>
+          <h1 className="headline-hero">
+            사장님의 정성과
+            <br />
+            손님의 발걸음이
+            <br />
+            만나는 가장 <span className="text-[var(--color-navy-700)]">아름다운 결.</span>
+          </h1>
+          <p className="body-lg mt-5 lg:mt-7 text-[var(--color-ink-600)] max-w-[520px]">
+            QR 한 번에 시작되는, 단단한 단골 관리. 매장의 모든 흐름을 결로 연결하세요.
+          </p>
 
-      {/* Hero Section */}
-      <section className="pt-20 sm:pt-32 pb-12 sm:pb-20 px-6 text-center z-10 w-full max-w-4xl">
-        <motion.div variants={itemVariants} className="inline-block mb-6">
-           <span className="px-4 py-1.5 rounded-full bg-primary/5 border border-primary/10 text-[10px] font-black text-primary uppercase tracking-[0.3em]">
-             실시간 매장 및 단골 관리 플랫폼
-           </span>
-        </motion.div>
-
-        <motion.div variants={itemVariants} className="relative mb-10 sm:mb-12">
-           <h1 className="text-[96px] sm:text-[140px] lg:text-[180px] font-serif font-black text-primary leading-none tracking-tighter select-none relative drop-shadow-2xl italic">
-             결
-           </h1>
-        </motion.div>
-
-        <motion.p variants={itemVariants} className="text-base sm:text-xl text-primary/70 font-sans font-bold max-w-2xl mx-auto mb-10 sm:mb-12 leading-relaxed px-2">
-          "사장님의 정성과 손님의 발걸음이 만나는 가장 아름다운 결"
-        </motion.p>
-      </section>
-
-      {/* Action Portal */}
-      <section className="w-full max-w-5xl px-5 sm:px-6 grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-8 z-10 mb-24 sm:mb-32">
-        <motion.div variants={itemVariants}>
-          <Link 
-            to="/scan"
-            className="group relative block h-full p-7 sm:p-10 rounded-[2rem] sm:rounded-[3rem] glass-effect hover:scale-[1.02] active:scale-[0.98] transition-all duration-500 overflow-hidden"
-          >
-            <div className="absolute top-0 right-0 p-10 opacity-[0.03] group-hover:opacity-[0.08] transition-all duration-700 group-hover:rotate-12">
-               <QrCode className="w-48 h-48 text-primary" strokeWidth={0.5} />
-            </div>
-            
-            <div className="relative z-20">
-              <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center shadow-2xl shadow-primary/30 mb-8 group-hover:rotate-6 transition-transform">
-                 <UserCircle className="w-7 h-7 text-white" strokeWidth={1.5} />
-              </div>
-              <div className="space-y-4">
-                <div className="flex items-center space-x-3">
-                  <h2 className="text-2xl sm:text-3xl font-sans font-black text-primary tracking-tight">손님 입장</h2>
-                  <Sparkles className="w-5 h-5 text-gold animate-pulse" />
+          {/* CTA */}
+          <div className="mt-8 lg:mt-10 grid sm:grid-cols-2 gap-3 max-w-[560px]">
+            {isCustomer ? (
+              <Link
+                to="/customer"
+                className="group rounded-2xl bg-[var(--color-navy-700)] text-white p-5 lg:p-6 flex items-center gap-4 shadow-[var(--shadow-navy)] hover:-translate-y-0.5 transition-transform sm:col-span-2"
+              >
+                <div className="w-12 h-12 rounded-xl bg-white/15 flex items-center justify-center shrink-0">
+                  <UserIcon className="w-6 h-6" />
                 </div>
-                <p className="text-base text-primary/60 font-sans leading-relaxed max-w-xs">
-                  매장의 QR 코드를 스캔하여 단골 장부에 등록하고 당신만을 위한 특별한 혜택을 경험하세요.
-                </p>
-                <div className="pt-4 flex items-center text-[10px] font-black text-primary uppercase tracking-[0.2em] group-hover:translate-x-2 transition-transform">
-                  <span>지금 입장하기</span>
-                  <ArrowRight className="ml-2 w-4 h-4" />
+                <div className="flex-1">
+                  <div className="text-[11px] opacity-80 font-bold uppercase tracking-wider mb-0.5">
+                    {currentUser.name}님, 환영합니다
+                  </div>
+                  <div className="text-[17px] font-extrabold tracking-tight">내 결로 이동</div>
                 </div>
-              </div>
-            </div>
-          </Link>
-        </motion.div>
+                <ArrowRight className="w-5 h-5 opacity-80 group-hover:translate-x-0.5 transition-transform" />
+              </Link>
+            ) : (
+              <>
+                <Link
+                  to="/customer/login"
+                  className="group rounded-2xl bg-[var(--color-navy-700)] text-white p-5 lg:p-6 flex items-center gap-4 shadow-[var(--shadow-navy)] hover:-translate-y-0.5 transition-transform"
+                >
+                  <div className="w-12 h-12 rounded-xl bg-white/15 flex items-center justify-center shrink-0">
+                    <UserIcon className="w-6 h-6" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-[11px] opacity-80 font-bold uppercase tracking-wider mb-0.5">
+                      손님
+                    </div>
+                    <div className="text-[17px] font-extrabold tracking-tight">로그인 / 회원가입</div>
+                  </div>
+                  <ArrowRight className="w-5 h-5 opacity-80 group-hover:translate-x-0.5 transition-transform" />
+                </Link>
 
-        <motion.div variants={itemVariants}>
-          <Link 
-            to="/owner/login"
-            className="group relative block h-full p-7 sm:p-10 rounded-[2rem] sm:rounded-[3rem] bg-sidebar-bg border border-white/5 shadow-2xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-500 overflow-hidden"
-          >
-            <div className="absolute bottom-0 right-0 p-10 opacity-[0.05] group-hover:opacity-[0.12] transition-all duration-700 group-hover:-translate-y-4">
-               <Store className="w-48 h-48 text-white" strokeWidth={0.5} />
-            </div>
+                <Link
+                  to="/scan"
+                  className="group rounded-2xl bg-white border border-[var(--color-line)] p-5 lg:p-6 flex items-center gap-4 hover:-translate-y-0.5 transition-transform shadow-[var(--shadow-card)]"
+                >
+                  <div className="w-12 h-12 rounded-xl bg-[var(--color-mint-100)] flex items-center justify-center shrink-0">
+                    <QrCode className="w-6 h-6 text-[var(--color-mint-700)]" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-[11px] text-[var(--color-ink-500)] font-bold uppercase tracking-wider mb-0.5">
+                      매장 QR
+                    </div>
+                    <div className="text-[17px] font-extrabold text-[var(--color-navy-900)] tracking-tight">
+                      바로 스캔하기
+                    </div>
+                  </div>
+                  <ArrowRight className="w-5 h-5 text-[var(--color-ink-400)] group-hover:translate-x-0.5 transition-transform" />
+                </Link>
+              </>
+            )}
 
-            <div className="relative z-20">
-              <div className="w-14 h-14 rounded-2xl bg-white/10 border border-white/10 flex items-center justify-center shadow-lg mb-8 group-hover:-rotate-6 transition-transform">
-                 <Store className="w-7 h-7 text-white" strokeWidth={1.5} />
-              </div>
-              <div className="space-y-4 text-white">
-                <div className="flex items-center space-x-3">
-                  <h2 className="text-2xl sm:text-3xl font-sans font-black tracking-tight">사장님 관리</h2>
-                  <Zap className="w-5 h-5 text-gold" />
-                </div>
-                <p className="text-base text-white/60 font-sans leading-relaxed max-w-xs">
-                  실시간 데이터와 직관적인 통찰로 매장의 품격을 높이세요. 매장 운영의 효율과 단골을 동시에 관리할 수 있습니다.
-                </p>
-                <div className="pt-4 flex items-center text-[10px] font-black text-white uppercase tracking-[0.2em] group-hover:translate-x-2 transition-transform">
-                  <span>포탈 접속하기</span>
-                  <ArrowRight className="ml-2 w-4 h-4" />
-                </div>
-              </div>
-            </div>
-          </Link>
-        </motion.div>
-      </section>
-
-      {/* Brand Values */}
-      <section className="w-full max-w-6xl px-5 sm:px-6 py-16 sm:py-20 border-t border-primary/5 bg-white/30 backdrop-blur-sm">
-        <motion.div variants={itemVariants} className="text-center mb-12 sm:mb-16">
-          <h3 className="text-[11px] font-black text-primary/40 uppercase tracking-[0.5em] mb-3 sm:mb-4">핵심 가치</h3>
-          <h2 className="text-3xl sm:text-4xl font-serif italic font-black text-primary">결의 세 가지 약속</h2>
-        </motion.div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-12">
-          {[
-            { icon: <Shield className="w-8 h-8" />, title: "신뢰", desc: "검증된 데이터를 통해 손님과 매장 사이의 깊은 신뢰 관계를 형성합니다." },
-            { icon: <Heart className="w-8 h-8" />, title: "진심", desc: "단순한 거래를 넘어, 매장마다 담긴 고유한 정성과 철학을 온전히 전달합니다." },
-            { icon: <Star className="w-8 h-8" />, title: "품질", desc: "정교한 매니지먼트 시스템으로 매장 운영의 품질을 한 단계 더 끌어올립니다." }
-          ].map((val, idx) => (
-            <motion.div 
-              key={idx}
-              variants={itemVariants}
-              whileHover={{ y: -10 }}
-              className="flex flex-col items-center text-center p-8 rounded-3xl hover:bg-white transition-colors"
+            <Link
+              to={isOwner ? "/owner" : "/owner/login"}
+              className="group rounded-2xl bg-white border border-[var(--color-line)] p-5 lg:p-6 flex items-center gap-4 hover:-translate-y-0.5 transition-transform shadow-[var(--shadow-card)] sm:col-span-2"
             >
-              <div className="w-16 h-16 rounded-full bg-primary/5 flex items-center justify-center text-primary mb-6">
-                {val.icon}
+              <div className="w-12 h-12 rounded-xl bg-[var(--color-navy-100)] flex items-center justify-center shrink-0">
+                <Store className="w-6 h-6 text-[var(--color-navy-700)]" />
               </div>
-              <h4 className="text-xl font-sans font-black text-primary mb-3">{val.title}</h4>
-              <p className="text-sm text-on-surface-variant leading-relaxed">{val.desc}</p>
-            </motion.div>
-          ))}
+              <div className="flex-1">
+                <div className="text-[11px] text-[var(--color-ink-500)] font-bold uppercase tracking-wider mb-0.5">
+                  사장님 관리
+                </div>
+                <div className="text-[17px] font-extrabold text-[var(--color-navy-900)] tracking-tight">
+                  {isOwner ? "콘솔로 이동" : "매장 관리 시작"}
+                </div>
+              </div>
+              <ArrowRight className="w-5 h-5 text-[var(--color-ink-400)] group-hover:translate-x-0.5 transition-transform" />
+            </Link>
+          </div>
+
+          {/* Trust signals */}
+          <div className="hidden lg:flex items-center gap-6 mt-10 text-[12px] text-[var(--color-ink-500)] font-semibold">
+            <Feature icon={<ShieldCheck className="w-4 h-4 text-[var(--color-mint-600)]" />}>
+              Firebase 실시간 동기화
+            </Feature>
+            <Feature icon={<Zap className="w-4 h-4 text-[var(--color-mint-600)]" />}>
+              오프라인 큐 자동 재전송
+            </Feature>
+            <Feature icon={<Sparkles className="w-4 h-4 text-[var(--color-mint-600)]" />}>
+              자동 등급·쿠폰
+            </Feature>
+          </div>
+        </div>
+
+        {/* Right preview - phone frame (desktop only) */}
+        <div className="hidden lg:flex justify-center relative">
+          <div className="relative w-[320px] h-[640px] rounded-[44px] bg-[var(--color-navy-900)] p-3 shadow-[0_30px_80px_-20px_rgba(11,18,32,0.5)]">
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 w-32 h-6 bg-[var(--color-navy-900)] rounded-b-2xl z-10" />
+            <div className="w-full h-full rounded-[34px] bg-white overflow-hidden flex flex-col">
+              <div className="px-6 pt-12 pb-5 bg-gradient-to-b from-[var(--color-navy-700)] to-[var(--color-navy-800)] text-white">
+                <p className="text-[11px] opacity-70 font-bold uppercase tracking-wider">VIP 단골</p>
+                <p className="text-[26px] font-extrabold mt-1">단골마스터</p>
+                <div className="mt-4 h-2 rounded-full bg-white/15 overflow-hidden">
+                  <div className="h-full w-[78%] bg-[var(--color-mint-400)]" />
+                </div>
+                <p className="text-[11px] opacity-70 mt-2">다음 등급까지 2회</p>
+              </div>
+              <div className="p-4 space-y-2.5">
+                <div className="card p-3 flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-lg bg-[var(--color-mint-100)] text-[var(--color-mint-700)] font-extrabold inline-flex items-center justify-center text-sm">
+                    3
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-[12px] font-bold text-[var(--color-navy-900)]">테이블 3번 이용 중</p>
+                    <p className="text-[10px] text-[var(--color-mint-700)] font-semibold">이용 시간 12:34</p>
+                  </div>
+                </div>
+                <div className="card p-3">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <span className="chip text-[10px] px-2 py-0.5">VIP</span>
+                    <span className="text-[10px] text-[var(--color-ink-500)] font-semibold">사용 가능</span>
+                  </div>
+                  <p className="text-[12px] font-bold text-[var(--color-navy-900)]">사장님 특별 서비스</p>
+                </div>
+                <div className="card p-3">
+                  <p className="text-[10px] font-bold text-[var(--color-ink-500)] mb-1">최근 방문</p>
+                  <p className="text-[12px] font-semibold text-[var(--color-navy-900)]">11월 28일 · 테이블 3</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          {/* Decorative blob */}
+          <div className="absolute -z-10 -inset-10 bg-gradient-to-br from-[var(--color-mint-100)] to-transparent blur-3xl" />
         </div>
       </section>
 
-      {/* Footer / Master Admin */}
-      <footer className="w-full mt-auto pt-32 pb-12 flex flex-col items-center z-10">
-        <motion.div variants={itemVariants}>
-          <Link 
-            to="/master" 
-            className="group flex items-center space-x-3 text-[10px] font-black text-primary/30 hover:text-primary transition-all uppercase tracking-[0.4em]"
-          >
-            <ShieldCheck className="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity" strokeWidth={3} />
-            <span>시스템 관리자</span>
-          </Link>
-        </motion.div>
-        
-        <motion.div variants={itemVariants} className="mt-12 flex items-center space-x-8 text-[10px] font-bold text-primary/20 uppercase tracking-widest">
-           <span>이용약관</span>
-           <div className="w-1 h-1 rounded-full bg-primary/20"></div>
-           <span>개인정보처리방침</span>
-           <div className="w-1 h-1 rounded-full bg-primary/20"></div>
-           <span>문의하기</span>
-        </motion.div>
-        
-        <motion.p variants={itemVariants} className="mt-8 text-[9px] font-medium text-primary/10 uppercase tracking-[0.5em]">
-          © 2026 결 페이퍼. All Rights Reserved.
-        </motion.p>
+      {/* Bottom mobile-only management link */}
+      <div className="container-app sm:hidden pb-8">
+        <Link
+          to="/master"
+          className="flex items-center justify-center gap-1.5 text-[12px] font-semibold text-[var(--color-ink-400)] hover:text-[var(--color-navy-700)]"
+        >
+          <Shield className="w-3.5 h-3.5" />
+          시스템 관리자
+        </Link>
+      </div>
+
+      <footer className="container-app py-6 border-t border-[var(--color-line-soft)] text-center">
+        <p className="text-[11px] text-[var(--color-ink-400)] font-semibold tracking-wider">
+          GYEOL · 정성을 담아 연결합니다
+        </p>
       </footer>
-    </motion.div>
+    </div>
+  );
+}
+
+function Feature({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      {icon}
+      {children}
+    </div>
   );
 }

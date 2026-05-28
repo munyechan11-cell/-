@@ -1,65 +1,73 @@
-// src/lib/firebase.ts
-import { initializeApp, getApp, getApps } from 'firebase/app';
-import { getFirestore, Firestore, enableIndexedDbPersistence } from 'firebase/firestore';
-import { getAuth, GoogleAuthProvider } from 'firebase/auth';
-import firebaseConfigFromJson from '../../firebase-applet-config.json';
+import { initializeApp, getApp, getApps, type FirebaseApp } from "firebase/app";
+import {
+  getFirestore,
+  type Firestore,
+  enableIndexedDbPersistence,
+  collection,
+} from "firebase/firestore";
+import { getAuth, GoogleAuthProvider, type Auth } from "firebase/auth";
+import firebaseConfigFromJson from "../../firebase-applet-config.json";
+
+const env = (import.meta as any).env ?? {};
 
 const firebaseConfig = {
   ...firebaseConfigFromJson,
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || firebaseConfigFromJson.apiKey,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || firebaseConfigFromJson.projectId,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || firebaseConfigFromJson.authDomain,
-  firestoreDatabaseId: import.meta.env.VITE_FIREBASE_DATABASE_ID || firebaseConfigFromJson.firestoreDatabaseId || '(default)'
+  apiKey: env.VITE_FIREBASE_API_KEY || (firebaseConfigFromJson as any).apiKey,
+  projectId: env.VITE_FIREBASE_PROJECT_ID || (firebaseConfigFromJson as any).projectId,
+  authDomain: env.VITE_FIREBASE_AUTH_DOMAIN || (firebaseConfigFromJson as any).authDomain,
+  firestoreDatabaseId:
+    env.VITE_FIREBASE_DATABASE_ID ||
+    (firebaseConfigFromJson as any).firestoreDatabaseId ||
+    "(default)",
 };
 
-export const isFirebaseConfigured = !!firebaseConfig.apiKey && firebaseConfig.apiKey !== "YOUR_API_KEY" && firebaseConfig.apiKey !== "undefined";
+export const isFirebaseConfigured =
+  !!firebaseConfig.apiKey &&
+  firebaseConfig.apiKey !== "YOUR_API_KEY" &&
+  firebaseConfig.apiKey !== "undefined";
 
-export const app = isFirebaseConfigured 
-  ? (getApps().length > 0 ? getApp() : initializeApp(firebaseConfig)) 
+export const app: FirebaseApp | null = isFirebaseConfigured
+  ? getApps().length > 0
+    ? getApp()
+    : initializeApp(firebaseConfig)
   : null;
 
-// Dynamic DB helper to allow fallback at runtime
-let persistenceInitialized = false;
-export const getDb = (databaseId?: string): Firestore | null => {
+let persistenceOn = false;
+export function getDb(databaseId?: string): Firestore | null {
   if (!app) return null;
   const id = databaseId || firebaseConfig.firestoreDatabaseId;
   const database = getFirestore(app, id);
-  
-  if (typeof window !== 'undefined' && database && !persistenceInitialized) {
-    persistenceInitialized = true;
-    enableIndexedDbPersistence(database).catch((err) => {
-      if (err.code === 'failed-precondition') {
-        console.warn('Multiple tabs open, persistence can only be enabled in one tab at a time.');
-      } else if (err.code === 'unimplemented') {
-        console.warn('The current browser does not support all of the features required to enable persistence');
-      }
+  if (typeof window !== "undefined" && database && !persistenceOn) {
+    persistenceOn = true;
+    enableIndexedDbPersistence(database).catch(() => {
+      /* multi-tab or unsupported - silent */
     });
   }
   return database;
-};
+}
 
 export const db = getDb();
-export const auth = isFirebaseConfigured ? getAuth(app!) : null;
+export const auth: Auth | null = isFirebaseConfigured ? getAuth(app!) : null;
+export const googleProvider = new GoogleAuthProvider();
 
-// Collection Helpers
-import { collection, CollectionReference, DocumentData } from 'firebase/firestore';
+export const COLLECTIONS = [
+  "users",
+  "visits",
+  "coupons",
+  "tables",
+  "Communications",
+  "tierOverrides",
+  "sections",
+  "menus",
+  "orders",
+  "reservations",
+  "photos",
+  "appState",
+] as const;
 
-export const getCollections = (database: Firestore | null) => {
-  if (!database) return null;
-  return {
-    users: collection(database, 'users'),
-    visits: collection(database, 'visits'),
-    coupons: collection(database, 'coupons'),
-    tables: collection(database, 'tables'),
-    Communications: collection(database, 'Communications'),
-    tierOverrides: collection(database, 'tierOverrides'),
-    sections: collection(database, 'sections'),
-    menus: collection(database, 'menus'),
-    orders: collection(database, 'orders'),
-    reservations: collection(database, 'reservations'),
-    photos: collection(database, 'photos'),
-    appState: collection(database, 'appState')
-  };
-};
+export type CollectionName = (typeof COLLECTIONS)[number];
 
-export const collections = getCollections(db);
+export function col(name: CollectionName) {
+  if (!db) return null;
+  return collection(db, name);
+}

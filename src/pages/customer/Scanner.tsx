@@ -1,185 +1,157 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { useStore } from '../../store';
-import { Html5Qrcode } from 'html5-qrcode';
-import { 
-  ScanLine, ArrowLeft, RefreshCw, Sparkles, 
-  ShieldCheck, Heart, Star, Award, ChevronRight, 
-  LayoutGrid, Zap, Store as StoreIcon, ArrowUpRight,
-  Maximize, Camera, QrCode
-} from 'lucide-react';
+import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Html5Qrcode } from "html5-qrcode";
+import { Camera, FlipHorizontal2, Keyboard } from "lucide-react";
+import { MobileShell } from "../../components/layout/MobileShell";
+import { TopBar } from "../../components/ui/TopBar";
+import { Button } from "../../components/ui/Button";
+import { showToast } from "../../lib/toast";
 
-export default function CustomerScanner() {
-  const { currentUser, users } = useStore();
-  const navigate = useNavigate();
-  const [error, setError] = useState<string | null>(null);
-  const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
+const SCAN_ID = "gyeol-qr-scanner";
+
+export default function Scanner() {
+  const nav = useNavigate();
   const scannerRef = useRef<Html5Qrcode | null>(null);
-  const usersRef = useRef(users);
+  const [facing, setFacing] = useState<"environment" | "user">("environment");
+  const [error, setError] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
 
   useEffect(() => {
-    usersRef.current = users;
-  }, [users]);
+    let cancelled = false;
+    const inst = new Html5Qrcode(SCAN_ID);
+    scannerRef.current = inst;
 
-  const isTransitioningRef = useRef(false);
-  const retryCountRef = useRef(0);
-
-  const startScanner = async (mode: "environment" | "user") => {
-    if (isTransitioningRef.current) return;
-    isTransitioningRef.current = true;
-
-    try {
-      if (!scannerRef.current) {
-        scannerRef.current = new Html5Qrcode("reader");
-      }
-
-      const config = { fps: 10, qrbox: { width: 280, height: 280 } };
-      const onScanSuccess = (decodedText: string) => {
-        try {
-          // 1. URL 기반 경로 추출 (다양한 도메인 및 경로 대응)
-          const storeMatch = decodedText.match(/\/customer\/store\/([^/?#]+)/);
-          const tableMatch = decodedText.match(/[?&]table=(\d+)/) || decodedText.match(/\/table\/(\d+)/);
-          
-          if (storeMatch) {
-            const sid = storeMatch[1];
-            const tid = tableMatch ? tableMatch[1] : null;
-            const targetUrl = tid ? `/customer/store/${sid}/table/${tid}` : `/customer/store/${sid}`;
-            navigate(targetUrl);
+    const handle = (decoded: string) => {
+      if (cancelled) return;
+      try {
+        // JSON
+        if (decoded.trim().startsWith("{")) {
+          const obj = JSON.parse(decoded);
+          if (obj.storeId && obj.tableNum) {
+            stop().finally(() =>
+              nav(`/customer/store/${obj.storeId}/table/${obj.tableNum}`)
+            );
             return;
           }
-
-          // 2. JSON 기반 구형 QR 대응
-          const data = JSON.parse(decodedText);
-          if (data.storeId) {
-            const targetUrl = data.tableNumber ? `/customer/store/${data.storeId}/table/${data.tableNumber}` : `/customer/store/${data.storeId}`;
-            navigate(targetUrl);
-          }
-        } catch (e) { setError('QR 코드를 인식할 수 없습니다.'); }
-      };
-
-      if (scannerRef.current.isScanning) {
-        await scannerRef.current.stop();
-      } else if (scannerRef.current.getState && scannerRef.current.getState() === 2) {
-        await scannerRef.current.stop();
+        }
+        // URL with path
+        const m = decoded.match(/\/customer\/store\/([^/?#]+)\/table\/([^/?#]+)/);
+        if (m) {
+          stop().finally(() => nav(`/customer/store/${m[1]}/table/${m[2]}`));
+          return;
+        }
+        // URL with ?table=
+        const u = new URL(decoded);
+        const pathMatch = u.pathname.match(/\/customer\/store\/([^/?#]+)/);
+        const t = u.searchParams.get("table");
+        if (pathMatch && t) {
+          stop().finally(() => nav(`/customer/store/${pathMatch[1]}/table/${t}`));
+          return;
+        }
+        showToast("결 QR이 아닙니다.", "error");
+      } catch {
+        showToast("QR 형식을 인식하지 못했어요.", "error");
       }
-      
-      await scannerRef.current.start({ facingMode: mode }, config, onScanSuccess, () => {});
-      retryCountRef.current = 0;
-      setError(null);
-    } catch (err: any) {
-      console.error("Scanner start error:", err);
-      const errorMessage = String(err);
-      if (errorMessage.includes("NotAllowedError") || errorMessage.includes("Permission denied")) {
-        setError("카메라 권한이 필요합니다. 설정에서 권한을 허용해 주세요.");
-      } else {
-        setError(`스캐너 초기화 오류: ${errorMessage}`);
+    };
+
+    const start = async () => {
+      try {
+        await inst.start(
+          { facingMode: facing },
+          { fps: 10, qrbox: { width: 240, height: 240 } },
+          handle,
+          () => {}
+        );
+        if (!cancelled) setScanning(true);
+      } catch (e: any) {
+        if (cancelled) return;
+        const msg =
+          e?.name === "NotAllowedError"
+            ? "카메라 권한이 차단되었습니다. 브라우저 설정에서 허용해 주세요."
+            : "카메라를 사용할 수 없습니다.";
+        setError(msg);
       }
-    } finally {
-      isTransitioningRef.current = false;
-    }
+    };
+
+    const stop = async () => {
+      try {
+        if (inst.isScanning) await inst.stop();
+        await inst.clear();
+      } catch {}
+    };
+
+    start();
+
+    return () => {
+      cancelled = true;
+      stop();
+    };
+  }, [facing, nav]);
+
+  const manualInput = () => {
+    const storeId = prompt("매장 ID를 입력하세요");
+    if (!storeId) return;
+    const tableNum = prompt("테이블 번호");
+    if (!tableNum) return;
+    nav(`/customer/store/${storeId}/table/${tableNum}`);
   };
 
-  useEffect(() => {
-    let isMounted = true;
-    const initScanner = async () => {
-      if (!isMounted) return;
-      await startScanner(facingMode);
-    };
-    const timer = setTimeout(initScanner, 300);
-    return () => {
-      isMounted = false;
-      clearTimeout(timer);
-      if (scannerRef.current && scannerRef.current.isScanning && !isTransitioningRef.current) {
-        isTransitioningRef.current = true;
-        scannerRef.current.stop().catch(console.error).finally(() => { isTransitioningRef.current = false; });
-      }
-    };
-  }, [facingMode]);
-
-  const toggleCamera = () => setFacingMode(prev => prev === "environment" ? "user" : "environment");
-
   return (
-    <div className="min-h-screen bg-[#fdfaf7] text-[#261c1a] font-sans selection:bg-primary/10 flex flex-col items-center">
-      
-      {/* Header */}
-      <header className="w-full max-w-md px-6 pb-6 pt-[calc(env(safe-area-inset-top)+1.5rem)] flex justify-between items-center bg-white/80 backdrop-blur-md sticky top-0 z-40 border-b border-[#e5dcd3]">
-        <Link to="/" className="p-2.5 bg-surface-container rounded-full text-on-surface-variant/40 hover:text-primary transition-all">
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
-        <div className="text-center">
-           <h1 className="font-serif font-black text-xl italic tracking-tight">QR 스캔</h1>
-           <p className="text-[9px] font-bold uppercase tracking-widest text-on-surface-variant/50">매장 입장하기</p>
-        </div>
-        <div className="w-10"></div>
-      </header>
-
-      <main className="w-full max-w-md p-6 flex-1 flex flex-col gap-10 py-12">
-        <section className="text-center space-y-4">
-           <div className="w-20 h-20 bg-primary rounded-3xl mx-auto flex items-center justify-center text-white shadow-xl rotate-3"><QrCode className="w-10 h-10" /></div>
-           <h2 className="text-2xl font-serif font-black italic">매장 QR 스캔</h2>
-           <p className="text-sm opacity-60 px-8 leading-relaxed">테이블에 비치된 QR 코드를 사각형 안에 맞춰주세요. 자동으로 매장 페이지로 이동합니다.</p>
-        </section>
-
-        {/* Scanner Body */}
-        <div className="relative aspect-square w-full max-w-sm mx-auto bg-black rounded-[3rem] overflow-hidden shadow-2xl border-4 border-white">
-           <div id="reader" className="w-full h-full"></div>
-           
-           {/* Custom Overlay */}
-           <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-              <div className="w-64 h-64 border-2 border-white/20 rounded-3xl relative">
-                 <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-primary rounded-tl-2xl"></div>
-                 <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-primary rounded-tr-2xl"></div>
-                 <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-primary rounded-bl-2xl"></div>
-                 <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-primary rounded-br-2xl"></div>
-                 
-                 {/* Animation Scan Line */}
-                 <div className="absolute left-0 right-0 top-0 h-0.5 bg-primary/40 shadow-[0_0_15px_rgba(74,14,14,0.5)] animate-scan"></div>
-              </div>
-           </div>
-        </div>
-
-        {error && (
-          <div className="bg-burgundy/5 p-6 rounded-2xl border border-burgundy/10 text-center space-y-2">
-             <ShieldCheck className="w-6 h-6 text-burgundy mx-auto opacity-40" />
-             <p className="text-xs font-bold text-burgundy">{error}</p>
+    <MobileShell>
+      <TopBar title="QR 스캔" back transparent />
+      <div className="px-5">
+        <div className="relative aspect-square w-full rounded-[28px] overflow-hidden bg-[var(--color-navy-900)] mt-2">
+          <div id={SCAN_ID} className="absolute inset-0 [&_video]:object-cover [&_video]:w-full [&_video]:h-full" />
+          {/* Frame overlay */}
+          <div className="absolute inset-0 pointer-events-none">
+            <div className="absolute inset-8 border-2 border-white/80 rounded-[24px]">
+              {[
+                "top-0 left-0",
+                "top-0 right-0 rotate-90",
+                "bottom-0 right-0 rotate-180",
+                "bottom-0 left-0 -rotate-90",
+              ].map((p) => (
+                <span
+                  key={p}
+                  className={`absolute w-8 h-8 border-t-4 border-l-4 border-[var(--color-mint-500)] rounded-tl-xl ${p}`}
+                />
+              ))}
+            </div>
           </div>
-        )}
-
-        <div className="flex gap-4">
-           <button onClick={toggleCamera} className="flex-1 py-4 bg-white border border-[#e5dcd3] rounded-2xl flex items-center justify-center gap-3 text-[10px] font-bold uppercase tracking-widest text-[#261c1a]/60 hover:border-primary/30 transition-all">
-              <RefreshCw className="w-4 h-4" />
-              카메라 전환
-           </button>
-           <button 
-             onClick={() => {
-               const code = prompt('매장 링크나 암호를 입력하세요:');
-               if (code) {
-                 const match = code.match(/(\/customer\/store\/[^/]+\/table\/\d+)/);
-                 if (match) navigate(match[1]);
-                 else setError('잘못된 형식입니다.');
-               }
-             }}
-             className="flex-[1.5] py-4 bg-primary text-white rounded-2xl flex items-center justify-center gap-3 text-[10px] font-bold uppercase tracking-widest shadow-xl shadow-primary/20 hover:bg-accent-burgundy transition-all"
-           >
-              <ArrowUpRight className="w-4 h-4" />
-              직접 입력
-           </button>
+          {!scanning && !error && (
+            <div className="absolute inset-0 flex items-center justify-center text-white/80 text-sm">
+              <Camera className="w-5 h-5 mr-2" /> 카메라 시작 중...
+            </div>
+          )}
+          {error && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-white p-6 text-center">
+              <p className="text-sm font-semibold mb-3">{error}</p>
+              <Button variant="mint" size="sm" onClick={() => window.location.reload()}>
+                다시 시도
+              </Button>
+            </div>
+          )}
         </div>
-      </main>
 
-      <footer className="p-8 opacity-20 text-center">
-         <p className="text-[8px] font-black uppercase tracking-[0.5em]">결 SECURE SCAN SYSTEM</p>
-      </footer>
+        <p className="text-center mt-6 text-[14px] text-[var(--color-ink-500)] font-medium">
+          매장 QR을 사각형 안에 맞춰주세요.
+        </p>
 
-      <style dangerouslySetInnerHTML={{ __html: `
-        @keyframes scan {
-          0% { top: 0; }
-          100% { top: 100%; }
-        }
-        .animate-scan {
-          animation: scan 2s linear infinite;
-        }
-      `}} />
-    </div>
+        <div className="flex gap-3 mt-6">
+          <Button
+            variant="outline"
+            block
+            size="md"
+            onClick={() => setFacing((f) => (f === "environment" ? "user" : "environment"))}
+            leftIcon={<FlipHorizontal2 className="w-4 h-4" />}
+          >
+            카메라 전환
+          </Button>
+          <Button variant="ghost" block size="md" onClick={manualInput} leftIcon={<Keyboard className="w-4 h-4" />}>
+            수동 입력
+          </Button>
+        </div>
+      </div>
+    </MobileShell>
   );
 }

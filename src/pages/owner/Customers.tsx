@@ -1,462 +1,384 @@
-import React, { useState } from 'react';
-import { useStore, getEffectiveTier, getTierColor, getCustomerTier, getTierCustomName, calculateRFMValue, getRFMCluster } from '../../store';
-import {
-  Users, LayoutGrid, Search, Send, X, MessageSquare, Ticket,
-  History, Loader2, CheckSquare, Square, Download, ChevronDown,
-  BarChart3, LogOut, Store as StoreIcon, ShieldCheck, Heart,
-  TrendingUp, Calendar, Edit2, Filter, Trash2, Plus, ArrowUpRight,
-  Clock, MapPin, Settings, Globe, Smartphone, Target, Zap,
-  Calendar as CalendarIcon, Camera as CameraIcon, Utensils
-} from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
-import MemoModal, { formatMemoDisplay } from '../../components/MemoModal';
+import { useMemo, useState } from "react";
+import { Search, Ticket, MessageSquare, Save, X } from "lucide-react";
+import { OwnerShell } from "../../components/layout/OwnerShell";
+import { Card } from "../../components/ui/Card";
+import { Button } from "../../components/ui/Button";
+import { Input } from "../../components/ui/Input";
+import { useStore } from "../../store/store";
+import { calculateRFM, getRFMCluster, getEffectiveTier, TIER_BADGE, TIER_ORDER, DEFAULT_INSIGHTS } from "../../lib/tier";
+import { sendKakaoMessage, sendPhysicalSms } from "../../lib/messaging";
+import { showToast } from "../../lib/toast";
+import type { Tier, User } from "../../lib/types";
+
+type Filter = "all" | "vip" | "new" | "slipping" | "cold";
 
 export default function OwnerCustomers() {
-  const { 
-    users = [], 
-    visits = [], 
-    issueCoupon = () => {}, 
-    recordCommunication = () => {}, 
-    communications = [], 
-    currentUser = null, 
-    tierOverrides = [], 
-    setCustomerTier = () => {}, 
-    updateUserMemo = () => {}, 
-    bulkIssueCoupon = () => {}, 
-    bulkRecordCommunication = () => {}, 
-    ownerViewMode = 'desktop', 
-    sendPhysicalSms = async () => {}, 
-    sendKakaoMessage = async () => {} 
+  const {
+    currentUser,
+    users,
+    visits,
+    coupons,
+    communications,
+    tierOverrides,
+    issueCoupon,
+    bulkIssueCoupon,
+    updateUserMemo,
+    setCustomerTier,
+    recordCommunication,
   } = useStore();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterTier, setFilterTier] = useState<string>('all');
-  const [selectedCustomer, setSelectedCustomer] = useState<string | null>(null);
-  const [historyCustomer, setHistoryCustomer] = useState<string | null>(null);
-  const [editingMemoCustomer, setEditingMemoCustomer] = useState<string | null>(null);
-  const [sendType, setSendType] = useState<'coupon' | 'message'>('coupon');
-  const [content, setContent] = useState('');
-  const [selectedPredefinedCoupon, setSelectedPredefinedCoupon] = useState('');
-  const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
-  const [selectedCustomers, setSelectedCustomers] = useState<string[]>([]);
+  const storeId = currentUser?.id ?? "";
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<Filter>("all");
+  const [selected, setSelected] = useState<User | null>(null);
+  const [selectedMode, setSelectedMode] = useState<Set<string>>(new Set());
 
-  const predefinedCoupons = [
-    { id: 'c1', title: '계란찜 1개 서비스' },
-    { id: 'c2', title: '음료수 1병 서비스' },
-    { id: 'c3', title: '소주 1병 서비스' },
-    { id: 'c4', title: '맥주 1병 서비스' },
-    { id: 'c5', title: '된장찌개 서비스' },
-    { id: 'c6', title: '볶음밥 1인분 서비스' },
-    { id: 'c7', title: '고기 1인분 추가 서비스' },
-    { id: 'custom', title: '직접 입력' }
-  ];
-
-  const navigate = useNavigate();
-
-  if (!currentUser) return null;
-
-  const handleLogout = () => {
-    navigate('/');
-  };
-
-  const customers = (users || []).filter(u => u.role === 'customer' && u.storeId === currentUser?.id);
-
-  const getCustomerStats = (customerId: string) => {
-    const customerVisits = (visits || []).filter(v => v.customerId === customerId && v.storeId === currentUser?.id);
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const recentVisitsData = customerVisits.filter(v => new Date(v.date) >= thirtyDaysAgo);
-    const recentVisits = new Set(recentVisitsData.map(v => new Date(v.date).toDateString())).size;
-    
-    const lastVisit = customerVisits.length > 0 
-      ? new Date(Math.max(...customerVisits.map(v => new Date(v.date).getTime())))
-      : null;
-    
-    const daysSinceLastVisit = lastVisit 
-      ? Math.floor((new Date().getTime() - lastVisit.getTime()) / (1000 * 3600 * 24))
-      : null;
-
-    const firstVisit = customerVisits.length > 0 
-      ? new Date(Math.min(...customerVisits.map(v => new Date(v.date).getTime())))
-      : new Date();
-    
-    const daysSinceFirstVisit = Math.max(1, Math.floor((new Date().getTime() - firstVisit.getTime()) / (1000 * 3600 * 24)));
-    const frequencyPerMonth = (customerVisits.length / daysSinceFirstVisit) * 30;
-
-    const override = tierOverrides.find(t => t.customerId === customerId && t.storeId === currentUser.id);
-    const effectiveTier = getEffectiveTier(recentVisits, override?.tier);
-
-    const rfm = calculateRFMValue(visits, customerId, currentUser.id);
-    const cluster = getRFMCluster(rfm.r, rfm.f, rfm.m);
-
-    return {
-      totalVisits: customerVisits.length,
-      recentVisits,
-      tier: effectiveTier,
-      isManualTier: !!override,
-      autoTier: getCustomerTier(recentVisits),
-      daysSinceLastVisit,
-      frequencyPerMonth: frequencyPerMonth.toFixed(1),
-      rfm,
-      cluster
-    };
-  };
-
-  const filteredCustomers = customers.filter(c => {
-    const formattedMemo = c.memo ? formatMemoDisplay(c.memo) : '';
-    const matchesSearch = c.name.includes(searchTerm) || c.phone.includes(searchTerm) || (c.memo && c.memo.includes(searchTerm)) || formattedMemo.includes(searchTerm);
-    if (!matchesSearch) return false;
-    if (filterTier === 'all') return true;
-    const stats = getCustomerStats(c.id);
-    return stats.tier === filterTier;
-  });
-
-  const [isSending, setIsSending] = useState(false);
-  const [useRealSms, setUseRealSms] = useState(true);
-  const [useKakao, setUseKakao] = useState(true);
-
-  const handleSend = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isSending) return;
-    const targets = isMultiSelectMode ? selectedCustomers : (selectedCustomer ? [selectedCustomer] : []);
-    if (targets.length > 0 && content) {
-      setIsSending(true);
-      try {
-        if (sendType === 'coupon') {
-          bulkIssueCoupon(targets, currentUser.id, '사장님 특별 서비스', content);
-          bulkRecordCommunication(targets, currentUser.id, 'coupon', content);
-        } else {
-          bulkRecordCommunication(targets, currentUser.id, 'message', content);
+  const myCustomers = useMemo(() => {
+    return users
+      .filter((u) => u.role === "customer" && u.storeId === storeId)
+      .map((u) => {
+        const myVisits = visits.filter((v) => v.customerId === u.id);
+        const uniqueDays = new Set(myVisits.map((v) => new Date(v.date).toDateString())).size;
+        const rfm = calculateRFM(myVisits);
+        const cluster = getRFMCluster(rfm);
+        const overrideTier = tierOverrides.find((o) => o.customerId === u.id)?.tier;
+        const tier = getEffectiveTier(uniqueDays, overrideTier);
+        return { user: u, visits: myVisits, uniqueDays, rfm, cluster, tier, overrideTier };
+      })
+      .filter((c) => {
+        if (search) {
+          const q = search.toLowerCase();
+          if (!c.user.name.toLowerCase().includes(q) && !c.user.phone?.includes(q)) return false;
         }
+        if (filter !== "all" && c.cluster.id !== filter) return false;
+        return true;
+      })
+      .sort((a, b) => b.visits.length - a.visits.length);
+  }, [users, visits, tierOverrides, storeId, search, filter]);
 
-        // --- Actual Physical SMS Send ---
-        if (useRealSms) {
-          if (targets.length === 1) {
-            const customer = customers.find(c => c.id === targets[0]);
-            if (customer?.phone) {
-              await sendPhysicalSms(customer.phone, content, 'device');
-            }
-          } else {
-            // Bulk simulation
-            await sendPhysicalSms('', content, 'gateway');
-          }
-        }
-
-        // --- Kakao Duo Send ---
-        if (useKakao) {
-          await sendKakaoMessage(content, currentUser.restaurantName || '매장', currentUser.id);
-        }
-        setSelectedCustomer(null);
-        setSelectedCustomers([]);
-        setIsMultiSelectMode(false);
-        setContent('');
-        setSelectedPredefinedCoupon('');
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setIsSending(false);
-      }
-    }
+  const toggleMulti = (id: string) => {
+    setSelectedMode((s) => {
+      const n = new Set(s);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
   };
 
-  const activeCustomer = customers.find(c => c.id === selectedCustomer);
-  const activeHistoryCustomer = customers.find(c => c.id === historyCustomer);
-  const customerHistory = (communications || []).filter(c => c.customerId === historyCustomer && c.storeId === currentUser.id).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-  const toggleCustomerSelection = (id: string) => {
-    setSelectedCustomers(prev => prev.includes(id) ? prev.filter(cId => cId !== id) : [...prev, id]);
-  };
-
-  const toggleSelectAll = () => {
-    if (selectedCustomers.length === filteredCustomers.length) {
-      setSelectedCustomers([]);
-    } else {
-      setSelectedCustomers(filteredCustomers.map(c => c.id));
-    }
-  };
-
-  const handleExportData = () => {
-    if (!currentUser) return;
-    const storeCustomers = users.filter(u => u.role === 'customer' && u.storeId === currentUser.id);
-    if (storeCustomers.length === 0) return;
-    const csvContent = [
-      '\uFEFF' + '손님 명부 (결)', 
-      '이름,전화번호,연동계정,성별,방문횟수', 
-      ...storeCustomers.map(c => `${c.name},${c.phone},${(c.linkedProviders || []).join('/') || '전화번호'},${c.gender || '미선택'},${(visits || []).filter(v => v.customerId === c.id && v.storeId === currentUser.id).length}`)
-    ].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `손님명부_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const sendBulkCoupon = () => {
+    const desc = prompt("발급할 쿠폰 설명을 입력하세요");
+    if (!desc) return;
+    bulkIssueCoupon(Array.from(selectedMode), storeId, "EVENT", desc);
+    setSelectedMode(new Set());
   };
 
   return (
-    <div className={`flex h-screen overflow-hidden bg-stone-50 font-sans text-stone-900 ${ownerViewMode === 'mobile' ? 'flex-col' : ''}`}>
-
-      {/* Sidebar */}
-      {ownerViewMode === 'desktop' && (
-        <aside className="h-screen w-24 lg:w-72 fixed left-0 bg-stone-900 shadow-2xl flex flex-col py-8 z-50">
-          <div className="px-8 mb-10">
-            <Link to="/" className="text-white font-sans font-black text-3xl">결</Link>
-            <div className="mt-6 hidden lg:block">
-              <p className="text-white font-sans font-black text-lg leading-tight">{currentUser.restaurantName}</p>
-              <p className="text-stone-400 text-sm font-bold mt-1">단골 관리</p>
-            </div>
-          </div>
-          <nav className="flex-1 space-y-1">
-            {[
-              { to: '/owner', icon: LayoutGrid, label: '대시보드' },
-              { to: '/owner/reservations', icon: CalendarIcon, label: '예약 관리' },
-              { to: '/owner/customers', icon: Users, label: '단골 관리', active: true },
-              { to: '/owner/photos', icon: CameraIcon, label: '사진 보관' },
-              { to: '/owner/statistics', icon: BarChart3, label: '매출 통계' },
-              { to: '/owner/brand-settings', icon: Settings, label: '매장 설정' }
-            ].map((item, idx) => (
-              <Link
-                key={idx}
-                to={item.to}
-                className={`flex items-center gap-4 px-8 py-4 transition-all ${item.active ? 'bg-white text-stone-900 mx-3 rounded-2xl shadow-lg' : 'text-stone-300 hover:bg-white/10 hover:text-white'}`}
-              >
-                <item.icon className="w-6 h-6 flex-shrink-0" />
-                <span className="text-base font-black hidden lg:block">{item.label}</span>
-              </Link>
-            ))}
-          </nav>
-          <button onClick={handleLogout} className="px-8 mt-auto text-stone-400 hover:text-white text-base font-bold flex items-center gap-3 py-3">
-            <LogOut className="w-5 h-5" /> <span className="hidden lg:block">로그아웃</span>
+    <OwnerShell
+      title={selectedMode.size > 0 ? `${selectedMode.size}명 선택` : "고객 관리"}
+      headerRight={
+        selectedMode.size > 0 ? (
+          <button
+            onClick={() => setSelectedMode(new Set())}
+            className="text-[13px] font-bold text-[var(--color-ink-600)] px-3 h-10 rounded-full hover:bg-[var(--color-navy-50)]"
+          >
+            선택 해제
           </button>
-        </aside>
-      )}
+        ) : null
+      }
+    >
+      <div>
+        <Input
+          placeholder="이름·전화번호 검색"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          leftSlot={<Search className="w-4 h-4" />}
+        />
 
-      {/* Mobile Bottom Navigation */}
-      {ownerViewMode === 'mobile' && (
-        <nav className="fixed bottom-0 left-0 right-0 bg-stone-900 border-t-2 border-stone-800 z-[100] px-2 py-2 flex justify-between items-center safe-area-bottom">
-          {[
-            { to: '/owner', icon: LayoutGrid, label: '홈' },
-            { to: '/owner/reservations', icon: CalendarIcon, label: '예약' },
-            { to: '/owner/customers', icon: Users, label: '단골', active: true },
-            { to: '/owner/brand-settings', icon: Utensils, label: '메뉴' },
-            { to: '/owner/photos', icon: CameraIcon, label: '사진' }
-          ].map((item, idx) => (
-            <Link
-              key={idx}
-              to={item.to}
-              className={`flex flex-col items-center gap-1 px-2 py-2 rounded-xl transition-all min-w-[60px] ${item.active ? 'bg-white text-stone-900' : 'text-stone-400'}`}
+        <div className="flex gap-2 mt-3 overflow-x-auto pb-1 -mx-1 px-1">
+          {(
+            [
+              ["all", "전체"],
+              ["vip", "VIP 레전드"],
+              ["new", "유망 신규"],
+              ["slipping", "이탈 위험"],
+              ["cold", "장기 휴면"],
+            ] as [Filter, string][]
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              onClick={() => setFilter(id)}
+              className={`shrink-0 h-9 px-4 rounded-full text-[12px] font-bold border ${
+                filter === id
+                  ? "bg-[var(--color-navy-700)] text-white border-transparent"
+                  : "bg-white text-[var(--color-ink-700)] border-[var(--color-line)]"
+              }`}
             >
-              <item.icon className="w-6 h-6" />
-              <span className="text-xs font-black">{item.label}</span>
-            </Link>
-          ))}
-        </nav>
-      )}
-
-      {/* Main Area */}
-      <main className={`${ownerViewMode === 'desktop' ? 'ml-24 lg:ml-72' : 'flex-1 pb-24'} flex-1 h-screen flex flex-col overflow-hidden`}>
-        {/* Header */}
-        <header className="bg-white border-b-2 border-stone-200 px-5 lg:px-10 pb-5 pt-[calc(env(safe-area-inset-top)+1.25rem)] flex justify-between items-center gap-4">
-          <div className="flex items-center gap-6 lg:gap-12">
-            <h1 className="text-2xl lg:text-4xl font-black text-stone-900">단골 관리</h1>
-            <button 
-              onClick={handleExportData}
-              className="hidden lg:flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-primary/60 hover:text-primary transition-colors"
-            >
-              <Download className="w-4 h-4" /> 명부 추출
+              {label}
             </button>
-          </div>
-          
-          <div className="flex items-center gap-3 lg:gap-4">
-             <div className="relative hidden md:block w-48 lg:w-80">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant/40" />
-                <input 
-                  type="text" 
-                  placeholder="단골 손님 검색..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full bg-surface-container border-none focus:ring-1 focus:ring-primary rounded-full pl-10 pr-4 py-2 text-xs lg:text-sm font-body"
-                />
-             </div>
-             <button
-                onClick={() => {
-                  setIsMultiSelectMode(!isMultiSelectMode);
-                  setSelectedCustomers([]);
-                }}
-                className={`px-4 lg:px-6 py-2 rounded-full font-sans font-bold text-xs lg:text-sm transition-all shadow-lg ${isMultiSelectMode ? 'bg-primary text-white' : 'bg-surface-container-highest text-primary'}`}
-             >
-               {isMultiSelectMode ? '취소' : (ownerViewMode === 'mobile' ? '일괄' : '일괄 서비스')}
-             </button>
-          </div>
-        </header>
+          ))}
+        </div>
 
-        <div className="flex-1 overflow-y-auto no-scrollbar p-8">
-          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-8 lg:mb-12">
-            <div>
-               <h2 className="text-3xl lg:text-4xl font-sans font-black text-primary tracking-tight">단골 명부</h2>
-               <p className="text-on-surface-variant/60 text-[10px] lg:text-[11px] font-bold uppercase tracking-widest mt-1 lg:mt-2">{currentUser.restaurantName}의 소중한 손님 기록입니다.</p>
-            </div>
-            
-            <div className="flex bg-surface-container p-1 rounded-xl overflow-x-auto no-scrollbar">
-              {['all', 'VIP', '다이아', '골드', '실버', '브론즈', '일반'].map(tier => (
-                <button
-                  key={tier}
-                  onClick={() => setFilterTier(tier)}
-                  className={`px-5 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all whitespace-nowrap ${filterTier === tier ? 'bg-white text-primary shadow-sm' : 'text-on-surface-variant/40 hover:text-primary'}`}
-                >
-                  {tier === 'all' ? '전체 등급' : getTierCustomName(tier, currentUser?.tierNames)}
-                </button>
-              ))}
-            </div>
+        {selectedMode.size > 0 && (
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <Button variant="mint" size="md" onClick={sendBulkCoupon} leftIcon={<Ticket className="w-4 h-4" />}>
+              일괄 쿠폰 발급
+            </Button>
+            <Button
+              variant="outline"
+              size="md"
+              onClick={() => setSelectedMode(new Set())}
+              leftIcon={<X className="w-4 h-4" />}
+            >
+              해제
+            </Button>
           </div>
+        )}
 
-          {isMultiSelectMode && (
-             <div className="mb-8 flex justify-between items-center bg-primary/5 p-6 rounded-2xl border border-primary/20 animate-in fade-in slide-in-from-top-4">
-                <button onClick={toggleSelectAll} className="flex items-center gap-3 text-primary font-bold text-xs">
-                  {selectedCustomers.length === filteredCustomers.length && filteredCustomers.length > 0 ? <CheckSquare className="w-5 h-5" /> : <Square className="w-5 h-5" />}
-                  전체 선택 ({selectedCustomers.length}명)
-                </button>
-                <button
-                  disabled={selectedCustomers.length === 0}
-                  onClick={() => setSelectedCustomer('bulk')}
-                  className="px-8 py-3 bg-primary text-white rounded-xl text-xs font-bold uppercase tracking-widest disabled:opacity-30 shadow-lg"
-                >일괄 서비스 발송</button>
-             </div>
-          )}
-
-          <div className="flex flex-col gap-4">
-            {filteredCustomers.map(customer => {
-              const stats = getCustomerStats(customer.id);
-              const isSelected = selectedCustomers.includes(customer.id);
+        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2 pb-8">
+          {myCustomers.length === 0 ? (
+            <Card padding="lg" className="text-center body-md md:col-span-2 xl:col-span-3">
+              조건에 맞는 고객이 없습니다.
+            </Card>
+          ) : (
+            myCustomers.map(({ user, visits, cluster, tier }) => {
+              const badge = TIER_BADGE[tier];
+              const checked = selectedMode.has(user.id);
               return (
-                <div 
-                  key={customer.id} 
-                  className={`bg-white rounded-2xl p-5 shadow-sm border transition-all relative group ${isMultiSelectMode && isSelected ? 'border-primary ring-2 ring-primary/10' : 'border-primary/10 hover:shadow-md'}`}
-                  onClick={() => isMultiSelectMode && toggleCustomerSelection(customer.id)}
+                <Card
+                  key={user.id}
+                  padding="md"
+                  className="flex items-center gap-3"
+                  onClick={() => {
+                    if (selectedMode.size > 0) toggleMulti(user.id);
+                    else setSelected(user);
+                  }}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    toggleMulti(user.id);
+                  }}
                 >
-                  <div className="absolute top-5 right-5 flex gap-2">
-                     <button onClick={(e) => { e.stopPropagation(); setHistoryCustomer(customer.id); }} className="text-primary/40 hover:text-primary transition-all"><History className="w-4 h-4" /></button>
-                  </div>
-
-                  <div className="flex items-center gap-4 mb-4">
-                     <div className="w-12 h-12 rounded-full bg-surface-dim flex items-center justify-center font-serif text-xl font-black text-primary border border-primary/5">{customer.name.charAt(0)}</div>
-                     <div>
-                        <div className="flex items-center gap-2 mb-1">
-                           <h3 className="text-base font-bold text-primary">{customer.name}</h3>
-                           <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-widest ${getTierColor(stats.tier)} text-white`}>
-                              {getTierCustomName(stats.tier, currentUser?.tierNames)}
-                           </span>
-                        </div>
-                        <p className="text-[11px] font-bold text-primary/40 tracking-widest">{customer.phone}</p>
-                     </div>
-                  </div>
-
-                  <div className="flex items-center gap-4 text-[11px] font-bold text-primary/60 mb-4 bg-surface-bright px-4 py-2.5 rounded-xl border border-primary/5">
-                     <div className="flex-1 text-center border-r border-primary/10">정상결제 <span className="text-primary">{stats.totalVisits}회</span></div>
-                     <div className="flex-1 text-center border-r border-primary/10">마지막 방문 <span className="text-primary">{stats.daysSinceLastVisit ?? 0}일 전</span></div>
-                     <div className="flex-1 text-center">포인트 <span className="text-primary">{customer.rewardBalance || 0}</span></div>
-                  </div>
-
-                  {customer.memo && (
-                    <div className="mb-4 p-3 bg-primary/5 rounded-xl border-l-2 border-primary text-[10px] text-primary/70 line-clamp-2">
-                       {formatMemoDisplay(customer.memo)}
+                  {selectedMode.size > 0 ? (
+                    <div
+                      className={`w-10 h-10 rounded-full border-2 inline-flex items-center justify-center ${
+                        checked
+                          ? "bg-[var(--color-navy-700)] border-[var(--color-navy-700)] text-white"
+                          : "border-[var(--color-line)]"
+                      }`}
+                    >
+                      {checked && "✓"}
+                    </div>
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-[var(--color-navy-100)] text-[var(--color-navy-700)] font-extrabold inline-flex items-center justify-center">
+                      {user.name?.[0] ?? "?"}
                     </div>
                   )}
-
-                  <div className="flex gap-2 mt-2">
-                     <button 
-                       onClick={(e) => { e.stopPropagation(); setEditingMemoCustomer(customer.id); }}
-                       className="flex-1 bg-primary text-white py-3 rounded-xl text-[11px] font-bold uppercase tracking-widest shadow-md hover:bg-accent-burgundy transition-all"
-                     >사장님 메모</button>
-                     <button 
-                       onClick={(e) => { e.stopPropagation(); setSelectedCustomer(customer.id); }}
-                       className="p-3 rounded-xl border border-primary/10 text-primary hover:bg-primary/5 transition-all"
-                     ><Send className="w-4 h-4" /></button>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-[15px] font-bold text-[var(--color-navy-900)] truncate">{user.name}</p>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${badge.bg} ${badge.text}`}>
+                        {tier}
+                      </span>
+                    </div>
+                    <p className="text-[12px] text-[var(--color-ink-500)] truncate">
+                      방문 {visits.length}회 · {cluster.label}
+                    </p>
                   </div>
-                </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleMulti(user.id);
+                    }}
+                    className="text-[11px] font-semibold text-[var(--color-ink-500)] px-2"
+                  >
+                    선택
+                  </button>
+                </Card>
               );
-            })}
-          </div>
+            })
+          )}
         </div>
-      </main>
+      </div>
 
-      {/* Modals */}
-      {selectedCustomer && (
-        <div className="fixed inset-0 bg-primary/20 backdrop-blur-md z-[200] flex items-center justify-center p-6">
-          <div className="bg-white w-full max-w-md rounded-3xl p-10 shadow-3xl border border-outline-variant/30 animate-in fade-in zoom-in duration-300">
-            <div className="flex justify-between items-center mb-8">
-              <h2 className="font-sans text-2xl text-primary font-black">서비스 전송</h2>
-              <button onClick={() => setSelectedCustomer(null)} className="p-2 hover:bg-surface-container rounded-full transition-all"><X className="w-6 h-6 text-on-surface-variant/40" /></button>
-            </div>
-            
-            <form onSubmit={handleSend} className="space-y-6">
-               <div className="flex bg-surface-container p-1 rounded-xl mb-6">
-                  <button type="button" onClick={() => setSendType('coupon')} className={`flex-1 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${sendType === 'coupon' ? 'bg-white text-primary shadow-sm' : 'text-on-surface-variant/40'}`}>쿠폰 서비스</button>
-                  <button type="button" onClick={() => setSendType('message')} className={`flex-1 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${sendType === 'message' ? 'bg-white text-primary shadow-sm' : 'text-on-surface-variant/40'}`}>문자 발송</button>
-               </div>
-
-               {sendType === 'coupon' ? (
-                 <select
-                   value={selectedPredefinedCoupon}
-                   onChange={e => {
-                     setSelectedPredefinedCoupon(e.target.value);
-                     if (e.target.value !== 'custom') {
-                       const sel = predefinedCoupons.find(c => c.id === e.target.value);
-                       if (sel) setContent(sel.title);
-                     } else setContent('');
-                   }}
-                   className="w-full bg-surface-container border-none rounded-xl px-4 py-3 text-sm font-body"
-                 >
-                   <option value="" disabled>서비스 품목 선택</option>
-                   {predefinedCoupons.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
-                 </select>
-               ) : (
-                 <textarea 
-                   rows={4}
-                   className="w-full bg-surface-container border-none rounded-xl px-4 py-3 text-sm font-body resize-none"
-                   placeholder="발송할 내용을 입력해 주세요..."
-                   value={content}
-                   onChange={e => setContent(e.target.value)}
-                 />
-               )}
-               
-               <button 
-                 type="submit" 
-                 disabled={isSending || !content}
-                 className="w-full py-4 bg-primary text-white rounded-xl font-bold uppercase tracking-widest text-xs disabled:opacity-30 shadow-lg hover:bg-accent-burgundy"
-               >{isSending ? '발송 중...' : '발송 확정'}</button>
-            </form>
-          </div>
-        </div>
+      {selected && (
+        <CustomerDetail
+          user={selected}
+          storeId={storeId}
+          onClose={() => setSelected(null)}
+          stats={myCustomers.find((c) => c.user.id === selected.id)}
+          coupons={coupons.filter((c) => c.customerId === selected.id)}
+          communications={communications.filter((c) => c.customerId === selected.id).slice(0, 5)}
+          onIssue={(type, desc) => issueCoupon(selected.id, storeId, type, desc)}
+          onMemo={(m) => updateUserMemo(selected.id, m)}
+          onSetTier={(t) => setCustomerTier(selected.id, storeId, t)}
+          onCommunicate={recordCommunication}
+        />
       )}
+    </OwnerShell>
+  );
+}
 
-      {historyCustomer && (
-        <div className="fixed inset-0 bg-primary/20 backdrop-blur-md z-[200] flex items-center justify-center p-6">
-          <div className="bg-white w-full max-w-lg rounded-3xl p-10 shadow-3xl border border-outline-variant/30 flex flex-col max-h-[80vh]">
-            <div className="flex justify-between items-center mb-10">
-              <h2 className="font-sans text-2xl text-primary font-black">활동 내역</h2>
-              <button onClick={() => setHistoryCustomer(null)} className="p-2 hover:bg-surface-container rounded-full transition-all"><X className="w-6 h-6 text-on-surface-variant/40" /></button>
+interface DetailProps {
+  user: User;
+  storeId: string;
+  onClose: () => void;
+  stats?: { rfm: { r: number; f: number; m: number }; cluster: { id: string; label: string }; tier: Tier; overrideTier?: Tier | "auto" };
+  coupons: { id: string; type: string; description: string; status: string }[];
+  communications: { id: string; type: string; content: string; date: string }[];
+  onIssue: (type: string, desc: string) => void;
+  onMemo: (m: string) => void;
+  onSetTier: (t: Tier | "auto") => void;
+  onCommunicate: (cid: string, sid: string, type: "coupon" | "message", content: string) => void;
+}
+
+function CustomerDetail({
+  user,
+  storeId,
+  onClose,
+  stats,
+  coupons,
+  communications,
+  onIssue,
+  onMemo,
+  onSetTier,
+  onCommunicate,
+}: DetailProps) {
+  const [memo, setMemo] = useState(user.memo ?? "");
+  const insight = stats ? DEFAULT_INSIGHTS[stats.cluster.id as keyof typeof DEFAULT_INSIGHTS] : "";
+
+  const sendMessage = async (channel: "kakao" | "sms") => {
+    const content = prompt("보낼 메시지를 입력하세요");
+    if (!content) return;
+    let res;
+    if (channel === "kakao") {
+      res = await sendKakaoMessage(content, "결 매장", storeId);
+    } else {
+      res = await sendPhysicalSms(user.phone, content, "device");
+    }
+    if (res.ok) {
+      onCommunicate(user.id, storeId, "message", `[${channel}] ${content}`);
+      showToast("메시지를 전송했습니다.", "success");
+    } else {
+      showToast(res.message ?? "전송 실패", "error");
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-end" onClick={onClose}>
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-[480px] mx-auto bg-white rounded-t-[28px] p-6 pb-[max(env(safe-area-inset-bottom),24px)] max-h-[92vh] overflow-y-auto"
+      >
+        <div className="w-12 h-1.5 rounded-full bg-[var(--color-ink-100)] mx-auto mb-5" />
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-12 h-12 rounded-full bg-[var(--color-navy-100)] text-[var(--color-navy-700)] font-extrabold inline-flex items-center justify-center">
+            {user.name?.[0] ?? "?"}
+          </div>
+          <div>
+            <p className="text-[18px] font-extrabold text-[var(--color-navy-900)]">{user.name}</p>
+            <p className="text-[12px] text-[var(--color-ink-500)]">{user.phone || "—"}</p>
+          </div>
+        </div>
+
+        {stats && (
+          <Card padding="md" className="mb-3 bg-[var(--color-navy-50)] border-transparent">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] font-bold text-[var(--color-navy-700)] uppercase">{stats.cluster.label}</span>
+              <span className="text-[12px] font-bold text-[var(--color-navy-900)]">
+                R{stats.rfm.r} · F{stats.rfm.f} · M{stats.rfm.m}
+              </span>
             </div>
-            <div className="flex-1 overflow-y-auto no-scrollbar space-y-4">
-              {customerHistory.map(comm => (
-                <div key={comm.id} className="p-6 bg-surface-container rounded-2xl border border-outline-variant/10">
-                  <div className="flex justify-between mb-2">
-                    <span className={`text-[9px] font-bold px-2 py-1 rounded-full text-white ${comm.type === 'coupon' ? 'bg-primary' : 'bg-on-surface-variant'}`}>{comm.type === 'coupon' ? '쿠폰' : '메시지'}</span>
-                    <span className="text-[9px] font-bold text-on-surface-variant/40">{new Date(comm.date).toLocaleDateString()}</span>
-                  </div>
-                  <p className="text-sm text-primary font-medium">{comm.content}</p>
-                </div>
+            <p className="text-[13px] font-semibold text-[var(--color-navy-900)]">💡 {insight}</p>
+          </Card>
+        )}
+
+        <Section title="등급 수동 지정">
+          <div className="flex flex-wrap gap-2">
+            {["auto", ...TIER_ORDER].map((t) => (
+              <button
+                key={t}
+                onClick={() => onSetTier(t as Tier | "auto")}
+                className={`h-9 px-3 rounded-full text-[12px] font-bold border ${
+                  (stats?.overrideTier ?? "auto") === t
+                    ? "bg-[var(--color-navy-700)] text-white border-transparent"
+                    : "bg-white text-[var(--color-ink-700)] border-[var(--color-line)]"
+                }`}
+              >
+                {t === "auto" ? "자동" : t}
+              </button>
+            ))}
+          </div>
+        </Section>
+
+        <Section title="메모">
+          <textarea
+            value={memo}
+            onChange={(e) => setMemo(e.target.value)}
+            placeholder="고객 특이사항"
+            className="input-field min-h-[80px] resize-none"
+          />
+          <Button
+            size="md"
+            className="mt-2"
+            disabled={memo === (user.memo ?? "")}
+            onClick={() => onMemo(memo)}
+            leftIcon={<Save className="w-4 h-4" />}
+          >
+            메모 저장
+          </Button>
+        </Section>
+
+        <Section title="쿠폰">
+          <div className="grid grid-cols-2 gap-2 mb-2">
+            <Button
+              size="md"
+              variant="mint"
+              onClick={() => {
+                const desc = prompt("쿠폰 설명");
+                if (desc) onIssue("EVENT", desc);
+              }}
+              leftIcon={<Ticket className="w-4 h-4" />}
+            >
+              쿠폰 발급
+            </Button>
+            <Button
+              size="md"
+              variant="ghost"
+              onClick={() => sendMessage("kakao")}
+              leftIcon={<MessageSquare className="w-4 h-4" />}
+            >
+              메시지
+            </Button>
+          </div>
+          {coupons.length === 0 ? (
+            <p className="text-[12px] text-[var(--color-ink-500)]">발급 쿠폰 없음.</p>
+          ) : (
+            <ul className="text-[12px] text-[var(--color-ink-700)] space-y-1">
+              {coupons.slice(0, 5).map((c) => (
+                <li key={c.id}>
+                  · {c.description} <span className="text-[var(--color-ink-500)]">({c.status})</span>
+                </li>
               ))}
-            </div>
-          </div>
-        </div>
-      )}
+            </ul>
+          )}
+        </Section>
 
-      <MemoModal
-        isOpen={!!editingMemoCustomer}
-        onClose={() => setEditingMemoCustomer(null)}
-        initialMemo={users.find(u => u.id === editingMemoCustomer)?.memo || ''}
-        onSave={memo => editingMemoCustomer && updateUserMemo(editingMemoCustomer, currentUser.id, memo)}
-      />
+        {communications.length > 0 && (
+          <Section title="최근 통신">
+            <ul className="text-[12px] text-[var(--color-ink-700)] space-y-1">
+              {communications.map((c) => (
+                <li key={c.id}>· {c.content}</li>
+              ))}
+            </ul>
+          </Section>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="mt-4">
+      <h3 className="text-[13px] font-bold text-[var(--color-ink-500)] uppercase tracking-wide mb-2">{title}</h3>
+      {children}
     </div>
   );
 }
