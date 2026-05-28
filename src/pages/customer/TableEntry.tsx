@@ -22,13 +22,16 @@ export default function TableEntry() {
     }
   }, [currentUser, storeId, tableNumber, nav]);
 
-  // Verify store exists (with retries)
+  // Verify store exists (with retries) + 한 번만 recordVisit 호출
   useEffect(() => {
     if (!currentUser || currentUser.role !== "customer") return;
     if (!storeId || !tableNumber) {
       setStatus("missing");
       return;
     }
+    // 이미 처리 중이거나 완료된 상태면 더 이상 실행하지 않음
+    if (status !== "checking") return;
+
     const owner = users.find((u) => u.id === storeId && u.role === "owner");
     if (owner) {
       setStatus("recording");
@@ -45,7 +48,7 @@ export default function TableEntry() {
       return () => clearTimeout(t);
     }
     setStatus("missing");
-  }, [attempts, users, storeId, tableNumber, currentUser, recordVisit, nav]);
+  }, [attempts, users, storeId, tableNumber, currentUser, recordVisit, nav, status]);
 
   return (
     <MobileShell>

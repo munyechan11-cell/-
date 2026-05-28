@@ -149,22 +149,22 @@ function renderReceiptCanvas({ storeName, order, footer }: ReceiptInput): HTMLCa
 
   // ===== 영수증 구성 =====
   addLine(() => {
-    ctx.font = "bold 18px sans-serif";
+    ctx.font = "bold 18px 'Malgun Gothic', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif";
     ctx.textAlign = "center";
     ctx.fillText("[ QR 주문 접수 ]", width / 2, 0);
   });
   addLine(() => {
-    ctx.font = "bold 28px sans-serif";
+    ctx.font = "bold 28px 'Malgun Gothic', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif";
     ctx.textAlign = "center";
     ctx.fillText(storeName, width / 2, 0);
   });
   addLine(() => {
-    ctx.font = "16px sans-serif";
+    ctx.font = "16px 'Malgun Gothic', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif";
     ctx.textAlign = "center";
     ctx.fillText(created.toLocaleString("ko-KR"), width / 2, 0);
   });
   addLine(() => {
-    ctx.font = "16px sans-serif";
+    ctx.font = "16px 'Malgun Gothic', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif";
     ctx.textAlign = "center";
     ctx.fillText(`주문번호 #${order.id.slice(-6).toUpperCase()}`, width / 2, 0);
   });
@@ -186,7 +186,7 @@ function renderReceiptCanvas({ storeName, order, footer }: ReceiptInput): HTMLCa
     ctx.fillStyle = "black";
     ctx.fillRect(0, -22, width, 44);
     ctx.fillStyle = "white";
-    ctx.font = "bold 32px sans-serif";
+    ctx.font = "bold 32px 'Malgun Gothic', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif";
     ctx.textAlign = "center";
     ctx.fillText(`테이블 ${order.tableNumber}`, width / 2, 8);
     ctx.fillStyle = "black";
@@ -194,7 +194,7 @@ function renderReceiptCanvas({ storeName, order, footer }: ReceiptInput): HTMLCa
 
   // items header
   addLine(() => {
-    ctx.font = "bold 13px sans-serif";
+    ctx.font = "bold 13px 'Malgun Gothic', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif";
     ctx.fillStyle = "black";
     ctx.textAlign = "left";
     ctx.fillText("품목", 0, 0);
@@ -215,7 +215,7 @@ function renderReceiptCanvas({ storeName, order, footer }: ReceiptInput): HTMLCa
   // items
   for (const it of order.items) {
     addLine(() => {
-      ctx.font = "bold 18px sans-serif";
+      ctx.font = "bold 18px 'Malgun Gothic', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif";
       ctx.textAlign = "left";
       ctx.fillText(truncate(ctx, it.name, width - 130), 0, 0);
       ctx.textAlign = "center";
@@ -238,14 +238,14 @@ function renderReceiptCanvas({ storeName, order, footer }: ReceiptInput): HTMLCa
   // total
   const totalQty = order.items.reduce((s, it) => s + it.quantity, 0);
   addLine(() => {
-    ctx.font = "13px sans-serif";
+    ctx.font = "13px 'Malgun Gothic', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif";
     ctx.textAlign = "left";
     ctx.fillStyle = "#555";
     ctx.fillText(`총 ${order.items.length}종 · ${totalQty}개`, 0, 0);
     ctx.fillStyle = "black";
   });
   addLine(() => {
-    ctx.font = "bold 22px sans-serif";
+    ctx.font = "bold 22px 'Malgun Gothic', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif";
     ctx.textAlign = "left";
     ctx.fillText("합계", 0, 0);
     ctx.textAlign = "right";
@@ -266,19 +266,19 @@ function renderReceiptCanvas({ storeName, order, footer }: ReceiptInput): HTMLCa
 
   // pos note
   addLine(() => {
-    ctx.font = "13px sans-serif";
+    ctx.font = "13px 'Malgun Gothic', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif";
     ctx.textAlign = "center";
     ctx.fillText("결(Gyeol)에서 접수된 QR 주문입니다.", width / 2, 0);
   });
   addLine(() => {
-    ctx.font = "13px sans-serif";
+    ctx.font = "13px 'Malgun Gothic', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif";
     ctx.textAlign = "center";
     ctx.fillText("POS에 동일하게 입력해 주세요.", width / 2, 0);
   });
 
   if (footer) {
     addLine(() => {
-      ctx.font = "12px sans-serif";
+      ctx.font = "12px 'Malgun Gothic', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif";
       ctx.textAlign = "center";
       ctx.fillStyle = "#555";
       ctx.fillText(footer, width / 2, 0);

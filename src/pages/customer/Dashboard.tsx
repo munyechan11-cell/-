@@ -524,9 +524,16 @@ function CouponRow({
 
 function SessionTimer({ start }: { start: string | null }) {
   const [elapsed, setElapsed] = useState(() => (start ? Date.now() - new Date(start).getTime() : 0));
-  useMemo(() => {
-    if (!start) return;
-    const id = window.setInterval(() => setElapsed(Date.now() - new Date(start).getTime()), 1000);
+  useEffect(() => {
+    if (!start) {
+      setElapsed(0);
+      return;
+    }
+    setElapsed(Date.now() - new Date(start).getTime());
+    const id = window.setInterval(
+      () => setElapsed(Date.now() - new Date(start).getTime()),
+      1000
+    );
     return () => clearInterval(id);
   }, [start]);
   const m = Math.floor(elapsed / 60000);

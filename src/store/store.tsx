@@ -941,9 +941,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
       if (hasPosApi || owner?.foodtechStoreCode) {
         const apiKey = owner?.posApiKey || owner?.foodtechStoreCode || "";
-        const ok = await relayOrderToPos(apiKey, order, (mid) => {
-          return menus.find((m) => m.id === mid)?.posProductCode;
-        });
+        const ok = await relayOrderToPos(
+          apiKey,
+          order,
+          (mid) => menus.find((m) => m.id === mid)?.posProductCode,
+          owner?.posVendor
+        );
         if (!ok) {
           showToast("POS 전달 실패. 영수증을 인쇄합니다.", "info");
           await tryThermalThenPopup("POS 전송 실패 - 수동 처리 필요");
@@ -965,8 +968,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const payTableSession = useCallback(
     async (customerId: string, storeId: string, tableNumber: number): Promise<number> => {
-      const ordersNow = ordersRef.current ?? orders;
-      const tablesNow = tablesRef.current ?? tables;
+      const ordersNow = ordersRef.current;
+      const tablesNow = tablesRef.current;
       const unpaid = ordersNow.filter(
         (o) =>
           o.customerId === customerId &&
@@ -1000,7 +1003,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       showToast(`₩ ${total.toLocaleString()} 결제 완료`, "success");
       return total;
     },
-    [orders, tables]
+    []
   );
 
   // ============ CRM ============
