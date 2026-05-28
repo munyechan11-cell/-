@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Search, Ticket, MessageSquare, Save, X } from "lucide-react";
 import { OwnerShell } from "../../components/layout/OwnerShell";
 import { Card } from "../../components/ui/Card";
@@ -8,6 +8,7 @@ import { useStore } from "../../store/store";
 import { calculateRFM, getRFMCluster, getEffectiveTier, TIER_BADGE, TIER_ORDER, DEFAULT_INSIGHTS } from "../../lib/tier";
 import { sendKakaoMessage, sendPhysicalSms } from "../../lib/messaging";
 import { showToast } from "../../lib/toast";
+import { useEscapeClose } from "../../lib/useEscapeClose";
 import type { Tier, User } from "../../lib/types";
 
 type Filter = "all" | "vip" | "new" | "slipping" | "cold";
@@ -232,7 +233,7 @@ interface DetailProps {
   coupons: { id: string; type: string; description: string; status: string }[];
   communications: { id: string; type: string; content: string; date: string }[];
   onIssue: (type: string, desc: string) => void;
-  onMemo: (m: string) => void;
+  onMemo: (m: string) => Promise<void> | void;
   onSetTier: (t: Tier | "auto") => void;
   onCommunicate: (cid: string, sid: string, type: "coupon" | "message", content: string) => void;
 }
@@ -250,6 +251,13 @@ function CustomerDetail({
   onCommunicate,
 }: DetailProps) {
   const [memo, setMemo] = useState(user.memo ?? "");
+  // 다른 고객을 열거나 user.memo가 외부에서 갱신되면 textarea 동기화
+  useEffect(() => {
+    setMemo(user.memo ?? "");
+  }, [user.id, user.memo]);
+
+  useEscapeClose(true, onClose);
+
   const insight = stats ? DEFAULT_INSIGHTS[stats.cluster.id as keyof typeof DEFAULT_INSIGHTS] : "";
 
   const sendMessage = async (channel: "kakao" | "sms") => {
@@ -327,7 +335,10 @@ function CustomerDetail({
             size="md"
             className="mt-2"
             disabled={memo === (user.memo ?? "")}
-            onClick={() => onMemo(memo)}
+            onClick={async () => {
+              await onMemo(memo);
+              showToast("메모를 저장했습니다.", "success");
+            }}
             leftIcon={<Save className="w-4 h-4" />}
           >
             메모 저장

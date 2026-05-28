@@ -8,6 +8,7 @@ import { useStore } from "../../store/store";
 import { formatPhoneNumber } from "../../lib/ids";
 import type { Reservation, ReservationStatus } from "../../lib/types";
 import { showToast } from "../../lib/toast";
+import { useEscapeClose } from "../../lib/useEscapeClose";
 
 const STATUS_LABELS: Record<ReservationStatus, string> = {
   confirmed: "예약 확정",
@@ -50,6 +51,7 @@ export default function OwnerReservations() {
   const storeId = currentUser?.id ?? "";
   const [filter, setFilter] = useState<"upcoming" | "all">("upcoming");
   const [draft, setDraft] = useState<Draft | null>(null);
+  useEscapeClose(!!draft, () => setDraft(null));
 
   const list = useMemo(() => {
     const all = reservations.filter((r) => r.storeId === storeId);
@@ -149,8 +151,13 @@ export default function OwnerReservations() {
                         {STATUS_LABELS[r.status]}
                       </span>
                       <button
-                        onClick={() => deleteReservation(r.id)}
+                        onClick={() => {
+                          if (confirm(`${r.customerName} 고객의 예약을 삭제하시겠습니까?`)) {
+                            deleteReservation(r.id);
+                          }
+                        }}
                         className="ml-auto w-8 h-8 rounded-full hover:bg-[var(--color-danger)]/10 inline-flex items-center justify-center text-[var(--color-danger)]"
+                        aria-label="예약 삭제"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -167,15 +174,15 @@ export default function OwnerReservations() {
                         {r.memo}
                       </p>
                     )}
-                    <div className="flex gap-1 mt-2">
+                    <div className="grid grid-cols-4 gap-1 mt-2">
                       {(["confirmed", "completed", "no-show", "cancelled"] as ReservationStatus[]).map((s) => (
                         <button
                           key={s}
                           onClick={() => updateReservation(r.id, { status: s })}
-                          className={`flex-1 h-7 rounded text-[10px] font-bold ${
+                          className={`h-9 rounded-lg text-[11px] font-bold transition-colors ${
                             r.status === s
                               ? "bg-[var(--color-navy-700)] text-white"
-                              : "bg-[var(--color-bg)] text-[var(--color-ink-500)]"
+                              : "bg-[var(--color-bg)] text-[var(--color-ink-600)] hover:bg-[var(--color-navy-50)]"
                           }`}
                         >
                           {STATUS_LABELS[s]}

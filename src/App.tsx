@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-route
 import { useStore } from "./store/store";
 import { ToastHost } from "./components/ui/Toast";
 import { PageLoader } from "./components/ui/PageLoader";
+import { GlobalOrderNotifier } from "./components/layout/GlobalOrderNotifier";
 
 const Home = lazy(() => import("./pages/Home"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -64,6 +65,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <ToastHost />
+      <GlobalOrderNotifier />
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/" element={<Home />} />

@@ -18,6 +18,7 @@ import { OwnerShell } from "../../components/layout/OwnerShell";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
+import { NumberField } from "../../components/ui/NumberField";
 import { useStore } from "../../store/store";
 import { cn } from "../../lib/cn";
 import type { TableDoc, TableStatus } from "../../lib/types";
@@ -129,23 +130,24 @@ export default function OwnerTables() {
               <Layers className="w-4 h-4 text-[var(--color-navy-700)]" />
               <h3 className="text-[14px] font-bold text-[var(--color-navy-900)]">구역</h3>
             </div>
-            <div className="flex gap-2">
+            <form
+              className="flex gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!newSection.trim()) return;
+                addSection(storeId, newSection.trim());
+                setNewSection("");
+              }}
+            >
               <Input
                 placeholder="구역 이름 (예: 홀1)"
                 value={newSection}
                 onChange={(e) => setNewSection(e.target.value)}
               />
-              <Button
-                size="md"
-                disabled={!newSection.trim()}
-                onClick={() => {
-                  addSection(storeId, newSection.trim());
-                  setNewSection("");
-                }}
-              >
+              <Button size="md" type="submit" disabled={!newSection.trim()}>
                 추가
               </Button>
-            </div>
+            </form>
             {sections.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-3">
                 {sections.map((s) => (
@@ -187,7 +189,7 @@ export default function OwnerTables() {
                         <p className="text-[14px] font-bold text-[var(--color-navy-900)]">
                           {t.type === "room" ? "룸" : t.type === "door" ? "출입구" : "테이블"} {t.number}
                         </p>
-                        <p className="body-sm">{t.seats}인</p>
+                        {t.type !== "door" && <p className="body-sm">{t.seats}인</p>}
                       </div>
                       <button
                         onClick={(e) => {
@@ -234,12 +236,11 @@ export default function OwnerTables() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <p className="text-[12px] text-[var(--color-ink-500)] mb-1.5 font-semibold">좌석 수</p>
-                  <Input
-                    type="number"
+                  <NumberField
                     value={selected.seats}
-                    onChange={(e) =>
-                      updateTableLayout(storeId, selected.number, { seats: Math.max(1, Number(e.target.value) || 1) })
-                    }
+                    min={1}
+                    max={99}
+                    onCommit={(v) => updateTableLayout(storeId, selected.number, { seats: v })}
                   />
                 </div>
                 <div>
@@ -297,15 +298,17 @@ export default function OwnerTables() {
                   <Maximize2 className="w-3 h-3" /> 크기
                 </p>
                 <div className="grid grid-cols-2 gap-2">
-                  <Input
-                    type="number"
+                  <NumberField
                     value={selected.width ?? 70}
-                    onChange={(e) => updateTableLayout(storeId, selected.number, { width: Math.max(40, Number(e.target.value) || 70) })}
+                    min={40}
+                    max={400}
+                    onCommit={(v) => updateTableLayout(storeId, selected.number, { width: v })}
                   />
-                  <Input
-                    type="number"
+                  <NumberField
                     value={selected.height ?? 70}
-                    onChange={(e) => updateTableLayout(storeId, selected.number, { height: Math.max(40, Number(e.target.value) || 70) })}
+                    min={40}
+                    max={400}
+                    onCommit={(v) => updateTableLayout(storeId, selected.number, { height: v })}
                   />
                 </div>
               </div>

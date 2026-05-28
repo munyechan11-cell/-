@@ -147,10 +147,12 @@ export default function OwnerOrders() {
       const printers = await getAuthorizedPrinters();
       if (printers.length > 0) {
         await printReceiptViaUsb(payload);
+        showToast("영수증을 재인쇄했습니다.", "success");
         return;
       }
     } catch (e: any) {
-      showToast(`USB 인쇄 실패: ${e?.message ?? ""}. 팝업으로 인쇄합니다.`, "info");
+      // USB 실패 → 팝업으로 폴백 (한 번만 안내)
+      showToast(`USB 인쇄 실패. 팝업으로 인쇄합니다.`, "info");
     }
     printReceipt(payload);
   };
@@ -278,7 +280,11 @@ export default function OwnerOrders() {
                     const nxt = NEXT_STATUS[o.status];
                     if (nxt) updateOrderStatus(o.id, nxt);
                   }}
-                  onCancel={() => updateOrderStatus(o.id, "cancelled")}
+                  onCancel={() => {
+                    if (confirm(`테이블 ${o.tableNumber}번 주문을 취소하시겠습니까?\n취소된 주문은 되돌릴 수 없습니다.`)) {
+                      updateOrderStatus(o.id, "cancelled");
+                    }
+                  }}
                   onReprint={() => reprintReceipt(o)}
                 />
               ))}

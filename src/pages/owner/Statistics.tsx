@@ -14,8 +14,16 @@ export default function OwnerStatistics() {
 
   const stats = useMemo(() => {
     const now = Date.now();
-    const ms = range === "day" ? 1 : range === "week" ? 7 : 30;
-    const cutoff = now - ms * 86_400_000;
+    // "오늘"은 캘린더 기준 자정부터, 주/월은 N일 전부터
+    let cutoff: number;
+    if (range === "day") {
+      const start = new Date();
+      start.setHours(0, 0, 0, 0);
+      cutoff = start.getTime();
+    } else {
+      const ms = range === "week" ? 7 : 30;
+      cutoff = now - ms * 86_400_000;
+    }
     const periodVisits = visits.filter(
       (v) => v.storeId === storeId && new Date(v.date).getTime() >= cutoff
     );

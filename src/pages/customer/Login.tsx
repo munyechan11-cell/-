@@ -18,7 +18,7 @@ export default function CustomerLogin() {
   const { storeId } = useParams();
   const [params] = useSearchParams();
   const tableNum = params.get("table");
-  const { login } = useStore();
+  const { login, users } = useStore();
 
   const [step, setStep] = useState<Step>(1);
   const [name, setName] = useState("");
@@ -49,6 +49,32 @@ export default function CustomerLogin() {
     setLoading(true);
     try {
       const res = provider === "google" ? await signInWithGoogle() : await signInWithKakao();
+
+      // 기존 계정이면 바로 로그인 (재가입 절차 생략)
+      const existing = users.find(
+        (u) =>
+          u.role === "customer" &&
+          u.status !== "deleted" &&
+          (u.socialIds?.includes(res.id) ||
+            u.googleId === res.id ||
+            u.kakaoId === res.id)
+      );
+
+      if (existing) {
+        await login({
+          phone: existing.phone ?? "",
+          name: existing.name,
+          role: "customer",
+          socialId: res.id,
+          socialProvider: provider,
+          authType: provider,
+          avatarUrl: res.avatarUrl,
+        });
+        onAfterLogin();
+        return;
+      }
+
+      // 신규: 가입 절차로 진입
       setSocial({ id: res.id, provider, avatarUrl: res.avatarUrl });
       if (res.name) setName(res.name);
       setStep(2);
@@ -73,8 +99,22 @@ export default function CustomerLogin() {
       showToast("성별을 선택해 주세요.", "error");
       return;
     }
-    if (!birthYear || !birthMonth || !birthDay) {
-      showToast("생년월일을 입력해 주세요.", "error");
+    const y = Number(birthYear);
+    const m = Number(birthMonth);
+    const d = Number(birthDay);
+    const thisYear = new Date().getFullYear();
+    if (!y || y < 1900 || y > thisYear) {
+      showToast(`생년(예: 1990)을 정확히 입력해 주세요.`, "error");
+      return;
+    }
+    if (!m || m < 1 || m > 12) {
+      showToast("월은 1~12 사이여야 합니다.", "error");
+      return;
+    }
+    // 해당 월의 마지막 일 계산
+    const lastDay = new Date(y, m, 0).getDate();
+    if (!d || d < 1 || d > lastDay) {
+      showToast(`일은 1~${lastDay} 사이여야 합니다.`, "error");
       return;
     }
     setStep(3);

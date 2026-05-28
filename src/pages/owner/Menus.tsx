@@ -7,6 +7,7 @@ import { Input } from "../../components/ui/Input";
 import { useStore } from "../../store/store";
 import type { Menu } from "../../lib/types";
 import { showToast } from "../../lib/toast";
+import { useEscapeClose } from "../../lib/useEscapeClose";
 
 interface Draft {
   id?: string;
@@ -41,6 +42,7 @@ export default function OwnerMenus() {
   }, [myMenus]);
 
   const [draft, setDraft] = useState<Draft | null>(null);
+  useEscapeClose(!!draft, () => setDraft(null));
 
   const save = async () => {
     if (!draft) return;
