@@ -25,9 +25,8 @@ export default function OwnerStatistics() {
         o.status !== "cancelled" &&
         new Date(o.createdAt).getTime() >= cutoff
     );
-    const revenue =
-      periodOrders.reduce((s, o) => s + o.totalAmount, 0) +
-      periodVisits.reduce((s, v) => s + (v.totalAmount ?? 0), 0);
+    // 매출은 주문 합계로만 산정 (visit.totalAmount는 사용처 없음)
+    const revenue = periodOrders.reduce((s, o) => s + o.totalAmount, 0);
     const uniqueCustomers = new Set(periodVisits.map((v) => v.customerId)).size;
     const avg = uniqueCustomers > 0 ? Math.round(revenue / uniqueCustomers) : 0;
 

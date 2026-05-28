@@ -40,9 +40,9 @@ export default function OwnerDashboard() {
 
   const today = new Date().toDateString();
   const todaysVisits = visits.filter((v) => new Date(v.date).toDateString() === today);
-  const todaysRevenue = todaysVisits.reduce((s, v) => s + (v.totalAmount ?? 0), 0)
-    + orders.filter((o) => new Date(o.createdAt).toDateString() === today && o.status !== "cancelled")
-        .reduce((s, o) => s + o.totalAmount, 0);
+  const todaysRevenue = orders
+    .filter((o) => new Date(o.createdAt).toDateString() === today && o.status !== "cancelled")
+    .reduce((s, o) => s + o.totalAmount, 0);
   const activeOrders = orders.filter((o) => o.status !== "served" && o.status !== "cancelled").length;
   const occupied = tables.filter((t) => t.status === "occupied").length;
   const dirty = tables.filter((t) => t.status === "dirty").length;

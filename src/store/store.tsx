@@ -15,6 +15,7 @@ import {
   query,
   where,
   writeBatch,
+  increment,
 } from "firebase/firestore";
 import { db, isFirebaseConfigured } from "../lib/firebase";
 import { updateFirestoreDoc, flushOfflineQueue } from "../lib/firestore";
@@ -209,6 +210,22 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const scopedUnsubsRef = useRef<Array<() => void>>([]);
   const storeContextUnsubsRef = useRef<Array<() => void>>([]);
   const [activeStoreId, setActiveStoreId] = useState<string | null>(null);
+
+  // 최신 상태를 캡처하기 위한 ref (useCallback identity 안정화)
+  const usersRef = useRef<User[]>(users);
+  const visitsRef = useRef<Visit[]>(visits);
+  const couponsRef = useRef<Coupon[]>(coupons);
+  const tablesRef = useRef<TableDoc[]>(tables);
+  const menusRef = useRef<Menu[]>(menus);
+  const sectionsRef = useRef<Section[]>(sections);
+  const currentUserRef = useRef<User | null>(currentUser);
+  useEffect(() => { usersRef.current = users; }, [users]);
+  useEffect(() => { visitsRef.current = visits; }, [visits]);
+  useEffect(() => { couponsRef.current = coupons; }, [coupons]);
+  useEffect(() => { tablesRef.current = tables; }, [tables]);
+  useEffect(() => { menusRef.current = menus; }, [menus]);
+  useEffect(() => { sectionsRef.current = sections; }, [sections]);
+  useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
 
   // Persist for offline fallback
   useEffect(() => {
@@ -594,6 +611,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       if (Date.now() - last < 10_000) return;
       sessionStorage.setItem(guardKey, String(Date.now()));
 
+      // ref로 최신 스냅샷 읽어 identity 안정화
+      const users = usersRef.current;
+      const visits = visitsRef.current;
+      const coupons = couponsRef.current;
+      const tables = tablesRef.current;
+      const currentUser = currentUserRef.current;
+
       const owner = users.find((u) => u.id === storeId && u.role === "owner");
       const today = new Date().toDateString();
       const alreadyToday = visits.some(
@@ -615,20 +639,28 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         };
         await updateFirestoreDoc("visits", visit.id, visit);
 
-        // Reward accrual
+        // Reward accrual (Firestore increment으로 atomic 처리)
         if (owner?.storeConfig) {
           const cfg = owner.storeConfig;
+          let delta = 0;
           if (cfg.rewardType === "stamp") {
-            const customer = users.find((u) => u.id === customerId);
-            const next = (customer?.rewardBalance ?? 0) + 1;
-            await updateFirestoreDoc("users", customerId, { rewardBalance: next });
+            delta = 1;
           } else if (cfg.rewardType === "point") {
             const rate = cfg.pointRate ?? 0.05;
             const base = amount ?? 10000;
-            const earned = Math.floor(base * rate);
-            const customer = users.find((u) => u.id === customerId);
-            const next = (customer?.rewardBalance ?? 0) + earned;
-            await updateFirestoreDoc("users", customerId, { rewardBalance: next });
+            delta = Math.floor(base * rate);
+          }
+          if (delta > 0) {
+            await updateFirestoreDoc("users", customerId, {
+              rewardBalance: increment(delta),
+            });
+            // 로컬 currentUser도 즉시 반영 (UI stale 방지)
+            if (currentUser?.id === customerId) {
+              setCurrentUser({
+                ...currentUser,
+                rewardBalance: (currentUser.rewardBalance ?? 0) + delta,
+              });
+            }
           }
         }
 
@@ -674,17 +706,22 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // 3) Table state
+      // 3) Table state — 유령 테이블 생성 방지: 실제 존재할 때만 업데이트
       const tableId = `${storeId}_${tableNumber}`;
-      await updateFirestoreDoc("tables", tableId, {
-        currentCustomerId: customerId,
-        sessionStartTime: new Date().toISOString(),
-        status: "occupied",
-      });
+      const tableExists = tables.some((t) => t.id === tableId);
+      if (tableExists) {
+        await updateFirestoreDoc("tables", tableId, {
+          currentCustomerId: customerId,
+          sessionStartTime: new Date().toISOString(),
+          status: "occupied",
+        });
+      } else {
+        console.warn(`[recordVisit] table ${tableId} not found; visit recorded without table state update.`);
+      }
 
       if (!alreadyToday) showToast("방문이 기록되었습니다.", "success");
     },
-    [users, visits, coupons]
+    [setCurrentUser]
   );
 
   const leaveTable = useCallback(async (tableNumber: number, storeId: string) => {

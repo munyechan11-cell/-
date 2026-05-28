@@ -1,4 +1,4 @@
-import { Suspense, lazy } from "react";
+import React, { Suspense, lazy } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useStore } from "./store/store";
 import { ToastHost } from "./components/ui/Toast";
@@ -33,8 +33,17 @@ function PrivateRoute({
   children: React.ReactNode;
   role: "customer" | "owner";
 }) {
-  const { currentUser } = useStore();
+  const { currentUser, users, logout } = useStore();
   const location = useLocation();
+
+  // 소프트삭제된 계정이 로컬스토리지에 남아있을 수 있음 → 자동 로그아웃
+  React.useEffect(() => {
+    if (!currentUser) return;
+    const fresh = users.find((u) => u.id === currentUser.id);
+    if (fresh && fresh.status === "deleted") {
+      logout();
+    }
+  }, [currentUser, users, logout]);
 
   if (!currentUser || currentUser.role !== role) {
     let loginPath = `/${role}/login`;

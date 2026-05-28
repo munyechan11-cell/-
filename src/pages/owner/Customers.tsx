@@ -64,9 +64,9 @@ export default function OwnerCustomers() {
   };
 
   const sendBulkCoupon = () => {
-    const desc = prompt("발급할 쿠폰 설명을 입력하세요");
+    const desc = prompt("발급할 쿠폰 설명을 입력하세요 (예: '재방문 감사 할인')");
     if (!desc) return;
-    bulkIssueCoupon(Array.from(selectedMode), storeId, "EVENT", desc);
+    bulkIssueCoupon(Array.from(selectedMode), storeId, "이벤트", desc);
     setSelectedMode(new Set());
   };
 
@@ -332,7 +332,7 @@ function CustomerDetail({
               variant="mint"
               onClick={() => {
                 const desc = prompt("쿠폰 설명");
-                if (desc) onIssue("EVENT", desc);
+                if (desc) onIssue("이벤트", desc);
               }}
               leftIcon={<Ticket className="w-4 h-4" />}
             >

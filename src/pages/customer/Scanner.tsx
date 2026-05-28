@@ -18,26 +18,31 @@ export default function Scanner() {
 
   useEffect(() => {
     let cancelled = false;
+    let handled = false; // 첫 번째 성공 디코드 이후 중복 navigate 방지
     const inst = new Html5Qrcode(SCAN_ID);
     scannerRef.current = inst;
 
+    const navigateOnce = (path: string) => {
+      if (handled) return;
+      handled = true;
+      stop().finally(() => nav(path));
+    };
+
     const handle = (decoded: string) => {
-      if (cancelled) return;
+      if (cancelled || handled) return;
       try {
         // JSON
         if (decoded.trim().startsWith("{")) {
           const obj = JSON.parse(decoded);
           if (obj.storeId && obj.tableNum) {
-            stop().finally(() =>
-              nav(`/customer/store/${obj.storeId}/table/${obj.tableNum}`)
-            );
+            navigateOnce(`/customer/store/${obj.storeId}/table/${obj.tableNum}`);
             return;
           }
         }
         // URL with path
         const m = decoded.match(/\/customer\/store\/([^/?#]+)\/table\/([^/?#]+)/);
         if (m) {
-          stop().finally(() => nav(`/customer/store/${m[1]}/table/${m[2]}`));
+          navigateOnce(`/customer/store/${m[1]}/table/${m[2]}`);
           return;
         }
         // URL with ?table=
@@ -45,7 +50,7 @@ export default function Scanner() {
         const pathMatch = u.pathname.match(/\/customer\/store\/([^/?#]+)/);
         const t = u.searchParams.get("table");
         if (pathMatch && t) {
-          stop().finally(() => nav(`/customer/store/${pathMatch[1]}/table/${t}`));
+          navigateOnce(`/customer/store/${pathMatch[1]}/table/${t}`);
           return;
         }
         showToast("결 QR이 아닙니다.", "error");
