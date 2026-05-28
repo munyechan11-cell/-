@@ -13,7 +13,15 @@ interface PrintReceiptInput {
 export function printReceipt({ storeName, order, footer }: PrintReceiptInput) {
   const win = window.open("", "_blank", "width=420,height=720");
   if (!win) {
-    alert("팝업이 차단되어 영수증을 인쇄할 수 없습니다. 팝업을 허용해 주세요.");
+    // 팝업 차단 시 토스트로 안내 (alert은 모바일 키오스크에서 흐름 끊김)
+    window.dispatchEvent(
+      new CustomEvent("gyeol:toast", {
+        detail: {
+          message: "팝업 차단으로 영수증을 인쇄하지 못했어요. 브라우저 설정에서 팝업을 허용해 주세요.",
+          type: "error",
+        },
+      })
+    );
     return;
   }
 

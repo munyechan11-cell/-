@@ -42,18 +42,19 @@ export default function BrandSettings() {
   if (!currentUser) return null;
 
   const saveBasic = async () => {
+    // 빈 값은 명시적으로 null로 보내 Firestore에서 필드를 비움 (undefined는 merge 시 변경 없음)
     await updateBrandSettings(storeId, {
       restaurantName,
       posVendor,
-      posApiKey: posApiKey || undefined,
-      foodtechStoreCode: foodtech || undefined,
-      aligoKey: aligoKey || undefined,
-      aligoUserId: aligoUserId || undefined,
-      aligoSender: aligoSender || undefined,
-      smsGatewayUrl: smsGatewayUrl || undefined,
+      posApiKey: (posVendor === "none" ? null : posApiKey) || null,
+      foodtechStoreCode: foodtech || null,
+      aligoKey: aligoKey || null,
+      aligoUserId: aligoUserId || null,
+      aligoSender: aligoSender || null,
+      smsGatewayUrl: smsGatewayUrl || null,
       tierNames,
       tierRewards,
-    });
+    } as any);
     showToast("기본 설정을 저장했습니다.", "success");
   };
 

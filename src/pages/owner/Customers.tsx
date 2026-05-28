@@ -33,8 +33,17 @@ export default function OwnerCustomers() {
   const [selectedMode, setSelectedMode] = useState<Set<string>>(new Set());
 
   const myCustomers = useMemo(() => {
+    // 본인 매장을 방문한 적 있는 활성 고객만 (전역 계정이라 visits 기준)
+    const visitedIds = new Set(
+      visits.filter((v) => v.storeId === storeId).map((v) => v.customerId)
+    );
     return users
-      .filter((u) => u.role === "customer" && u.storeId === storeId)
+      .filter(
+        (u) =>
+          u.role === "customer" &&
+          u.status !== "deleted" &&
+          visitedIds.has(u.id)
+      )
       .map((u) => {
         const myVisits = visits.filter((v) => v.customerId === u.id);
         const uniqueDays = new Set(myVisits.map((v) => new Date(v.date).toDateString())).size;

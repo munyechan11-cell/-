@@ -74,6 +74,13 @@ export default function OwnerReservations() {
       showToast("이름과 전화번호는 필수입니다.", "error");
       return;
     }
+    // 과거 날짜·시간 경고 (신규일 때만)
+    if (!draft.id) {
+      const scheduled = new Date(`${draft.date}T${draft.time || "00:00"}`);
+      if (scheduled.getTime() < Date.now() - 60_000) {
+        if (!confirm("선택하신 일시가 과거입니다. 그대로 저장할까요?")) return;
+      }
+    }
     const data = {
       storeId,
       date: draft.date,

@@ -22,6 +22,7 @@ import { Button } from "../../components/ui/Button";
 import { useStore } from "../../store/store";
 import { getEffectiveTier, getNextTier, TIER_BADGE } from "../../lib/tier";
 import { cn } from "../../lib/cn";
+import { showToast } from "../../lib/toast";
 
 type Tab = "home" | "menu" | "coupons" | "profile";
 
@@ -50,11 +51,26 @@ export default function CustomerDashboard() {
   // 이 페이지에 있는 동안 해당 매장의 tables/menus/orders/photos 구독
   useEffect(() => {
     setActiveStoreId(paramStoreId ?? null);
+    // 매장이 바뀌면 카트도 비움 (이전 매장 메뉴 ID는 새 매장에서 무효)
+    setCart({});
     return () => setActiveStoreId(null);
   }, [paramStoreId, setActiveStoreId]);
 
-  const storeId = paramStoreId ?? currentUser?.storeId ?? "";
+  const storeId = paramStoreId ?? "";
   const owner = users.find((u) => u.id === storeId && u.role === "owner");
+
+  // 잘못된 storeId 진입 가드 (users 로드 후 3회 재시도 후 홈으로)
+  const [ownerCheck, setOwnerCheck] = useState(0);
+  useEffect(() => {
+    if (!storeId || owner) return;
+    if (users.length === 0) return; // 아직 로드 중
+    if (ownerCheck < 3) {
+      const t = setTimeout(() => setOwnerCheck((n) => n + 1), 400);
+      return () => clearTimeout(t);
+    }
+    showToast("매장을 찾을 수 없어 홈으로 이동합니다.", "error");
+    nav("/customer", { replace: true });
+  }, [storeId, owner, users.length, ownerCheck, nav]);
 
   const myVisits = useMemo(
     () => visits.filter((v) => v.customerId === currentUser?.id && v.storeId === storeId)

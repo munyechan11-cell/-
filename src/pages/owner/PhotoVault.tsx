@@ -7,22 +7,48 @@ import { useStore } from "../../store/store";
 import type { Photo } from "../../lib/types";
 import { showToast } from "../../lib/toast";
 
+// Firestore 문서 1MB 제한을 고려, base64 inflation 33% 감안하여 안전 한도 ~700KB
+const MAX_BASE64_BYTES = 700_000;
+
 async function resizeImage(file: File, maxDim = 1280): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
       const img = new Image();
       img.onload = () => {
-        const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
-        const w = Math.round(img.width * scale);
-        const h = Math.round(img.height * scale);
-        const canvas = document.createElement("canvas");
-        canvas.width = w;
-        canvas.height = h;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return reject(new Error("canvas"));
-        ctx.drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL("image/jpeg", 0.85));
+        const tryEncode = (targetDim: number, quality: number): string => {
+          const scale = Math.min(1, targetDim / Math.max(img.width, img.height));
+          const w = Math.round(img.width * scale);
+          const h = Math.round(img.height * scale);
+          const canvas = document.createElement("canvas");
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) throw new Error("canvas");
+          ctx.drawImage(img, 0, 0, w, h);
+          return canvas.toDataURL("image/jpeg", quality);
+        };
+
+        try {
+          // 점진적 다운스케일: 1280 → 1024 → 800 → 600 까지 크기 줄여가며 한도 맞춤
+          const stages: [number, number][] = [
+            [maxDim, 0.85],
+            [1024, 0.82],
+            [800, 0.78],
+            [600, 0.72],
+          ];
+          let result = "";
+          for (const [dim, q] of stages) {
+            result = tryEncode(dim, q);
+            if (result.length <= MAX_BASE64_BYTES) {
+              return resolve(result);
+            }
+          }
+          // 끝까지 줄였는데도 크면 그대로 반환 (Firestore에서 거부될 수 있음)
+          resolve(result);
+        } catch (e) {
+          reject(e);
+        }
       };
       img.onerror = reject;
       img.src = reader.result as string;
@@ -50,8 +76,16 @@ export default function OwnerPhotoVault() {
   const onPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      showToast("이미지 파일만 업로드할 수 있어요.", "error");
+      return;
+    }
     try {
       const data = await resizeImage(file);
+      if (data.length > 950_000) {
+        showToast("이미지가 너무 큽니다. 더 작은 사진을 사용해 주세요.", "error");
+        return;
+      }
       await addPhoto({ storeId, type: tab, imageData: data });
       showToast("사진을 추가했습니다.", "success");
     } catch {
