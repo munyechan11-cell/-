@@ -29,6 +29,28 @@ function saveQueue(q: QueueOp[]) {
   localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(q));
 }
 
+/**
+ * Firestore는 undefined 값을 거부합니다.
+ * 객체에서 undefined를 재귀적으로 제거합니다 (null은 유지).
+ */
+function stripUndefined<T>(input: T): T {
+  if (input === null || input === undefined) return input;
+  if (Array.isArray(input)) {
+    return input
+      .map((v) => stripUndefined(v))
+      .filter((v) => v !== undefined) as unknown as T;
+  }
+  if (typeof input === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(input as Record<string, unknown>)) {
+      if (v === undefined) continue;
+      out[k] = stripUndefined(v);
+    }
+    return out as T;
+  }
+  return input;
+}
+
 export async function updateFirestoreDoc(
   coll: CollectionName,
   id: string,
@@ -42,7 +64,7 @@ export async function updateFirestoreDoc(
   try {
     const ref = doc(db, coll, id);
     if (isDelete) await deleteDoc(ref);
-    else await setDoc(ref, data, { merge: true });
+    else await setDoc(ref, stripUndefined(data), { merge: true });
   } catch (e: any) {
     const code = e?.code as string | undefined;
     if (code === "unavailable" || code === "deadline-exceeded") {
