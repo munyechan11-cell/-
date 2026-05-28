@@ -47,8 +47,8 @@ const newDraft = (): Draft => ({
 });
 
 export default function OwnerReservations() {
-  const { currentUser, reservations, addReservation, updateReservation, deleteReservation } = useStore();
-  const storeId = currentUser?.id ?? "";
+  const { effectiveStoreId, reservations, addReservation, updateReservation, deleteReservation } = useStore();
+  const storeId = effectiveStoreId;
   const [filter, setFilter] = useState<"upcoming" | "all">("upcoming");
   const [draft, setDraft] = useState<Draft | null>(null);
   useEscapeClose(!!draft, () => setDraft(null));

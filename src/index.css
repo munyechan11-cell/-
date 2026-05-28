@@ -96,55 +96,65 @@ body {
   background: var(--color-bg);
   color: var(--color-ink-900);
   font-family: var(--font-sans);
-  font-feature-settings: "ss01", "ss02", "cv01", "cv11";
+  font-feature-settings: "ss01", "ss02", "cv01", "cv11", "tnum";
   letter-spacing: -0.01em;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   font-size: 16px;
-  line-height: 1.5;
+  line-height: 1.55;
 }
 
 /* 데스크톱에선 본문/UI를 살짝 키워 가독성 강화 */
 @media (min-width: 1024px) {
-  body { font-size: 17px; }
+  body { font-size: 17px; line-height: 1.6; }
 }
+
+/* 한국어 가독성: 단어 단위 줄바꿈 + 자동 하이픈 방지 */
+:where(p, span, h1, h2, h3, h4, h5, h6, button, a, label, li) {
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+/* iOS / 모바일 기본 폼 컨트롤 굵기 보정 */
+input, select, textarea, button { font-family: inherit; }
 
 /* ============================================================
    Typography utilities (반응형)
    ============================================================ */
 @utility headline-hero {
   font-weight: 800;
-  font-size: clamp(32px, 5vw, 56px);
+  font-size: clamp(34px, 5.2vw, 58px);
   letter-spacing: -0.035em;
   line-height: 1.08;
   color: var(--color-navy-900);
 }
 @utility headline-display {
   font-weight: 800;
-  font-size: clamp(26px, 4vw, 38px);
+  font-size: clamp(28px, 4.2vw, 40px);
   letter-spacing: -0.03em;
-  line-height: 1.15;
+  line-height: 1.18;
   color: var(--color-navy-900);
 }
 @utility headline-section {
   font-weight: 800;
-  font-size: clamp(20px, 2.4vw, 24px);
+  font-size: clamp(22px, 2.6vw, 26px);
   letter-spacing: -0.02em;
-  line-height: 1.25;
+  line-height: 1.28;
   color: var(--color-navy-900);
 }
 @utility headline-sub {
   font-weight: 700;
-  font-size: clamp(15px, 1.6vw, 17px);
+  font-size: clamp(16px, 1.7vw, 18px);
   letter-spacing: -0.015em;
+  line-height: 1.35;
   color: var(--color-navy-900);
 }
-@utility body-lg { font-size: clamp(15px, 1.4vw, 17px); line-height: 1.65; color: var(--color-ink-700); font-weight: 500; }
-@utility body-md { font-size: 15px; line-height: 1.6; color: var(--color-ink-700); }
-@utility body-sm { font-size: 13px; line-height: 1.55; color: var(--color-ink-600); }
+@utility body-lg { font-size: clamp(16px, 1.5vw, 18px); line-height: 1.7; color: var(--color-ink-700); font-weight: 500; }
+@utility body-md { font-size: clamp(15px, 1.1vw, 16px); line-height: 1.65; color: var(--color-ink-700); }
+@utility body-sm { font-size: 14px; line-height: 1.6; color: var(--color-ink-600); }
 @utility label-xs {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -174,6 +184,7 @@ body {
 
 @utility input-field {
   width: 100%;
+  min-height: 52px;
   background: white;
   border: 1.5px solid var(--color-line);
   border-radius: var(--radius-md);
@@ -201,9 +212,16 @@ body {
   background: var(--color-navy-50);
   color: var(--color-navy-700);
   font-weight: 700;
-  font-size: 12px;
+  font-size: 12.5px;
   border-radius: 999px;
   letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+
+/* 모바일에서 본문 가독성 추가 보정 */
+@media (max-width: 640px) {
+  /* 미세하게 작은 텍스트 보호 (button class 텍스트 제외) */
+  :where(p) { font-size: max(14px, 1em); }
 }
 
 /* ===== Scrollbar — 얇고 단정 ===== */

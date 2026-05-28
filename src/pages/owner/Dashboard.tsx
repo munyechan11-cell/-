@@ -12,6 +12,7 @@ import {
   ChefHat,
   TrendingUp,
   Receipt,
+  Briefcase,
 } from "lucide-react";
 import { OwnerShell } from "../../components/layout/OwnerShell";
 import { Card } from "../../components/ui/Card";
@@ -26,6 +27,7 @@ const QUICK_LINKS = [
   { to: "/owner/reservations", icon: Calendar, label: "예약", color: "sky" },
   { to: "/owner/photos", icon: ImageIcon, label: "사진 보관소", color: "navy" },
   { to: "/owner/qr-print", icon: QrCode, label: "QR 인쇄", color: "mint" },
+  { to: "/owner/staff", icon: Briefcase, label: "직원 관리", color: "sky" },
   { to: "/owner/brand-settings", icon: Settings, label: "브랜드 설정", color: "navy" },
 ] as const;
 
@@ -138,12 +140,12 @@ export default function OwnerDashboard() {
           <div className="grid grid-cols-2 lg:grid-cols-2 gap-3">
             {QUICK_LINKS.map(({ to, icon: Icon, label, color }) => (
               <Link key={to} to={to}>
-                <Card padding="md" interactive className="h-[110px] flex flex-col justify-between">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${COLOR_CLASSES[color]}`}>
-                    <Icon className="w-[18px] h-[18px]" />
+                <Card padding="md" interactive className="h-[124px] flex flex-col justify-between">
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${COLOR_CLASSES[color]}`}>
+                    <Icon className="w-5 h-5" />
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-[13px] font-bold text-[var(--color-navy-900)] tracking-tight">{label}</span>
+                    <span className="text-[15px] font-extrabold text-[var(--color-navy-900)] tracking-tight">{label}</span>
                     <ChevronRight className="w-4 h-4 text-[var(--color-ink-300)]" />
                   </div>
                 </Card>

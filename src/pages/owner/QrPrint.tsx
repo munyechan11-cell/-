@@ -7,9 +7,10 @@ import { Button } from "../../components/ui/Button";
 import { useStore } from "../../store/store";
 
 export default function QrPrint() {
-  const { currentUser, tables } = useStore();
-  const storeId = currentUser?.id ?? "";
-  const storeName = currentUser?.restaurantName ?? "결";
+  const { currentUser, effectiveStoreId, tables, users } = useStore();
+  const storeId = effectiveStoreId;
+  const storeName =
+    users.find((u) => u.id === storeId)?.restaurantName ?? currentUser?.restaurantName ?? "결";
   const [cols, setCols] = useState(3);
   const [size, setSize] = useState(120);
 

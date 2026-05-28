@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { Shield, Lock, LogOut, Trash2, Users, Store, Search } from "lucide-react";
+import { Shield, Lock, LogOut, Trash2, Users, Store, Search, Briefcase } from "lucide-react";
+import type { Role } from "../lib/types";
 import { MobileShell } from "../components/layout/MobileShell";
 import { TopBar } from "../components/ui/TopBar";
 import { Card } from "../components/ui/Card";
@@ -11,7 +12,7 @@ import { showToast } from "../lib/toast";
 export default function Master() {
   const { isMaster, loginMaster, logoutMaster, users, deleteUser, setMasterPassword } = useStore();
   const [pw, setPw] = useState("");
-  const [tab, setTab] = useState<"owners" | "customers" | "settings">("owners");
+  const [tab, setTab] = useState<"owners" | "staff" | "customers" | "settings">("owners");
   const [newPw, setNewPw] = useState("");
   const [search, setSearch] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -27,7 +28,7 @@ export default function Master() {
     );
   }, [users, search]);
 
-  const handleDelete = async (id: string, role: "owner" | "customer", label: string) => {
+  const handleDelete = async (id: string, role: Role, label: string) => {
     if (!confirm(`'${label}' 을(를) 삭제하시겠습니까?\n관련 데이터가 모두 정리되며 되돌릴 수 없습니다.`)) return;
     setDeletingId(id);
     try {
@@ -76,6 +77,7 @@ export default function Master() {
   }
 
   const owners = matched.filter((u) => u.role === "owner");
+  const staff = matched.filter((u) => u.role === "staff");
   const customers = matched.filter((u) => u.role === "customer");
 
   return (
@@ -93,30 +95,31 @@ export default function Master() {
         }
       />
       <div className="px-5 pt-2">
-        <div className="grid grid-cols-3 gap-2 mb-4">
+        <div className="grid grid-cols-4 gap-2 mb-4">
           <StatCard icon={<Store className="w-4 h-4" />} label="가맹점" value={owners.length} />
+          <StatCard icon={<Briefcase className="w-4 h-4" />} label="직원" value={staff.length} />
           <StatCard icon={<Users className="w-4 h-4" />} label="고객" value={customers.length} />
           <StatCard label="삭제" value={users.filter((u) => u.status === "deleted").length} />
         </div>
 
-        <div className="grid grid-cols-3 p-1 bg-white border border-[var(--color-line)] rounded-[14px] mb-4">
-          {(["owners", "customers", "settings"] as const).map((t) => (
+        <div className="grid grid-cols-4 p-1 bg-white border border-[var(--color-line)] rounded-[14px] mb-4">
+          {(["owners", "staff", "customers", "settings"] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
               className={
-                "h-10 rounded-[10px] text-[13px] font-bold transition-all " +
+                "h-11 rounded-[10px] text-[13px] font-bold transition-all " +
                 (tab === t
                   ? "bg-[var(--color-navy-700)] text-white"
                   : "text-[var(--color-ink-500)]")
               }
             >
-              {t === "owners" ? "가맹점" : t === "customers" ? "고객" : "설정"}
+              {t === "owners" ? "가맹점" : t === "staff" ? "직원" : t === "customers" ? "고객" : "설정"}
             </button>
           ))}
         </div>
 
-        {(tab === "owners" || tab === "customers") && (
+        {(tab === "owners" || tab === "customers" || tab === "staff") && (
           <Input
             placeholder="이름·전화번호·매장명 검색"
             value={search}
@@ -139,6 +142,33 @@ export default function Master() {
                 onDelete={() => handleDelete(u.id, "owner", u.restaurantName || u.name)}
               />
             ))}
+          </div>
+        )}
+
+        {tab === "staff" && (
+          <div className="space-y-2">
+            {staff.length === 0 && <EmptyText>{search ? "검색 결과가 없습니다." : "등록된 직원이 없습니다."}</EmptyText>}
+            {staff.map((u) => {
+              const emp = u.employerStoreId ? users.find((x) => x.id === u.employerStoreId) : null;
+              const statusKr =
+                u.employerStatus === "approved"
+                  ? "승인"
+                  : u.employerStatus === "pending"
+                  ? "대기"
+                  : u.employerStatus === "rejected"
+                  ? "거절"
+                  : "—";
+              return (
+                <UserRow
+                  key={u.id}
+                  title={`${u.name}${u.position ? ` · ${u.position}` : ""}`}
+                  subtitle={`${u.phone || "—"} · ${emp?.restaurantName ?? "(미소속)"} · ${statusKr}`}
+                  deleted={u.status === "deleted"}
+                  deleting={deletingId === u.id}
+                  onDelete={() => handleDelete(u.id, "staff", u.name)}
+                />
+              );
+            })}
           </div>
         )}
 

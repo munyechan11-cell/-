@@ -1,4 +1,5 @@
-export type Role = "customer" | "owner";
+export type Role = "customer" | "owner" | "staff";
+export type StaffStatus = "pending" | "approved" | "rejected";
 export type AuthType = "phone" | "google" | "kakao";
 export type Industry = "cafe" | "meat" | "bakery" | "general";
 export type RewardType = "point" | "stamp";
@@ -55,6 +56,22 @@ export interface User {
   birthday?: string;
   ageGroup?: string;
   privacyAgreedAt?: string;
+  /** 직원 전용: 소속 매장 owner id */
+  employerStoreId?: string;
+  /** 직원 전용: 소속 매장 승인 상태 */
+  employerStatus?: StaffStatus;
+  /** 직원 전용: 직책/포지션 (홀, 주방 등) */
+  position?: string;
+  /** 직원 전용: 가입 요청 시각 */
+  joinRequestedAt?: string;
+}
+
+export interface Shift {
+  id: string;
+  staffId: string;
+  storeId: string;
+  clockInAt: string;
+  clockOutAt?: string | null;
 }
 
 export interface Visit {

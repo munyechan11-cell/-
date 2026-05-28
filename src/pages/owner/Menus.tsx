@@ -29,8 +29,8 @@ const emptyDraft: Draft = {
 };
 
 export default function OwnerMenus() {
-  const { currentUser, menus, addMenuItem, updateMenuItem, deleteMenuItem } = useStore();
-  const storeId = currentUser?.id ?? "";
+  const { effectiveStoreId, menus, addMenuItem, updateMenuItem, deleteMenuItem } = useStore();
+  const storeId = effectiveStoreId;
   const myMenus = useMemo(
     () => menus.filter((m) => m.storeId === storeId).sort((a, b) => a.category.localeCompare(b.category)),
     [menus, storeId]

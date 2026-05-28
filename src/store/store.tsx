@@ -44,6 +44,7 @@ import type {
   AuthType,
   Tier,
   TableStatus,
+  Shift,
 } from "../lib/types";
 
 type FirebaseStatus = "connecting" | "ok" | "error" | "offline";
@@ -67,6 +68,12 @@ interface StoreState {
   orders: Order[];
   reservations: Reservation[];
   photos: Photo[];
+  shifts: Shift[];
+
+  /** 현재 컨텍스트의 매장 id (사장님=자기 id, 직원=employerStoreId) */
+  effectiveStoreId: string;
+  /** 현재 사용자의 진행 중인 근무 (clockOutAt이 없는 것). 직원만 의미 있음. */
+  activeShift: Shift | null;
 
   /** 고객이 현재 보고 있는 매장 (이 ID가 설정된 동안 tables/menus/orders를 해당 매장으로 구독) */
   activeStoreId: string | null;
@@ -144,6 +151,15 @@ interface StoreState {
   addPhoto: (input: Omit<Photo, "id" | "createdAt">) => Promise<Photo>;
   updatePhoto: (id: string, data: Partial<Photo>) => Promise<void>;
   deletePhoto: (id: string) => Promise<void>;
+
+  // staff membership & shifts
+  requestJoinStore: (storeId: string, position?: string) => Promise<void>;
+  cancelJoinRequest: () => Promise<void>;
+  approveStaff: (staffId: string) => Promise<void>;
+  rejectStaff: (staffId: string) => Promise<void>;
+  removeStaffMembership: (staffId: string) => Promise<void>;
+  clockIn: () => Promise<void>;
+  clockOut: () => Promise<void>;
 }
 
 interface LoginInput {
@@ -215,6 +231,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [photos, setPhotos] = useState<Photo[]>([]);
+  const [shifts, setShifts] = useState<Shift[]>([]);
 
   const scopedUnsubsRef = useRef<Array<() => void>>([]);
   const storeContextUnsubsRef = useRef<Array<() => void>>([]);
@@ -364,6 +381,26 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       sub<Order>("orders", setOrders, "storeId", sid);
       sub<Reservation>("reservations", setReservations, "storeId", sid);
       sub<Photo>("photos", setPhotos, "storeId", sid);
+      sub<Shift>("shifts", setShifts, "storeId", sid);
+    } else if (currentUser.role === "staff") {
+      const sid = currentUser.employerStoreId;
+      // 본인 근무 기록은 항상 구독 (승인 전에도 빈 배열)
+      sub<Shift>("shifts", setShifts, "staffId", currentUser.id);
+      if (sid && currentUser.employerStatus === "approved") {
+        sub<TableDoc>("tables", setTables, "storeId", sid);
+        sub<Section>("sections", setSections, "storeId", sid);
+        sub<Menu>("menus", setMenus, "storeId", sid);
+        sub<Order>("orders", setOrders, "storeId", sid);
+        sub<Reservation>("reservations", setReservations, "storeId", sid);
+        sub<Photo>("photos", setPhotos, "storeId", sid);
+      } else {
+        setTables([]);
+        setSections([]);
+        setMenus([]);
+        setOrders([]);
+        setReservations([]);
+        setPhotos([]);
+      }
     } else {
       // customer: 본인 데이터를 매장 무관하게 구독
       const cid = currentUser.id;
@@ -377,7 +414,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       scopedUnsubsRef.current.forEach((u) => u());
       scopedUnsubsRef.current = [];
     };
-  }, [currentUser?.id, currentUser?.role]);
+  }, [currentUser?.id, currentUser?.role, currentUser?.employerStoreId, currentUser?.employerStatus]);
 
   // 고객이 매장에 진입했을 때 그 매장의 tables/menus/orders/photos 구독
   useEffect(() => {
@@ -605,6 +642,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         await cascade("orders", "storeId", userId);
         await cascade("reservations", "storeId", userId);
         await cascade("photos", "storeId", userId);
+        await cascade("shifts", "storeId", userId);
+      } else if (role === "staff") {
+        await cascade("shifts", "staffId", userId);
       } else {
         await cascade("visits", "customerId", userId);
         await cascade("coupons", "customerId", userId);
@@ -722,17 +762,35 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // 3) Table state — 유령 테이블 생성 방지: 실제 존재할 때만 업데이트
+      // 3) Table state — 사장이 인쇄한 QR이면 정식 테이블로 자동 생성
       const tableId = `${storeId}_${tableNumber}`;
-      const tableExists = tables.some((t) => t.id === tableId);
-      if (tableExists) {
+      const existing = tables.find((t) => t.id === tableId);
+      if (existing) {
         await updateFirestoreDoc("tables", tableId, {
           currentCustomerId: customerId,
           sessionStartTime: new Date().toISOString(),
           status: "occupied",
         });
       } else {
-        console.warn(`[recordVisit] table ${tableId} not found; visit recorded without table state update.`);
+        // 없는 번호로 들어오면 새 테이블 doc 생성 (없으면 myTable이 영원히 안 잡혀 손님이 "테이블 이용" 메시지를 계속 봄)
+        const num = Number(tableNumber);
+        const col = ((num - 1) % 5 + 5) % 5;
+        const row = Math.max(0, Math.floor((num - 1) / 5));
+        await updateFirestoreDoc("tables", tableId, {
+          id: tableId,
+          number: num,
+          storeId,
+          type: "table",
+          shape: "square",
+          seats: 4,
+          width: 90,
+          height: 90,
+          x: col * 120 + 40,
+          y: row * 120 + 40,
+          status: "occupied",
+          currentCustomerId: customerId,
+          sessionStartTime: new Date().toISOString(),
+        });
       }
 
       if (!alreadyToday) showToast("방문이 기록되었습니다.", "success");
@@ -1144,6 +1202,116 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     await updateFirestoreDoc("photos", id, undefined, true);
   }, []);
 
+  // ============ STAFF MEMBERSHIP & SHIFTS ============
+  const requestJoinStore = useCallback(
+    async (storeId: string, position?: string) => {
+      const cu = currentUserRef.current;
+      if (!cu || cu.role !== "staff") return;
+      const patch: Partial<User> = {
+        employerStoreId: storeId,
+        employerStatus: "pending",
+        joinRequestedAt: new Date().toISOString(),
+      };
+      if (position !== undefined) patch.position = position;
+      await updateFirestoreDoc("users", cu.id, patch);
+      setCurrentUser({ ...cu, ...patch });
+      showToast("가입 요청을 보냈습니다. 사장님 승인을 기다려주세요.", "success");
+    },
+    [setCurrentUser]
+  );
+
+  const cancelJoinRequest = useCallback(async () => {
+    const cu = currentUserRef.current;
+    if (!cu || cu.role !== "staff") return;
+    // null로 저장해 필드를 명시적으로 비웁니다 (stripUndefined가 undefined를 제거하므로)
+    await updateFirestoreDoc("users", cu.id, {
+      employerStoreId: null,
+      employerStatus: null,
+      joinRequestedAt: null,
+    });
+    setCurrentUser({
+      ...cu,
+      employerStoreId: undefined,
+      employerStatus: undefined,
+      joinRequestedAt: undefined,
+    });
+    showToast("가입 요청을 취소했습니다.", "info");
+  }, [setCurrentUser]);
+
+  const approveStaff = useCallback(async (staffId: string) => {
+    await updateFirestoreDoc("users", staffId, { employerStatus: "approved" });
+    showToast("직원을 승인했습니다.", "success");
+  }, []);
+
+  const rejectStaff = useCallback(async (staffId: string) => {
+    await updateFirestoreDoc("users", staffId, {
+      employerStatus: "rejected",
+    });
+    showToast("가입 요청을 거절했습니다.", "info");
+  }, []);
+
+  const removeStaffMembership = useCallback(async (staffId: string) => {
+    await updateFirestoreDoc("users", staffId, {
+      employerStoreId: null,
+      employerStatus: null,
+      position: null,
+    });
+    showToast("직원 소속을 해제했습니다.", "info");
+  }, []);
+
+  const clockIn = useCallback(async () => {
+    const cu = currentUserRef.current;
+    if (!cu || cu.role !== "staff" || !cu.employerStoreId || cu.employerStatus !== "approved") {
+      showToast("출근할 수 없는 상태입니다.", "error");
+      return;
+    }
+    // 이미 진행 중인 근무가 있으면 무시
+    const open = shifts.find((s) => s.staffId === cu.id && !s.clockOutAt);
+    if (open) {
+      showToast("이미 출근 중입니다.", "info");
+      return;
+    }
+    const id = generateId();
+    const s: Shift = {
+      id,
+      staffId: cu.id,
+      storeId: cu.employerStoreId,
+      clockInAt: new Date().toISOString(),
+      clockOutAt: null,
+    };
+    await updateFirestoreDoc("shifts", id, s);
+    showToast("출근 완료. 오늘도 화이팅!", "success");
+  }, [shifts]);
+
+  const clockOut = useCallback(async () => {
+    const cu = currentUserRef.current;
+    if (!cu || cu.role !== "staff") return;
+    const open = shifts.find((s) => s.staffId === cu.id && !s.clockOutAt);
+    if (!open) {
+      showToast("진행 중인 근무가 없습니다.", "info");
+      return;
+    }
+    await updateFirestoreDoc("shifts", open.id, {
+      clockOutAt: new Date().toISOString(),
+    });
+    showToast("퇴근 완료. 수고하셨습니다!", "success");
+  }, [shifts]);
+
+  // 현재 사용자 기준 진행 중 근무
+  const activeShift = useMemo(() => {
+    if (!currentUser || currentUser.role !== "staff") return null;
+    return shifts.find((s) => s.staffId === currentUser.id && !s.clockOutAt) ?? null;
+  }, [shifts, currentUser]);
+
+  // 컨텍스트 매장 id (사장님=본인 id, 직원=employerStoreId, 그 외="")
+  const effectiveStoreId = useMemo(() => {
+    if (!currentUser) return "";
+    if (currentUser.role === "owner") return currentUser.id;
+    if (currentUser.role === "staff" && currentUser.employerStatus === "approved")
+      return currentUser.employerStoreId ?? "";
+    return "";
+  }, [currentUser]);
+
   // silence unused warning
   void getCustomerTier;
 
@@ -1166,6 +1334,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       orders,
       reservations,
       photos,
+      shifts,
+      activeShift,
+      effectiveStoreId,
       activeStoreId,
       setActiveStoreId,
       login,
@@ -1209,6 +1380,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       addPhoto,
       updatePhoto,
       deletePhoto,
+      requestJoinStore,
+      cancelJoinRequest,
+      approveStaff,
+      rejectStaff,
+      removeStaffMembership,
+      clockIn,
+      clockOut,
     }),
     [
       isReady,
@@ -1228,6 +1406,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       orders,
       reservations,
       photos,
+      shifts,
+      activeShift,
+      effectiveStoreId,
       activeStoreId,
       login,
       logout,
@@ -1270,6 +1451,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       addPhoto,
       updatePhoto,
       deletePhoto,
+      requestJoinStore,
+      cancelJoinRequest,
+      approveStaff,
+      rejectStaff,
+      removeStaffMembership,
+      clockIn,
+      clockOut,
     ]
   );
 

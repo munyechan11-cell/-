@@ -21,6 +21,7 @@ import { MobileShell } from "../../components/layout/MobileShell";
 import { TopBar } from "../../components/ui/TopBar";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
+import { BillModal } from "../../components/ui/BillModal";
 import { useStore } from "../../store/store";
 import { getEffectiveTier, getNextTier, TIER_BADGE } from "../../lib/tier";
 import { cn } from "../../lib/cn";
@@ -50,6 +51,7 @@ export default function CustomerDashboard() {
   } = useStore();
   const [tab, setTab] = useState<Tab>("home");
   const [cart, setCart] = useState<Record<string, number>>({});
+  const [billOpen, setBillOpen] = useState(false);
 
   // 이 페이지에 있는 동안 해당 매장의 tables/menus/orders/photos 구독
   useEffect(() => {
@@ -284,17 +286,29 @@ export default function CustomerDashboard() {
                 </span>
               </div>
 
-              {unpaidTotal > 0 && myTable && (
+              <div className="grid grid-cols-2 gap-2 mt-3">
                 <Button
-                  block
-                  size="lg"
-                  className="mt-3"
-                  onClick={handlePay}
-                  leftIcon={<CreditCard className="w-5 h-5" />}
+                  variant="ghost"
+                  size="md"
+                  onClick={() => setBillOpen(true)}
+                  leftIcon={<ReceiptIcon className="w-4 h-4" />}
                 >
-                  결제하기 (₩ {unpaidTotal.toLocaleString()})
+                  계산서 보기
                 </Button>
-              )}
+                {unpaidTotal > 0 && myTable ? (
+                  <Button
+                    size="md"
+                    onClick={handlePay}
+                    leftIcon={<CreditCard className="w-4 h-4" />}
+                  >
+                    결제하기
+                  </Button>
+                ) : (
+                  <Button size="md" disabled leftIcon={<CreditCard className="w-4 h-4" />}>
+                    결제 완료
+                  </Button>
+                )}
+              </div>
               {unpaidTotal === 0 && mySessionOrders.length > 0 && (
                 <div className="mt-3 py-2.5 px-3 rounded-xl bg-[var(--color-mint-100)] text-[var(--color-mint-700)] text-[12px] font-bold text-center">
                   모든 주문이 결제되었습니다. 매장 카운터에서 마무리해 주세요.
@@ -465,6 +479,24 @@ export default function CustomerDashboard() {
             계정 삭제
           </Button>
         </div>
+      )}
+
+      {/* 계산서 모달 */}
+      {billOpen && currentUser && (
+        <BillModal
+          storeName={owner?.restaurantName ?? "매장"}
+          tableNumber={myTable?.number}
+          customerName={currentUser.name}
+          orders={mySessionOrders}
+          unpaidTotal={unpaidTotal}
+          paidTotal={mySessionOrders.filter((o) => o.paymentStatus === "paid").reduce((s, o) => s + o.totalAmount, 0)}
+          canPay={!!myTable}
+          onClose={() => setBillOpen(false)}
+          onPay={async () => {
+            setBillOpen(false);
+            await handlePay();
+          }}
+        />
       )}
     </MobileShell>
   );

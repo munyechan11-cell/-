@@ -4,6 +4,7 @@ import { useStore } from "./store/store";
 import { ToastHost } from "./components/ui/Toast";
 import { PageLoader } from "./components/ui/PageLoader";
 import { GlobalOrderNotifier } from "./components/layout/GlobalOrderNotifier";
+import { InstallPrompt } from "./components/ui/InstallPrompt";
 
 const Home = lazy(() => import("./pages/Home"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -16,6 +17,7 @@ const CustomerScanner = lazy(() => import("./pages/customer/Scanner"));
 const TableEntry = lazy(() => import("./pages/customer/TableEntry"));
 
 const OwnerLogin = lazy(() => import("./pages/owner/Login"));
+const StaffLogin = lazy(() => import("./pages/staff/Login"));
 const OwnerDashboard = lazy(() => import("./pages/owner/Dashboard"));
 const OwnerCustomers = lazy(() => import("./pages/owner/Customers"));
 const OwnerStatistics = lazy(() => import("./pages/owner/Statistics"));
@@ -26,18 +28,27 @@ const OwnerPhotoVault = lazy(() => import("./pages/owner/PhotoVault"));
 const OwnerTables = lazy(() => import("./pages/owner/Tables"));
 const OwnerMenus = lazy(() => import("./pages/owner/Menus"));
 const OwnerOrders = lazy(() => import("./pages/owner/Orders"));
+const OwnerStaff = lazy(() => import("./pages/owner/Staff"));
+
+const StaffStoreSearch = lazy(() => import("./pages/staff/StoreSearch"));
+const StaffPending = lazy(() => import("./pages/staff/Pending"));
+const StaffDashboard = lazy(() => import("./pages/staff/Dashboard"));
+
+type Roles = "customer" | "owner" | "staff" | Array<"customer" | "owner" | "staff">;
 
 function PrivateRoute({
   children,
   role,
+  requiresClockIn,
 }: {
   children: React.ReactNode;
-  role: "customer" | "owner";
+  role: Roles;
+  /** 직원일 때 출근 상태가 아니면 대시보드로 돌려보냄 */
+  requiresClockIn?: boolean;
 }) {
-  const { currentUser, users, logout } = useStore();
+  const { currentUser, users, logout, activeShift } = useStore();
   const location = useLocation();
 
-  // 소프트삭제된 계정이 로컬스토리지에 남아있을 수 있음 → 자동 로그아웃
   React.useEffect(() => {
     if (!currentUser) return;
     const fresh = users.find((u) => u.id === currentUser.id);
@@ -46,14 +57,35 @@ function PrivateRoute({
     }
   }, [currentUser, users, logout]);
 
-  if (!currentUser || currentUser.role !== role) {
-    let loginPath = `/${role}/login`;
-    if (role === "customer") {
+  const allowed = Array.isArray(role) ? role : [role];
+
+  if (!currentUser) {
+    let loginPath = allowed.includes("owner") || allowed.includes("staff") ? "/owner/login" : "/customer/login";
+    if (allowed.includes("customer")) {
       const m = location.pathname.match(/\/customer\/store\/([^/]+)/);
       if (m?.[1]) loginPath = `/customer/store/${m[1]}/login`;
     }
     return <Navigate to={`${loginPath}${location.search}`} replace />;
   }
+
+  // 로그인은 됐지만 권한이 없는 라우트 → 자기 대시보드로
+  if (!allowed.includes(currentUser.role)) {
+    const dest =
+      currentUser.role === "owner"
+        ? "/owner"
+        : currentUser.role === "staff"
+        ? "/staff"
+        : "/customer";
+    return <Navigate to={dest} replace />;
+  }
+
+  // 직원 추가 가드
+  if (currentUser.role === "staff") {
+    if (!currentUser.employerStoreId) return <Navigate to="/staff/store-search" replace />;
+    if (currentUser.employerStatus !== "approved") return <Navigate to="/staff/pending" replace />;
+    if (requiresClockIn && !activeShift) return <Navigate to="/staff" replace />;
+  }
+
   return <>{children}</>;
 }
 
@@ -66,6 +98,7 @@ export default function App() {
     <BrowserRouter>
       <ToastHost />
       <GlobalOrderNotifier />
+      <InstallPrompt />
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/" element={<Home />} />
@@ -96,6 +129,8 @@ export default function App() {
           />
 
           <Route path="/owner/login" element={<OwnerLogin />} />
+          <Route path="/staff/login" element={<StaffLogin />} />
+
           <Route
             path="/owner"
             element={
@@ -129,17 +164,27 @@ export default function App() {
             }
           />
           <Route
-            path="/owner/qr-print"
+            path="/owner/staff"
             element={
               <PrivateRoute role="owner">
+                <OwnerStaff />
+              </PrivateRoute>
+            }
+          />
+          {/* 운영 페이지: 사장님 + (출근한) 직원 모두 접근 */}
+          <Route
+            path="/owner/qr-print"
+            element={
+              <PrivateRoute role={["owner", "staff"]} requiresClockIn>
                 <QrPrint />
               </PrivateRoute>
             }
           />
+          {/* 예약: 직원은 출근 안 해도 추가 가능 */}
           <Route
             path="/owner/reservations"
             element={
-              <PrivateRoute role="owner">
+              <PrivateRoute role={["owner", "staff"]}>
                 <OwnerReservations />
               </PrivateRoute>
             }
@@ -147,7 +192,7 @@ export default function App() {
           <Route
             path="/owner/photos"
             element={
-              <PrivateRoute role="owner">
+              <PrivateRoute role={["owner", "staff"]} requiresClockIn>
                 <OwnerPhotoVault />
               </PrivateRoute>
             }
@@ -155,7 +200,7 @@ export default function App() {
           <Route
             path="/owner/tables"
             element={
-              <PrivateRoute role="owner">
+              <PrivateRoute role={["owner", "staff"]} requiresClockIn>
                 <OwnerTables />
               </PrivateRoute>
             }
@@ -163,7 +208,7 @@ export default function App() {
           <Route
             path="/owner/menus"
             element={
-              <PrivateRoute role="owner">
+              <PrivateRoute role={["owner", "staff"]} requiresClockIn>
                 <OwnerMenus />
               </PrivateRoute>
             }
@@ -171,8 +216,20 @@ export default function App() {
           <Route
             path="/owner/orders"
             element={
-              <PrivateRoute role="owner">
+              <PrivateRoute role={["owner", "staff"]} requiresClockIn>
                 <OwnerOrders />
+              </PrivateRoute>
+            }
+          />
+
+          {/* ===== Staff ===== */}
+          <Route path="/staff/store-search" element={<StaffStoreSearch />} />
+          <Route path="/staff/pending" element={<StaffPending />} />
+          <Route
+            path="/staff"
+            element={
+              <PrivateRoute role="staff">
+                <StaffDashboard />
               </PrivateRoute>
             }
           />

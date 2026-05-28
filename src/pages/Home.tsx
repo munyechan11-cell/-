@@ -104,17 +104,35 @@ export default function Home() {
 
             <Link
               to={isOwner ? "/owner" : "/owner/login"}
-              className="group rounded-2xl bg-white border border-[var(--color-line)] p-5 lg:p-6 flex items-center gap-4 hover:-translate-y-0.5 transition-transform shadow-[var(--shadow-card)] sm:col-span-2"
+              className="group rounded-2xl bg-white border border-[var(--color-line)] p-5 lg:p-6 flex items-center gap-4 hover:-translate-y-0.5 transition-transform shadow-[var(--shadow-card)]"
             >
               <div className="w-12 h-12 rounded-xl bg-[var(--color-navy-100)] flex items-center justify-center shrink-0">
                 <Store className="w-6 h-6 text-[var(--color-navy-700)]" />
               </div>
               <div className="flex-1">
                 <div className="text-[11px] text-[var(--color-ink-500)] font-bold uppercase tracking-wider mb-0.5">
-                  사장님 관리
+                  사장님
                 </div>
-                <div className="text-[17px] font-extrabold text-[var(--color-navy-900)] tracking-tight">
-                  {isOwner ? "콘솔로 이동" : "매장 관리 시작"}
+                <div className="text-[16px] font-extrabold text-[var(--color-navy-900)] tracking-tight">
+                  {isOwner ? "콘솔로 이동" : "매장 관리"}
+                </div>
+              </div>
+              <ArrowRight className="w-5 h-5 text-[var(--color-ink-400)] group-hover:translate-x-0.5 transition-transform" />
+            </Link>
+
+            <Link
+              to="/staff/login"
+              className="group rounded-2xl bg-white border border-[var(--color-line)] p-5 lg:p-6 flex items-center gap-4 hover:-translate-y-0.5 transition-transform shadow-[var(--shadow-card)]"
+            >
+              <div className="w-12 h-12 rounded-xl bg-[var(--color-mint-100)] flex items-center justify-center shrink-0">
+                <UserIcon className="w-6 h-6 text-[var(--color-mint-700)]" />
+              </div>
+              <div className="flex-1">
+                <div className="text-[11px] text-[var(--color-ink-500)] font-bold uppercase tracking-wider mb-0.5">
+                  직원
+                </div>
+                <div className="text-[16px] font-extrabold text-[var(--color-navy-900)] tracking-tight">
+                  근무 시작
                 </div>
               </div>
               <ArrowRight className="w-5 h-5 text-[var(--color-ink-400)] group-hover:translate-x-0.5 transition-transform" />

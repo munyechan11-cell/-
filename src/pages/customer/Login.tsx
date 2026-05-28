@@ -5,7 +5,7 @@ import { MobileShell } from "../../components/layout/MobileShell";
 import { TopBar } from "../../components/ui/TopBar";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
-import { formatPhoneNumber } from "../../lib/ids";
+import { formatPhoneNumber, digitsOnly } from "../../lib/ids";
 import { showToast } from "../../lib/toast";
 import { useStore } from "../../store/store";
 import { signInWithGoogle, signInWithKakao } from "../../lib/auth";
@@ -74,10 +74,11 @@ export default function CustomerLogin() {
         return;
       }
 
-      // 신규: 가입 절차로 진입
+      // 신규: 가입 절차로 진입 — 소셜이라도 phone 등 기본 정보는 받음
       setSocial({ id: res.id, provider, avatarUrl: res.avatarUrl });
       if (res.name) setName(res.name);
-      setStep(2);
+      // 소셜 신규는 step 1로 (phone 필수 입력) → 2 → 3
+      setStep(1);
     } catch (e: any) {
       showToast(`소셜 연동 실패: ${e?.message ?? "알 수 없는 오류"}`, "error");
     } finally {
@@ -85,12 +86,39 @@ export default function CustomerLogin() {
     }
   };
 
-  const submitStep1 = (e: React.FormEvent) => {
+  const submitStep1 = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || phone.replace(/\D/g, "").length < 10) {
       showToast("이름과 전화번호를 정확히 입력해 주세요.", "error");
       return;
     }
+
+    // 기존 계정이면 즉시 로그인 (재가입 절차 생략) — 매번 가입창 뜨는 문제 해결
+    const cleanPhone = digitsOnly(phone);
+    const existing = users.find(
+      (u) =>
+        u.role === "customer" &&
+        u.status !== "deleted" &&
+        digitsOnly(u.phone || "") === cleanPhone
+    );
+    if (existing) {
+      setLoading(true);
+      try {
+        await login({
+          phone,
+          name: existing.name || name,
+          role: "customer",
+          authType: "phone",
+        });
+        onAfterLogin();
+      } catch (e: any) {
+        showToast(`로그인 실패: ${e?.message ?? ""}`, "error");
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     setStep(2);
   };
 
@@ -156,9 +184,13 @@ export default function CustomerLogin() {
 
         {step === 1 && (
           <>
-            <h1 className="headline-section mt-6 mb-1">반갑습니다</h1>
+            <h1 className="headline-section mt-6 mb-1">
+              {social ? `${social.provider === "google" ? "Google" : "카카오"} 가입` : "반갑습니다"}
+            </h1>
             <p className="body-md text-[var(--color-ink-500)]">
-              전화번호로 단골 혜택을 시작해 보세요.
+              {social
+                ? "마지막으로 전화번호만 확인해 주세요."
+                : "전화번호로 단골 혜택을 시작해 보세요."}
             </p>
             <form onSubmit={submitStep1} className="mt-7 space-y-4">
               <Input
@@ -176,30 +208,35 @@ export default function CustomerLogin() {
                 inputMode="numeric"
                 autoComplete="tel"
                 leftSlot={<Phone className="w-4 h-4" />}
+                hint="기존 회원이면 자동으로 로그인됩니다."
               />
-              <Button block type="submit" disabled={!phone || !name}>
+              <Button block type="submit" disabled={!phone || !name} loading={loading}>
                 다음
               </Button>
             </form>
 
-            <div className="my-7 flex items-center gap-3 text-[12px] text-[var(--color-ink-300)] font-semibold">
-              <div className="flex-1 h-px bg-[var(--color-line)]" />
-              또는 소셜로
-              <div className="flex-1 h-px bg-[var(--color-line)]" />
-            </div>
-            <div className="space-y-3">
-              <Button variant="outline" block onClick={() => handleSocial("google")} loading={loading}>
-                Google로 계속하기
-              </Button>
-              <button
-                onClick={() => handleSocial("kakao")}
-                disabled={loading}
-                className="w-full h-14 rounded-[14px] bg-[#FEE500] text-[#191919] font-bold inline-flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-40"
-              >
-                <MessageCircle className="w-5 h-5" />
-                카카오로 계속하기
-              </button>
-            </div>
+            {!social && (
+              <>
+                <div className="my-7 flex items-center gap-3 text-[12px] text-[var(--color-ink-300)] font-semibold">
+                  <div className="flex-1 h-px bg-[var(--color-line)]" />
+                  또는 소셜로
+                  <div className="flex-1 h-px bg-[var(--color-line)]" />
+                </div>
+                <div className="space-y-3">
+                  <Button variant="outline" block onClick={() => handleSocial("google")} loading={loading}>
+                    Google로 계속하기
+                  </Button>
+                  <button
+                    onClick={() => handleSocial("kakao")}
+                    disabled={loading}
+                    className="w-full h-14 rounded-[14px] bg-[#FEE500] text-[#191919] font-bold inline-flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-40"
+                  >
+                    <MessageCircle className="w-5 h-5" />
+                    카카오로 계속하기
+                  </button>
+                </div>
+              </>
+            )}
           </>
         )}
 

@@ -59,8 +59,8 @@ async function resizeImage(file: File, maxDim = 1280): Promise<string> {
 }
 
 export default function OwnerPhotoVault() {
-  const { currentUser, photos, addPhoto, updatePhoto, deletePhoto } = useStore();
-  const storeId = currentUser?.id ?? "";
+  const { effectiveStoreId, photos, addPhoto, updatePhoto, deletePhoto } = useStore();
+  const storeId = effectiveStoreId;
   const [tab, setTab] = useState<"menu" | "customer">("menu");
   const [pairFrom, setPairFrom] = useState<Photo | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);

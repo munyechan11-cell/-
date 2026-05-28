@@ -54,6 +54,7 @@ const LS_SOUND = "gyeol:order-sound";
 export default function OwnerOrders() {
   const {
     currentUser,
+    effectiveStoreId,
     orders,
     coupons,
     users,
@@ -61,7 +62,7 @@ export default function OwnerOrders() {
     rejectCouponUse,
     updateOrderStatus,
   } = useStore();
-  const storeId = currentUser?.id ?? "";
+  const storeId = effectiveStoreId;
 
   const [soundOn, setSoundOn] = useState(() => localStorage.getItem(LS_SOUND) !== "0");
   const knownIdsRef = useRef<Set<string> | null>(null);
@@ -139,7 +140,7 @@ export default function OwnerOrders() {
 
   const reprintReceipt = async (order: Order) => {
     const payload = {
-      storeName: currentUser?.restaurantName ?? "결",
+      storeName: (users.find((u) => u.id === storeId)?.restaurantName) ?? currentUser?.restaurantName ?? "결",
       order,
       footer: "재인쇄 — Reprinted",
     };

@@ -34,7 +34,7 @@ type ViewMode = "list" | "layout";
 
 export default function OwnerTables() {
   const {
-    currentUser,
+    effectiveStoreId,
     tables,
     sections,
     addTable,
@@ -45,7 +45,7 @@ export default function OwnerTables() {
     addSection,
     deleteSection,
   } = useStore();
-  const storeId = currentUser?.id ?? "";
+  const storeId = effectiveStoreId;
   const [view, setView] = useState<ViewMode>(() => {
     return (localStorage.getItem("gyeol:tables-view") as ViewMode) || "list";
   });
