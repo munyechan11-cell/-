@@ -1,23 +1,48 @@
 {
   "name": "결 (Gyeol) - 단골 관리 플랫폼",
   "short_name": "결",
-  "description": "스마트한 매장 관리와 고객 적립을 위한 프리미엄 솔루션",
+  "description": "QR 한 번에 시작되는 단단한 단골 관리. 사장님·직원·손님이 함께 쓰는 매장 운영 클라우드.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#442a22",
   "orientation": "portrait",
+  "background_color": "#f5f7fb",
+  "theme_color": "#173762",
+  "categories": ["business", "food", "lifestyle"],
+  "lang": "ko",
+  "dir": "ltr",
   "icons": [
     {
-      "src": "/vite.svg",
-      "sizes": "192x192",
+      "src": "/icon.svg",
+      "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
-      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/1/11/Black_square.svg/512px-Black_square.svg.png",
-      "sizes": "512x512",
-      "type": "image/png"
+      "src": "/icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "QR 스캔",
+      "short_name": "스캔",
+      "url": "/scan",
+      "description": "매장 QR 코드를 스캔하여 입장"
+    },
+    {
+      "name": "내 결",
+      "short_name": "내 결",
+      "url": "/customer",
+      "description": "내 등급과 쿠폰 확인"
+    },
+    {
+      "name": "사장님 콘솔",
+      "short_name": "사장님",
+      "url": "/owner",
+      "description": "매장 관리 페이지"
     }
   ]
 }

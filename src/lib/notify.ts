@@ -75,8 +75,8 @@ export function showBrowserNotification(title: string, body: string) {
   try {
     const n = new Notification(title, {
       body,
-      icon: "/vite.svg", // 작은 시스템 알림 아이콘 (favicon)
-      badge: "/vite.svg",
+      icon: "/icon.svg",
+      badge: "/icon.svg",
       tag: "gyeol-order",
       requireInteraction: false,
     });
