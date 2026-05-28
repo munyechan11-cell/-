@@ -1,5 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChefHat, Check, XCircle, Ticket, Sparkles, Printer, Bell, BellOff, Volume2 } from "lucide-react";
+import {
+  ChefHat,
+  Check,
+  XCircle,
+  Ticket,
+  Sparkles,
+  Printer,
+  Bell,
+  BellOff,
+  Volume2,
+  Receipt as ReceiptIcon,
+} from "lucide-react";
 import { OwnerShell } from "../../components/layout/OwnerShell";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
@@ -66,6 +77,27 @@ export default function OwnerOrders() {
     [coupons, storeId]
   );
 
+  // 테이블별 미결제 합계 (서빙 완료 포함, 결제만 안 된 것)
+  const unpaidByTable = useMemo(() => {
+    const map = new Map<number, { total: number; count: number }>();
+    orders
+      .filter(
+        (o) =>
+          o.storeId === storeId &&
+          o.status !== "cancelled" &&
+          o.paymentStatus !== "paid"
+      )
+      .forEach((o) => {
+        const cur = map.get(o.tableNumber) ?? { total: 0, count: 0 };
+        cur.total += o.totalAmount;
+        cur.count += 1;
+        map.set(o.tableNumber, cur);
+      });
+    return Array.from(map.entries())
+      .map(([table, v]) => ({ table, ...v }))
+      .sort((a, b) => a.table - b.table);
+  }, [orders, storeId]);
+
   // 새 주문 도착 알림
   useEffect(() => {
     const allMine = orders.filter((o) => o.storeId === storeId);
@@ -131,6 +163,30 @@ export default function OwnerOrders() {
         </button>
       }
     >
+      {/* 미결제 테이블 요약 */}
+      {unpaidByTable.length > 0 && (
+        <div className="mb-5">
+          <h2 className="text-[14px] font-bold text-[var(--color-navy-900)] px-1 mb-2 flex items-center gap-1.5">
+            <ReceiptIcon className="w-4 h-4" />
+            미결제 테이블 ({unpaidByTable.length})
+          </h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+            {unpaidByTable.map((u) => (
+              <Card key={u.table} padding="md" className="border-[#ffd9a8]">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[11px] font-bold text-[var(--color-warn)] uppercase tracking-wide">미결제</span>
+                  <span className="text-[10px] text-[var(--color-ink-500)] font-semibold">{u.count}건</span>
+                </div>
+                <p className="text-[15px] font-extrabold text-[var(--color-navy-900)]">테이블 {u.table}</p>
+                <p className="text-[16px] font-extrabold text-[var(--color-navy-900)] tabular-nums mt-1">
+                  ₩ {u.total.toLocaleString()}
+                </p>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 lg:gap-6">
         {/* Coupon approvals */}
         {pendingCoupons.length > 0 && (
@@ -254,10 +310,19 @@ function OrderCard({
         isNew && "ring-2 ring-[var(--color-navy-700)] shadow-[var(--shadow-lifted)] animate-[gyeol-pop_.25s_ease-out]"
       )}
     >
-      <div className="flex items-center gap-2 mb-2">
+      <div className="flex items-center gap-2 mb-2 flex-wrap">
         <span className={cn("px-2 py-0.5 rounded-full text-[10px] font-bold", STATUS_COLORS[order.status])}>
           {STATUS_LABELS[order.status]}
         </span>
+        {order.paymentStatus === "paid" ? (
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[var(--color-mint-100)] text-[var(--color-mint-700)]">
+            결제 완료
+          </span>
+        ) : (
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#fff1e0] text-[var(--color-warn)]">
+            미결제
+          </span>
+        )}
         <span className="text-[13px] text-[var(--color-navy-900)] font-bold">
           테이블 {order.tableNumber}
         </span>

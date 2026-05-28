@@ -112,6 +112,12 @@ interface StoreState {
     items: OrderItem[];
   }) => Promise<Order>;
   updateOrderStatus: (id: string, status: OrderStatus) => Promise<void>;
+  /** 현재 테이블의 미결제 주문 일괄 결제 처리. 결제 합계 반환. */
+  payTableSession: (
+    customerId: string,
+    storeId: string,
+    tableNumber: number
+  ) => Promise<number>;
 
   // CRM
   recordCommunication: (
@@ -218,6 +224,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const tablesRef = useRef<TableDoc[]>(tables);
   const menusRef = useRef<Menu[]>(menus);
   const sectionsRef = useRef<Section[]>(sections);
+  const ordersRef = useRef<Order[]>(orders);
   const currentUserRef = useRef<User | null>(currentUser);
   useEffect(() => { usersRef.current = users; }, [users]);
   useEffect(() => { visitsRef.current = visits; }, [visits]);
@@ -225,6 +232,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => { tablesRef.current = tables; }, [tables]);
   useEffect(() => { menusRef.current = menus; }, [menus]);
   useEffect(() => { sectionsRef.current = sections; }, [sections]);
+  useEffect(() => { ordersRef.current = orders; }, [orders]);
   useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
 
   // Persist for offline fallback
@@ -939,6 +947,46 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     await updateFirestoreDoc("orders", id, { status });
   }, []);
 
+  const payTableSession = useCallback(
+    async (customerId: string, storeId: string, tableNumber: number): Promise<number> => {
+      const ordersNow = ordersRef.current ?? orders;
+      const tablesNow = tablesRef.current ?? tables;
+      const unpaid = ordersNow.filter(
+        (o) =>
+          o.customerId === customerId &&
+          o.storeId === storeId &&
+          o.status !== "cancelled" &&
+          o.paymentStatus !== "paid"
+      );
+      if (unpaid.length === 0) {
+        showToast("결제할 미결제 주문이 없습니다.", "info");
+        return 0;
+      }
+      const total = unpaid.reduce((s, o) => s + o.totalAmount, 0);
+
+      if (!db) {
+        // 오프라인: 개별로 큐에 적재
+        for (const o of unpaid) {
+          await updateFirestoreDoc("orders", o.id, { paymentStatus: "paid" });
+        }
+      } else {
+        const batch = writeBatch(db);
+        unpaid.forEach((o) => {
+          batch.set(doc(db!, "orders", o.id), { paymentStatus: "paid" }, { merge: true });
+        });
+        const tableId = `${storeId}_${tableNumber}`;
+        if (tablesNow.some((t) => t.id === tableId)) {
+          batch.set(doc(db, "tables", tableId), { status: "paid" }, { merge: true });
+        }
+        await batch.commit();
+      }
+
+      showToast(`₩ ${total.toLocaleString()} 결제 완료`, "success");
+      return total;
+    },
+    [orders, tables]
+  );
+
   // ============ CRM ============
   const recordCommunication = useCallback(
     async (
@@ -1121,6 +1169,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       deleteMenuItem,
       placeOrder,
       updateOrderStatus,
+      payTableSession,
       recordCommunication,
       updateUserMemo,
       setCustomerTier,
@@ -1181,6 +1230,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       deleteMenuItem,
       placeOrder,
       updateOrderStatus,
+      payTableSession,
       recordCommunication,
       updateUserMemo,
       setCustomerTier,

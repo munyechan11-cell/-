@@ -14,6 +14,8 @@ import {
   Plus,
   Minus,
   ShoppingBag,
+  CreditCard,
+  Receipt as ReceiptIcon,
 } from "lucide-react";
 import { MobileShell } from "../../components/layout/MobileShell";
 import { TopBar } from "../../components/ui/TopBar";
@@ -43,6 +45,7 @@ export default function CustomerDashboard() {
     requestCouponUse,
     cancelCouponRequest,
     placeOrder,
+    payTableSession,
     setActiveStoreId,
   } = useStore();
   const [tab, setTab] = useState<Tab>("home");
@@ -95,17 +98,30 @@ export default function CustomerDashboard() {
     for (const m of storeMenus) (map[m.category] ??= []).push(m);
     return map;
   }, [storeMenus]);
-  const myActiveOrder = useMemo(
+  // 현재 매장에서 본인의 모든 주문 (취소 제외)
+  const mySessionOrders = useMemo(
     () =>
-      orders.find(
-        (o) =>
-          o.customerId === currentUser?.id &&
-          o.storeId === storeId &&
-          o.status !== "served" &&
-          o.status !== "cancelled"
-      ),
+      orders
+        .filter(
+          (o) =>
+            o.customerId === currentUser?.id &&
+            o.storeId === storeId &&
+            o.status !== "cancelled"
+        )
+        .sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
     [orders, currentUser?.id, storeId]
   );
+  const myActiveOrder = useMemo(
+    () =>
+      mySessionOrders.find((o) => o.status !== "served"),
+    [mySessionOrders]
+  );
+  // 미결제 주문 합계
+  const unpaidOrders = useMemo(
+    () => mySessionOrders.filter((o) => o.paymentStatus !== "paid"),
+    [mySessionOrders]
+  );
+  const unpaidTotal = unpaidOrders.reduce((s, o) => s + o.totalAmount, 0);
 
   const cartItems = Object.entries(cart)
     .map(([id, qty]) => {
@@ -130,6 +146,13 @@ export default function CustomerDashboard() {
     });
     setCart({});
     setTab("home");
+  };
+
+  const handlePay = async () => {
+    if (!currentUser || !myTable) return;
+    if (unpaidTotal === 0) return;
+    if (!confirm(`총 ₩ ${unpaidTotal.toLocaleString()}을 결제할까요?\n결제는 매장 카운터에서 마무리해 주세요.`)) return;
+    await payTableSession(currentUser.id, storeId, myTable.number);
   };
 
   const override = tierOverrides.find(
@@ -209,16 +232,74 @@ export default function CustomerDashboard() {
             </Card>
           )}
 
-          {/* Active order */}
-          {myActiveOrder && (
-            <Card padding="md" className="border-[var(--color-navy-200)]">
-              <p className="text-[12px] font-bold text-[var(--color-navy-700)] uppercase tracking-wide">
-                진행 중 주문
-              </p>
-              <div className="flex items-center gap-2 mt-2 text-[14px] font-bold text-[var(--color-navy-900)]">
-                <OrderStatusPill status={myActiveOrder.status} />
-                <span className="ml-auto">₩ {myActiveOrder.totalAmount.toLocaleString()}</span>
+          {/* Session orders & 결제 */}
+          {mySessionOrders.length > 0 && (
+            <Card padding="md">
+              <div className="flex items-center gap-2 mb-3">
+                <ReceiptIcon className="w-4 h-4 text-[var(--color-navy-700)]" />
+                <p className="text-[13px] font-bold text-[var(--color-navy-900)]">
+                  현재 주문 ({mySessionOrders.length}건)
+                </p>
+                {myActiveOrder && (
+                  <OrderStatusPill status={myActiveOrder.status} />
+                )}
               </div>
+
+              <ul className="divide-y divide-[var(--color-line-soft)] -mx-1">
+                {mySessionOrders.map((o) => (
+                  <li key={o.id} className="py-2 px-1 flex items-start gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        <span className="text-[11px] text-[var(--color-ink-500)] font-semibold tabular-nums">
+                          {new Date(o.createdAt).toLocaleTimeString("ko-KR", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                        {o.paymentStatus === "paid" ? (
+                          <span className="text-[10px] font-bold text-[var(--color-mint-700)] bg-[var(--color-mint-100)] px-1.5 py-0.5 rounded">
+                            결제 완료
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold text-[var(--color-warn)] bg-[#fff1e0] px-1.5 py-0.5 rounded">
+                            미결제
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[12px] text-[var(--color-ink-700)] truncate">
+                        {o.items.map((it) => `${it.name}×${it.quantity}`).join(", ")}
+                      </p>
+                    </div>
+                    <span className="text-[13px] font-bold text-[var(--color-navy-900)] tabular-nums shrink-0">
+                      ₩ {o.totalAmount.toLocaleString()}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+
+              <div className="mt-3 pt-3 border-t border-[var(--color-line)] flex items-center justify-between">
+                <span className="text-[12px] font-bold text-[var(--color-ink-500)]">미결제 합계</span>
+                <span className="text-[18px] font-extrabold text-[var(--color-navy-900)] tabular-nums">
+                  ₩ {unpaidTotal.toLocaleString()}
+                </span>
+              </div>
+
+              {unpaidTotal > 0 && myTable && (
+                <Button
+                  block
+                  size="lg"
+                  className="mt-3"
+                  onClick={handlePay}
+                  leftIcon={<CreditCard className="w-5 h-5" />}
+                >
+                  결제하기 (₩ {unpaidTotal.toLocaleString()})
+                </Button>
+              )}
+              {unpaidTotal === 0 && mySessionOrders.length > 0 && (
+                <div className="mt-3 py-2.5 px-3 rounded-xl bg-[var(--color-mint-100)] text-[var(--color-mint-700)] text-[12px] font-bold text-center">
+                  모든 주문이 결제되었습니다. 매장 카운터에서 마무리해 주세요.
+                </div>
+              )}
             </Card>
           )}
 
