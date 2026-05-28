@@ -25,6 +25,7 @@ import { showToast } from "../lib/toast";
 import { getCustomerTier } from "../lib/tier";
 import { relayOrderToPos } from "../lib/pos";
 import { printReceipt } from "../lib/receipt";
+import { printReceiptViaUsb, getAuthorizedPrinters } from "../lib/thermalPrinter";
 import type {
   User,
   Visit,
@@ -916,6 +917,28 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const hasPosApi =
         owner?.posVendor && owner.posVendor !== "none" && owner.posApiKey;
 
+      // 인쇄 시도: ① POS API → ② USB 프린터 직결 → ③ 브라우저 팝업 (폴백)
+      const tryThermalThenPopup = async (failureFooter?: string) => {
+        try {
+          const printers = await getAuthorizedPrinters();
+          if (printers.length > 0) {
+            await printReceiptViaUsb({
+              storeName: owner?.restaurantName ?? "결",
+              order,
+              footer: failureFooter,
+            });
+            return;
+          }
+        } catch (e) {
+          console.warn("[thermal print failed, falling back to popup]", e);
+        }
+        printReceipt({
+          storeName: owner?.restaurantName ?? "결",
+          order,
+          footer: failureFooter,
+        });
+      };
+
       if (hasPosApi || owner?.foodtechStoreCode) {
         const apiKey = owner?.posApiKey || owner?.foodtechStoreCode || "";
         const ok = await relayOrderToPos(apiKey, order, (mid) => {
@@ -923,18 +946,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         });
         if (!ok) {
           showToast("POS 전달 실패. 영수증을 인쇄합니다.", "info");
-          printReceipt({
-            storeName: owner?.restaurantName ?? "결",
-            order,
-            footer: "POS 전송 실패 - 수동 처리 필요",
-          });
+          await tryThermalThenPopup("POS 전송 실패 - 수동 처리 필요");
         }
       } else {
-        // POS 미설정 → 영수증 자동 인쇄
-        printReceipt({
-          storeName: owner?.restaurantName ?? "결",
-          order,
-        });
+        // POS 미설정 → 영수증 인쇄 (USB 프린터 있으면 직결, 없으면 팝업)
+        await tryThermalThenPopup();
       }
 
       showToast("주문이 접수되었습니다.", "success");

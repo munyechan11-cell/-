@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { MapPin, Save, Receipt, KeyRound, Info } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { MapPin, Save, Receipt, KeyRound, Info, Printer, Plug, CheckCircle2, AlertCircle } from "lucide-react";
 import { OwnerShell } from "../../components/layout/OwnerShell";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
@@ -9,10 +9,56 @@ import { showToast } from "../../lib/toast";
 import { getCurrentPosition } from "../../lib/geo";
 import { TIER_ORDER } from "../../lib/tier";
 import { POS_VENDORS, getVendor, type PosVendor } from "../../lib/posVendors";
+import {
+  isWebUsbSupported,
+  requestPrinter,
+  getAuthorizedPrinters,
+  printTestPage,
+} from "../../lib/thermalPrinter";
 import type { Industry, RewardType } from "../../lib/types";
 
 export default function BrandSettings() {
   const { currentUser, updateBrandSettings, updateStoreConfig, updateStoreLocation } = useStore();
+  const [printerInfo, setPrinterInfo] = useState<{ name: string } | null>(null);
+  const [printerBusy, setPrinterBusy] = useState(false);
+
+  useEffect(() => {
+    if (!isWebUsbSupported()) return;
+    getAuthorizedPrinters().then((devs) => {
+      if (devs.length > 0) {
+        const d = devs[0];
+        setPrinterInfo({ name: d.productName || d.manufacturerName || "USB 프린터" });
+      }
+    });
+  }, []);
+
+  const connectPrinter = async () => {
+    setPrinterBusy(true);
+    try {
+      const dev = await requestPrinter();
+      if (dev) {
+        setPrinterInfo({ name: dev.productName || dev.manufacturerName || "USB 프린터" });
+        showToast("프린터가 연결되었습니다. 테스트 인쇄로 확인해 보세요.", "success");
+      }
+    } catch (e: any) {
+      showToast(e?.message ?? "프린터 연결 실패", "error");
+    } finally {
+      setPrinterBusy(false);
+    }
+  };
+
+  const testPrinter = async () => {
+    setPrinterBusy(true);
+    try {
+      await printTestPage();
+      showToast("테스트 인쇄를 전송했습니다.", "success");
+    } catch (e: any) {
+      showToast(e?.message ?? "테스트 인쇄 실패", "error");
+    } finally {
+      setPrinterBusy(false);
+    }
+  };
+
   const storeId = currentUser?.id ?? "";
   const cfg = currentUser?.storeConfig;
 
@@ -144,6 +190,78 @@ export default function BrandSettings() {
             onChange={(e) => setFoodtech(e.target.value)}
             hint="기존 푸드테크 연동을 쓰는 경우만 입력. 위 POS 키가 우선합니다."
           />
+        </Sec>
+
+        {/* ===== USB 영수증 프린터 직결 ===== */}
+        <Sec title="영수증 프린터 (USB 직결)">
+          {!isWebUsbSupported() ? (
+            <div className="flex items-start gap-2 p-3.5 rounded-[14px] bg-[#fef2f2] border border-[var(--color-danger)]/30">
+              <AlertCircle className="w-4 h-4 text-[var(--color-danger)] mt-0.5 shrink-0" />
+              <p className="text-[12px] text-[var(--color-danger)] font-semibold leading-relaxed">
+                이 브라우저는 USB 직결 인쇄를 지원하지 않습니다.
+                <br />
+                <span className="font-medium opacity-90">
+                  Chrome 또는 Edge에서 접속하시면 영수증 프린터에 직접 인쇄할 수 있어요.
+                  현재는 팝업 인쇄로 동작합니다.
+                </span>
+              </p>
+            </div>
+          ) : printerInfo ? (
+            <div className="space-y-3">
+              <div className="flex items-start gap-2 p-3.5 rounded-[14px] bg-[var(--color-mint-50)] border border-[var(--color-mint-200)]">
+                <CheckCircle2 className="w-4 h-4 text-[var(--color-mint-700)] mt-0.5 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13px] font-bold text-[var(--color-mint-700)]">
+                    {printerInfo.name}
+                  </p>
+                  <p className="text-[12px] text-[var(--color-mint-700)] font-medium opacity-90 mt-0.5">
+                    연결됨 · 새 주문마다 자동 인쇄됩니다.
+                  </p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="ghost"
+                  size="md"
+                  onClick={testPrinter}
+                  loading={printerBusy}
+                  leftIcon={<Printer className="w-4 h-4" />}
+                >
+                  테스트 인쇄
+                </Button>
+                <Button
+                  variant="outline"
+                  size="md"
+                  onClick={connectPrinter}
+                  loading={printerBusy}
+                  leftIcon={<Plug className="w-4 h-4" />}
+                >
+                  다른 프린터 선택
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-start gap-2 p-3.5 rounded-[14px] bg-[var(--color-navy-50)] border border-[var(--color-navy-200)]">
+                <Info className="w-4 h-4 text-[var(--color-navy-700)] mt-0.5 shrink-0" />
+                <p className="text-[12px] text-[var(--color-navy-700)] font-semibold leading-relaxed">
+                  POS와 같은 USB 영수증 프린터(빅솔론·엡손 등)에 직접 인쇄할 수 있습니다.
+                  <br />
+                  <span className="font-medium opacity-90">
+                    한 번만 연결해 두면 새 주문이 들어올 때마다 자동으로 인쇄돼요. 팝업이 뜨지 않습니다.
+                  </span>
+                </p>
+              </div>
+              <Button
+                block
+                onClick={connectPrinter}
+                loading={printerBusy}
+                leftIcon={<Plug className="w-4 h-4" />}
+              >
+                USB 프린터 연결하기
+              </Button>
+            </div>
+          )}
         </Sec>
 
         <Sec title="업종 · 보상">

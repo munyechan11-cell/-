@@ -24,6 +24,7 @@ import {
   playChime,
 } from "../../lib/notify";
 import { printReceipt } from "../../lib/receipt";
+import { printReceiptViaUsb, getAuthorizedPrinters } from "../../lib/thermalPrinter";
 import { showToast } from "../../lib/toast";
 
 const STATUS_LABELS: Record<OrderStatus, string> = {
@@ -136,12 +137,22 @@ export default function OwnerOrders() {
     }
   };
 
-  const reprintReceipt = (order: Order) => {
-    printReceipt({
+  const reprintReceipt = async (order: Order) => {
+    const payload = {
       storeName: currentUser?.restaurantName ?? "결",
       order,
       footer: "재인쇄 — Reprinted",
-    });
+    };
+    try {
+      const printers = await getAuthorizedPrinters();
+      if (printers.length > 0) {
+        await printReceiptViaUsb(payload);
+        return;
+      }
+    } catch (e: any) {
+      showToast(`USB 인쇄 실패: ${e?.message ?? ""}. 팝업으로 인쇄합니다.`, "info");
+    }
+    printReceipt(payload);
   };
 
   return (
