@@ -46,10 +46,16 @@ export default function OwnerLogin() {
         authType: "phone",
         posVendor: mode === "signup" ? posVendor : undefined,
         posApiKey: mode === "signup" ? posApiKey || undefined : undefined,
+        signInOnly: mode === "login", // 로그인 모드에선 자동 가입 막음
       });
       nav("/owner", { replace: true });
     } catch (e: any) {
-      showToast(`로그인 실패: ${e?.message ?? ""}`, "error");
+      showToast(
+        mode === "login"
+          ? "일치하는 사장님 계정이 없어요. '신규 등록' 탭으로 가입해 주세요."
+          : `가입 실패: ${e?.message ?? ""}`,
+        "error"
+      );
     } finally {
       setLoading(false);
     }

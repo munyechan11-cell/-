@@ -92,7 +92,7 @@ export default function QrPrint() {
               value={`${origin}/customer/store/${storeId}/table/${t.number}`}
               size={size}
               level="M"
-              includeMargin={false}
+              includeMargin={true}
             />
             <p className="text-[10px] text-[var(--color-ink-500)] mt-1.5 font-medium">QR을 찍어 입장하세요</p>
           </div>

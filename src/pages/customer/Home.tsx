@@ -57,11 +57,14 @@ export default function CustomerHome() {
     <MobileShell>
       <TopBar
         title="내 결"
+        back={() => nav("/")}
         right={
           <button
             onClick={() => {
-              logout();
-              nav("/", { replace: true });
+              if (confirm("로그아웃 하시겠어요?")) {
+                logout();
+                nav("/", { replace: true });
+              }
             }}
             className="w-10 h-10 rounded-full hover:bg-[var(--color-navy-50)] inline-flex items-center justify-center"
             aria-label="로그아웃"

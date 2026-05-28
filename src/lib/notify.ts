@@ -24,6 +24,10 @@ function getCtx(): AudioContext | null {
     if (!Ctor) return null;
     audioCtx = new Ctor();
   }
+  // Chrome 자동재생 정책으로 가끔 suspended 상태로 시작 → resume
+  if (audioCtx.state === "suspended") {
+    audioCtx.resume().catch(() => {});
+  }
   return audioCtx;
 }
 
@@ -71,10 +75,16 @@ export function showBrowserNotification(title: string, body: string) {
   try {
     const n = new Notification(title, {
       body,
-      icon: "/manifest.json", // PWA 아이콘이 있으면 자동 사용
+      icon: "/vite.svg", // 작은 시스템 알림 아이콘 (favicon)
+      badge: "/vite.svg",
       tag: "gyeol-order",
       requireInteraction: false,
     });
+    // 클릭하면 창 포커스
+    n.onclick = () => {
+      window.focus();
+      n.close();
+    };
     setTimeout(() => n.close(), 8000);
   } catch {
     /* Safari macOS 11+ 에서 Notification 생성자 거부 가능 */

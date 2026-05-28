@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Shield, Lock, LogOut, Trash2, Users, Store } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Shield, Lock, LogOut, Trash2, Users, Store, Search } from "lucide-react";
 import { MobileShell } from "../components/layout/MobileShell";
 import { TopBar } from "../components/ui/TopBar";
 import { Card } from "../components/ui/Card";
@@ -13,6 +13,31 @@ export default function Master() {
   const [pw, setPw] = useState("");
   const [tab, setTab] = useState<"owners" | "customers" | "settings">("owners");
   const [newPw, setNewPw] = useState("");
+  const [search, setSearch] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const matched = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return users;
+    return users.filter(
+      (u) =>
+        u.name?.toLowerCase().includes(q) ||
+        u.phone?.includes(q) ||
+        u.restaurantName?.toLowerCase().includes(q)
+    );
+  }, [users, search]);
+
+  const handleDelete = async (id: string, role: "owner" | "customer", label: string) => {
+    if (!confirm(`'${label}' 을(를) 삭제하시겠습니까?\n관련 데이터가 모두 정리되며 되돌릴 수 없습니다.`)) return;
+    setDeletingId(id);
+    try {
+      await deleteUser(id, role);
+    } catch (e: any) {
+      showToast(`삭제 실패: ${e?.message ?? ""}`, "error");
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   if (!isMaster) {
     return (
@@ -50,8 +75,8 @@ export default function Master() {
     );
   }
 
-  const owners = users.filter((u) => u.role === "owner");
-  const customers = users.filter((u) => u.role === "customer");
+  const owners = matched.filter((u) => u.role === "owner");
+  const customers = matched.filter((u) => u.role === "customer");
 
   return (
     <MobileShell>
@@ -91,19 +116,27 @@ export default function Master() {
           ))}
         </div>
 
+        {(tab === "owners" || tab === "customers") && (
+          <Input
+            placeholder="이름·전화번호·매장명 검색"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            leftSlot={<Search className="w-4 h-4" />}
+            className="mb-3"
+          />
+        )}
+
         {tab === "owners" && (
           <div className="space-y-2">
-            {owners.length === 0 && <EmptyText>등록된 가맹점이 없습니다.</EmptyText>}
+            {owners.length === 0 && <EmptyText>{search ? "검색 결과가 없습니다." : "등록된 가맹점이 없습니다."}</EmptyText>}
             {owners.map((u) => (
               <UserRow
                 key={u.id}
                 title={u.restaurantName || u.name}
                 subtitle={`${u.name} · ${u.phone || "—"}`}
                 deleted={u.status === "deleted"}
-                onDelete={() => {
-                  if (confirm(`'${u.restaurantName || u.name}' 매장과 모든 데이터를 삭제하시겠습니까?`))
-                    deleteUser(u.id, "owner");
-                }}
+                deleting={deletingId === u.id}
+                onDelete={() => handleDelete(u.id, "owner", u.restaurantName || u.name)}
               />
             ))}
           </div>
@@ -111,16 +144,15 @@ export default function Master() {
 
         {tab === "customers" && (
           <div className="space-y-2">
-            {customers.length === 0 && <EmptyText>등록된 고객이 없습니다.</EmptyText>}
+            {customers.length === 0 && <EmptyText>{search ? "검색 결과가 없습니다." : "등록된 고객이 없습니다."}</EmptyText>}
             {customers.map((u) => (
               <UserRow
                 key={u.id}
                 title={u.name}
                 subtitle={`${u.phone || "—"} · ${u.authType ?? "phone"}`}
                 deleted={u.status === "deleted"}
-                onDelete={() => {
-                  if (confirm(`'${u.name}' 고객을 삭제하시겠습니까?`)) deleteUser(u.id, "customer");
-                }}
+                deleting={deletingId === u.id}
+                onDelete={() => handleDelete(u.id, "customer", u.name)}
               />
             ))}
           </div>
@@ -182,11 +214,13 @@ function UserRow({
   title,
   subtitle,
   deleted,
+  deleting,
   onDelete,
 }: {
   title: string;
   subtitle: string;
   deleted?: boolean;
+  deleting?: boolean;
   onDelete: () => void;
 }) {
   return (
@@ -204,9 +238,15 @@ function UserRow({
       </div>
       <button
         onClick={onDelete}
-        className="w-9 h-9 rounded-full inline-flex items-center justify-center hover:bg-[var(--color-danger)]/10 text-[var(--color-danger)]"
+        disabled={deleting}
+        className="w-9 h-9 rounded-full inline-flex items-center justify-center hover:bg-[var(--color-danger)]/10 text-[var(--color-danger)] disabled:opacity-50"
+        aria-label="삭제"
       >
-        <Trash2 className="w-4 h-4" />
+        {deleting ? (
+          <span className="w-3.5 h-3.5 border-2 border-[var(--color-danger)] border-t-transparent rounded-full animate-spin" />
+        ) : (
+          <Trash2 className="w-4 h-4" />
+        )}
       </button>
     </Card>
   );

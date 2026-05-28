@@ -174,7 +174,8 @@ export default function OwnerPhotoVault() {
                     onClick={() =>
                       updatePhoto(p.id, {
                         snsConsent: !p.snsConsent,
-                        consentedAt: !p.snsConsent ? new Date().toISOString() : undefined,
+                        // null로 명시해야 Firestore에서 필드가 실제로 비워짐 (undefined는 merge 시 변경 없음)
+                        consentedAt: !p.snsConsent ? new Date().toISOString() : (null as any),
                       })
                     }
                     className={`absolute top-2 right-2 text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1 ${

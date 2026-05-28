@@ -121,10 +121,10 @@ export default function OwnerDashboard() {
                       {t.number}
                     </div>
                     <div className="flex-1">
-                      <p className="text-[14px] font-bold text-[var(--color-navy-900)]">테이블 {t.number}</p>
-                      <p className="body-sm">
-                        {t.seats}인 · {t.type ?? "table"}
+                      <p className="text-[14px] font-bold text-[var(--color-navy-900)]">
+                        {t.type === "room" ? "룸" : t.type === "door" ? "출입구" : "테이블"} {t.number}
                       </p>
+                      {t.type !== "door" && <p className="body-sm">{t.seats}인</p>}
                     </div>
                     <StatusBadge status={t.status ?? "available"} />
                   </Card>

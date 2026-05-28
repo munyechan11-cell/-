@@ -162,6 +162,8 @@ interface LoginInput {
   privacyAgreedAt?: string;
   posVendor?: string;
   posApiKey?: string;
+  /** true면 기존 계정만 로그인 허용, 매칭 실패 시 throw (자동 가입 방지) */
+  signInOnly?: boolean;
 }
 
 const StoreCtx = createContext<StoreState | null>(null);
@@ -470,6 +472,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         setCurrentUser(final);
         showToast(`${final.name}님 환영합니다!`, "success");
         return final;
+      }
+
+      // signInOnly 모드: 기존 계정 없으면 가입 거부
+      if (input.signInOnly) {
+        throw new Error("일치하는 계정이 없습니다. 신규 가입 모드에서 등록해 주세요.");
       }
 
       // 3) new user

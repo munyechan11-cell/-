@@ -105,19 +105,27 @@ export default function BrandSettings() {
   };
 
   const saveConfig = async () => {
+    // 비율 클램프 (음수·1초과 방지)
+    const rate = Math.max(0, Math.min(1, Number(pointRate) || 0));
+    const stamps = Math.max(1, Math.min(100, Number(stampMax) || 10));
+    const inactive = Math.max(1, Math.min(365, Number(inactiveDays) || 30));
+    const r = Math.max(10, Math.min(5000, Number(radius) || 100));
+
     await updateStoreConfig(storeId, {
       industry,
       rewardType,
-      pointRate: Number(pointRate) || 0,
-      stampMax: Number(stampMax) || 10,
-      marketingTriggers: {
-        inactiveDays: Number(inactiveDays) || 30,
-        birthdayCoupon,
-      },
+      pointRate: rate,
+      stampMax: stamps,
+      marketingTriggers: { inactiveDays: inactive, birthdayCoupon },
       locationAccessOnly: locationOnly,
-      allowedRadius: Number(radius) || 100,
-      tossClientKey: tossKey || undefined,
+      allowedRadius: r,
+      tossClientKey: (tossKey || null) as any,
     });
+    // 화면 입력값도 클램프 결과로 정정
+    setPointRate(String(rate));
+    setStampMax(String(stamps));
+    setInactiveDays(String(inactive));
+    setRadius(String(r));
     showToast("매장 운영 설정을 저장했습니다.", "success");
   };
 
@@ -146,10 +154,7 @@ export default function BrandSettings() {
             <div className="relative">
               <select
                 value={posVendor}
-                onChange={(e) => {
-                  setPosVendor(e.target.value as PosVendor);
-                  setPosApiKey("");
-                }}
+                onChange={(e) => setPosVendor(e.target.value as PosVendor)}
                 className="input-field appearance-none pr-10"
               >
                 {POS_VENDORS.map((v) => (
