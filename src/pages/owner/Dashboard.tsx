@@ -224,7 +224,7 @@ function Inline({ label, value, delta }: { label: string; value: string; delta?:
   return (
     <div>
       <p className="opacity-80 text-[12px] mb-0.5">{label}</p>
-      <p className="font-bold flex items-center gap-1">
+      <p className="font-bold flex items-center gap-1 tabular-nums">
         {value}
         {delta && (
           <span

@@ -282,7 +282,7 @@ function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <p className="opacity-80 text-[12px] mb-0.5 font-semibold">{label}</p>
-      <p className="font-extrabold text-[15px]">{value}</p>
+      <p className="font-extrabold text-[16px] tabular-nums">{value}</p>
     </div>
   );
 }

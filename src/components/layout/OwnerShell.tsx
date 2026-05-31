@@ -157,19 +157,17 @@ export function OwnerShell({ children, title, headerRight, width = "default" }: 
             className="absolute inset-y-0 left-0 w-[300px] max-w-[88vw] bg-white flex flex-col animate-[gyeol-slide-up_.2s_ease-out]"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between px-5 h-[64px] border-b border-[var(--color-line-soft)]">
-              <div className="leading-tight">
-                <p className="text-[15px] font-extrabold text-[var(--color-navy-900)]">
+            <div className="flex items-center justify-between px-5 h-[68px] border-b border-[var(--color-line-soft)]">
+              <div className="leading-tight min-w-0 flex-1">
+                <p className="text-[16px] font-extrabold text-[var(--color-navy-900)] truncate">
                   {employerName}
                 </p>
-                {isStaff && (
-                  <p className="text-[12px] text-[var(--color-ink-600)] font-semibold">
-                    직원 · {currentUser?.position || "근무자"}
-                  </p>
-                )}
+                <p className="text-[12px] text-[var(--color-ink-600)] font-semibold mt-0.5">
+                  {isStaff ? `직원 · ${currentUser?.position || "근무자"}` : "사장님 콘솔"}
+                </p>
               </div>
-              <button onClick={() => setDrawerOpen(false)} className="w-9 h-9 rounded-full hover:bg-[var(--color-navy-50)] inline-flex items-center justify-center">
-                <X className="w-4 h-4" />
+              <button onClick={() => setDrawerOpen(false)} className="w-11 h-11 rounded-full hover:bg-[var(--color-navy-50)] inline-flex items-center justify-center shrink-0" aria-label="메뉴 닫기">
+                <X className="w-5 h-5" />
               </button>
             </div>
             <nav className="flex-1 overflow-y-auto p-3 space-y-0.5">
@@ -228,7 +226,7 @@ export function OwnerShell({ children, title, headerRight, width = "default" }: 
             >
               <MenuIcon className="w-5 h-5 text-[var(--color-navy-800)]" />
             </button>
-            <h1 className="text-[17px] lg:text-[22px] font-extrabold tracking-tight text-[var(--color-navy-900)] truncate">
+            <h1 className="text-[18px] lg:text-[22px] font-extrabold tracking-tight text-[var(--color-navy-900)] truncate">
               {heading}
             </h1>
             <div className="ml-auto flex items-center gap-2">
@@ -248,8 +246,7 @@ export function OwnerShell({ children, title, headerRight, width = "default" }: 
                   {onDuty ? (
                     <>
                       <Clock className="w-3.5 h-3.5" />
-                      근무 중 · 퇴근
-                      <ClockOutIcon className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">근무 중 · </span>퇴근
                     </>
                   ) : (
                     <>

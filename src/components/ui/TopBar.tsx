@@ -36,7 +36,7 @@ export function TopBar({ title, back, right, transparent }: Props) {
       ) : (
         <div className="w-11" />
       )}
-      <h1 className="flex-1 text-center text-[16px] font-bold text-[var(--color-navy-900)] tracking-tight truncate">
+      <h1 className="flex-1 text-center text-[17px] sm:text-[18px] font-extrabold text-[var(--color-navy-900)] tracking-tight truncate px-1">
         {title}
       </h1>
       <div className="min-w-11 flex items-center justify-end gap-1">{right}</div>

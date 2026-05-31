@@ -178,10 +178,10 @@ export default function CustomerDashboard() {
         right={
           <Link
             to="/customer"
-            className="w-10 h-10 rounded-full hover:bg-[var(--color-navy-50)] inline-flex items-center justify-center"
+            className="w-11 h-11 rounded-full hover:bg-[var(--color-navy-50)] inline-flex items-center justify-center"
             aria-label="내 결"
           >
-            <UserIcon className="w-4 h-4 text-[var(--color-navy-800)]" />
+            <UserIcon className="w-5 h-5 text-[var(--color-navy-800)]" />
           </Link>
         }
       />
@@ -365,7 +365,7 @@ export default function CustomerDashboard() {
       )}
 
       {tab === "menu" && (
-        <div className="px-5 pt-3 pb-32">
+        <div className="px-5 pt-3" style={{ paddingBottom: "calc(64px + env(safe-area-inset-bottom) + 88px)" }}>
           {storeMenus.length === 0 ? (
             <Card padding="lg" className="text-center mt-2">
               <UtensilsCrossed className="w-8 h-8 text-[var(--color-ink-300)] mx-auto mb-2" />
@@ -410,11 +410,14 @@ export default function CustomerDashboard() {
           )}
 
           {cartItems.length > 0 && (
-            <div className="fixed bottom-16 left-1/2 -translate-x-1/2 w-full max-w-[480px] px-5 pb-3 z-30">
+            <div
+              className="fixed left-1/2 -translate-x-1/2 w-full max-w-[480px] px-5 z-30"
+              style={{ bottom: "calc(64px + env(safe-area-inset-bottom) + 8px)" }}
+            >
               <button
                 onClick={submitOrder}
                 disabled={!myTable}
-                className="w-full h-14 rounded-[18px] bg-[var(--color-navy-700)] text-white font-bold shadow-[var(--shadow-navy)] flex items-center justify-between px-5 disabled:opacity-50"
+                className="w-full h-14 rounded-[18px] bg-[var(--color-navy-700)] text-white font-bold shadow-[var(--shadow-navy)] flex items-center justify-between px-5 disabled:opacity-50 active:scale-[0.98] transition-transform"
               >
                 <span className="inline-flex items-center gap-2">
                   <ShoppingBag className="w-4 h-4" />
@@ -593,7 +596,7 @@ function SmallStat({ label, value }: { label: string; value: string }) {
   return (
     <Card padding="sm" className="text-center">
       <p className="text-[12px] text-[var(--color-ink-600)] font-semibold mb-0.5">{label}</p>
-      <p className="text-[16px] font-extrabold text-[var(--color-navy-900)]">{value}</p>
+      <p className="text-[16px] font-extrabold text-[var(--color-navy-900)] tabular-nums">{value}</p>
     </Card>
   );
 }

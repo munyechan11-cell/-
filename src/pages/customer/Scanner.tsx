@@ -124,13 +124,13 @@ export default function Scanner() {
             </div>
           </div>
           {!scanning && !error && (
-            <div className="absolute inset-0 flex items-center justify-center text-white/80 text-sm">
+            <div className="absolute inset-0 flex items-center justify-center text-white/90 text-[14px] font-semibold">
               <Camera className="w-5 h-5 mr-2" /> 카메라 시작 중...
             </div>
           )}
           {error && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-white p-6 text-center">
-              <p className="text-sm font-semibold mb-3">{error}</p>
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-white p-6 text-center bg-black/60">
+              <p className="text-[14px] font-semibold mb-3 leading-relaxed">{error}</p>
               <Button variant="mint" size="sm" onClick={() => window.location.reload()}>
                 다시 시도
               </Button>
@@ -138,8 +138,11 @@ export default function Scanner() {
           )}
         </div>
 
-        <p className="text-center mt-6 text-[14px] text-[var(--color-ink-500)] font-medium">
+        <p className="text-center mt-6 text-[15px] text-[var(--color-ink-700)] font-semibold">
           매장 QR을 사각형 안에 맞춰주세요.
+        </p>
+        <p className="text-center mt-1 text-[13px] text-[var(--color-ink-500)]">
+          밝은 곳에서 더 잘 인식돼요.
         </p>
 
         <div className="flex gap-3 mt-6">
