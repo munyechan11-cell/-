@@ -72,12 +72,12 @@ export default function OwnerStaff() {
             {pending.map((s) => (
               <Card key={s.id} padding="md" className="flex items-center gap-3 flex-wrap">
                 <div className="flex-1 min-w-0">
-                  <p className="text-[14px] font-bold text-[var(--color-navy-900)] truncate">
-                    {s.name} {s.position && <span className="text-[var(--color-ink-500)] font-semibold">· {s.position}</span>}
+                  <p className="text-[15px] font-bold text-[var(--color-navy-900)] break-keep">
+                    {s.name} {s.position && <span className="text-[var(--color-navy-700)] font-bold">· {s.position}</span>}
                   </p>
                   <p className="body-sm">{formatPhoneNumber(s.phone)}</p>
                   {s.joinRequestedAt && (
-                    <p className="text-[11px] text-[var(--color-ink-400)] font-semibold mt-0.5">
+                    <p className="text-[12px] text-[var(--color-ink-600)] font-semibold mt-0.5">
                       요청 {fmtDate(s.joinRequestedAt)}
                     </p>
                   )}
@@ -124,10 +124,10 @@ export default function OwnerStaff() {
                 <Card key={s.id} padding="md">
                   <div className="flex items-center gap-3 flex-wrap">
                     <div className="flex-1 min-w-0">
-                      <p className="text-[14px] font-bold text-[var(--color-navy-900)] truncate flex items-center gap-2">
+                      <p className="text-[15px] font-bold text-[var(--color-navy-900)] truncate flex items-center gap-2">
                         {s.name}
                         {st.onDuty && (
-                          <span className="chip text-[10px] bg-[var(--color-mint-100)] text-[var(--color-mint-700)] px-2 py-0.5">
+                          <span className="chip text-[11px] bg-[var(--color-mint-100)] text-[var(--color-mint-700)] px-2 py-0.5">
                             근무 중
                           </span>
                         )}
@@ -136,7 +136,7 @@ export default function OwnerStaff() {
                         {formatPhoneNumber(s.phone)}
                         {s.position ? ` · ${s.position}` : ""}
                       </p>
-                      <p className="text-[11px] text-[var(--color-ink-500)] font-semibold mt-1 flex items-center gap-3 flex-wrap">
+                      <p className="text-[12px] text-[var(--color-ink-600)] font-semibold mt-1 flex items-center gap-3 flex-wrap">
                         <span><Clock className="inline w-3 h-3 mr-1" />오늘 {fmtDuration(st.todayMs)}</span>
                         <span>주간 {fmtDuration(st.weekMs)}</span>
                         {st.activeSince && (

@@ -281,7 +281,7 @@ export default function CustomerLogin() {
               </Button>
             </form>
 
-            <div className="my-7 flex items-center gap-3 text-[12px] text-[var(--color-ink-300)] font-semibold">
+            <div className="my-7 flex items-center gap-3 text-[13px] text-[var(--color-ink-500)] font-semibold">
               <div className="flex-1 h-px bg-[var(--color-line)]" />
               또는 소셜로
               <div className="flex-1 h-px bg-[var(--color-line)]" />

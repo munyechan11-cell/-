@@ -163,8 +163,8 @@ export default function OwnerLogin() {
           <div className="rounded-[14px] border-2 border-[var(--color-navy-700)] bg-[var(--color-navy-50)] p-3 flex items-center gap-2">
             <Crown className="w-4 h-4 text-[var(--color-navy-700)]" />
             <div>
-              <p className="text-[10px] font-bold text-[var(--color-navy-700)] uppercase tracking-wide">현재 화면</p>
-              <p className="text-[13px] font-extrabold text-[var(--color-navy-900)]">사장님</p>
+              <p className="text-[11px] font-bold text-[var(--color-navy-700)] uppercase tracking-wide">현재 화면</p>
+              <p className="text-[14px] font-extrabold text-[var(--color-navy-900)]">사장님</p>
             </div>
           </div>
           <Link
@@ -173,8 +173,8 @@ export default function OwnerLogin() {
           >
             <Briefcase className="w-4 h-4 text-[var(--color-ink-500)]" />
             <div>
-              <p className="text-[10px] font-bold text-[var(--color-ink-500)] uppercase tracking-wide">직원이세요?</p>
-              <p className="text-[13px] font-extrabold text-[var(--color-ink-700)]">직원 가입 →</p>
+              <p className="text-[11px] font-bold text-[var(--color-ink-600)] uppercase tracking-wide">직원이세요?</p>
+              <p className="text-[14px] font-extrabold text-[var(--color-ink-700)]">직원 가입 →</p>
             </div>
           </Link>
         </div>

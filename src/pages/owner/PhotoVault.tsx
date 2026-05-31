@@ -164,7 +164,7 @@ export default function OwnerPhotoVault() {
               <div key={p.id} className="relative group rounded-2xl overflow-hidden bg-[var(--color-ink-50)] aspect-square">
                 <img src={p.imageData} alt="" className="w-full h-full object-cover" />
                 {p.pairedPhotoId && (
-                  <span className="absolute top-2 left-2 bg-[var(--color-mint-500)] text-white text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                  <span className="absolute top-2 left-2 bg-[var(--color-mint-500)] text-white text-[11px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1">
                     <Link2 className="w-3 h-3" />
                     짝
                   </span>
@@ -178,7 +178,7 @@ export default function OwnerPhotoVault() {
                         consentedAt: !p.snsConsent ? new Date().toISOString() : (null as any),
                       })
                     }
-                    className={`absolute top-2 right-2 text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1 ${
+                    className={`absolute top-2 right-2 text-[11px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1 ${
                       p.snsConsent ? "bg-[var(--color-navy-700)] text-white" : "bg-white/80 text-[var(--color-ink-700)]"
                     }`}
                   >
@@ -189,7 +189,7 @@ export default function OwnerPhotoVault() {
                 <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent p-2 flex gap-1">
                   <button
                     onClick={() => togglePair(p)}
-                    className="flex-1 h-7 rounded bg-white/90 text-[10px] font-bold text-[var(--color-navy-700)]"
+                    className="flex-1 h-8 rounded bg-white/90 text-[11px] font-bold text-[var(--color-navy-700)]"
                   >
                     {pairFrom?.id === p.id ? "선택됨" : "짝짓기"}
                   </button>

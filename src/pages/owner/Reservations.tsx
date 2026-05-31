@@ -137,7 +137,7 @@ export default function OwnerReservations() {
         ) : (
           Object.entries(grouped).map(([date, items]) => (
             <div key={date} className="mt-4">
-              <h3 className="text-[13px] font-bold text-[var(--color-ink-500)] px-1 mb-2">
+              <h3 className="text-[14px] font-bold text-[var(--color-ink-700)] px-1 mb-2">
                 {new Date(date).toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" })}
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -147,7 +147,7 @@ export default function OwnerReservations() {
                       <span className="text-[15px] font-extrabold text-[var(--color-navy-900)] tabular-nums">
                         {r.time}
                       </span>
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${STATUS_COLORS[r.status]}`}>
+                      <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${STATUS_COLORS[r.status]}`}>
                         {STATUS_LABELS[r.status]}
                       </span>
                       <button
@@ -170,16 +170,16 @@ export default function OwnerReservations() {
                       {r.customerPhone}
                     </div>
                     {r.memo && (
-                      <p className="text-[12px] text-[var(--color-ink-500)] mt-1.5 bg-[var(--color-bg)] px-2 py-1 rounded">
+                      <p className="text-[13px] text-[var(--color-ink-600)] mt-1.5 bg-[var(--color-bg)] px-2 py-1.5 rounded break-keep">
                         {r.memo}
                       </p>
                     )}
-                    <div className="grid grid-cols-4 gap-1 mt-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 mt-2.5">
                       {(["confirmed", "completed", "no-show", "cancelled"] as ReservationStatus[]).map((s) => (
                         <button
                           key={s}
                           onClick={() => updateReservation(r.id, { status: s })}
-                          className={`h-9 rounded-lg text-[11px] font-bold transition-colors ${
+                          className={`h-10 rounded-lg text-[12px] font-bold transition-colors ${
                             r.status === s
                               ? "bg-[var(--color-navy-700)] text-white"
                               : "bg-[var(--color-bg)] text-[var(--color-ink-600)] hover:bg-[var(--color-navy-50)]"

@@ -101,9 +101,9 @@ export default function OwnerMenus() {
               {items.map((m) => (
                 <Card key={m.id} padding="md" className="flex items-center gap-3">
                   <div className="flex-1 min-w-0">
-                    <p className="text-[15px] font-bold text-[var(--color-navy-900)] truncate">{m.name}</p>
-                    <p className="text-[12px] text-[var(--color-ink-500)] truncate">
-                      ₩ {m.price.toLocaleString()}
+                    <p className="text-[15px] font-bold text-[var(--color-navy-900)] break-keep">{m.name}</p>
+                    <p className="text-[13px] text-[var(--color-ink-600)] line-clamp-2 break-keep">
+                      <span className="font-semibold text-[var(--color-navy-700)]">₩ {m.price.toLocaleString()}</span>
                       {m.description ? ` · ${m.description}` : ""}
                     </p>
                   </div>

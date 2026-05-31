@@ -223,12 +223,12 @@ export default function OwnerDashboard() {
 function Inline({ label, value, delta }: { label: string; value: string; delta?: string }) {
   return (
     <div>
-      <p className="opacity-70 text-[11px] mb-0.5">{label}</p>
+      <p className="opacity-80 text-[12px] mb-0.5">{label}</p>
       <p className="font-bold flex items-center gap-1">
         {value}
         {delta && (
           <span
-            className={`text-[10px] font-extrabold px-1 py-px rounded ${
+            className={`text-[11px] font-extrabold px-1.5 py-0.5 rounded ${
               delta.startsWith("+")
                 ? "bg-[var(--color-mint-400)]/30 text-[var(--color-mint-100)]"
                 : "bg-white/15 text-white/70"
@@ -252,7 +252,7 @@ function DeltaPill({ value, suffix }: { value: number; suffix?: string }) {
     ? "bg-white/15 text-white/85"
     : "bg-white/10 text-white/70";
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-extrabold ${cls}`}>
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[12px] font-extrabold ${cls}`}>
       <Icon className="w-3 h-3" />
       {value > 0 ? "+" : ""}{value}
       {suffix}
@@ -268,5 +268,5 @@ function StatusBadge({ status }: { status: "available" | "occupied" | "paid" | "
     dirty: { label: "정리 필요", cls: "bg-[#fff1e0] text-[var(--color-warn)]" },
   } as const;
   const s = map[status];
-  return <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${s.cls}`}>{s.label}</span>;
+  return <span className={`px-2.5 py-1 rounded-full text-[12px] font-bold ${s.cls}`}>{s.label}</span>;
 }

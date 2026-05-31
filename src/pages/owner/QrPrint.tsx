@@ -85,7 +85,7 @@ export default function QrPrint() {
             key={t.id}
             className="bg-white border border-[var(--color-line)] rounded-[14px] p-3 flex flex-col items-center text-center print:border-black print:border print:rounded-none"
           >
-            <p className="text-[10px] font-bold text-[var(--color-ink-500)] uppercase tracking-wide">{storeName}</p>
+            <p className="text-[11px] font-bold text-[var(--color-ink-600)] uppercase tracking-wide break-keep">{storeName}</p>
             <p className="text-[20px] font-extrabold text-[var(--color-navy-900)] tracking-tighter mb-1.5">
               테이블 {t.number}
             </p>
@@ -95,7 +95,7 @@ export default function QrPrint() {
               level="M"
               includeMargin={true}
             />
-            <p className="text-[10px] text-[var(--color-ink-500)] mt-1.5 font-medium">QR을 찍어 입장하세요</p>
+            <p className="text-[11px] text-[var(--color-ink-600)] mt-1.5 font-medium">QR을 찍어 입장하세요</p>
           </div>
         ))}
       </div>

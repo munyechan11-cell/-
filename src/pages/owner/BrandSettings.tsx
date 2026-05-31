@@ -358,7 +358,7 @@ export default function BrandSettings() {
             현재 위치를 매장으로 저장
           </Button>
           {currentUser.lat && currentUser.lng && (
-            <p className="text-[11px] text-[var(--color-ink-500)] mt-1">
+            <p className="text-[12px] text-[var(--color-ink-600)] mt-1.5 tabular-nums">
               저장됨: {currentUser.lat.toFixed(5)}, {currentUser.lng.toFixed(5)}
             </p>
           )}

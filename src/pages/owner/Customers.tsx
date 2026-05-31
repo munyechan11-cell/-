@@ -183,11 +183,11 @@ export default function OwnerCustomers() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="text-[15px] font-bold text-[var(--color-navy-900)] truncate">{user.name}</p>
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${badge.bg} ${badge.text}`}>
+                      <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${badge.bg} ${badge.text}`}>
                         {tier}
                       </span>
                     </div>
-                    <p className="text-[12px] text-[var(--color-ink-500)] truncate">
+                    <p className="text-[13px] text-[var(--color-ink-600)] truncate">
                       방문 {visits.length}회 · {cluster.label}
                     </p>
                   </div>
@@ -196,7 +196,7 @@ export default function OwnerCustomers() {
                       e.stopPropagation();
                       toggleMulti(user.id);
                     }}
-                    className="text-[11px] font-semibold text-[var(--color-ink-500)] px-2"
+                    className="text-[12px] font-semibold text-[var(--color-ink-600)] px-2"
                   >
                     선택
                   </button>

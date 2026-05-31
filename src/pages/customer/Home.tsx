@@ -87,7 +87,7 @@ export default function CustomerHome() {
               </div>
             )}
             <div className="flex-1">
-              <p className="text-[11px] opacity-80 font-bold uppercase tracking-wider">고객님</p>
+              <p className="text-[12px] opacity-85 font-bold uppercase tracking-wider">고객님</p>
               <p className="text-[22px] font-extrabold tracking-tight">{currentUser.name}</p>
             </div>
           </div>
@@ -117,12 +117,18 @@ export default function CustomerHome() {
         <SectionTitle icon={<StoreIcon className="w-4 h-4" />}>이용한 매장</SectionTitle>
         {storesUsed.length === 0 ? (
           <Card padding="lg" className="text-center">
-            <Sparkles className="w-8 h-8 text-[var(--color-ink-300)] mx-auto mb-2" />
-            <p className="text-[14px] text-[var(--color-ink-500)] font-medium">
-              아직 방문 기록이 없습니다.
-              <br />
-              QR을 스캔해 첫 매장을 등록해 보세요.
+            <div className="w-14 h-14 rounded-2xl bg-[var(--color-mint-100)] mx-auto mb-3 inline-flex items-center justify-center">
+              <QrCode className="w-7 h-7 text-[var(--color-mint-700)]" />
+            </div>
+            <p className="text-[15px] text-[var(--color-navy-900)] font-bold mb-1">
+              아직 방문한 매장이 없어요
             </p>
+            <p className="text-[13px] text-[var(--color-ink-600)] mb-4">
+              테이블 QR을 찍어 첫 매장을 등록해 보세요.
+            </p>
+            <Button block onClick={() => nav("/scan")} leftIcon={<QrCode className="w-4 h-4" />}>
+              QR 스캔 시작
+            </Button>
           </Card>
         ) : (
           <div className="space-y-2">
@@ -145,11 +151,11 @@ export default function CustomerHome() {
                         <p className="text-[15px] font-bold text-[var(--color-navy-900)] truncate">
                           {owner?.restaurantName ?? "알 수 없는 매장"}
                         </p>
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${badge.bg} ${badge.text}`}>
+                        <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${badge.bg} ${badge.text}`}>
                           {tierName}
                         </span>
                       </div>
-                      <p className="text-[12px] text-[var(--color-ink-500)] mt-0.5">
+                      <p className="text-[12px] text-[var(--color-ink-600)] mt-0.5">
                         방문 {s.visitCount}회 · {new Date(s.lastVisit).toLocaleDateString("ko-KR")}
                       </p>
                     </div>
@@ -164,8 +170,14 @@ export default function CustomerHome() {
         {/* 보유 쿠폰 요약 */}
         <SectionTitle icon={<Ticket className="w-4 h-4" />}>보유 쿠폰 ({activeCoupons.length})</SectionTitle>
         {activeCoupons.length === 0 ? (
-          <Card padding="lg" className="text-center text-[14px] text-[var(--color-ink-500)] font-medium">
-            보유 중인 쿠폰이 없습니다.
+          <Card padding="lg" className="text-center">
+            <Ticket className="w-7 h-7 text-[var(--color-ink-300)] mx-auto mb-2" />
+            <p className="text-[14px] text-[var(--color-ink-600)] font-medium">
+              보유 중인 쿠폰이 없습니다.
+            </p>
+            <p className="text-[12px] text-[var(--color-ink-500)] mt-1">
+              매장을 방문하면 등급이 올라 쿠폰을 받을 수 있어요.
+            </p>
           </Card>
         ) : (
           <div className="space-y-2">
@@ -180,21 +192,21 @@ export default function CustomerHome() {
               return (
                 <Card key={c.id} padding="md">
                   <div className="flex items-center gap-2 mb-1.5">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${badge.bg} ${badge.text}`}>
+                    <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${badge.bg} ${badge.text}`}>
                       {badge.label}
                     </span>
-                    <span className="text-[11px] text-[var(--color-ink-500)] font-semibold truncate">
+                    <span className="text-[12px] text-[var(--color-ink-600)] font-semibold truncate">
                       {owner?.restaurantName ?? "매장"}
                     </span>
                     {c.status === "pending" && (
-                      <span className="ml-auto text-[10px] text-[var(--color-warn)] font-bold">승인 대기</span>
+                      <span className="ml-auto text-[11px] text-[var(--color-warn)] font-bold">승인 대기</span>
                     )}
                   </div>
                   <p className="text-[14px] font-bold text-[var(--color-navy-900)]">{c.description}</p>
                   {owner && (
                     <Link
                       to={`/customer/store/${c.storeId}`}
-                      className="mt-2 inline-block text-[11px] font-bold text-[var(--color-navy-700)]"
+                      className="mt-2 inline-block text-[12px] font-bold text-[var(--color-navy-700)]"
                     >
                       매장 보러가기 →
                     </Link>
@@ -229,7 +241,7 @@ export default function CustomerHome() {
                         <p className="font-bold text-[var(--color-navy-900)] truncate">
                           {owner?.restaurantName ?? "매장"}
                         </p>
-                        <p className="text-[11px] text-[var(--color-ink-500)]">
+                        <p className="text-[12px] text-[var(--color-ink-600)]">
                           {new Date(v.date).toLocaleString("ko-KR", { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                         </p>
                       </div>
@@ -269,7 +281,7 @@ export default function CustomerHome() {
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="opacity-70 text-[11px] mb-0.5 font-semibold">{label}</p>
+      <p className="opacity-80 text-[12px] mb-0.5 font-semibold">{label}</p>
       <p className="font-extrabold text-[15px]">{value}</p>
     </div>
   );
@@ -277,7 +289,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 
 function SectionTitle({ icon, children }: { icon?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <h2 className="mt-7 mb-2 px-1 text-[13px] font-bold text-[var(--color-navy-900)] flex items-center gap-1.5">
+    <h2 className="mt-7 mb-2 px-1 text-[14px] font-bold text-[var(--color-navy-900)] flex items-center gap-1.5">
       {icon}
       {children}
     </h2>

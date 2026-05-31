@@ -196,7 +196,7 @@ export default function OwnerTables() {
                           e.stopPropagation();
                           updateTableStatus(storeId, t.number, st.next);
                         }}
-                        className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${st.cls}`}
+                        className={`px-2.5 py-1 rounded-full text-[12px] font-bold ${st.cls}`}
                       >
                         {st.label}
                       </button>
@@ -473,7 +473,7 @@ function LayoutCanvas({ tables, selectedId, onSelect, onMove }: CanvasProps) {
                     {t.type === "door" ? "출입" : t.number}
                   </p>
                   {t.type !== "door" && (
-                    <p className="text-[10px] font-semibold opacity-70 mt-0.5">{t.seats}인</p>
+                    <p className="text-[11px] font-semibold opacity-80 mt-0.5">{t.seats}인</p>
                   )}
                 </div>
               );
@@ -481,7 +481,7 @@ function LayoutCanvas({ tables, selectedId, onSelect, onMove }: CanvasProps) {
           </div>
         </div>
       </Card>
-      <p className="mt-2 px-1 text-[11px] text-[var(--color-ink-500)] font-medium flex items-center gap-1">
+      <p className="mt-2 px-1 text-[12px] text-[var(--color-ink-600)] font-medium flex items-center gap-1">
         <Save className="w-3 h-3" /> 위치 변경은 손을 떼는 즉시 자동 저장됩니다.
       </p>
     </div>

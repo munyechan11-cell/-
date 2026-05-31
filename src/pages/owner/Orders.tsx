@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ChefHat,
   Check,
+  CheckCheck,
   XCircle,
   Ticket,
   Sparkles,
@@ -9,6 +10,8 @@ import {
   Bell,
   BellOff,
   Volume2,
+  Hourglass,
+  Flame,
   Receipt as ReceiptIcon,
 } from "lucide-react";
 import { OwnerShell } from "../../components/layout/OwnerShell";
@@ -38,8 +41,15 @@ const STATUS_COLORS: Record<OrderStatus, string> = {
   pending: "bg-[var(--color-navy-100)] text-[var(--color-navy-700)]",
   accepted: "bg-[var(--color-mint-100)] text-[var(--color-mint-700)]",
   cooking: "bg-[#fff1e0] text-[var(--color-warn)]",
-  served: "bg-[var(--color-ink-50)] text-[var(--color-ink-500)]",
+  served: "bg-[var(--color-ink-50)] text-[var(--color-ink-600)]",
   cancelled: "bg-[#fef2f2] text-[var(--color-danger)]",
+};
+const STATUS_ICONS: Record<OrderStatus, React.ReactNode> = {
+  pending: <Hourglass className="w-3 h-3" />,
+  accepted: <Check className="w-3 h-3" />,
+  cooking: <Flame className="w-3 h-3" />,
+  served: <CheckCheck className="w-3 h-3" />,
+  cancelled: <XCircle className="w-3 h-3" />,
 };
 const NEXT_STATUS: Record<OrderStatus, OrderStatus | null> = {
   pending: "accepted",
@@ -188,8 +198,8 @@ export default function OwnerOrders() {
             {unpaidByTable.map((u) => (
               <Card key={u.table} padding="md" className="border-[#ffd9a8]">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-[11px] font-bold text-[var(--color-warn)] uppercase tracking-wide">미결제</span>
-                  <span className="text-[10px] text-[var(--color-ink-500)] font-semibold">{u.count}건</span>
+                  <span className="text-[12px] font-bold text-[var(--color-warn)] uppercase tracking-wide">미결제</span>
+                  <span className="text-[11px] text-[var(--color-ink-600)] font-semibold">{u.count}건</span>
                 </div>
                 <p className="text-[15px] font-extrabold text-[var(--color-navy-900)]">테이블 {u.table}</p>
                 <p className="text-[16px] font-extrabold text-[var(--color-navy-900)] tabular-nums mt-1">
@@ -221,10 +231,10 @@ export default function OwnerOrders() {
                 return (
                   <Card key={c.id} padding="md">
                     <div className="flex items-center gap-2 mb-2">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${badge.bg} ${badge.text}`}>
+                      <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${badge.bg} ${badge.text}`}>
                         {badge.label}
                       </span>
-                      <span className="text-[12px] text-[var(--color-ink-500)] font-semibold">
+                      <span className="text-[13px] text-[var(--color-ink-600)] font-semibold">
                         {customer?.name ?? "—"}
                         {c.usedAtTable ? ` · 테이블 ${c.usedAtTable}` : ""}
                       </span>
@@ -262,11 +272,20 @@ export default function OwnerOrders() {
             진행 주문 ({activeOrders.length})
           </h2>
           {activeOrders.length === 0 ? (
-            <Card padding="lg" className="text-center text-[14px] text-[var(--color-ink-500)]">
-              현재 진행 중인 주문이 없습니다.
-              {soundOn && (
-                <p className="mt-2 text-[12px] text-[var(--color-mint-700)] inline-flex items-center gap-1">
+            <Card padding="lg" className="text-center">
+              <div className="w-12 h-12 rounded-2xl bg-[var(--color-mint-100)] mx-auto mb-2 inline-flex items-center justify-center">
+                <ChefHat className="w-6 h-6 text-[var(--color-mint-700)]" />
+              </div>
+              <p className="text-[14px] text-[var(--color-navy-900)] font-bold">
+                현재 진행 중인 주문이 없습니다.
+              </p>
+              {soundOn ? (
+                <p className="mt-2 text-[12px] text-[var(--color-mint-700)] inline-flex items-center gap-1 font-semibold">
                   <Volume2 className="w-3 h-3" /> 새 주문이 들어오면 알려드릴게요
+                </p>
+              ) : (
+                <p className="mt-2 text-[12px] text-[var(--color-ink-600)] inline-flex items-center gap-1">
+                  <BellOff className="w-3 h-3" /> 알림이 꺼져 있어요
                 </p>
               )}
             </Card>
@@ -329,25 +348,26 @@ function OrderCard({
       )}
     >
       <div className="flex items-center gap-2 mb-2 flex-wrap">
-        <span className={cn("px-2 py-0.5 rounded-full text-[10px] font-bold", STATUS_COLORS[order.status])}>
+        <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold", STATUS_COLORS[order.status])}>
+          {STATUS_ICONS[order.status]}
           {STATUS_LABELS[order.status]}
         </span>
         {order.paymentStatus === "paid" ? (
-          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[var(--color-mint-100)] text-[var(--color-mint-700)]">
+          <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-[var(--color-mint-100)] text-[var(--color-mint-700)]">
             결제 완료
           </span>
         ) : (
-          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#fff1e0] text-[var(--color-warn)]">
+          <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#fff1e0] text-[var(--color-warn)]">
             미결제
           </span>
         )}
-        <span className="text-[13px] text-[var(--color-navy-900)] font-bold">
+        <span className="text-[14px] text-[var(--color-navy-900)] font-bold">
           테이블 {order.tableNumber}
         </span>
-        <span className="text-[11px] text-[var(--color-ink-500)] font-semibold truncate">
+        <span className="text-[12px] text-[var(--color-ink-600)] font-semibold truncate">
           · {customerName ?? "—"}
         </span>
-        <span className="ml-auto text-[11px] text-[var(--color-ink-500)] tabular-nums">
+        <span className="ml-auto text-[12px] text-[var(--color-ink-600)] tabular-nums">
           {new Date(order.createdAt).toLocaleTimeString("ko-KR", {
             hour: "2-digit",
             minute: "2-digit",
@@ -357,18 +377,18 @@ function OrderCard({
       <ul className="text-[14px] font-semibold text-[var(--color-navy-900)] space-y-0.5">
         {order.items.map((it, i) => (
           <li key={i} className="flex justify-between">
-            <span>
-              {it.name} <span className="text-[var(--color-ink-500)] font-medium">×{it.quantity}</span>
+            <span className="break-keep">
+              {it.name} <span className="text-[var(--color-ink-600)] font-medium">×{it.quantity}</span>
             </span>
             <span className="tabular-nums">₩ {(it.price * it.quantity).toLocaleString()}</span>
           </li>
         ))}
       </ul>
       <div className="border-t border-[var(--color-line)] mt-2.5 pt-2.5 flex justify-between text-[14px] font-bold">
-        <span className="text-[var(--color-ink-500)]">합계</span>
+        <span className="text-[var(--color-ink-600)]">합계</span>
         <span className="text-[var(--color-navy-900)] tabular-nums">₩ {order.totalAmount.toLocaleString()}</span>
       </div>
-      <div className="grid grid-cols-4 gap-2 mt-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-3">
         <Button size="md" variant="outline" onClick={onCancel} className="text-[var(--color-danger)] border-[var(--color-danger)]/30">
           취소
         </Button>
@@ -386,7 +406,7 @@ function OrderCard({
             {STATUS_LABELS[nxt]}
           </Button>
         ) : (
-          <div className="col-span-2" />
+          <div className="hidden md:block col-span-2" />
         )}
       </div>
     </Card>

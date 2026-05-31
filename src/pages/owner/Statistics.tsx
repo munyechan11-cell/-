@@ -134,7 +134,7 @@ export default function OwnerStatistics() {
               );
             })}
           </div>
-          <div className="flex justify-between text-[9px] text-[var(--color-ink-500)] font-semibold mt-1">
+          <div className="flex justify-between text-[11px] text-[var(--color-ink-600)] font-semibold mt-1.5 tabular-nums">
             <span>0시</span>
             <span>6시</span>
             <span>12시</span>
@@ -159,8 +159,8 @@ export default function OwnerStatistics() {
                       style={{ height: `${Math.max(pct, 4)}%` }}
                     />
                   </div>
-                  <p className="text-[11px] font-bold text-[var(--color-ink-700)] mt-1">{d}</p>
-                  <p className="text-[10px] text-[var(--color-ink-500)]">{v}</p>
+                  <p className="text-[12px] font-bold text-[var(--color-ink-700)] mt-1">{d}</p>
+                  <p className="text-[11px] text-[var(--color-ink-600)] tabular-nums">{v}</p>
                 </div>
               );
             })}
@@ -208,8 +208,8 @@ export default function OwnerStatistics() {
             {TIER_ORDER.map((t) => (
               <div key={t} className="flex items-center gap-2">
                 <span className={`w-2.5 h-2.5 rounded-full ${TIER_BADGE[t].bg}`} />
-                <span className="text-[11px] text-[var(--color-ink-700)] font-semibold">{t}</span>
-                <span className="text-[11px] text-[var(--color-ink-500)] ml-auto">{tierDist[t]}</span>
+                <span className="text-[12px] text-[var(--color-ink-700)] font-semibold">{t}</span>
+                <span className="text-[12px] text-[var(--color-ink-600)] ml-auto tabular-nums">{tierDist[t]}</span>
               </div>
             ))}
           </div>
@@ -224,7 +224,7 @@ export default function OwnerStatistics() {
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="opacity-70 text-[11px] mb-0.5">{label}</p>
+      <p className="opacity-80 text-[12px] mb-0.5">{label}</p>
       <p className="font-bold">{value}</p>
     </div>
   );

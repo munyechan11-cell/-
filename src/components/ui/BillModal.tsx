@@ -60,7 +60,7 @@ export function BillModal({
           </div>
           <button
             onClick={onClose}
-            className="w-10 h-10 rounded-full hover:bg-[var(--color-navy-50)] inline-flex items-center justify-center"
+            className="w-11 h-11 rounded-full hover:bg-[var(--color-navy-50)] inline-flex items-center justify-center"
             aria-label="닫기"
           >
             <X className="w-5 h-5" />
@@ -71,7 +71,7 @@ export function BillModal({
         <div className="px-5 py-3 bg-[var(--color-bg)] border-b border-[var(--color-line)] flex items-center gap-3 text-[13px]">
           <span className="font-semibold text-[var(--color-ink-700)]">{customerName} 님</span>
           {tableNumber && (
-            <span className="px-2.5 py-1 rounded-full bg-[var(--color-mint-100)] text-[var(--color-mint-700)] font-bold text-[11px]">
+            <span className="px-2.5 py-1 rounded-full bg-[var(--color-mint-100)] text-[var(--color-mint-700)] font-bold text-[12px]">
               테이블 {tableNumber}
             </span>
           )}
@@ -88,18 +88,18 @@ export function BillModal({
               {orders.map((o) => (
                 <div key={o.id} className="border-b border-[var(--color-line-soft)] pb-3 last:border-0">
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="text-[11px] text-[var(--color-ink-500)] font-semibold tabular-nums">
+                    <span className="text-[12px] text-[var(--color-ink-600)] font-semibold tabular-nums">
                       {new Date(o.createdAt).toLocaleTimeString("ko-KR", {
                         hour: "2-digit",
                         minute: "2-digit",
                       })}
                     </span>
                     {o.paymentStatus === "paid" ? (
-                      <span className="text-[10px] font-bold text-[var(--color-mint-700)] bg-[var(--color-mint-100)] px-1.5 py-0.5 rounded">
+                      <span className="text-[11px] font-bold text-[var(--color-mint-700)] bg-[var(--color-mint-100)] px-1.5 py-0.5 rounded">
                         결제 완료
                       </span>
                     ) : (
-                      <span className="text-[10px] font-bold text-[var(--color-warn)] bg-[#fff1e0] px-1.5 py-0.5 rounded">
+                      <span className="text-[11px] font-bold text-[var(--color-warn)] bg-[#fff1e0] px-1.5 py-0.5 rounded">
                         미결제
                       </span>
                     )}
@@ -107,9 +107,9 @@ export function BillModal({
                   <ul className="text-[14px] space-y-1">
                     {o.items.map((it, i) => (
                       <li key={i} className="flex justify-between gap-3">
-                        <span className="text-[var(--color-ink-700)] font-medium min-w-0 truncate">
+                        <span className="text-[var(--color-ink-700)] font-medium min-w-0 break-keep">
                           {it.name}{" "}
-                          <span className="text-[var(--color-ink-500)] font-normal">×{it.quantity}</span>
+                          <span className="text-[var(--color-ink-600)] font-normal">×{it.quantity}</span>
                         </span>
                         <span className="tabular-nums text-[var(--color-navy-900)] font-bold shrink-0">
                           ₩ {(it.price * it.quantity).toLocaleString()}
@@ -117,8 +117,8 @@ export function BillModal({
                       </li>
                     ))}
                   </ul>
-                  <div className="mt-2 pt-2 border-t border-dashed border-[var(--color-line)] flex justify-between text-[12px] font-bold">
-                    <span className="text-[var(--color-ink-500)]">소계</span>
+                  <div className="mt-2 pt-2 border-t border-dashed border-[var(--color-line)] flex justify-between text-[13px] font-bold">
+                    <span className="text-[var(--color-ink-600)]">소계</span>
                     <span className="text-[var(--color-navy-900)] tabular-nums">
                       ₩ {o.totalAmount.toLocaleString()}
                     </span>
@@ -170,7 +170,7 @@ export function BillModal({
               </Button>
             </div>
             {!canPay && unpaidTotal > 0 && (
-              <p className="text-[11px] text-[var(--color-ink-500)] mt-2 text-center">
+              <p className="text-[12px] text-[var(--color-ink-600)] mt-2 text-center">
                 테이블 이용 중일 때만 결제할 수 있어요.
               </p>
             )}

@@ -103,7 +103,7 @@ export function OwnerShell({ children, title, headerRight, width = "default" }: 
             <p className="text-[15px] font-extrabold text-[var(--color-navy-900)]">
               {employerName}
             </p>
-            <p className="text-[11px] text-[var(--color-ink-500)] font-semibold">
+            <p className="text-[12px] text-[var(--color-ink-600)] font-semibold">
               {isStaff ? `직원 · ${currentUser?.position || "근무자"}` : "사장님 콘솔"}
             </p>
           </div>
@@ -163,7 +163,7 @@ export function OwnerShell({ children, title, headerRight, width = "default" }: 
                   {employerName}
                 </p>
                 {isStaff && (
-                  <p className="text-[11px] text-[var(--color-ink-500)] font-semibold">
+                  <p className="text-[12px] text-[var(--color-ink-600)] font-semibold">
                     직원 · {currentUser?.position || "근무자"}
                   </p>
                 )}
