@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Phone,
@@ -19,7 +19,8 @@ import { showToast } from "../../lib/toast";
 import { useStore } from "../../store/store";
 import { cn } from "../../lib/cn";
 import { POS_VENDORS, getVendor, type PosVendor } from "../../lib/posVendors";
-import { signInWithGoogle, signInWithKakao } from "../../lib/auth";
+import { signInWithGoogle, signInWithKakao, consumeGoogleRedirect } from "../../lib/auth";
+import type { SocialResult } from "../../lib/auth";
 
 type Mode = "login" | "signup";
 
@@ -97,49 +98,57 @@ export default function OwnerLogin() {
     }
   };
 
+  const applySocialResult = async (res: SocialResult) => {
+    const existing = users.find(
+      (u) =>
+        u.role === "owner" &&
+        u.status !== "deleted" &&
+        (u.socialIds?.includes(res.id) ||
+          u.googleId === res.id ||
+          u.kakaoId === res.id)
+    );
+
+    if (existing) {
+      await login({
+        phone: existing.phone ?? "",
+        name: existing.name,
+        role: "owner",
+        socialId: res.id,
+        socialProvider: res.provider,
+        authType: res.provider,
+        avatarUrl: res.avatarUrl,
+      });
+      nav("/biz/owner", { replace: true });
+      return;
+    }
+
+    if (mode === "login") {
+      showToast("기존 사장님 계정이 없어요. 매장명/POS 정보를 입력하고 등록하세요.", "info");
+    }
+    setMode("signup");
+    if (res.name) setName(res.name);
+    sessionStorage.setItem(
+      "gyeol:pending-owner-social",
+      JSON.stringify({ id: res.id, provider: res.provider, avatarUrl: res.avatarUrl, ts: Date.now() })
+    );
+    showToast("매장명과 POS 정보를 입력하고 가입을 완료하세요.", "info");
+  };
+
+  // 인앱 브라우저 Google redirect 결과 회수
+  useEffect(() => {
+    consumeGoogleRedirect()
+      .then((res) => { if (res) return applySocialResult(res); })
+      .catch((e) => showToast(`소셜 로그인 실패: ${e?.message ?? ""}`, "error"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleSocial = async (provider: "google" | "kakao") => {
     setLoading(true);
     try {
       const res = provider === "google" ? await signInWithGoogle() : await signInWithKakao();
-
-      // 기존 owner 계정 매칭
-      const existing = users.find(
-        (u) =>
-          u.role === "owner" &&
-          u.status !== "deleted" &&
-          (u.socialIds?.includes(res.id) ||
-            u.googleId === res.id ||
-            u.kakaoId === res.id)
-      );
-
-      if (existing) {
-        await login({
-          phone: existing.phone ?? "",
-          name: existing.name,
-          role: "owner",
-          socialId: res.id,
-          socialProvider: provider,
-          authType: provider,
-          avatarUrl: res.avatarUrl,
-        });
-        nav("/biz/owner", { replace: true });
-        return;
-      }
-
-      // 신규: 가입 모드로 전환, 소셜 정보 미리 채움
-      if (mode === "login") {
-        showToast("기존 사장님 계정이 없어요. 매장명/POS 정보를 입력하고 등록하세요.", "info");
-      }
-      setMode("signup");
-      if (res.name) setName(res.name);
-      // 가입 정보가 채워진 form으로 — 사용자가 매장명 등 입력 후 일반 가입 흐름
-      // signupRef stored social info
-      sessionStorage.setItem(
-        "gyeol:pending-owner-social",
-        JSON.stringify({ id: res.id, provider, avatarUrl: res.avatarUrl, ts: Date.now() })
-      );
-      showToast("매장명과 POS 정보를 입력하고 가입을 완료하세요.", "info");
+      await applySocialResult(res);
     } catch (e: any) {
+      if (e?.message === "REDIRECT_IN_PROGRESS") return;
       showToast(`소셜 로그인 실패: ${e?.message ?? ""}`, "error");
     } finally {
       setLoading(false);

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { MessageCircle, Phone, Mars, Venus, Check, Store as StoreIcon, Armchair } from "lucide-react";
 import { MobileShell } from "../../components/layout/MobileShell";
@@ -8,7 +8,8 @@ import { Input } from "../../components/ui/Input";
 import { formatPhoneNumber, digitsOnly } from "../../lib/ids";
 import { showToast } from "../../lib/toast";
 import { useStore } from "../../store/store";
-import { signInWithGoogle, signInWithKakao } from "../../lib/auth";
+import { signInWithGoogle, signInWithKakao, consumeGoogleRedirect } from "../../lib/auth";
+import type { SocialResult } from "../../lib/auth";
 import { cn } from "../../lib/cn";
 
 type Step = 1 | 2 | 3;
@@ -47,41 +48,54 @@ export default function CustomerLogin() {
     nav(target, { replace: true });
   };
 
+  const applySocialResult = async (res: SocialResult) => {
+    // 기존 계정이면 바로 로그인 (재가입 절차 생략)
+    const existing = users.find(
+      (u) =>
+        u.role === "customer" &&
+        u.status !== "deleted" &&
+        (u.socialIds?.includes(res.id) ||
+          u.googleId === res.id ||
+          u.kakaoId === res.id)
+    );
+
+    if (existing) {
+      await login({
+        phone: existing.phone ?? "",
+        name: existing.name,
+        role: "customer",
+        socialId: res.id,
+        socialProvider: res.provider,
+        authType: res.provider,
+        avatarUrl: res.avatarUrl,
+      });
+      onAfterLogin();
+      return;
+    }
+
+    // 신규: 가입 모드로 자동 전환 + step 1 (phone 받기)
+    setMode("signup");
+    setSocial({ id: res.id, provider: res.provider, avatarUrl: res.avatarUrl });
+    if (res.name) setName(res.name);
+    setStep(1);
+  };
+
+  // 인앱 브라우저(카톡 등)에서 Google redirect로 돌아온 경우 결과 회수
+  useEffect(() => {
+    consumeGoogleRedirect()
+      .then((res) => { if (res) return applySocialResult(res); })
+      .catch((e) => showToast(`소셜 연동 실패: ${e?.message ?? ""}`, "error"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleSocial = async (provider: "google" | "kakao") => {
     setLoading(true);
     try {
       const res = provider === "google" ? await signInWithGoogle() : await signInWithKakao();
-
-      // 기존 계정이면 바로 로그인 (재가입 절차 생략)
-      const existing = users.find(
-        (u) =>
-          u.role === "customer" &&
-          u.status !== "deleted" &&
-          (u.socialIds?.includes(res.id) ||
-            u.googleId === res.id ||
-            u.kakaoId === res.id)
-      );
-
-      if (existing) {
-        await login({
-          phone: existing.phone ?? "",
-          name: existing.name,
-          role: "customer",
-          socialId: res.id,
-          socialProvider: provider,
-          authType: provider,
-          avatarUrl: res.avatarUrl,
-        });
-        onAfterLogin();
-        return;
-      }
-
-      // 신규: 가입 모드로 자동 전환 + step 1 (phone 받기)
-      setMode("signup");
-      setSocial({ id: res.id, provider, avatarUrl: res.avatarUrl });
-      if (res.name) setName(res.name);
-      setStep(1);
+      await applySocialResult(res);
     } catch (e: any) {
+      // 리다이렉트 시작은 에러 아님 — 페이지가 곧 이동함
+      if (e?.message === "REDIRECT_IN_PROGRESS") return;
       showToast(`소셜 연동 실패: ${e?.message ?? "알 수 없는 오류"}`, "error");
     } finally {
       setLoading(false);
@@ -245,24 +259,21 @@ export default function CustomerLogin() {
         back
       />
       <div className="px-6 pt-2">
-        {/* QR 다이렉트 진입 시 매장/테이블 컨텍스트 배너 */}
+        {/* QR 다이렉트 진입 시 매장/테이블 컨텍스트 배너 — 모바일에서 키보드 띄워도 안 가리도록 컴팩트 */}
         {showQrContext && (
-          <div className="mt-3 rounded-[16px] border-[1.5px] border-[var(--color-mint-200)] bg-[var(--color-mint-50)] px-4 py-3 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-[12px] bg-white flex items-center justify-center shrink-0 shadow-[var(--shadow-press)]">
-              <Armchair className="w-5 h-5 text-[var(--color-mint-700)]" />
+          <div className="mt-3 rounded-[14px] border-[1.5px] border-[var(--color-mint-200)] bg-[var(--color-mint-50)] px-3 py-2 flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-[10px] bg-white flex items-center justify-center shrink-0 shadow-[var(--shadow-press)]">
+              <Armchair className="w-4 h-4 text-[var(--color-mint-700)]" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-bold text-[var(--color-mint-700)] uppercase tracking-wide">
-                테이블 연동 진행 중
-              </p>
-              <p className="text-[14px] font-extrabold text-[var(--color-navy-900)] truncate flex items-center gap-1.5">
-                <StoreIcon className="w-3.5 h-3.5 text-[var(--color-ink-500)] shrink-0" />
+              <p className="text-[13px] font-extrabold text-[var(--color-navy-900)] truncate flex items-center gap-1">
+                <StoreIcon className="w-3 h-3 text-[var(--color-ink-500)] shrink-0" />
                 <span className="truncate">{qrStore?.restaurantName ?? "매장"}</span>
-                <span className="text-[var(--color-ink-400)]">·</span>
-                <span className="text-[var(--color-mint-700)]">테이블 {tableNum}번</span>
+                <span className="text-[var(--color-ink-400)] mx-0.5">·</span>
+                <span className="text-[var(--color-mint-700)] whitespace-nowrap">테이블 {tableNum}번</span>
               </p>
-              <p className="text-[11.5px] text-[var(--color-ink-500)] mt-0.5 font-medium leading-tight">
-                로그인하면 바로 자리에 연결돼요.
+              <p className="text-[11px] text-[var(--color-ink-500)] font-medium leading-tight">
+                로그인하면 바로 자리에 연결돼요
               </p>
             </div>
           </div>

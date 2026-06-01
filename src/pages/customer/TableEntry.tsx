@@ -83,7 +83,11 @@ export default function TableEntry() {
               <Store className="w-10 h-10 text-[var(--color-ink-500)]" />
             </div>
             <Title>매장을 찾을 수 없습니다</Title>
-            <Sub>QR이 손상되었거나 폐업한 매장일 수 있어요.</Sub>
+            <Sub>
+              QR이 손상되었거나 폐업한 매장일 수 있어요.
+              <br />
+              직원에게 QR이 인쇄된 시점을 확인해 주세요.
+            </Sub>
             <Button className="mt-8" onClick={() => nav("/", { replace: true })}>
               홈으로
             </Button>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Phone, Briefcase, MessageCircle, Crown } from "lucide-react";
 import { MobileShell } from "../../components/layout/MobileShell";
@@ -8,7 +8,8 @@ import { Input } from "../../components/ui/Input";
 import { formatPhoneNumber, digitsOnly } from "../../lib/ids";
 import { showToast } from "../../lib/toast";
 import { useStore } from "../../store/store";
-import { signInWithGoogle, signInWithKakao } from "../../lib/auth";
+import { signInWithGoogle, signInWithKakao, consumeGoogleRedirect } from "../../lib/auth";
+import type { SocialResult } from "../../lib/auth";
 import { cn } from "../../lib/cn";
 
 type Mode = "login" | "signup";
@@ -80,43 +81,54 @@ export default function StaffLogin() {
     }
   };
 
+  const applySocialResult = async (res: SocialResult) => {
+    const existing = users.find(
+      (u) =>
+        u.role === "staff" &&
+        u.status !== "deleted" &&
+        (u.socialIds?.includes(res.id) ||
+          u.googleId === res.id ||
+          u.kakaoId === res.id)
+    );
+
+    if (existing) {
+      await login({
+        phone: existing.phone ?? "",
+        name: existing.name,
+        role: "staff",
+        socialId: res.id,
+        socialProvider: res.provider,
+        authType: res.provider,
+        avatarUrl: res.avatarUrl,
+      });
+      afterStaffLogin();
+      return;
+    }
+
+    setMode("signup");
+    if (res.name) setName(res.name);
+    sessionStorage.setItem(
+      "gyeol:pending-staff-social",
+      JSON.stringify({ id: res.id, provider: res.provider, avatarUrl: res.avatarUrl, ts: Date.now() })
+    );
+    showToast("성함·전화번호·직책 입력 후 가입을 완료해 주세요.", "info");
+  };
+
+  // 인앱 브라우저 Google redirect 결과 회수
+  useEffect(() => {
+    consumeGoogleRedirect()
+      .then((res) => { if (res) return applySocialResult(res); })
+      .catch((e) => showToast(`소셜 로그인 실패: ${e?.message ?? ""}`, "error"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleSocial = async (provider: "google" | "kakao") => {
     setLoading(true);
     try {
       const res = provider === "google" ? await signInWithGoogle() : await signInWithKakao();
-
-      const existing = users.find(
-        (u) =>
-          u.role === "staff" &&
-          u.status !== "deleted" &&
-          (u.socialIds?.includes(res.id) ||
-            u.googleId === res.id ||
-            u.kakaoId === res.id)
-      );
-
-      if (existing) {
-        await login({
-          phone: existing.phone ?? "",
-          name: existing.name,
-          role: "staff",
-          socialId: res.id,
-          socialProvider: provider,
-          authType: provider,
-          avatarUrl: res.avatarUrl,
-        });
-        afterStaffLogin();
-        return;
-      }
-
-      // 신규: 가입 모드에 social 정보 stash
-      setMode("signup");
-      if (res.name) setName(res.name);
-      sessionStorage.setItem(
-        "gyeol:pending-staff-social",
-        JSON.stringify({ id: res.id, provider, avatarUrl: res.avatarUrl, ts: Date.now() })
-      );
-      showToast("성함·전화번호·직책 입력 후 가입을 완료해 주세요.", "info");
+      await applySocialResult(res);
     } catch (e: any) {
+      if (e?.message === "REDIRECT_IN_PROGRESS") return;
       showToast(`소셜 로그인 실패: ${e?.message ?? ""}`, "error");
     } finally {
       setLoading(false);

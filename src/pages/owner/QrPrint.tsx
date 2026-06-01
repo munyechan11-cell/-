@@ -12,8 +12,10 @@ export default function QrPrint() {
   const storeId = effectiveStoreId;
   const storeName =
     users.find((u) => u.id === storeId)?.restaurantName ?? currentUser?.restaurantName ?? "결";
-  const [cols, setCols] = useState(3);
-  const [size, setSize] = useState(120);
+  // 모바일에선 미리보기가 가독성을 잃지 않도록 cols=2로 시작 (인쇄 시 사장님이 조정)
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
+  const [cols, setCols] = useState(isMobile ? 2 : 3);
+  const [size, setSize] = useState(isMobile ? 100 : 120);
 
   const myTables = useMemo(
     () => tables.filter((t) => t.storeId === storeId && t.type !== "door").sort((a, b) => a.number - b.number),

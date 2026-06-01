@@ -364,10 +364,13 @@ app.post('/api/ai/floor-plan', async (req, res) => {
 
   const systemPrompt =
     `당신은 식당 도면을 분석해 테이블 배치를 추출하는 비전 엔지니어입니다. ` +
+    `입력은 정밀한 CAD 도면일 수도, 사장님이 손가락으로 끄적인 거친 스케치일 수도 있습니다. ` +
+    `손그림은 사각형/원/네모박스가 테이블, 큰 사각형이 룸, 벽 끝의 작은 표시가 출입구를 의미하는 경우가 많습니다. ` +
     `이미지에서 테이블/룸/출입구를 찾아 ${canvasWidth}x${canvasHeight} 좌표계로 정규화해 반환하세요. ` +
     `JSON만 출력하고 그 외 텍스트는 절대 포함하지 마세요. 스키마: ` +
     `{"tables":[{"number":1,"type":"table"|"room"|"door","x":120,"y":80,"width":70,"height":70,"shape":"square"|"circle","seats":4}]}. ` +
-    `규칙: number는 1부터 순차 부여. x,y는 좌상단 기준 픽셀. 일반 테이블은 70x70(원형이면 shape=circle), 룸은 150x80, 출입구는 60x60·type=door·seats 생략 가능. 좌석수는 도면의 의자 수 또는 면적으로 추정.`;
+    `규칙: number는 1부터 순차 부여. x,y는 좌상단 기준 픽셀. 일반 테이블은 70x70(원형이면 shape=circle), 룸은 150x80, 출입구는 60x60·type=door·seats 생략 가능. ` +
+    `좌석수는 도면의 의자 수 또는 면적으로 추정. 명백한 객체만 추출 — 애매하면 누락이 과추출보다 낫습니다. 비어 보이면 빈 배열을 반환하세요.`;
 
   try {
     // 우선순위: Gemini(무료) → Anthropic → OpenAI

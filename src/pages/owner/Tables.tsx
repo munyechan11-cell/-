@@ -139,10 +139,13 @@ export default function OwnerTables() {
     }
     setAiLoading(true);
     try {
+      // 실제 LayoutCanvas와 동일한 좌표계 사용 — 도면 위치와 테이블 배치가 어긋나지 않도록
+      const AI_CW = 1000;
+      const AI_CH = 700;
       const res = await fetch("/api/ai/floor-plan", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ image: floorPlan, canvasWidth: 1000, canvasHeight: 700 }),
+        body: JSON.stringify({ image: floorPlan, canvasWidth: AI_CW, canvasHeight: AI_CH }),
       });
       if (!res.ok) {
         const t = await res.text();
@@ -162,8 +165,8 @@ export default function OwnerTables() {
       };
       if (!data.tables?.length) throw new Error("도면에서 테이블을 찾지 못했어요.");
       // 좌표·치수 클램프 + 번호 재할당으로 모델이 망가진 데이터를 보내도 안전
-      const CW = 1000;
-      const CH = 700;
+      const CW = AI_CW;
+      const CH = AI_CH;
       const clamp = (v: number, min: number, max: number) =>
         Number.isFinite(v) ? Math.max(min, Math.min(max, Math.round(v))) : min;
       // type 유효성 화이트리스트
@@ -266,6 +269,19 @@ export default function OwnerTables() {
       else setSelected(null);
     }
   }, [tables, selected?.id]);
+
+  // 모바일: 테이블 선택 시 상세 카드로 자동 스크롤 (데스크탑 sticky는 그대로)
+  const detailRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!selected) return;
+    if (typeof window === "undefined") return;
+    if (window.innerWidth >= 1024) return; // lg 이상은 sticky라 스크롤 불필요
+    // 다음 paint 후 스크롤 — DOM이 새 카드 렌더 끝낸 다음
+    const t = setTimeout(() => {
+      detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+    return () => clearTimeout(t);
+  }, [selected?.id]);
 
   const sorted = [...tables].sort((a, b) => a.number - b.number);
 
@@ -468,7 +484,7 @@ export default function OwnerTables() {
         </div>
 
         {/* Right rail: selected detail */}
-        <div>
+        <div ref={detailRef} className="scroll-mt-[80px]">
           {selected ? (
             <Card padding="lg" className="lg:sticky lg:top-[88px]">
               <div className="flex items-start justify-between mb-3">
@@ -675,26 +691,29 @@ function FloorPlanPanel({
         </div>
       ) : (
         <div className="space-y-2.5">
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5 flex-wrap">
             <button
               onClick={() => fileRef.current?.click()}
-              className="h-9 px-3 rounded-full bg-[var(--color-navy-50)] text-[12px] font-bold text-[var(--color-navy-800)] inline-flex items-center gap-1"
+              className="h-9 px-2.5 sm:px-3 rounded-full bg-[var(--color-navy-50)] text-[12px] font-bold text-[var(--color-navy-800)] inline-flex items-center gap-1"
+              aria-label="다시 업로드"
             >
-              <ImagePlus className="w-3.5 h-3.5" /> 다시 업로드
+              <ImagePlus className="w-3.5 h-3.5" /> <span className="hidden sm:inline">다시 업로드</span>
             </button>
             <button
               onClick={() => setSketchOpen(true)}
-              className="h-9 px-3 rounded-full bg-[var(--color-mint-50)] text-[12px] font-bold text-[var(--color-mint-700)] inline-flex items-center gap-1"
+              className="h-9 px-2.5 sm:px-3 rounded-full bg-[var(--color-mint-50)] text-[12px] font-bold text-[var(--color-mint-700)] inline-flex items-center gap-1"
+              aria-label="그림판 편집"
             >
-              <Pencil className="w-3.5 h-3.5" /> 그림판 편집
+              <Pencil className="w-3.5 h-3.5" /> <span className="hidden sm:inline">그림판 편집</span>
             </button>
             <button
               onClick={onRemove}
-              className="h-9 px-3 rounded-full hover:bg-[#fef2f2] text-[12px] font-bold text-[var(--color-danger)] inline-flex items-center gap-1"
+              className="h-9 px-2.5 sm:px-3 rounded-full hover:bg-[#fef2f2] text-[12px] font-bold text-[var(--color-danger)] inline-flex items-center gap-1"
+              aria-label="제거"
             >
-              <X className="w-3.5 h-3.5" /> 제거
+              <X className="w-3.5 h-3.5" /> <span className="hidden sm:inline">제거</span>
             </button>
-            <div className="ml-auto flex items-center gap-2 min-w-[140px]">
+            <div className="ml-auto flex items-center gap-1.5 w-full sm:w-auto sm:min-w-[140px] mt-1.5 sm:mt-0">
               <span className="text-[11px] font-bold text-[var(--color-ink-600)] whitespace-nowrap">투명도 {opacity}%</span>
               <input
                 type="range"
@@ -703,6 +722,7 @@ function FloorPlanPanel({
                 value={opacity}
                 onChange={(e) => onOpacity(Number(e.target.value))}
                 className="flex-1"
+                aria-label="도면 투명도"
               />
             </div>
           </div>
@@ -770,52 +790,96 @@ function SketchPad({
   const [tool, setTool] = useState<"pen" | "eraser">("pen");
   const [size, setSize] = useState(4);
   const [color, setColor] = useState("#0B1220");
+  const [dirty, setDirty] = useState(false);
   const drawingRef = useRef(false);
   const lastRef = useRef<{ x: number; y: number } | null>(null);
-  // 되돌리기용 스냅샷 스택 (최근 20개)
-  const historyRef = useRef<ImageData[]>([]);
+  // 되돌리기용 dataURL 스택 — ImageData 대비 메모리 70-90% 절감, 모바일 OOM 방지
+  const historyRef = useRef<string[]>([]);
 
-  // 캔버스 초기화 (배경 흰색 + 기존 이미지 깔기)
+  // 캔버스 초기화 + 회전·리사이즈 시 그림 보존 재설정
   useEffect(() => {
+    let mounted = true;
     const canvas = canvasRef.current;
     const wrap = wrapRef.current;
     if (!canvas || !wrap) return;
-    const dpr = window.devicePixelRatio || 1;
-    const rect = wrap.getBoundingClientRect();
-    canvas.width = Math.round(rect.width * dpr);
-    canvas.height = Math.round(rect.height * dpr);
-    canvas.style.width = `${rect.width}px`;
-    canvas.style.height = `${rect.height}px`;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.scale(dpr, dpr);
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, rect.width, rect.height);
-    if (initialDataUrl) {
-      const img = new Image();
-      img.onload = () => {
-        // contain 방식으로 캔버스 안에 맞춰 그림
-        const r = Math.min(rect.width / img.width, rect.height / img.height);
-        const w = img.width * r;
-        const h = img.height * r;
-        ctx.drawImage(img, (rect.width - w) / 2, (rect.height - h) / 2, w, h);
+
+    const setupCanvas = (preserveData?: string) => {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2); // DPR 2 상한 — 메모리 보호
+      const rect = wrap.getBoundingClientRect();
+      if (rect.width < 10 || rect.height < 10) return; // 모달 진입 중
+      canvas.width = Math.round(rect.width * dpr);
+      canvas.height = Math.round(rect.height * dpr);
+      canvas.style.width = `${rect.width}px`;
+      canvas.style.height = `${rect.height}px`;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.scale(dpr, dpr);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, rect.width, rect.height);
+      if (preserveData) {
+        const img = new Image();
+        img.onload = () => {
+          if (!mounted) return;
+          ctx.drawImage(img, 0, 0, rect.width, rect.height);
+        };
+        img.src = preserveData;
+      } else if (initialDataUrl) {
+        const img = new Image();
+        img.onload = () => {
+          if (!mounted) return;
+          const r = Math.min(rect.width / img.width, rect.height / img.height);
+          const w = img.width * r;
+          const h = img.height * r;
+          ctx.drawImage(img, (rect.width - w) / 2, (rect.height - h) / 2, w, h);
+          historyRef.current = [];
+          pushHistory();
+        };
+        img.src = initialDataUrl;
+      } else {
+        historyRef.current = [];
         pushHistory();
-      };
-      img.src = initialDataUrl;
-    } else {
-      pushHistory();
-    }
+      }
+    };
+
+    setupCanvas();
+
+    // 화면 회전 / 창 크기 변경 시 현재 그림을 보존하고 캔버스 재설정
+    let resizeTimer: ReturnType<typeof setTimeout> | undefined;
+    const onResize = () => {
+      if (resizeTimer) clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        try {
+          const snapshot = canvas.toDataURL("image/png");
+          setupCanvas(snapshot);
+        } catch {
+          setupCanvas();
+        }
+      }, 150);
+    };
+    window.addEventListener("resize", onResize);
+    window.addEventListener("orientationchange", onResize);
+
+    return () => {
+      mounted = false;
+      if (resizeTimer) clearTimeout(resizeTimer);
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("orientationchange", onResize);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [initialDataUrl]);
 
   const pushHistory = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    const snap = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    historyRef.current.push(snap);
-    if (historyRef.current.length > 20) historyRef.current.shift();
+    try {
+      const snap = canvas.toDataURL("image/png");
+      historyRef.current.push(snap);
+      // 모바일 메모리 보호: 최대 12개로 제한
+      if (historyRef.current.length > 12) historyRef.current.shift();
+    } catch {
+      /* CORS 등 직렬화 실패 시 무시 */
+    }
   };
 
   const undo = () => {
@@ -825,19 +889,31 @@ function SketchPad({
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx || !last) return;
-    ctx.putImageData(last, 0, 0);
+    const img = new Image();
+    img.onload = () => {
+      const rect = canvas.getBoundingClientRect();
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.restore();
+      ctx.drawImage(img, 0, 0, rect.width, rect.height);
+    };
+    img.src = last;
   };
 
   const clearAll = () => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
+    if (dirty && !window.confirm("그린 내용을 모두 지울까요?")) return;
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.restore();
     pushHistory();
+    setDirty(false);
   };
 
   const pos = (e: React.PointerEvent) => {
@@ -847,7 +923,7 @@ function SketchPad({
 
   const onDown = (e: React.PointerEvent) => {
     e.preventDefault();
-    (e.target as Element).setPointerCapture(e.pointerId);
+    try { (e.target as Element).setPointerCapture(e.pointerId); } catch { /* 미지원 브라우저 */ }
     drawingRef.current = true;
     lastRef.current = pos(e);
   };
@@ -872,28 +948,51 @@ function SketchPad({
     if (!drawingRef.current) return;
     drawingRef.current = false;
     lastRef.current = null;
+    setDirty(true);
     pushHistory();
   };
 
   const save = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    // 디바이스 픽셀 비율을 반영한 실제 픽셀로 저장
     onSave(canvas.toDataURL("image/png"));
   };
 
+  const handleClose = () => {
+    if (dirty && !window.confirm("그린 내용이 저장되지 않았어요. 정말 닫을까요?")) return;
+    onClose();
+  };
+
+  // ESC 키로 닫기 (데스크탑)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") handleClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dirty]);
+
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="w-full max-w-3xl bg-white rounded-[18px] overflow-hidden shadow-[var(--shadow-lifted)] flex flex-col" style={{ maxHeight: "90vh" }}>
-        <div className="flex items-center gap-2 px-4 h-12 border-b border-[var(--color-line)]">
+    <div
+      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-stretch sm:items-center justify-center sm:p-4"
+      style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}
+      onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
+    >
+      <div
+        className="w-full sm:max-w-3xl bg-white sm:rounded-[18px] overflow-hidden shadow-[var(--shadow-lifted)] flex flex-col"
+        style={{ maxHeight: "100vh" }}
+      >
+        <div className="flex items-center gap-2 px-4 h-12 border-b border-[var(--color-line)] shrink-0">
           <Pencil className="w-4 h-4 text-[var(--color-navy-700)]" />
           <h3 className="text-[14px] font-extrabold text-[var(--color-navy-900)]">도면 그리기</h3>
-          <button onClick={onClose} className="ml-auto h-8 w-8 rounded-full hover:bg-[var(--color-ink-50)] inline-flex items-center justify-center">
-            <X className="w-4 h-4 text-[var(--color-ink-600)]" />
+          {dirty && <span className="text-[10px] font-bold text-[var(--color-mint-700)] bg-[var(--color-mint-50)] px-2 py-0.5 rounded-full">편집 중</span>}
+          <button onClick={handleClose} className="ml-auto h-9 w-9 rounded-full hover:bg-[var(--color-ink-50)] inline-flex items-center justify-center" aria-label="닫기">
+            <X className="w-5 h-5 text-[var(--color-ink-600)]" />
           </button>
         </div>
 
-        <div className="px-3 py-2 flex items-center gap-2 flex-wrap border-b border-[var(--color-line-soft)] bg-[var(--color-navy-50)]/40">
+        <div className="px-2 py-2 flex items-center gap-1.5 flex-wrap border-b border-[var(--color-line-soft)] bg-[var(--color-navy-50)]/40 shrink-0">
           <button
             onClick={() => setTool("pen")}
             className={cn(
@@ -901,7 +1000,7 @@ function SketchPad({
               tool === "pen" ? "bg-[var(--color-navy-700)] text-white" : "bg-white text-[var(--color-navy-800)]"
             )}
           >
-            <Pencil className="w-3.5 h-3.5" /> 펜
+            <Pencil className="w-3.5 h-3.5" /> <span className="hidden xs:inline">펜</span>
           </button>
           <button
             onClick={() => setTool("eraser")}
@@ -910,11 +1009,10 @@ function SketchPad({
               tool === "eraser" ? "bg-[var(--color-navy-700)] text-white" : "bg-white text-[var(--color-navy-800)]"
             )}
           >
-            <Eraser className="w-3.5 h-3.5" /> 지우개
+            <Eraser className="w-3.5 h-3.5" /> <span className="hidden xs:inline">지우개</span>
           </button>
-          <div className="flex items-center gap-1.5 ml-1">
-            <span className="text-[11px] font-bold text-[var(--color-ink-600)]">굵기</span>
-            <input type="range" min={1} max={20} value={size} onChange={(e) => setSize(Number(e.target.value))} className="w-24" />
+          <div className="flex items-center gap-1.5">
+            <input type="range" min={1} max={20} value={size} onChange={(e) => setSize(Number(e.target.value))} className="w-16 sm:w-24" aria-label="굵기" />
             <span className="text-[11px] font-bold text-[var(--color-ink-700)] w-5 text-center">{size}</span>
           </div>
           {tool === "pen" && (
@@ -922,28 +1020,30 @@ function SketchPad({
               type="color"
               value={color}
               onChange={(e) => setColor(e.target.value)}
-              className="h-9 w-9 rounded-full border-[1.5px] border-[var(--color-line)] bg-white cursor-pointer"
-              title="펜 색상"
+              className="h-9 w-9 rounded-full border-[1.5px] border-[var(--color-line)] bg-white cursor-pointer shrink-0"
+              aria-label="펜 색상"
             />
           )}
           <button
             onClick={undo}
-            className="h-9 px-3 rounded-full bg-white text-[12px] font-bold text-[var(--color-navy-800)] inline-flex items-center gap-1"
+            disabled={historyRef.current.length <= 1}
+            className="h-9 px-2.5 rounded-full bg-white text-[12px] font-bold text-[var(--color-navy-800)] inline-flex items-center gap-1 disabled:opacity-40"
+            aria-label="되돌리기"
           >
-            <Undo2 className="w-3.5 h-3.5" /> 되돌리기
+            <Undo2 className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={clearAll}
-            className="h-9 px-3 rounded-full bg-white text-[12px] font-bold text-[var(--color-danger)] inline-flex items-center gap-1"
+            className="h-9 px-2.5 rounded-full bg-white text-[12px] font-bold text-[var(--color-danger)] inline-flex items-center gap-1"
+            aria-label="전체 지움"
           >
-            <X className="w-3.5 h-3.5" /> 전체 지움
+            <X className="w-3.5 h-3.5" />
           </button>
         </div>
 
         <div
           ref={wrapRef}
-          className="relative bg-white flex-1 overflow-hidden"
-          style={{ minHeight: 360 }}
+          className="relative bg-white flex-1 overflow-hidden min-h-[200px] sm:min-h-[360px]"
         >
           <canvas
             ref={canvasRef}
@@ -951,12 +1051,13 @@ function SketchPad({
             onPointerMove={onMove}
             onPointerUp={onUp}
             onPointerCancel={onUp}
-            className="block touch-none cursor-crosshair"
+            className="block cursor-crosshair"
+            style={{ touchAction: "none" }}
           />
         </div>
 
-        <div className="px-4 py-3 border-t border-[var(--color-line)] flex items-center gap-2 justify-end">
-          <Button variant="ghost" onClick={onClose}>닫기</Button>
+        <div className="px-4 py-3 border-t border-[var(--color-line)] flex items-center gap-2 justify-end shrink-0">
+          <Button variant="ghost" onClick={handleClose}>닫기</Button>
           <Button onClick={save} leftIcon={<Check className="w-4 h-4" />}>
             도면으로 사용
           </Button>

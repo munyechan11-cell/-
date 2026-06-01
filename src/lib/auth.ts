@@ -1,5 +1,14 @@
-import { signInWithPopup, signOut } from "firebase/auth";
+import { signInWithPopup, signInWithRedirect, signOut, getRedirectResult } from "firebase/auth";
 import { auth, googleProvider } from "./firebase";
+
+// iOS Safari·인앱 브라우저는 third-party 쿠키 차단으로 팝업 OAuth가 자주 실패
+// → 자동 감지 후 redirect 방식으로 fallback
+function shouldUseRedirect(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent;
+  // 인앱 브라우저(카톡·네이버·라인·인스타·페북)에서만 강제 redirect — iOS Safari는 일단 팝업 시도
+  return /KAKAOTALK|NAVER|Line|Instagram|FBAN|FBAV/i.test(ua);
+}
 
 export interface SocialResult {
   provider: "google" | "kakao";
@@ -11,15 +20,58 @@ export interface SocialResult {
 
 export async function signInWithGoogle(): Promise<SocialResult> {
   if (!auth) throw new Error("Firebase Auth가 설정되지 않았습니다.");
-  const res = await signInWithPopup(auth, googleProvider);
-  const u = res.user;
-  return {
-    provider: "google",
-    id: u.uid,
-    name: u.displayName ?? undefined,
-    email: u.email ?? undefined,
-    avatarUrl: u.photoURL ?? undefined,
-  };
+  // 인앱 브라우저 감지 시 미리 redirect로 — 팝업이 차단되거나 화면 밖에서 열려 사용자가 인지 못 하는 사고 방지
+  if (shouldUseRedirect()) {
+    sessionStorage.setItem("gyeol:pending-google-redirect", "1");
+    await signInWithRedirect(auth, googleProvider);
+    throw new Error("REDIRECT_IN_PROGRESS");
+  }
+  try {
+    const res = await signInWithPopup(auth, googleProvider);
+    const u = res.user;
+    return {
+      provider: "google",
+      id: u.uid,
+      name: u.displayName ?? undefined,
+      email: u.email ?? undefined,
+      avatarUrl: u.photoURL ?? undefined,
+    };
+  } catch (e: any) {
+    const code = String(e?.code ?? "");
+    // 팝업 차단 시 친화 메시지
+    if (code === "auth/popup-blocked") {
+      throw new Error("팝업이 차단됐어요. 브라우저 주소창의 팝업 차단 아이콘을 풀고 다시 시도해 주세요.");
+    }
+    if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
+      throw new Error("Google 로그인이 취소되었습니다.");
+    }
+    if (code === "auth/network-request-failed") {
+      throw new Error("네트워크가 불안정해요. 잠시 후 다시 시도해 주세요.");
+    }
+    throw e;
+  }
+}
+
+// 앱 부팅 시점에 호출해 리다이렉트 결과 회수 — null이면 처리할 게 없음
+export async function consumeGoogleRedirect(): Promise<SocialResult | null> {
+  if (!auth) return null;
+  const flag = sessionStorage.getItem("gyeol:pending-google-redirect");
+  if (!flag) return null;
+  sessionStorage.removeItem("gyeol:pending-google-redirect");
+  try {
+    const res = await getRedirectResult(auth);
+    if (!res?.user) return null;
+    const u = res.user;
+    return {
+      provider: "google",
+      id: u.uid,
+      name: u.displayName ?? undefined,
+      email: u.email ?? undefined,
+      avatarUrl: u.photoURL ?? undefined,
+    };
+  } catch {
+    return null;
+  }
 }
 
 const KAKAO_JS_KEY = "c80827032123a3e018388749472f759d";

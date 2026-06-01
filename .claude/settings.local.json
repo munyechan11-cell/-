@@ -1,4 +1,34 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(ls \"C:\\\\Users\\\\munye\\\\Downloads\\\\andrej-karpathy-skills-main.zip\")",
+      "Bash(unzip -o andrej-karpathy-skills-main.zip -d andrej-karpathy-skills-extracted/)",
+      "Bash(cp -r 'C:\\\\Users\\\\munye\\\\Downloads\\\\andrej-karpathy-skills-extracted\\\\andrej-karpathy-skills-main\\\\skills\\\\karpathy-guidelines' 'C:\\\\Users\\\\munye\\\\.claude\\\\skills\\\\karpathy-guidelines')",
+      "Read(//c/Users/munye/.claude/skills/**)",
+      "Bash(mkdir -p 'C:\\\\Users\\\\munye\\\\.claude\\\\plugins')",
+      "Bash(cp -r 'C:\\\\Users\\\\munye\\\\Downloads\\\\andrej-karpathy-skills-extracted\\\\andrej-karpathy-skills-main' 'C:\\\\Users\\\\munye\\\\.claude\\\\plugins\\\\andrej-karpathy-skills')",
+      "Read(//c/Users/munye/.claude/plugins/**)",
+      "Bash(rm -rf 'C:\\\\Users\\\\munye\\\\.claude\\\\skills\\\\karpathy-guidelines' && ls 'C:\\\\Users\\\\munye\\\\.claude\\\\skills' && echo '---' && ls 'C:\\\\Users\\\\munye\\\\.claude\\\\plugins')",
+      "Bash(rm -rf 'C:\\\\Users\\\\munye\\\\.claude\\\\plugins\\\\andrej-karpathy-skills')",
+      "Bash(xargs wc -l)",
+      "Bash(npx tsc *)",
+      "Bash(npm run *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(git checkout *)",
+      "PowerShell(npm run lint 2>&1)",
+      "Bash(git fetch *)",
+      "Bash(git merge *)",
+      "Bash(git reset *)",
+      "Bash(git remote *)",
+      "PowerShell(git config --global credential.helper store; $cred = \"https://munyechan11-cell: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@github.com\"; Set-Content -Path \"$env:USERPROFILE\\\\.git-credentials\" -Value $cred -Encoding ASCII -NoNewline; echo \"credential.helper:\"; git config --global credential.helper; echo \"file exists:\"; Test-Path \"$env:USERPROFILE\\\\.git-credentials\")",
+      "Bash(git commit *)",
+      "Bash(npx vite *)",
+      "Bash(echo \"exit=$?\")",
+      "Bash(echo \"EXIT=$?\")"
+    ]
+  },
   "hooks": {
     "Stop": [
       {

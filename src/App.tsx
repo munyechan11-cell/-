@@ -117,7 +117,13 @@ function BizEntry() {
   if (currentUser?.role === "staff") return <Navigate to="/biz/staff" replace />;
 
   return (
-    <div className="min-h-screen bg-[var(--color-navy-900)] text-white flex items-center justify-center px-6">
+    <div
+      className="min-h-screen bg-[var(--color-navy-900)] text-white flex items-center justify-center px-6 py-8"
+      style={{
+        paddingTop: "max(2rem, env(safe-area-inset-top))",
+        paddingBottom: "max(2rem, env(safe-area-inset-bottom))",
+      }}
+    >
       <div className="w-full max-w-sm">
         <div className="flex items-center gap-3 mb-7">
           <span className="w-11 h-11 rounded-xl bg-white text-[var(--color-navy-900)] text-xl font-extrabold flex items-center justify-center">
