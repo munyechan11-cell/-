@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { MessageCircle, Phone, Mars, Venus, Check } from "lucide-react";
+import { MessageCircle, Phone, Mars, Venus, Check, Store as StoreIcon, Armchair } from "lucide-react";
 import { MobileShell } from "../../components/layout/MobileShell";
 import { TopBar } from "../../components/ui/TopBar";
 import { Button } from "../../components/ui/Button";
@@ -148,9 +148,18 @@ export default function CustomerLogin() {
           phone,
           name: existing.name || name,
           role: "customer",
-          authType: "phone",
+          // 소셜로 들어온 신규-flow에서 기존 전화 계정이 잡히면 소셜 ID를 함께 연결
+          socialId: social?.id,
+          socialProvider: social?.provider,
+          authType: social?.provider ?? "phone",
+          avatarUrl: social?.avatarUrl,
         });
-        showToast("이미 가입된 회원입니다. 로그인 처리됐어요.", "info");
+        showToast(
+          social
+            ? `이미 가입된 회원입니다. ${social.provider === "google" ? "Google" : "카카오"} 계정을 연결했어요.`
+            : "이미 가입된 회원입니다. 로그인 처리됐어요.",
+          "info"
+        );
         onAfterLogin();
       } catch (e: any) {
         showToast(`로그인 실패: ${e?.message ?? ""}`, "error");
@@ -219,6 +228,10 @@ export default function CustomerLogin() {
   // 회원가입 모드 진행 중(step 2/3)이면 진짜 가입 중. 토글 표시 안 함.
   const showModeToggle = step === 1 && !social;
 
+  // QR 진입 컨텍스트: 매장명 + 테이블 번호
+  const qrStore = storeId ? users.find((u) => u.id === storeId && u.role === "owner") : undefined;
+  const showQrContext = !!storeId && !!tableNum;
+
   return (
     <MobileShell>
       <TopBar
@@ -232,6 +245,29 @@ export default function CustomerLogin() {
         back
       />
       <div className="px-6 pt-2">
+        {/* QR 다이렉트 진입 시 매장/테이블 컨텍스트 배너 */}
+        {showQrContext && (
+          <div className="mt-3 rounded-[16px] border-[1.5px] border-[var(--color-mint-200)] bg-[var(--color-mint-50)] px-4 py-3 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-[12px] bg-white flex items-center justify-center shrink-0 shadow-[var(--shadow-press)]">
+              <Armchair className="w-5 h-5 text-[var(--color-mint-700)]" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-bold text-[var(--color-mint-700)] uppercase tracking-wide">
+                테이블 연동 진행 중
+              </p>
+              <p className="text-[14px] font-extrabold text-[var(--color-navy-900)] truncate flex items-center gap-1.5">
+                <StoreIcon className="w-3.5 h-3.5 text-[var(--color-ink-500)] shrink-0" />
+                <span className="truncate">{qrStore?.restaurantName ?? "매장"}</span>
+                <span className="text-[var(--color-ink-400)]">·</span>
+                <span className="text-[var(--color-mint-700)]">테이블 {tableNum}번</span>
+              </p>
+              <p className="text-[11.5px] text-[var(--color-ink-500)] mt-0.5 font-medium leading-tight">
+                로그인하면 바로 자리에 연결돼요.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* 로그인/회원가입 토글 — step 1에서만 노출 */}
         {showModeToggle && (
           <div className="mt-4 grid grid-cols-2 p-1 bg-[var(--color-navy-50)] rounded-[14px]">

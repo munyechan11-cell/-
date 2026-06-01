@@ -46,6 +46,27 @@ export default function OwnerLogin() {
       showToast("매장명을 입력해 주세요.", "error");
       return;
     }
+    // 소셜 pending이 있으면 소셜 ID를 함께 연결 (탭 토글 등으로 일반 submit이 타도 안전)
+    // 단, 10분 이상 묵은 stash는 무시 — 옛 시도가 의도치 않게 적용되는 사고 방지
+    const stash =
+      typeof window !== "undefined"
+        ? sessionStorage.getItem("gyeol:pending-owner-social")
+        : null;
+    let pendingSocial: { id: string; provider: "google" | "kakao"; avatarUrl?: string } | null = null;
+    if (stash) {
+      try {
+        const parsed = JSON.parse(stash) as { id: string; provider: "google" | "kakao"; avatarUrl?: string; ts?: number };
+        const fresh = !parsed.ts || Date.now() - parsed.ts < 10 * 60 * 1000;
+        if (fresh && parsed.id && parsed.provider) {
+          pendingSocial = { id: parsed.id, provider: parsed.provider, avatarUrl: parsed.avatarUrl };
+        } else {
+          sessionStorage.removeItem("gyeol:pending-owner-social");
+        }
+      } catch {
+        sessionStorage.removeItem("gyeol:pending-owner-social");
+      }
+    }
+
     setLoading(true);
     try {
       await login({
@@ -53,12 +74,17 @@ export default function OwnerLogin() {
         name,
         role: "owner",
         restaurantName: restaurantName || undefined,
-        authType: "phone",
+        socialId: pendingSocial?.id,
+        socialProvider: pendingSocial?.provider,
+        authType: pendingSocial?.provider ?? "phone",
+        avatarUrl: pendingSocial?.avatarUrl,
         posVendor: mode === "signup" ? posVendor : undefined,
         posApiKey: mode === "signup" ? posApiKey || undefined : undefined,
-        signInOnly: mode === "login",
+        // 소셜 pending 상태라면 신규 가입까지 허용
+        signInOnly: mode === "login" && !pendingSocial,
       });
-      nav("/owner", { replace: true });
+      if (pendingSocial) sessionStorage.removeItem("gyeol:pending-owner-social");
+      nav("/biz/owner", { replace: true });
     } catch (e: any) {
       showToast(
         mode === "login"
@@ -96,7 +122,7 @@ export default function OwnerLogin() {
           authType: provider,
           avatarUrl: res.avatarUrl,
         });
-        nav("/owner", { replace: true });
+        nav("/biz/owner", { replace: true });
         return;
       }
 
@@ -110,7 +136,7 @@ export default function OwnerLogin() {
       // signupRef stored social info
       sessionStorage.setItem(
         "gyeol:pending-owner-social",
-        JSON.stringify({ id: res.id, provider, avatarUrl: res.avatarUrl })
+        JSON.stringify({ id: res.id, provider, avatarUrl: res.avatarUrl, ts: Date.now() })
       );
       showToast("매장명과 POS 정보를 입력하고 가입을 완료하세요.", "info");
     } catch (e: any) {
@@ -144,7 +170,7 @@ export default function OwnerLogin() {
         posApiKey: posApiKey || undefined,
       });
       sessionStorage.removeItem("gyeol:pending-owner-social");
-      nav("/owner", { replace: true });
+      nav("/biz/owner", { replace: true });
     } catch (e: any) {
       showToast(`가입 실패: ${e?.message ?? ""}`, "error");
     } finally {
@@ -168,7 +194,7 @@ export default function OwnerLogin() {
             </div>
           </div>
           <Link
-            to="/staff/login"
+            to="/biz/staff/login"
             className="rounded-[14px] border-[1.5px] border-[var(--color-line)] bg-white p-3 flex items-center gap-2 hover:border-[var(--color-mint-500)] transition-colors"
           >
             <Briefcase className="w-4 h-4 text-[var(--color-ink-500)]" />

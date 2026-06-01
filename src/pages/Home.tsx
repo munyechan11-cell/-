@@ -1,11 +1,10 @@
 import { Link } from "react-router-dom";
-import { QrCode, Store, ArrowRight, Shield, ShieldCheck, Sparkles, Zap, User as UserIcon } from "lucide-react";
+import { QrCode, ArrowRight, Shield, ShieldCheck, Sparkles, Zap, User as UserIcon } from "lucide-react";
 import { useStore } from "../store/store";
 
 export default function Home() {
   const { currentUser } = useStore();
   const isCustomer = currentUser?.role === "customer";
-  const isOwner = currentUser?.role === "owner";
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-[var(--color-bg)]">
@@ -33,17 +32,17 @@ export default function Home() {
         <div>
           <span className="chip mb-5">
             <Sparkles className="w-3.5 h-3.5" />
-            손님과 사장님의 결, 하나로
+            나의 단골 매장, 한 손에
           </span>
           <h1 className="headline-hero">
-            사장님의 정성과
+            QR 한 번에
             <br />
-            손님의 발걸음이
+            모이는 발걸음,
             <br />
-            만나는 가장 <span className="text-[var(--color-navy-700)]">아름다운 결.</span>
+            <span className="text-[var(--color-navy-700)]">단골의 결.</span>
           </h1>
           <p className="body-lg mt-5 lg:mt-7 text-[var(--color-ink-600)] max-w-[520px]">
-            QR 한 번에 시작되는, 단단한 단골 관리. 매장의 모든 흐름을 결로 연결하세요.
+            테이블 QR을 찍으면 자동으로 적립되는 방문 · 등급 · 쿠폰. 결과 함께 더 깊은 단골이 되어보세요.
           </p>
 
           {/* CTA */}
@@ -102,41 +101,6 @@ export default function Home() {
               </>
             )}
 
-            <Link
-              to={isOwner ? "/owner" : "/owner/login"}
-              className="group rounded-2xl bg-white border border-[var(--color-line)] p-5 lg:p-6 flex items-center gap-4 hover:-translate-y-0.5 transition-transform shadow-[var(--shadow-card)]"
-            >
-              <div className="w-12 h-12 rounded-xl bg-[var(--color-navy-100)] flex items-center justify-center shrink-0">
-                <Store className="w-6 h-6 text-[var(--color-navy-700)]" />
-              </div>
-              <div className="flex-1">
-                <div className="text-[11px] text-[var(--color-ink-500)] font-bold uppercase tracking-wider mb-0.5">
-                  사장님
-                </div>
-                <div className="text-[16px] font-extrabold text-[var(--color-navy-900)] tracking-tight">
-                  {isOwner ? "콘솔로 이동" : "매장 관리"}
-                </div>
-              </div>
-              <ArrowRight className="w-5 h-5 text-[var(--color-ink-400)] group-hover:translate-x-0.5 transition-transform" />
-            </Link>
-
-            <Link
-              to="/staff/login"
-              className="group rounded-2xl bg-white border border-[var(--color-line)] p-5 lg:p-6 flex items-center gap-4 hover:-translate-y-0.5 transition-transform shadow-[var(--shadow-card)]"
-            >
-              <div className="w-12 h-12 rounded-xl bg-[var(--color-mint-100)] flex items-center justify-center shrink-0">
-                <UserIcon className="w-6 h-6 text-[var(--color-mint-700)]" />
-              </div>
-              <div className="flex-1">
-                <div className="text-[11px] text-[var(--color-ink-500)] font-bold uppercase tracking-wider mb-0.5">
-                  직원
-                </div>
-                <div className="text-[16px] font-extrabold text-[var(--color-navy-900)] tracking-tight">
-                  근무 시작
-                </div>
-              </div>
-              <ArrowRight className="w-5 h-5 text-[var(--color-ink-400)] group-hover:translate-x-0.5 transition-transform" />
-            </Link>
           </div>
 
           {/* Trust signals */}
@@ -206,10 +170,16 @@ export default function Home() {
         </Link>
       </div>
 
-      <footer className="container-app py-6 border-t border-[var(--color-line-soft)] text-center">
+      <footer className="container-app py-6 border-t border-[var(--color-line-soft)] flex flex-col items-center gap-2.5">
         <p className="text-[11px] text-[var(--color-ink-400)] font-semibold tracking-wider">
           GYEOL · 정성을 담아 연결합니다
         </p>
+        <Link
+          to="/biz"
+          className="text-[11px] text-[var(--color-ink-400)] hover:text-[var(--color-navy-700)] font-medium opacity-70 hover:opacity-100 transition-opacity"
+        >
+          매장 운영자 →
+        </Link>
       </footer>
     </div>
   );

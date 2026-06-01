@@ -24,7 +24,7 @@ export default function StaffLogin() {
 
   const afterStaffLogin = () => {
     // 직원: 가입 후 store-search → pending → /staff
-    nav("/staff/store-search", { replace: true });
+    nav("/biz/staff/store-search", { replace: true });
   };
 
   const submit = async (e: React.FormEvent) => {
@@ -33,16 +33,40 @@ export default function StaffLogin() {
       showToast("이름과 전화번호를 정확히 입력해 주세요.", "error");
       return;
     }
+    // 10분 이상 묵은 stash는 무시 (옛 시도가 의도치 않게 적용되는 사고 방지)
+    const stash =
+      typeof window !== "undefined"
+        ? sessionStorage.getItem("gyeol:pending-staff-social")
+        : null;
+    let pendingSocial: { id: string; provider: "google" | "kakao"; avatarUrl?: string } | null = null;
+    if (stash) {
+      try {
+        const parsed = JSON.parse(stash) as { id: string; provider: "google" | "kakao"; avatarUrl?: string; ts?: number };
+        const fresh = !parsed.ts || Date.now() - parsed.ts < 10 * 60 * 1000;
+        if (fresh && parsed.id && parsed.provider) {
+          pendingSocial = { id: parsed.id, provider: parsed.provider, avatarUrl: parsed.avatarUrl };
+        } else {
+          sessionStorage.removeItem("gyeol:pending-staff-social");
+        }
+      } catch {
+        sessionStorage.removeItem("gyeol:pending-staff-social");
+      }
+    }
+
     setLoading(true);
     try {
       await login({
         phone,
         name,
         role: "staff",
-        authType: "phone",
+        socialId: pendingSocial?.id,
+        socialProvider: pendingSocial?.provider,
+        authType: pendingSocial?.provider ?? "phone",
+        avatarUrl: pendingSocial?.avatarUrl,
         position: mode === "signup" ? position || undefined : undefined,
-        signInOnly: mode === "login",
+        signInOnly: mode === "login" && !pendingSocial,
       } as any);
+      if (pendingSocial) sessionStorage.removeItem("gyeol:pending-staff-social");
       afterStaffLogin();
     } catch (e: any) {
       showToast(
@@ -89,7 +113,7 @@ export default function StaffLogin() {
       if (res.name) setName(res.name);
       sessionStorage.setItem(
         "gyeol:pending-staff-social",
-        JSON.stringify({ id: res.id, provider, avatarUrl: res.avatarUrl })
+        JSON.stringify({ id: res.id, provider, avatarUrl: res.avatarUrl, ts: Date.now() })
       );
       showToast("성함·전화번호·직책 입력 후 가입을 완료해 주세요.", "info");
     } catch (e: any) {
@@ -138,7 +162,7 @@ export default function StaffLogin() {
         {/* 사장님/직원 구분 */}
         <div className="grid grid-cols-2 gap-2 mb-5">
           <Link
-            to="/owner/login"
+            to="/biz/owner/login"
             className="rounded-[14px] border-[1.5px] border-[var(--color-line)] bg-white p-3 flex items-center gap-2 hover:border-[var(--color-navy-700)] transition-colors"
           >
             <Crown className="w-4 h-4 text-[var(--color-ink-500)]" />

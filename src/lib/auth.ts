@@ -22,25 +22,86 @@ export async function signInWithGoogle(): Promise<SocialResult> {
   };
 }
 
-export async function signInWithKakao(): Promise<SocialResult> {
+const KAKAO_JS_KEY = "c80827032123a3e018388749472f759d";
+
+async function ensureKakaoReady(): Promise<any> {
+  // SDK 로딩 대기 (네트워크 지연 대응) — 최대 3초
+  const deadline = Date.now() + 3000;
+  while (!(window as any).Kakao && Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 100));
+  }
   const Kakao = (window as any).Kakao;
-  if (!Kakao) throw new Error("Kakao SDK가 로드되지 않았습니다.");
-  if (!Kakao.isInitialized()) throw new Error("Kakao SDK가 초기화되지 않았습니다.");
+  if (!Kakao) throw new Error("Kakao SDK를 불러오지 못했습니다. 네트워크를 확인해 주세요.");
+  // index.html 인라인 초기화가 SDK보다 먼저 실행돼 누락된 경우 복구
+  if (!Kakao.isInitialized()) {
+    try {
+      Kakao.init(KAKAO_JS_KEY);
+    } catch (e: any) {
+      throw new Error(`Kakao SDK 초기화 실패: ${e?.message ?? "알 수 없는 오류"}`);
+    }
+  }
+  return Kakao;
+}
 
-  await new Promise<void>((resolve, reject) => {
-    Kakao.Auth.login({
-      success: () => resolve(),
-      fail: (err: any) => reject(err),
-    });
+// Kakao JS SDK가 버전에 따라 콜백/Promise 양쪽을 쓰는 문제 해결용 어댑터.
+// success/fail 콜백과 반환 Promise 중 먼저 settle 되는 쪽을 잡고, 타임아웃 안전망까지 건다.
+function callKakaoApi<T>(
+  fn: (opts: any) => any,
+  opts: Record<string, any>,
+  timeoutMs: number,
+  timeoutMsg: string
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    let settled = false;
+    const done = (v: T) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(v);
+    };
+    const err = (e: any) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      reject(e instanceof Error ? e : new Error(e?.error_description ?? e?.msg ?? String(e?.message ?? e ?? "unknown")));
+    };
+    const timer = setTimeout(() => err(new Error(timeoutMsg)), timeoutMs);
+    try {
+      const ret = fn({ ...opts, success: done, fail: err });
+      // 신버전 SDK: Promise 반환
+      if (ret && typeof ret.then === "function") {
+        ret.then(done, err);
+      }
+    } catch (e) {
+      err(e);
+    }
   });
+}
 
-  const userInfo = await new Promise<any>((resolve, reject) => {
-    Kakao.API.request({
-      url: "/v2/user/me",
-      success: (r: any) => resolve(r),
-      fail: (e: any) => reject(e),
-    });
-  });
+export async function signInWithKakao(): Promise<SocialResult> {
+  const Kakao = await ensureKakaoReady();
+  if (!Kakao.Auth?.login || !Kakao.API?.request) {
+    throw new Error("Kakao SDK가 손상되었어요. 페이지를 새로고침해 주세요.");
+  }
+
+  await callKakaoApi<void>(
+    Kakao.Auth.login.bind(Kakao.Auth),
+    {
+      // 이메일·프로필 동의 화면이 일관되게 뜨도록 scope 명시
+      scope: "profile_nickname,profile_image,account_email",
+      // 모바일에서 카카오톡 앱으로 빠져 콜백을 못 받는 케이스 차단
+      throughTalk: false,
+    },
+    60000,
+    "카카오 인증 응답이 없어요. 팝업 차단 여부를 확인해 주세요."
+  );
+
+  const userInfo = await callKakaoApi<any>(
+    Kakao.API.request.bind(Kakao.API),
+    { url: "/v2/user/me" },
+    10000,
+    "카카오 사용자 정보 조회 시간이 초과됐어요."
+  );
 
   const account = userInfo.kakao_account ?? {};
   const profile = account.profile ?? {};
@@ -60,7 +121,7 @@ export async function signOutAll() {
     } catch {}
   }
   const Kakao = (window as any).Kakao;
-  if (Kakao?.Auth?.getAccessToken?.()) {
+  if (Kakao?.Auth?.getAccessToken?.() && Kakao.Auth.logout) {
     try {
       await new Promise((r) => Kakao.Auth.logout(r));
     } catch {}

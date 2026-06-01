@@ -55,23 +55,23 @@ export default function StaffDashboard() {
     // tick은 갱신용 의존성
   }, [shifts, currentUser, tick]);
 
-  if (!currentUser) return <Navigate to="/owner/login" replace />;
+  if (!currentUser) return <Navigate to="/biz/owner/login" replace />;
   if (currentUser.role !== "staff") {
-    return <Navigate to={currentUser.role === "owner" ? "/owner" : "/customer"} replace />;
+    return <Navigate to={currentUser.role === "owner" ? "/biz/owner" : "/customer"} replace />;
   }
-  if (!currentUser.employerStoreId) return <Navigate to="/staff/store-search" replace />;
-  if (currentUser.employerStatus !== "approved") return <Navigate to="/staff/pending" replace />;
+  if (!currentUser.employerStoreId) return <Navigate to="/biz/staff/store-search" replace />;
+  if (currentUser.employerStatus !== "approved") return <Navigate to="/biz/staff/pending" replace />;
 
   const owner = users.find((u) => u.id === currentUser.employerStoreId);
   const onDuty = !!activeShift;
 
   const LINKS = [
-    { to: "/owner/reservations", icon: Calendar, label: "예약", free: true },
-    { to: "/owner/orders", icon: ChefHat, label: "주문·쿠폰", free: false },
-    { to: "/owner/tables", icon: LayoutGrid, label: "테이블", free: false },
-    { to: "/owner/menus", icon: UtensilsCrossed, label: "메뉴 관리", free: false },
-    { to: "/owner/photos", icon: ImageIcon, label: "사진 보관소", free: false },
-    { to: "/owner/qr-print", icon: QrCode, label: "QR 인쇄", free: false },
+    { to: "/biz/owner/reservations", icon: Calendar, label: "예약", free: true },
+    { to: "/biz/owner/orders", icon: ChefHat, label: "주문·쿠폰", free: false },
+    { to: "/biz/owner/tables", icon: LayoutGrid, label: "테이블", free: false },
+    { to: "/biz/owner/menus", icon: UtensilsCrossed, label: "메뉴 관리", free: false },
+    { to: "/biz/owner/photos", icon: ImageIcon, label: "사진 보관소", free: false },
+    { to: "/biz/owner/qr-print", icon: QrCode, label: "QR 인쇄", free: false },
   ];
 
   return (

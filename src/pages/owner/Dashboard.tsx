@@ -22,16 +22,16 @@ import { EmptyState } from "../../components/ui/EmptyState";
 import { useStore } from "../../store/store";
 
 const QUICK_LINKS = [
-  { to: "/owner/orders", icon: ChefHat, label: "주문·쿠폰", color: "mint" },
-  { to: "/owner/tables", icon: LayoutGrid, label: "테이블 편집", color: "navy" },
-  { to: "/owner/menus", icon: UtensilsCrossed, label: "메뉴 관리", color: "navy" },
-  { to: "/owner/customers", icon: Users, label: "고객 관리", color: "mint" },
-  { to: "/owner/statistics", icon: BarChart3, label: "통계", color: "sky" },
-  { to: "/owner/reservations", icon: Calendar, label: "예약", color: "sky" },
-  { to: "/owner/photos", icon: ImageIcon, label: "사진 보관소", color: "navy" },
-  { to: "/owner/qr-print", icon: QrCode, label: "QR 인쇄", color: "mint" },
-  { to: "/owner/staff", icon: Briefcase, label: "직원 관리", color: "sky" },
-  { to: "/owner/brand-settings", icon: Settings, label: "브랜드 설정", color: "navy" },
+  { to: "/biz/owner/orders", icon: ChefHat, label: "주문·쿠폰", color: "mint" },
+  { to: "/biz/owner/tables", icon: LayoutGrid, label: "테이블 편집", color: "navy" },
+  { to: "/biz/owner/menus", icon: UtensilsCrossed, label: "메뉴 관리", color: "navy" },
+  { to: "/biz/owner/customers", icon: Users, label: "고객 관리", color: "mint" },
+  { to: "/biz/owner/statistics", icon: BarChart3, label: "통계", color: "sky" },
+  { to: "/biz/owner/reservations", icon: Calendar, label: "예약", color: "sky" },
+  { to: "/biz/owner/photos", icon: ImageIcon, label: "사진 보관소", color: "navy" },
+  { to: "/biz/owner/qr-print", icon: QrCode, label: "QR 인쇄", color: "mint" },
+  { to: "/biz/owner/staff", icon: Briefcase, label: "직원 관리", color: "sky" },
+  { to: "/biz/owner/brand-settings", icon: Settings, label: "브랜드 설정", color: "navy" },
 ] as const;
 
 const COLOR_CLASSES: Record<string, string> = {
@@ -129,7 +129,7 @@ export default function OwnerDashboard() {
             {activeOrders}
           </p>
           <p className="body-sm text-[var(--color-ink-500)]">처리할 주문</p>
-          <Link to="/owner/orders" className="mt-auto text-[13px] font-bold text-[var(--color-navy-700)] inline-flex items-center gap-1 pt-3">
+          <Link to="/biz/owner/orders" className="mt-auto text-[13px] font-bold text-[var(--color-navy-700)] inline-flex items-center gap-1 pt-3">
             관리하기 <ChevronRight className="w-4 h-4" />
           </Link>
         </Card>
@@ -143,7 +143,7 @@ export default function OwnerDashboard() {
             {dirty}
           </p>
           <p className="body-sm text-[var(--color-ink-500)]">정리 필요 테이블</p>
-          <Link to="/owner/tables" className="mt-auto text-[13px] font-bold text-[var(--color-navy-700)] inline-flex items-center gap-1 pt-3">
+          <Link to="/biz/owner/tables" className="mt-auto text-[13px] font-bold text-[var(--color-navy-700)] inline-flex items-center gap-1 pt-3">
             테이블로 <ChevronRight className="w-4 h-4" />
           </Link>
         </Card>
@@ -154,7 +154,7 @@ export default function OwnerDashboard() {
         <div className="lg:col-span-2">
           <div className="flex items-center justify-between mb-3 px-1">
             <h2 className="headline-sub">테이블 현황 ({tables.length})</h2>
-            <Link to="/owner/tables" className="text-[13px] font-bold text-[var(--color-navy-700)]">
+            <Link to="/biz/owner/tables" className="text-[13px] font-bold text-[var(--color-navy-700)]">
               편집 →
             </Link>
           </div>
@@ -164,7 +164,7 @@ export default function OwnerDashboard() {
               title="아직 테이블이 없어요"
               description="테이블 편집에서 매장에 맞는 테이블을 추가해 주세요."
               action={
-                <Link to="/owner/tables" className="h-10 px-5 rounded-full bg-[var(--color-navy-700)] text-white text-[13px] font-bold inline-flex items-center">
+                <Link to="/biz/owner/tables" className="h-10 px-5 rounded-full bg-[var(--color-navy-700)] text-white text-[13px] font-bold inline-flex items-center">
                   테이블 추가하기
                 </Link>
               }

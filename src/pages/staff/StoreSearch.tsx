@@ -31,15 +31,15 @@ export default function StaffStoreSearch() {
     );
   }, [users, q]);
 
-  if (!currentUser) return <Navigate to="/owner/login" replace />;
+  if (!currentUser) return <Navigate to="/biz/owner/login" replace />;
   if (currentUser.role !== "staff") {
-    return <Navigate to={currentUser.role === "owner" ? "/owner" : "/customer"} replace />;
+    return <Navigate to={currentUser.role === "owner" ? "/biz/owner" : "/customer"} replace />;
   }
   if (currentUser.employerStatus === "approved" && currentUser.employerStoreId) {
-    return <Navigate to="/staff" replace />;
+    return <Navigate to="/biz/staff" replace />;
   }
   if (currentUser.employerStoreId && currentUser.employerStatus === "pending") {
-    return <Navigate to="/staff/pending" replace />;
+    return <Navigate to="/biz/staff/pending" replace />;
   }
 
   const apply = async (storeId: string) => {
@@ -47,7 +47,7 @@ export default function StaffStoreSearch() {
     setSubmitting(true);
     try {
       await requestJoinStore(storeId, position || undefined);
-      nav("/staff/pending", { replace: true });
+      nav("/biz/staff/pending", { replace: true });
     } catch (e: any) {
       showToast(`요청 실패: ${e?.message ?? ""}`, "error");
     } finally {

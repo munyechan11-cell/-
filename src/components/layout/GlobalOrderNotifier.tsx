@@ -32,7 +32,7 @@ export function GlobalOrderNotifier() {
 
     // OwnerOrders 페이지에 있으면 그쪽이 알림 처리하므로 여기선 건너뜀
     // (중복 알림 방지)
-    if (loc.pathname === "/owner/orders") {
+    if (loc.pathname === "/biz/owner/orders") {
       knownIdsRef.current = currentIds;
       return;
     }

@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /biz
+Disallow: /biz/
+Disallow: /owner
+Disallow: /owner/
+Disallow: /staff
+Disallow: /staff/
+Disallow: /master

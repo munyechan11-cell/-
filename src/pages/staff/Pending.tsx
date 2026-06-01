@@ -10,15 +10,15 @@ export default function StaffPending() {
   const nav = useNavigate();
   const { currentUser, users, cancelJoinRequest, logout } = useStore();
 
-  if (!currentUser) return <Navigate to="/owner/login" replace />;
+  if (!currentUser) return <Navigate to="/biz/owner/login" replace />;
   if (currentUser.role !== "staff") {
-    return <Navigate to={currentUser.role === "owner" ? "/owner" : "/customer"} replace />;
+    return <Navigate to={currentUser.role === "owner" ? "/biz/owner" : "/customer"} replace />;
   }
   if (currentUser.employerStatus === "approved" && currentUser.employerStoreId) {
-    return <Navigate to="/staff" replace />;
+    return <Navigate to="/biz/staff" replace />;
   }
   if (!currentUser.employerStoreId) {
-    return <Navigate to="/staff/store-search" replace />;
+    return <Navigate to="/biz/staff/store-search" replace />;
   }
 
   const store = users.find((u) => u.id === currentUser.employerStoreId);
@@ -70,7 +70,7 @@ export default function StaffPending() {
               variant="outline"
               onClick={async () => {
                 await cancelJoinRequest();
-                nav("/staff/store-search", { replace: true });
+                nav("/biz/staff/store-search", { replace: true });
               }}
               leftIcon={rejected ? <Search className="w-4 h-4" /> : <X className="w-4 h-4" />}
             >

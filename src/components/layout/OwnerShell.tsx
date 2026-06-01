@@ -45,20 +45,20 @@ type NavItem = {
 };
 
 const NAV: NavItem[] = [
-  { to: "/owner", label: "대시보드", icon: LayoutDashboard, end: true },
-  { to: "/owner/orders", label: "주문·쿠폰", icon: ChefHat, staff: true },
-  { to: "/owner/tables", label: "테이블 편집", icon: LayoutGrid, staff: true },
-  { to: "/owner/menus", label: "메뉴 관리", icon: UtensilsCrossed, staff: true },
-  { to: "/owner/customers", label: "고객 관리", icon: Users },
-  { to: "/owner/reservations", label: "예약", icon: Calendar, staff: true, staffFree: true },
-  { to: "/owner/statistics", label: "통계", icon: BarChart3 },
-  { to: "/owner/photos", label: "사진 보관소", icon: ImageIcon, staff: true },
-  { to: "/owner/qr-print", label: "QR 인쇄", icon: QrCode, staff: true },
-  { to: "/owner/staff", label: "직원 관리", icon: Briefcase },
-  { to: "/owner/brand-settings", label: "브랜드 설정", icon: Settings },
+  { to: "/biz/owner", label: "대시보드", icon: LayoutDashboard, end: true },
+  { to: "/biz/owner/orders", label: "주문·쿠폰", icon: ChefHat, staff: true },
+  { to: "/biz/owner/tables", label: "테이블 편집", icon: LayoutGrid, staff: true },
+  { to: "/biz/owner/menus", label: "메뉴 관리", icon: UtensilsCrossed, staff: true },
+  { to: "/biz/owner/customers", label: "고객 관리", icon: Users },
+  { to: "/biz/owner/reservations", label: "예약", icon: Calendar, staff: true, staffFree: true },
+  { to: "/biz/owner/statistics", label: "통계", icon: BarChart3 },
+  { to: "/biz/owner/photos", label: "사진 보관소", icon: ImageIcon, staff: true },
+  { to: "/biz/owner/qr-print", label: "QR 인쇄", icon: QrCode, staff: true },
+  { to: "/biz/owner/staff", label: "직원 관리", icon: Briefcase },
+  { to: "/biz/owner/brand-settings", label: "브랜드 설정", icon: Settings },
 ];
 
-const STAFF_DASHBOARD: NavItem = { to: "/staff", label: "대시보드", icon: LayoutDashboard, end: true, staff: true, staffFree: true };
+const STAFF_DASHBOARD: NavItem = { to: "/biz/staff", label: "대시보드", icon: LayoutDashboard, end: true, staff: true, staffFree: true };
 
 export function OwnerShell({ children, title, headerRight, width = "default" }: Props) {
   const { currentUser, users, logout, activeShift, clockIn, clockOut } = useStore();
@@ -95,7 +95,7 @@ export function OwnerShell({ children, title, headerRight, width = "default" }: 
     <div className="min-h-screen bg-[var(--color-bg)]">
       {/* ===== Desktop sidebar ===== */}
       <aside className="hidden lg:flex fixed inset-y-0 left-0 w-[260px] flex-col bg-white border-r border-[var(--color-line)] z-30">
-        <Link to={isStaff ? "/staff" : "/owner"} className="flex items-center gap-2.5 px-6 h-[72px] border-b border-[var(--color-line-soft)]">
+        <Link to={isStaff ? "/biz/staff" : "/biz/owner"} className="flex items-center gap-2.5 px-6 h-[72px] border-b border-[var(--color-line-soft)]">
           <span className="w-10 h-10 rounded-xl bg-[var(--color-navy-700)] text-white text-xl font-extrabold flex items-center justify-center shadow-[var(--shadow-navy)]">
             결
           </span>

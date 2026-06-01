@@ -11,7 +11,8 @@ const PORT = process.env.PORT || 3000;
 
 app.set('trust proxy', 1);
 app.use(cors());
-app.use(express.json());
+// AI 비전 요청용 이미지(base64 데이터 URL)는 100kb를 쉽게 넘어가므로 한도 상향
+app.use(express.json({ limit: '10mb' }));
 
 // Helper to get base URL
 const getBaseUrl = () => {
@@ -345,6 +346,170 @@ app.post('/api/payment/confirm', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// --- AI FLOOR PLAN ANALYSIS ---
+// 도면 이미지를 Claude/OpenAI Vision으로 분석해 테이블 배치 좌표 추출
+app.post('/api/ai/floor-plan', async (req, res) => {
+  const { image, canvasWidth = 1000, canvasHeight = 700 } = req.body ?? {};
+  if (!image || typeof image !== 'string' || !image.startsWith('data:image/')) {
+    return res.status(400).json({ error: 'image (data URL) is required' });
+  }
+
+  const geminiKey = process.env.GEMINI_API_KEY;
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  const openaiKey = process.env.OPENAI_API_KEY;
+  if (!geminiKey && !anthropicKey && !openaiKey) {
+    return res.status(503).json({ error: 'AI_NOT_CONFIGURED' });
+  }
+
+  const systemPrompt =
+    `당신은 식당 도면을 분석해 테이블 배치를 추출하는 비전 엔지니어입니다. ` +
+    `이미지에서 테이블/룸/출입구를 찾아 ${canvasWidth}x${canvasHeight} 좌표계로 정규화해 반환하세요. ` +
+    `JSON만 출력하고 그 외 텍스트는 절대 포함하지 마세요. 스키마: ` +
+    `{"tables":[{"number":1,"type":"table"|"room"|"door","x":120,"y":80,"width":70,"height":70,"shape":"square"|"circle","seats":4}]}. ` +
+    `규칙: number는 1부터 순차 부여. x,y는 좌상단 기준 픽셀. 일반 테이블은 70x70(원형이면 shape=circle), 룸은 150x80, 출입구는 60x60·type=door·seats 생략 가능. 좌석수는 도면의 의자 수 또는 면적으로 추정.`;
+
+  try {
+    // 우선순위: Gemini(무료) → Anthropic → OpenAI
+    if (geminiKey) {
+      const m = image.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
+      if (!m) return res.status(400).json({ error: 'invalid image data URL' });
+      const mediaType = m[1];
+      const ALLOWED = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
+      if (!ALLOWED.has(mediaType)) {
+        return res.status(400).json({ error: `unsupported image type: ${mediaType}` });
+      }
+      const b64 = m[2];
+
+      // gemini-2.5-flash는 무료 티어 포함, 비전 + JSON 응답 모두 지원
+      const apiRes = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: systemPrompt }] },
+            contents: [
+              {
+                role: 'user',
+                parts: [
+                  { inlineData: { mimeType: mediaType, data: b64 } },
+                  { text: `이 도면을 분석하여 ${canvasWidth}x${canvasHeight} 좌표계의 테이블 배치 JSON을 반환하세요.` },
+                ],
+              },
+            ],
+            generationConfig: {
+              responseMimeType: 'application/json',
+              temperature: 0.2,
+              maxOutputTokens: 4000,
+            },
+          }),
+        }
+      );
+      if (!apiRes.ok) {
+        const t = await apiRes.text();
+        throw new Error(`Gemini ${apiRes.status}: ${t.slice(0, 200)}`);
+      }
+      const data: any = await apiRes.json();
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+      const json = extractJson(text);
+      return res.json(json);
+    }
+
+    if (anthropicKey) {
+      const m = image.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
+      if (!m) return res.status(400).json({ error: 'invalid image data URL' });
+      const mediaType = m[1];
+      // Anthropic Vision이 지원하는 타입만 허용 (svg·heic 등 거부)
+      const ALLOWED = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
+      if (!ALLOWED.has(mediaType)) {
+        return res.status(400).json({ error: `unsupported image type: ${mediaType}` });
+      }
+      const b64 = m[2];
+
+      const apiRes = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-api-key': anthropicKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 4000,
+          system: systemPrompt,
+          messages: [
+            {
+              role: 'user',
+              content: [
+                { type: 'image', source: { type: 'base64', media_type: mediaType, data: b64 } },
+                { type: 'text', text: `이 도면을 분석하여 ${canvasWidth}x${canvasHeight} 좌표계의 테이블 배치 JSON을 반환하세요.` },
+              ],
+            },
+          ],
+        }),
+      });
+      if (!apiRes.ok) {
+        const t = await apiRes.text();
+        throw new Error(`Anthropic ${apiRes.status}: ${t.slice(0, 200)}`);
+      }
+      const data: any = await apiRes.json();
+      const text = data?.content?.[0]?.text ?? '';
+      const json = extractJson(text);
+      return res.json(json);
+    }
+
+    // OpenAI fallback
+    const apiRes = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${openaiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: systemPrompt },
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: `이 도면을 분석하여 ${canvasWidth}x${canvasHeight} 좌표계의 테이블 배치 JSON을 반환하세요.` },
+              { type: 'image_url', image_url: { url: image } },
+            ],
+          },
+        ],
+        max_tokens: 4000,
+      }),
+    });
+    if (!apiRes.ok) {
+      const t = await apiRes.text();
+      throw new Error(`OpenAI ${apiRes.status}: ${t.slice(0, 200)}`);
+    }
+    const data: any = await apiRes.json();
+    const text = data?.choices?.[0]?.message?.content ?? '';
+    const json = extractJson(text);
+    return res.json(json);
+  } catch (e: any) {
+    console.error('[AI floor-plan]', e?.message ?? e);
+    res.status(500).json({ error: e?.message ?? 'AI 분석 실패' });
+  }
+});
+
+function extractJson(text: string): any {
+  // 모델이 ```json ... ``` 블록으로 감쌀 경우 대비
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  const raw = fenced ? fenced[1] : text;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    // 첫 { 부터 마지막 } 까지 슬라이스
+    const i = raw.indexOf('{');
+    const j = raw.lastIndexOf('}');
+    if (i >= 0 && j > i) return JSON.parse(raw.slice(i, j + 1));
+    throw new Error('AI 응답에서 JSON을 찾지 못했습니다.');
+  }
+}
 
 // --- ORDER STATUS WEBHOOK (from Foodtech or internal) ---
 app.post('/api/webhook/order-status', async (req, res) => {
