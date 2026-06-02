@@ -76,9 +76,16 @@ export default function CustomerLogin() {
     }
 
     // 신규: 가입 모드로 자동 전환 + step 1 (phone 받기)
+    // 소셜 가입은 step 2(성별·생일·거주) 를 건너뛰므로, 그 자리의 state 들이
+    // 이전 일반 가입 시도의 stale 값으로 남으면 안 됨 → 명시적으로 초기화.
     setMode("signup");
     setSocial({ id: res.id, provider: res.provider, avatarUrl: res.avatarUrl });
     if (res.name) setName(res.name);
+    setGender(null);
+    setBirthYear("");
+    setBirthMonth("");
+    setBirthDay("");
+    setIsPohangResident(null);
     setStep(1);
   };
 

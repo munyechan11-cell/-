@@ -58,20 +58,26 @@ export const googleProvider = new GoogleAuthProvider();
  *
  * Firestore listener 등록 *전에* 반드시 await 할 것.
  */
+// 진행 중인 익명 로그인 promise — 동시 호출 시 같은 promise 공유로 중복 호출 차단.
+// rejected promise 가 캐시되어 후속 호출이 같은 실패를 받는 사고를 막기 위해,
+// catch 안에서 reset 한 뒤에도 다음 호출이 새 로그인을 시도하도록 promise 를
+// 즉시 null 로 복귀시킨다 (반환된 promise 자체는 사용자에게 resolve 로 보임).
 let anonAuthPromise: Promise<void> | null = null;
 export function ensureAnonymousAuth(): Promise<void> {
   if (!auth) return Promise.resolve();
   if (auth.currentUser) return Promise.resolve();
   if (anonAuthPromise) return anonAuthPromise;
-  anonAuthPromise = signInAnonymously(auth)
+  const a = auth;
+  const p: Promise<void> = signInAnonymously(a)
     .then(() => undefined)
     .catch((e) => {
-      // 익명 로그인 미활성화·네트워크 끊김 등 — 콘솔에만 남기고 진행
-      // (Firestore 호출이 그 후 실패할 수 있으나, 앱 로딩 자체는 막지 않음)
       console.error("[ensureAnonymousAuth] failed", e?.code ?? e?.message);
-      anonAuthPromise = null;
+      // 다음 호출이 새 로그인을 시도하도록 캐시 초기화
+      if (anonAuthPromise === p) anonAuthPromise = null;
+      // 사용자에겐 silent — 호출처는 항상 await 만 함
     });
-  return anonAuthPromise;
+  anonAuthPromise = p;
+  return p;
 }
 
 export const COLLECTIONS = [

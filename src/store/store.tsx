@@ -998,11 +998,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
       // ④ 영수증 브릿지(옵션 B) — 사장님 PC 에이전트가 페어링되어 있으면 큐 발행.
       // 본 인쇄 흐름과 병렬 — 실패해도 ①②③ 폴백이 계속 동작하므로 await 하지 않음.
+      // expectedUid 로 storeId 위조 가드 (Firestore 룰이 최종 방어).
       if (owner?.printBridgeEnabled) {
         void enqueuePrintJob({
           storeId,
           type: "receipt",
           payload: { storeName: owner?.restaurantName ?? "결", order },
+          expectedUid: storeId,
         });
       }
 

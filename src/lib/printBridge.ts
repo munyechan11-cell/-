@@ -41,9 +41,18 @@ export async function enqueuePrintJob(input: {
   type: PrintJobType;
   payload: PrintPayload;
   printerName?: string;
+  /** 선택: 현재 로그인된 uid. 주어지면 storeId 와 일치 검증 (위조 큐 차단) */
+  expectedUid?: string;
 }): Promise<string | null> {
   if (!db) return null;
   if (!input.storeId) return null;
+  // 클라이언트 사이드 가드 — Firestore 룰(isMyStoreIncoming) 이 최종 방어선이지만,
+  // dev tools 로 다른 매장 storeId 를 박아 큐를 쌓으려는 시도를 1차로 차단.
+  if (input.expectedUid && input.storeId !== input.expectedUid) {
+    console.warn("[printBridge] storeId mismatch — refusing to enqueue",
+      { got: input.storeId, expected: input.expectedUid });
+    return null;
+  }
   try {
     const ref = await addDoc(collection(db, "print_jobs"), {
       storeId: input.storeId,
