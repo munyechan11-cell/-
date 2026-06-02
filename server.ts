@@ -349,7 +349,58 @@ app.post('/api/payment/confirm', async (req, res) => {
 
 // --- AI FLOOR PLAN ANALYSIS ---
 // 도면 이미지를 Claude/OpenAI Vision으로 분석해 테이블 배치 좌표 추출
+
+// IP별 단순 토큰 버킷 — AI API 키 비용 폭주 방지 (10초당 1회, 분당 4회)
+const aiBuckets = new Map<string, { tokens: number; updatedAt: number; minuteCount: number; minuteStart: number }>();
+const checkAiRateLimit = (ip: string): { ok: boolean; reason?: string } => {
+  const now = Date.now();
+  let b = aiBuckets.get(ip);
+  if (!b) {
+    b = { tokens: 1, updatedAt: now, minuteCount: 0, minuteStart: now };
+    aiBuckets.set(ip, b);
+  }
+  // 10초 토큰: 최대 1
+  const refill = Math.floor((now - b.updatedAt) / 10000);
+  if (refill > 0) {
+    b.tokens = Math.min(1, b.tokens + refill);
+    b.updatedAt = now;
+  }
+  // 분당 카운트 리셋
+  if (now - b.minuteStart > 60000) { b.minuteStart = now; b.minuteCount = 0; }
+  if (b.minuteCount >= 4) return { ok: false, reason: 'minute' };
+  if (b.tokens < 1) return { ok: false, reason: 'second' };
+  b.tokens -= 1;
+  b.minuteCount += 1;
+  // 메모리 청소 — 1만 개 넘으면 가장 오래된 것 정리
+  if (aiBuckets.size > 10000) {
+    const cutoff = now - 600000;
+    for (const [k, v] of aiBuckets) if (v.updatedAt < cutoff) aiBuckets.delete(k);
+  }
+  return { ok: true };
+};
+
+// fetch with timeout — AI API가 영영 안 돌아오는 사고 방지
+async function fetchWithTimeout(url: string, init: RequestInit, ms: number): Promise<Response> {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
+  try {
+    return await fetch(url, { ...init, signal: ctrl.signal });
+  } finally {
+    clearTimeout(t);
+  }
+}
+
 app.post('/api/ai/floor-plan', async (req, res) => {
+  // Rate limit
+  const ip = String(req.ip || req.headers['x-forwarded-for'] || 'unknown').split(',')[0].trim();
+  const rl = checkAiRateLimit(ip);
+  if (!rl.ok) {
+    return res.status(429).json({
+      error: rl.reason === 'minute'
+        ? '잠시 후 다시 시도해 주세요 (분당 4회 제한).'
+        : '요청이 너무 빠릅니다. 10초 후 다시 시도해 주세요.',
+    });
+  }
   const { image, canvasWidth = 1000, canvasHeight = 700 } = req.body ?? {};
   if (!image || typeof image !== 'string' || !image.startsWith('data:image/')) {
     return res.status(400).json({ error: 'image (data URL) is required' });
@@ -413,7 +464,7 @@ app.post('/api/ai/floor-plan', async (req, res) => {
       const b64 = m[2];
 
       // gemini-2.5-flash는 무료 티어 포함, 비전 + JSON 응답 모두 지원
-      const apiRes = await fetch(
+      const apiRes = await fetchWithTimeout(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
         {
           method: 'POST',
@@ -435,7 +486,8 @@ app.post('/api/ai/floor-plan', async (req, res) => {
               maxOutputTokens: 4000,
             },
           }),
-        }
+        },
+        30000 // 30초 timeout — Gemini가 안 돌아오는 사고 방지
       );
       if (!apiRes.ok) {
         const t = await apiRes.text();
@@ -458,7 +510,7 @@ app.post('/api/ai/floor-plan', async (req, res) => {
       }
       const b64 = m[2];
 
-      const apiRes = await fetch('https://api.anthropic.com/v1/messages', {
+      const apiRes = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -479,7 +531,7 @@ app.post('/api/ai/floor-plan', async (req, res) => {
             },
           ],
         }),
-      });
+      }, 30000);
       if (!apiRes.ok) {
         const t = await apiRes.text();
         throw new Error(`Anthropic ${apiRes.status}: ${t.slice(0, 200)}`);
@@ -491,7 +543,7 @@ app.post('/api/ai/floor-plan', async (req, res) => {
     }
 
     // OpenAI fallback
-    const apiRes = await fetch('https://api.openai.com/v1/chat/completions', {
+    const apiRes = await fetchWithTimeout('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
@@ -512,7 +564,7 @@ app.post('/api/ai/floor-plan', async (req, res) => {
         ],
         max_tokens: 4000,
       }),
-    });
+    }, 30000);
     if (!apiRes.ok) {
       const t = await apiRes.text();
       throw new Error(`OpenAI ${apiRes.status}: ${t.slice(0, 200)}`);

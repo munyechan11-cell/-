@@ -106,12 +106,49 @@ export default function OwnerTables() {
   // AI 분석 시점의 캔버스 크기 (도면 종횡비 기반) — LayoutCanvas가 이걸 우선 사용
   const [aiCanvasSize, setAiCanvasSize] = useState<{ w: number; h: number } | null>(null);
 
+  // 도면 dataURL을 받아 자연 크기 측정 후 aiCanvasSize 자동 설정 (캔버스-도면 정합 유지)
+  const measureAndSetCanvas = async (dataUrl: string) => {
+    try {
+      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const im = new Image();
+        im.onload = () => resolve(im);
+        im.onerror = () => reject(new Error("이미지 측정 실패"));
+        im.src = dataUrl;
+      });
+      const MAX = 1200;
+      const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+      setAiCanvasSize({ w: Math.round(img.width * scale), h: Math.round(img.height * scale) });
+    } catch {
+      setAiCanvasSize(null);
+    }
+  };
+
   useEffect(() => {
     if (!floorPlanKey) return;
-    setFloorPlan(localStorage.getItem(floorPlanKey));
+    const stored = localStorage.getItem(floorPlanKey);
+    setFloorPlan(stored);
     const op = Number(localStorage.getItem(floorPlanOpKey));
     if (!Number.isNaN(op) && op > 0) setFloorPlanOpacity(op);
+    // 저장된 도면이 있으면 새로고침 후에도 캔버스 종횡비를 도면에 맞춰 유지
+    if (stored) measureAndSetCanvas(stored);
+    else setAiCanvasSize(null);
   }, [floorPlanKey, floorPlanOpKey]);
+
+  // localStorage 쿼터 안전 저장 — 5MB 초과 시 친화 메시지
+  const safeStoreFloorPlan = (dataUrl: string): boolean => {
+    try {
+      localStorage.setItem(floorPlanKey, dataUrl);
+      return true;
+    } catch (e: any) {
+      const msg = String(e?.message ?? "");
+      if (e?.name === "QuotaExceededError" || msg.includes("quota")) {
+        showToast("저장 공간이 부족해요. 더 작게 줄여서 다시 시도해 주세요.", "error");
+      } else {
+        showToast(`도면 저장 실패: ${msg}`, "error");
+      }
+      return false;
+    }
+  };
 
   const onUploadFloorPlan = async (file: File) => {
     try {
@@ -121,8 +158,12 @@ export default function OwnerTables() {
       if (final.length > 4_500_000) {
         final = await compressImageToDataUrl(file, 900);
       }
-      localStorage.setItem(floorPlanKey, final);
+      if (!safeStoreFloorPlan(final)) return;
       setFloorPlan(final);
+      // 새 도면 = 좌표계 재설정
+      setAiDraft(null);
+      setAiStructures(null);
+      await measureAndSetCanvas(final);
       showToast("도면이 캔버스 배경으로 설정됐어요.", "success");
     } catch (e: any) {
       showToast(`도면 업로드 실패: ${e?.message ?? ""}`, "error");
@@ -133,6 +174,8 @@ export default function OwnerTables() {
     localStorage.removeItem(floorPlanKey);
     setFloorPlan(null);
     setAiDraft(null);
+    setAiStructures(null);
+    setAiCanvasSize(null);
     showToast("도면을 제거했습니다.", "info");
   };
 
@@ -242,6 +285,10 @@ export default function OwnerTables() {
       const msg = String(e?.message ?? "");
       if (msg.includes("AI_NOT_CONFIGURED")) {
         showToast("AI 서비스가 아직 설정되지 않았습니다. 관리자에게 문의해 주세요.", "error");
+      } else if (msg.includes("429") || msg.includes("분당") || msg.includes("10초")) {
+        showToast("요청이 잠시 제한됐어요. 10초 후 다시 시도해 주세요.", "error");
+      } else if (msg.toLowerCase().includes("abort") || msg.toLowerCase().includes("timeout")) {
+        showToast("AI 응답이 지연되고 있어요. 네트워크 확인 후 다시 시도해 주세요.", "error");
       } else {
         showToast(`AI 초안 생성 실패: ${msg || "잠시 후 다시 시도해 주세요."}`, "error");
       }
@@ -294,7 +341,8 @@ export default function OwnerTables() {
     }
     setAiDraft(null);
     setAiStructures(null);
-    setAiCanvasSize(null);
+    // aiCanvasSize는 의도적으로 유지 — 도면 종횡비 매칭이 깨지지 않도록
+    // (사용자가 도면을 제거하거나 새로 업로드할 때만 reset)
     if (deleteFails === 0 && createFails === 0) {
       showToast("AI 초안을 적용했어요. 드래그로 미세 조정하세요.", "success");
     } else {
@@ -488,35 +536,36 @@ export default function OwnerTables() {
                 onOpacity={onChangeOpacity}
                 onSketchSave={(dataUrl) => {
                   // 스케치 결과를 도면 슬롯에 저장 (한 번 더 압축해서 용량 관리)
-                  try {
-                    let final = dataUrl;
-                    if (final.length > 4_500_000) {
-                      // 큰 PNG는 캔버스로 재인코딩해 JPEG 0.85로 축약
-                      const tmp = document.createElement("canvas");
-                      const im = new Image();
-                      im.onload = () => {
-                        const ratio = Math.min(1, 1280 / im.width);
-                        tmp.width = Math.round(im.width * ratio);
-                        tmp.height = Math.round(im.height * ratio);
-                        const ctx = tmp.getContext("2d");
-                        if (ctx) {
-                          ctx.fillStyle = "#ffffff";
-                          ctx.fillRect(0, 0, tmp.width, tmp.height);
-                          ctx.drawImage(im, 0, 0, tmp.width, tmp.height);
-                          final = tmp.toDataURL("image/jpeg", 0.85);
-                          localStorage.setItem(floorPlanKey, final);
-                          setFloorPlan(final);
-                        }
-                      };
-                      im.src = dataUrl;
-                      return;
-                    }
-                    localStorage.setItem(floorPlanKey, final);
-                    setFloorPlan(final);
+                  const persist = async (finalData: string) => {
+                    if (!safeStoreFloorPlan(finalData)) return;
+                    setFloorPlan(finalData);
+                    setAiDraft(null);
+                    setAiStructures(null);
+                    await measureAndSetCanvas(finalData);
                     showToast("스케치를 도면으로 저장했어요.", "success");
-                  } catch (e: any) {
-                    showToast(`저장 실패: ${e?.message ?? ""}`, "error");
+                  };
+
+                  if (dataUrl.length <= 4_500_000) {
+                    persist(dataUrl);
+                    return;
                   }
+                  // 큰 PNG는 캔버스로 재인코딩해 JPEG 0.85로 축약
+                  const tmp = document.createElement("canvas");
+                  const im = new Image();
+                  im.onload = () => {
+                    const ratio = Math.min(1, 1280 / im.width);
+                    tmp.width = Math.round(im.width * ratio);
+                    tmp.height = Math.round(im.height * ratio);
+                    const ctx = tmp.getContext("2d");
+                    if (!ctx) { showToast("이미지 처리 실패", "error"); return; }
+                    ctx.fillStyle = "#ffffff";
+                    ctx.fillRect(0, 0, tmp.width, tmp.height);
+                    ctx.drawImage(im, 0, 0, tmp.width, tmp.height);
+                    const reduced = tmp.toDataURL("image/jpeg", 0.85);
+                    persist(reduced);
+                  };
+                  im.onerror = () => showToast("이미지 처리 실패", "error");
+                  im.src = dataUrl;
                 }}
                 aiLoading={aiLoading}
                 aiDraftCount={aiDraft?.length ?? 0}
@@ -848,6 +897,8 @@ function SketchPad({
   const [size, setSize] = useState(4);
   const [color, setColor] = useState("#0B1220");
   const [dirty, setDirty] = useState(false);
+  // 초기 이미지 로드 race 방지: 이미지가 다 그려지기 전까지 입력 차단
+  const [ready, setReady] = useState(!initialDataUrl);
   // 강제 리렌더 (canUndo/canRedo 표시 갱신용)
   const [, force] = useState(0);
   const drawingRef = useRef(false);
@@ -880,13 +931,17 @@ function SketchPad({
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, rect.width, rect.height);
       if (preserveData) {
+        setReady(false);
         const img = new Image();
         img.onload = () => {
           if (!mounted) return;
           ctx.drawImage(img, 0, 0, rect.width, rect.height);
+          setReady(true);
         };
+        img.onerror = () => mounted && setReady(true);
         img.src = preserveData;
       } else if (initialDataUrl) {
+        setReady(false);
         const img = new Image();
         img.onload = () => {
           if (!mounted) return;
@@ -896,11 +951,14 @@ function SketchPad({
           ctx.drawImage(img, (rect.width - w) / 2, (rect.height - h) / 2, w, h);
           historyRef.current = [];
           pushHistory();
+          setReady(true);
         };
+        img.onerror = () => mounted && setReady(true);
         img.src = initialDataUrl;
       } else {
         historyRef.current = [];
         pushHistory();
+        setReady(true);
       }
     };
 
@@ -1004,6 +1062,7 @@ function SketchPad({
   };
 
   const onDown = (e: React.PointerEvent) => {
+    if (!ready) return; // 초기 이미지 로드 전 입력 무시
     e.preventDefault();
     try { (e.target as Element).setPointerCapture(e.pointerId); } catch { /* 미지원 브라우저 */ }
     drawingRef.current = true;
@@ -1233,9 +1292,43 @@ function LayoutCanvas({
     const wrap = wrapRef.current;
     if (!wrap) return;
     const rect = wrap.getBoundingClientRect();
+    if (rect.width < 10 || rect.height < 10) return; // 레이아웃 미정 가드
     const sx = (rect.width - 16) / canvasW;
     const sy = (rect.height - 16) / canvasH;
-    setZoom(Math.max(0.3, Math.min(1, Math.min(sx, sy))));
+    setZoom(Math.max(0.3, Math.min(2, Math.min(sx, sy))));
+  };
+
+  // AI 분석 결과로 canvasOverride가 바뀌면 모바일에서 자동으로 전체 보기
+  useEffect(() => {
+    if (!canvasOverride) return;
+    // wrap 레이아웃이 안정된 후 fit
+    const t = setTimeout(fitToScreen, 80);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canvasOverride?.w, canvasOverride?.h]);
+
+  // 키보드 단축키 (데스크탑): +/- 줌, 0=전체보기
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+      // 모달/그림판이 열려있을 때 충돌 방지 — 스케치팟에서도 같은 키를 다루므로 fixed inset 모달이 위에 있으면 스킵
+      if (document.querySelector('[role="dialog"][aria-modal="true"]')) return;
+      if (e.key === "+" || e.key === "=") { e.preventDefault(); setZoom((z) => Math.min(2, +(z + 0.1).toFixed(2))); }
+      else if (e.key === "-" || e.key === "_") { e.preventDefault(); setZoom((z) => Math.max(0.3, +(z - 0.1).toFixed(2))); }
+      else if (e.key === "0") { e.preventDefault(); fitToScreen(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canvasW, canvasH]);
+
+  // 마우스 휠 + Ctrl/Cmd로 줌 (데스크탑)
+  const onWheel = (e: React.WheelEvent) => {
+    if (!(e.ctrlKey || e.metaKey)) return;
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -0.1 : 0.1;
+    setZoom((z) => Math.max(0.3, Math.min(2, +(z + delta).toFixed(2))));
   };
 
   const structureStyleByKind: Record<string, string> = {
@@ -1328,10 +1421,11 @@ function LayoutCanvas({
         </div>
         <div
           ref={wrapRef}
-          className="relative overflow-auto bg-white h-[min(70vh,640px)] lg:h-[min(78vh,820px)]"
+          onWheel={onWheel}
+          className="relative overflow-auto bg-white h-[min(70vh,640px)] landscape:h-[min(85vh,640px)] lg:h-[min(78vh,820px)]"
         >
-          {/* 줌 시 스크롤바가 정확히 작동하도록 외부 wrapper가 시각 크기를 잡고, 내부가 scale */}
-          <div style={{ width: canvasW * zoom, height: canvasH * zoom }}>
+          {/* 줌 시 스크롤바가 정확히 작동하도록 외부 wrapper가 시각 크기를 잡고, overflow:hidden으로 내부 layout box를 클립 */}
+          <div style={{ width: canvasW * zoom, height: canvasH * zoom, overflow: "hidden", position: "relative" }}>
           <div
             className="relative origin-top-left bg-[repeating-linear-gradient(0deg,transparent,transparent_39px,#eef2f8_39px,#eef2f8_40px),repeating-linear-gradient(90deg,transparent,transparent_39px,#eef2f8_39px,#eef2f8_40px)]"
             style={{ width: canvasW, height: canvasH, transform: `scale(${zoom})`, transformOrigin: "top left" }}

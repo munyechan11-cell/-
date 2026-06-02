@@ -44,8 +44,20 @@ const COLOR_CLASSES: Record<string, string> = {
   sky: "bg-[#e6f0fb] text-[#1a5fa8]",
 };
 
+const TABLE_VIEW_KEY = "gyeol:dashboard-tables-view";
+
 export default function OwnerDashboard() {
   const { tables, orders, visits } = useStore();
+
+  // 부모에서 한 곳에서만 view state 보유 → 토글/영역 항상 동기화
+  const [tableView, setTableView] = useState<"list" | "layout">(() => {
+    if (typeof window === "undefined") return "list";
+    return (localStorage.getItem(TABLE_VIEW_KEY) as "list" | "layout") || "list";
+  });
+  const changeTableView = (v: "list" | "layout") => {
+    setTableView(v);
+    if (typeof window !== "undefined") localStorage.setItem(TABLE_VIEW_KEY, v);
+  };
 
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
@@ -159,8 +171,8 @@ export default function OwnerDashboard() {
           <div className="flex items-center justify-between mb-3 px-1 gap-2">
             <h2 className="headline-sub">테이블 현황 ({tables.length})</h2>
             <div className="flex items-center gap-1.5">
-              {/* 리스트 / 배치도 토글 — localStorage로 사장님 선호 기억 */}
-              <DashboardTableViewToggle />
+              {/* 리스트 / 배치도 토글 — 부모 state로 동기화 */}
+              <DashboardTableViewToggle view={tableView} onChange={changeTableView} />
               <Link to="/biz/owner/tables" className="text-[13px] font-bold text-[var(--color-navy-700)] hidden sm:inline">
                 편집 →
               </Link>
@@ -179,7 +191,7 @@ export default function OwnerDashboard() {
               tone="navy"
             />
           ) : (
-            <DashboardTableArea tables={tables} />
+            <DashboardTableArea tables={tables} view={tableView} />
           )}
         </div>
 
@@ -260,26 +272,13 @@ type TableLite = {
   shape?: "square" | "circle";
 };
 
-const VIEW_KEY = "gyeol:dashboard-tables-view";
-
-function useDashboardTableView() {
-  const [view, setView] = useState<"list" | "layout">(() => {
-    if (typeof window === "undefined") return "list";
-    return (localStorage.getItem(VIEW_KEY) as "list" | "layout") || "list";
-  });
-  const change = (v: "list" | "layout") => {
-    setView(v);
-    if (typeof window !== "undefined") localStorage.setItem(VIEW_KEY, v);
-  };
-  return [view, change] as const;
-}
-
-function DashboardTableViewToggle() {
-  const [view, setView] = useDashboardTableView();
+function DashboardTableViewToggle({
+  view, onChange,
+}: { view: "list" | "layout"; onChange: (v: "list" | "layout") => void }) {
   return (
     <div className="inline-flex p-0.5 bg-[var(--color-navy-50)] rounded-full">
       <button
-        onClick={() => setView("list")}
+        onClick={() => onChange("list")}
         className={cn(
           "h-7 px-2.5 rounded-full text-[11.5px] font-bold inline-flex items-center gap-1 transition-all",
           view === "list" ? "bg-white text-[var(--color-navy-800)] shadow-[var(--shadow-press)]" : "text-[var(--color-ink-500)]"
@@ -288,7 +287,7 @@ function DashboardTableViewToggle() {
         <List className="w-3 h-3" /> 리스트
       </button>
       <button
-        onClick={() => setView("layout")}
+        onClick={() => onChange("layout")}
         className={cn(
           "h-7 px-2.5 rounded-full text-[11.5px] font-bold inline-flex items-center gap-1 transition-all",
           view === "layout" ? "bg-white text-[var(--color-navy-800)] shadow-[var(--shadow-press)]" : "text-[var(--color-ink-500)]"
@@ -300,8 +299,7 @@ function DashboardTableViewToggle() {
   );
 }
 
-function DashboardTableArea({ tables }: { tables: TableLite[] }) {
-  const [view] = useDashboardTableView();
+function DashboardTableArea({ tables, view }: { tables: TableLite[]; view: "list" | "layout" }) {
   if (view === "layout") return <DashboardLayoutMini tables={tables} />;
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
