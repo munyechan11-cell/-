@@ -289,9 +289,11 @@ app.on("ready", async () => {
   setInterval(() => autoUpdater.checkForUpdates().catch(() => {}), 4 * 60 * 60 * 1000);
 });
 
-app.on("window-all-closed", (e: Event) => {
-  // 트레이에 남아있도록 종료 안 함
-  e.preventDefault();
+app.on("window-all-closed", () => {
+  // 트레이 앱이므로 창이 모두 닫혀도 종료하지 않음.
+  // Electron 의 기본 동작: macOS 빼고는 자동 종료 → preventDefault 대신
+  // 그냥 핸들러를 등록만 해두면 종료 안 함 (Electron 31+).
+  // 명시적으로 아무 것도 하지 않음.
 });
 
 app.on("before-quit", () => {

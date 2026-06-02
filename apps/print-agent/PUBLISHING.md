@@ -1,52 +1,50 @@
-# 인스톨러 호스팅 — GitHub Releases (무료, 자동 업데이트 지원)
+# 인스톨러 빌드·배포 — GitHub Actions 자동화 (권장)
 
-결 인쇄 브릿지의 `.exe` / `.dmg` 인스톨러를 GitHub Releases에 올려두면
-사장님은 결 웹앱에서 다운로드 가능 + 에이전트가 자동 업데이트까지 잡아냅니다.
-
----
-
-## 🚀 1회 셋업 — GitHub 토큰 발급 (3분)
-
-1. https://github.com/settings/tokens/new 접속
-2. **Token name**: `gyeol-print-agent-release`
-3. **Expiration**: `90 days` 또는 `No expiration` (베타 길게)
-4. **Scopes** 체크:
-   - ✅ `repo` (전체)
-   - ✅ `write:packages`
-5. **Generate token** → 토큰 복사 (한 번만 표시됨)
-
-PowerShell에서 환경변수 등록 (영구):
-```powershell
-[Environment]::SetEnvironmentVariable("GH_TOKEN", "ghp_여기에토큰", "User")
-# PowerShell 재시작
-```
-
-확인:
-```powershell
-$env:GH_TOKEN
-# ghp_... 가 나와야 함
-```
+결 인쇄 브릿지의 `.exe` 인스톨러를 사장님 PC가 아닌 **GitHub Actions 클라우드 빌드**로 만듭니다.
+한 번 셋업하면 `git tag` 한 줄로 새 인스톨러가 자동 배포돼요.
 
 ---
 
-## 📦 빌드 + 자동 업로드 (매 새 버전마다)
+## 🚀 사용법 — 3가지 트리거
+
+### ① 새 버전 릴리스 (가장 흔함)
+
+PowerShell 또는 터미널에서:
 
 ```powershell
 cd "C:\Users\munye\OneDrive\Desktop\--main\apps\print-agent"
 
-# 버전 올리기 (package.json version)
-npm version patch       # 0.1.0 → 0.1.1
+# 1. 버전 올리기 (package.json 의 version 자동 증가)
+npm version patch        # 0.1.0 → 0.1.1
+# npm version minor      # 0.1.x → 0.2.0
+# npm version major      # 0.x.x → 1.0.0
 
-# Windows 인스톨러 빌드 + GitHub Release 자동 생성·업로드
-npm run release:win
+# 2. 코드와 태그를 GitHub 에 푸시
+git push --follow-tags
 ```
 
-→ 약 3~5분 후:
-- GitHub 리포에 새 Release 자동 생성 (Draft 상태)
-- `결-인쇄-브릿지-Setup-0.1.1.exe` 업로드
-- `latest.yml` 도 같이 (electron-updater 가 자동 업데이트에 사용)
+→ GitHub Actions 가 자동으로:
+1. Windows 환경에서 npm install
+2. 아이콘 생성
+3. TypeScript 빌드
+4. NSIS 인스톨러 패키징
+5. **GitHub Releases 에 자동 업로드** (Draft 상태)
 
-→ GitHub 리포 → Releases → Draft 클릭 → **Publish release**
+5~10분 후 https://github.com/munyechan11-cell/-/releases 에서 Draft 확인 → **Publish release** 클릭 → 끝.
+
+### ② 수동 실행 (Actions 탭에서)
+
+1. GitHub 리포 → **Actions** 탭
+2. 좌측 **"Release Print Agent"** 클릭
+3. 우측 **"Run workflow"** 버튼
+4. (선택) 버전 올리기 옵션 선택
+5. **Run workflow** 클릭
+
+### ③ 코드 푸시할 때마다 자동 빌드 (선택)
+
+`v0.1.0` 같은 태그 없이도 매 푸시마다 빌드하고 싶으면, 워크플로우 파일의
+`on:` 섹션에 `push: branches: [main]` 추가. 단, releases 가 자주 생기므로
+실험 단계에만 추천.
 
 ---
 
@@ -54,35 +52,58 @@ npm run release:win
 
 1. 결 웹앱 → 브랜드 설정 → 영수증 자동 인쇄
 2. **"📥 결 인쇄 브릿지 프로그램 다운로드"** 클릭
-3. GitHub Releases 페이지로 이동 → `결-인쇄-브릿지-Setup-X.X.X.exe` 클릭
-4. 다운로드 후 더블클릭 → 설치 (약 3분)
-5. ⚠️ "Windows 보호" 경고가 한 번 뜨면 **추가 정보 → 실행** 클릭 (코드 사이닝 안 한 베타용)
+3. GitHub Releases → 최신 `결-인쇄-브릿지-Setup-X.X.X.exe` 다운로드
+4. 더블클릭 → 설치 (3분)
+5. ⚠️ "Windows 보호" 경고 → **추가 정보 → 실행** (코드 사이닝 안 한 베타용)
 
 ---
 
-## 🔄 자동 업데이트 — 사장님이 신경 안 써도 됨
+## 🔄 자동 업데이트 — 사장님 신경 X
 
 새 버전을 GitHub Releases 에 올리면:
-- 에이전트가 4시간마다 체크
+- 에이전트가 4시간마다 폴링
 - 새 버전 발견 시 백그라운드 다운로드
-- 사장님이 다음에 PC를 끄거나 트레이 아이콘에서 "종료" 하면 자동 설치
-
-> 💡 영업 시간 중에 강제 재시작 안 함. 끝나는 시점만 잡음.
+- 사장님이 PC를 끄거나 트레이에서 "종료" 누르면 자동 설치
 
 ---
 
-## 🚨 트러블슈팅
+## 🛟 트러블슈팅
 
-### `npm run release:win` 실행 시 "GH_TOKEN not set"
-→ 환경변수 등록 후 PowerShell **새로 열기** 필수.
+### Actions 빌드 실패
+1. GitHub 리포 → Actions → 실패한 워크플로우 클릭
+2. 빨간 X 표시된 step 펼치기
+3. 로그 확인
 
-### "code 403" 또는 "Bad credentials"
-→ 토큰 권한 부족. `repo` 스코프 다시 확인.
+흔한 원인:
+- `npm ci` 실패 → `package-lock.json` 누락. 로컬에서 `npm install` 한 번 한 뒤 lock 파일 커밋
+- `electron-builder` 실패 → 환경변수 누락. 워크플로우의 `env:` 확인
 
-### "icon.ico not found"
-→ `npm run icons` 한 번 실행. 자동으로 `prebuild` 시 호출되지만, 권한 문제로
-sharp 가 PNG 생성 실패할 수 있음. PowerShell 관리자 권한으로 한 번 시도.
+### "Resource not accessible by integration"
+→ 워크플로우의 `permissions: contents: write` 가 있는지 확인. 또는 리포 Settings → Actions → General → Workflow permissions 에서 **Read and write permissions** 선택.
 
-### Windows SmartScreen "보호" 경고
-→ 코드 사이닝 인증서가 없어서. 베타엔 정상. 사장님 안내문에
-"추가 정보 → 실행" 가이드 포함.
+### 매번 빌드 시간 5분 → 1분으로 줄이기
+워크플로우의 `cache: "npm"` 설정 덕분에 두 번째부터 자동 캐시. 추가 작업 불필요.
+
+---
+
+## 💸 비용
+
+- **퍼블릭 리포**: 완전 무료, 무제한
+- **프라이빗 리포**: 월 2,000분 무료 (인스톨러 1회 빌드 ≈ 8분 → 250회/월)
+- 베타 단계엔 신경 쓸 비용 없음
+
+---
+
+## 📦 로컬 빌드도 가능 (선택)
+
+GitHub Actions 안 쓰고 PC에서 직접 빌드하려면:
+
+```powershell
+cd apps/print-agent
+$env:CSC_IDENTITY_AUTO_DISCOVERY = "false"
+$env:GH_TOKEN = "ghp_..."   # GitHub PAT
+npm install
+npm run release:win
+```
+
+⚠️ Windows에서 `winCodeSign` 압축 풀기 실패 사고가 잦음. GitHub Actions 가 훨씬 안정적.

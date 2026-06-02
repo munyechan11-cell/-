@@ -1,0 +1,76 @@
+name: Release Print Agent
+
+# 실행 트리거
+#  ① 태그 푸시 (예: v0.1.0) — 권장. 새 버전 릴리스
+#  ② 수동 실행 — Actions 탭에서 "Run workflow" 버튼
+on:
+  push:
+    tags:
+      - "v*.*.*"
+      - "print-agent-v*.*.*"
+  workflow_dispatch:
+    inputs:
+      version_bump:
+        description: "버전 올리기 (patch / minor / major / none)"
+        required: false
+        default: "none"
+        type: choice
+        options: [none, patch, minor, major]
+
+permissions:
+  contents: write      # Release 생성·업로드 권한
+
+jobs:
+  build-windows:
+    name: Build Windows .exe
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: apps/print-agent
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: apps/print-agent/package-lock.json
+
+      - name: Bump version (workflow_dispatch only)
+        if: github.event_name == 'workflow_dispatch' && inputs.version_bump != 'none'
+        run: |
+          npm version ${{ inputs.version_bump }} -m "chore: bump print-agent to %s"
+          git push --follow-tags
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate icons
+        run: npm run icons
+
+      - name: Build TypeScript
+        run: npm run build
+
+      - name: Build & publish (electron-builder)
+        env:
+          # GH_TOKEN 으로 electron-builder 의 GitHub provider 가 release 업로드
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 코드 사이닝 도구 자동 탐색 비활성 (베타엔 sign 안 함)
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: npx electron-builder --win --publish always
+
+      - name: Upload build artifacts (debug)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: print-agent-win
+          path: |
+            apps/print-agent/release/*.exe
+            apps/print-agent/release/*.yml
+            apps/print-agent/release/*.blockmap
+          retention-days: 14

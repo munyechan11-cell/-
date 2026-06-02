@@ -75,10 +75,13 @@ export async function printReceipt(payload: ReceiptPayload): Promise<void> {
   }
 
   // 영수증 본문 구성
+  // node-thermal-printer 의 setter 들은 void 를 반환하므로 체이닝 불가 — 각 줄 분리.
   printer.alignCenter();
-  printer.bold(true).setTextSize(1, 1);
+  printer.bold(true);
+  printer.setTextSize(1, 1);
   printer.println(payload.storeName);
-  printer.bold(false).setTextNormal();
+  printer.bold(false);
+  printer.setTextNormal();
   printer.drawLine();
 
   if (payload.order.createdAt) {
@@ -87,9 +90,11 @@ export async function printReceipt(payload: ReceiptPayload): Promise<void> {
   printer.println(`주문번호 #${payload.order.id.slice(-6).toUpperCase()}`);
   printer.newLine();
 
-  printer.bold(true).setTextSize(1, 1);
+  printer.bold(true);
+  printer.setTextSize(1, 1);
   printer.println(`테이블 ${payload.order.tableNumber}`);
-  printer.bold(false).setTextNormal();
+  printer.bold(false);
+  printer.setTextNormal();
   printer.drawLine();
 
   printer.alignLeft();
