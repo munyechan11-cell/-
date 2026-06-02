@@ -82,7 +82,12 @@ export default function OwnerTables() {
   } = useStore();
   const storeId = effectiveStoreId;
   const [view, setView] = useState<ViewMode>(() => {
-    return (localStorage.getItem("gyeol:tables-view") as ViewMode) || "list";
+    try {
+      const raw = localStorage.getItem("gyeol:tables-view");
+      return raw === "list" || raw === "layout" ? raw : "list";
+    } catch {
+      return "list";
+    }
   });
   const [selected, setSelected] = useState<TableDoc | null>(null);
   const [newSection, setNewSection] = useState("");
@@ -106,6 +111,13 @@ export default function OwnerTables() {
   // AI 분석 시점의 캔버스 크기 (도면 종횡비 기반) — LayoutCanvas가 이걸 우선 사용
   const [aiCanvasSize, setAiCanvasSize] = useState<{ w: number; h: number } | null>(null);
 
+  // 컴포넌트 마운트 상태 추적 — 비동기 이미지 측정 도중 언마운트 시 setState 경고 방지
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+
   // 도면 dataURL을 받아 자연 크기 측정 후 aiCanvasSize 자동 설정 (캔버스-도면 정합 유지)
   const measureAndSetCanvas = async (dataUrl: string) => {
     try {
@@ -115,11 +127,12 @@ export default function OwnerTables() {
         im.onerror = () => reject(new Error("이미지 측정 실패"));
         im.src = dataUrl;
       });
+      if (!mountedRef.current) return;
       const MAX = 1200;
       const scale = Math.min(1, MAX / Math.max(img.width, img.height));
       setAiCanvasSize({ w: Math.round(img.width * scale), h: Math.round(img.height * scale) });
     } catch {
-      setAiCanvasSize(null);
+      if (mountedRef.current) setAiCanvasSize(null);
     }
   };
 
@@ -171,8 +184,12 @@ export default function OwnerTables() {
   };
 
   const onRemoveFloorPlan = () => {
-    localStorage.removeItem(floorPlanKey);
+    try {
+      localStorage.removeItem(floorPlanKey);
+      localStorage.removeItem(floorPlanOpKey);
+    } catch { /* 시크릿모드 등 — 무시 */ }
     setFloorPlan(null);
+    setFloorPlanOpacity(35);
     setAiDraft(null);
     setAiStructures(null);
     setAiCanvasSize(null);
@@ -181,7 +198,11 @@ export default function OwnerTables() {
 
   const onChangeOpacity = (v: number) => {
     setFloorPlanOpacity(v);
-    localStorage.setItem(floorPlanOpKey, String(v));
+    try {
+      localStorage.setItem(floorPlanOpKey, String(v));
+    } catch {
+      /* 쿼터/시크릿모드 — 메모리 상 값만 유지 */
+    }
   };
 
   const runAiDraft = async () => {
@@ -189,7 +210,12 @@ export default function OwnerTables() {
       showToast("먼저 도면을 업로드해 주세요.", "error");
       return;
     }
+    // 분석 시작 시점의 매장 ID를 캡처 — 분석 중 매장 변경 시 결과 무시
+    const requestStoreId = storeId;
     setAiLoading(true);
+    // 60초 타임아웃 — Gemini 응답이 느릴 때 사용자가 영원히 기다리지 않도록
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60_000);
     try {
       // 1) 도면 이미지의 자연 크기를 측정 → 이미지 종횡비 그대로 캔버스 좌표계 구성
       const img = await new Promise<HTMLImageElement>((resolve, reject) => {
@@ -208,6 +234,7 @@ export default function OwnerTables() {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ image: floorPlan, canvasWidth: CW, canvasHeight: CH }),
+        signal: controller.signal,
       });
       if (!res.ok) {
         const t = await res.text();
@@ -276,6 +303,12 @@ export default function OwnerTables() {
         throw new Error("도면에서 자리나 구조물을 찾지 못했어요. 더 선명한 이미지를 시도해 주세요.");
       }
 
+      // 분석 중 매장이 바뀌었다면 결과 폐기 — 다른 매장에 적용되지 않도록
+      if (requestStoreId !== storeId) {
+        showToast("매장이 변경되어 AI 분석 결과를 폐기했어요.", "info");
+        return;
+      }
+
       setAiCanvasSize({ w: CW, h: CH });
       setAiDraft(cleanedTables);
       setAiStructures(cleanedStructures.length ? cleanedStructures : null);
@@ -293,13 +326,16 @@ export default function OwnerTables() {
         showToast(`AI 초안 생성 실패: ${msg || "잠시 후 다시 시도해 주세요."}`, "error");
       }
     } finally {
+      clearTimeout(timeoutId);
       setAiLoading(false);
     }
   };
 
   const applyAiDraft = async () => {
     if (!aiDraft || !storeId) return;
-    const existing = tables.filter((t) => t.storeId === storeId);
+    // 적용 시점의 매장 ID 캡처 — 비동기 작업 중 매장 변경 방어
+    const activeStoreId = storeId;
+    const existing = tables.filter((t) => t.storeId === activeStoreId);
     // 명시적 confirm — destructive 작업
     if (existing.length > 0) {
       const ok = window.confirm(
@@ -312,7 +348,7 @@ export default function OwnerTables() {
     let createFails = 0;
     for (const t of existing) {
       try {
-        await deleteTable(storeId, t.number);
+        await deleteTable(activeStoreId, t.number);
       } catch (e) {
         deleteFails++;
         console.error("[applyAiDraft delete]", t.number, e);
@@ -320,9 +356,9 @@ export default function OwnerTables() {
     }
     for (const d of aiDraft) {
       const doc: TableDoc = {
-        id: `${storeId}_${d.number}`,
+        id: `${activeStoreId}_${d.number}`,
         number: d.number,
-        storeId,
+        storeId: activeStoreId,
         type: d.type,
         x: d.x,
         y: d.y,
@@ -333,7 +369,7 @@ export default function OwnerTables() {
         status: "available",
       };
       try {
-        await updateTableLayout(storeId, d.number, doc);
+        await updateTableLayout(activeStoreId, d.number, doc);
       } catch (e) {
         createFails++;
         console.error("[applyAiDraft create]", d.number, e);
@@ -360,7 +396,11 @@ export default function OwnerTables() {
   };
 
   useEffect(() => {
-    localStorage.setItem("gyeol:tables-view", view);
+    try {
+      localStorage.setItem("gyeol:tables-view", view);
+    } catch {
+      /* 쿼터 초과·시크릿모드 등 — 다음 진입 시 기본값 사용 */
+    }
   }, [view]);
 
   // 선택 동기화 (store 업데이트 반영)
@@ -1105,28 +1145,31 @@ function SketchPad({
   };
 
   // 키보드 단축키 (데스크탑) — ESC: 닫기, Ctrl/Cmd+Z: 실행취소, Ctrl/Cmd+Y or Shift+Z: 다시실행, Delete/Backspace: 지움, B: 펜, E: 지우개
+  // 핸들러 최신 참조를 ref로 보관 — 매 dirty 변경마다 listener 재등록하지 않으면서도 stale closure 방지
+  const handlersRef = useRef({ handleClose, undo, redo, clearAll });
+  handlersRef.current = { handleClose, undo, redo, clearAll };
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       // input·textarea·color picker 안에선 무시
       const t = e.target as HTMLElement | null;
       if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
       const meta = e.ctrlKey || e.metaKey;
-      if (e.key === "Escape") { e.preventDefault(); handleClose(); return; }
+      const h = handlersRef.current;
+      if (e.key === "Escape") { e.preventDefault(); h.handleClose(); return; }
       if (meta && (e.key === "z" || e.key === "Z")) {
         e.preventDefault();
-        if (e.shiftKey) redo();
-        else undo();
+        if (e.shiftKey) h.redo();
+        else h.undo();
         return;
       }
-      if (meta && (e.key === "y" || e.key === "Y")) { e.preventDefault(); redo(); return; }
-      if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); clearAll(); return; }
+      if (meta && (e.key === "y" || e.key === "Y")) { e.preventDefault(); h.redo(); return; }
+      if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); h.clearAll(); return; }
       if (e.key === "b" || e.key === "B") { e.preventDefault(); setTool("pen"); return; }
       if (e.key === "e" || e.key === "E") { e.preventDefault(); setTool("eraser"); return; }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dirty]);
+  }, []);
 
   // 모달 열릴 때 포커스를 안으로 이동 (Tab 트랩의 약식 구현)
   useEffect(() => {
