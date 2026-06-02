@@ -72,8 +72,12 @@ export default function OwnerReservations() {
 
   const save = async () => {
     if (!draft) return;
-    if (!draft.customerName || !draft.customerPhone) {
+    if (!draft.customerName.trim() || !draft.customerPhone.trim()) {
       showToast("이름과 전화번호는 필수입니다.", "error");
+      return;
+    }
+    if (!storeId) {
+      showToast("매장 정보가 없어요. 다시 로그인해 주세요.", "error");
       return;
     }
     // 과거 날짜·시간 경고 (신규일 때만)
@@ -83,23 +87,43 @@ export default function OwnerReservations() {
         if (!confirm("선택하신 일시가 과거입니다. 그대로 저장할까요?")) return;
       }
     }
+    const tableNumber = Number(draft.tableNumber) || 1;
+    // 같은 매장·날짜·시간·테이블에 이미 확정 예약이 있으면 차단 (수정 중인 자신은 제외)
+    const dup = reservations.find(
+      (r) =>
+        r.storeId === storeId &&
+        r.id !== draft.id &&
+        r.date === draft.date &&
+        r.time === draft.time &&
+        r.tableNumber === tableNumber &&
+        r.status === "confirmed"
+    );
+    if (dup) {
+      showToast(`이미 ${draft.date} ${draft.time}에 테이블 ${tableNumber}번 예약이 있어요.`, "error");
+      return;
+    }
     const data = {
       storeId,
       date: draft.date,
       time: draft.time,
-      tableNumber: Number(draft.tableNumber) || 1,
+      tableNumber,
       partySize: Number(draft.partySize) || 1,
-      customerName: draft.customerName,
-      customerPhone: draft.customerPhone,
+      customerName: draft.customerName.trim(),
+      customerPhone: draft.customerPhone.trim(),
       memo: draft.memo || undefined,
     };
-    if (draft.id) {
-      await updateReservation(draft.id, data);
-      showToast("예약을 수정했습니다.", "success");
-    } else {
-      await addReservation(data);
+    try {
+      if (draft.id) {
+        await updateReservation(draft.id, data);
+        showToast("예약을 수정했습니다.", "success");
+      } else {
+        await addReservation(data);
+        showToast("새 예약을 등록했어요.", "success");
+      }
+      setDraft(null);
+    } catch (e: any) {
+      showToast(`예약 저장 실패: ${e?.message ?? "잠시 후 다시 시도해 주세요."}`, "error");
     }
-    setDraft(null);
   };
 
   return (

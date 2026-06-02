@@ -55,6 +55,11 @@ export default function OwnerMenus() {
       showToast("가격을 다시 확인해 주세요.", "error");
       return;
     }
+    // 새 메뉴는 storeId 가 반드시 있어야 함 — 빈 매장 ID 로 잘못된 곳에 저장되는 사고 차단
+    if (!draft.id && !storeId) {
+      showToast("매장 정보가 없어요. 다시 로그인해 주세요.", "error");
+      return;
+    }
     const data = {
       name: draft.name.trim(),
       price,
@@ -63,13 +68,18 @@ export default function OwnerMenus() {
       posProductCode: draft.posProductCode.trim() || undefined,
       isAvailable: draft.isAvailable,
     };
-    if (draft.id) {
-      await updateMenuItem(draft.id, data);
-      showToast("메뉴를 수정했습니다.", "success");
-    } else {
-      await addMenuItem(storeId, data);
+    try {
+      if (draft.id) {
+        await updateMenuItem(draft.id, data);
+        showToast("메뉴를 수정했습니다.", "success");
+      } else {
+        await addMenuItem(storeId, data);
+        showToast("새 메뉴를 추가했어요.", "success");
+      }
+      setDraft(null);
+    } catch (e: any) {
+      showToast(`저장 실패: ${e?.message ?? "잠시 후 다시 시도해 주세요."}`, "error");
     }
-    setDraft(null);
   };
 
   return (

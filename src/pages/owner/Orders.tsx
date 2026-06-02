@@ -76,6 +76,8 @@ export default function OwnerOrders() {
 
   const [soundOn, setSoundOn] = useState(() => localStorage.getItem(LS_SOUND) !== "0");
   const knownIdsRef = useRef<Set<string> | null>(null);
+  // 주문 상태 전이 중복 클릭 가드 — 연타 시 한 주문이 두 단계 건너뛰던 사고 차단
+  const advancingRef = useRef<Set<string>>(new Set());
 
   const activeOrders = useMemo(
     () =>
@@ -162,10 +164,21 @@ export default function OwnerOrders() {
         return;
       }
     } catch (e: any) {
-      // USB 실패 → 팝업으로 폴백 (한 번만 안내)
-      showToast(`USB 인쇄 실패. 팝업으로 인쇄합니다.`, "info");
+      // USB 실패 — 원인을 구체적으로 안내 (장치 미연결/권한/통신)
+      const msg = String(e?.message ?? "");
+      const reason = msg.includes("permission") || msg.includes("권한")
+        ? "프린터 권한이 거부됐어요"
+        : msg.includes("disconnect") || msg.includes("연결")
+        ? "프린터 연결이 끊어졌어요"
+        : "USB 인쇄에 실패했어요";
+      showToast(`${reason}. 팝업 인쇄로 전환합니다.`, "info");
     }
-    printReceipt(payload);
+    // 팝업 인쇄 — 팝업 차단 시 사용자에게 안내
+    try {
+      printReceipt(payload);
+    } catch (e: any) {
+      showToast("팝업이 차단되어 인쇄할 수 없어요. 브라우저 팝업 차단을 해제해 주세요.", "error");
+    }
   };
 
   return (
@@ -297,8 +310,14 @@ export default function OwnerOrders() {
                   order={o}
                   customerName={users.find((u) => u.id === o.customerId)?.name}
                   onAdvance={() => {
+                    // 빠른 연타 시 같은 주문이 pending→accepted→cooking 으로 한꺼번에 전이되는 사고 차단.
+                    // 처리 중 플래그를 ref 로 두고, 800ms 내 같은 주문 재호출 무시.
+                    if (advancingRef.current.has(o.id)) return;
                     const nxt = NEXT_STATUS[o.status];
-                    if (nxt) updateOrderStatus(o.id, nxt);
+                    if (!nxt) return;
+                    advancingRef.current.add(o.id);
+                    updateOrderStatus(o.id, nxt);
+                    setTimeout(() => advancingRef.current.delete(o.id), 800);
                   }}
                   onCancel={() => {
                     if (confirm(`테이블 ${o.tableNumber}번 주문을 취소하시겠습니까?\n취소된 주문은 되돌릴 수 없습니다.`)) {
