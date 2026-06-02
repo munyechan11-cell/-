@@ -7,15 +7,20 @@
   "license": "UNLICENSED",
   "private": true,
   "scripts": {
+    "icons": "node scripts/generate-icons.mjs",
+    "prebuild": "npm run icons",
     "build": "tsc -p tsconfig.json",
     "dev": "npm run build && electron .",
     "start": "electron .",
     "dist": "npm run build && electron-builder",
-    "dist:win": "npm run build && electron-builder --win",
-    "dist:mac": "npm run build && electron-builder --mac"
+    "dist:win": "npm run build && electron-builder --win --publish never",
+    "dist:mac": "npm run build && electron-builder --mac --publish never",
+    "release:win": "npm run build && electron-builder --win --publish always",
+    "release:mac": "npm run build && electron-builder --mac --publish always"
   },
   "dependencies": {
     "electron-store": "^8.2.0",
+    "electron-updater": "^6.3.9",
     "firebase": "^10.13.0",
     "node-thermal-printer": "^4.5.0"
   },
@@ -23,6 +28,9 @@
     "@types/node": "^20.14.0",
     "electron": "^31.6.0",
     "electron-builder": "^24.13.3",
+    "png-to-ico": "^2.1.8",
+    "png2icons": "^2.0.1",
+    "sharp": "^0.33.5",
     "typescript": "^5.5.3"
   },
   "build": {
@@ -52,6 +60,13 @@
       "createDesktopShortcut": true,
       "runAfterFinish": true,
       "shortcutName": "결 인쇄 브릿지"
-    }
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "munyechan11-cell",
+        "repo": "-"
+      }
+    ]
   }
 }

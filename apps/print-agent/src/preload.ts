@@ -13,4 +13,6 @@ contextBridge.exposeInMainWorld("gyeolAgent", {
   exchangeCode: (code: string, deviceName?: string) =>
     ipcRenderer.invoke("pairing:exchange", { code, deviceName }),
   reset: () => ipcRenderer.invoke("config:reset"),
+  getHistory: () => ipcRenderer.invoke("history:get"),
+  checkUpdate: () => ipcRenderer.invoke("update:check"),
 });

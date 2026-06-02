@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- 결(Gyeol) 로고 — 네이비 베이스 + 민트 포인트 -->
+  <rect width="256" height="256" rx="56" fill="#1B3A6B"/>
+  <!-- 영수증 종이 모티프 -->
+  <path d="M76 50 H180 V206 L160 188 L140 206 L120 188 L100 206 L80 188 L76 206 Z"
+        fill="#FFFFFF" opacity="0.96"/>
+  <!-- 영수증 라인 -->
+  <rect x="92" y="78" width="72" height="6" rx="2" fill="#1B3A6B"/>
+  <rect x="92" y="98" width="56" height="5" rx="2" fill="#7B8AA3"/>
+  <rect x="92" y="116" width="64" height="5" rx="2" fill="#7B8AA3"/>
+  <rect x="92" y="134" width="48" height="5" rx="2" fill="#7B8AA3"/>
+  <!-- 합계 라인 (강조) -->
+  <rect x="92" y="156" width="72" height="8" rx="2" fill="#2DD4A4"/>
+  <!-- 결 한글 점 — 우상단 mint -->
+  <circle cx="196" cy="60" r="22" fill="#2DD4A4"/>
+  <text x="196" y="70" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="26" font-weight="800" fill="#1B3A6B">결</text>
+</svg>

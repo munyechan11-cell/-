@@ -12,6 +12,24 @@ import * as path from "path";
 import { config } from "./config";
 import { signInWithStoredToken, subscribePendingJobs, markJob, heartbeat, type PrintJob } from "./firebase";
 import { printReceipt, printTestPage, listSystemPrinters } from "./printer";
+// 자동 업데이트 — GitHub Releases 에서 latest.yml 폴링
+import { autoUpdater } from "electron-updater";
+
+// 인쇄 이력 — 최근 50건, 메모리 only (재시작 시 초기화)
+interface HistoryEntry {
+  id: string;
+  table?: number;
+  total?: number;
+  itemsCount?: number;
+  at: string;
+  status: "printed" | "failed";
+  error?: string;
+}
+const history: HistoryEntry[] = [];
+const pushHistory = (e: HistoryEntry) => {
+  history.unshift(e);
+  if (history.length > 50) history.pop();
+};
 
 let tray: Tray | null = null;
 let setupWin: BrowserWindow | null = null;
@@ -115,6 +133,14 @@ async function startWorker() {
           status: "printed",
           printedAt: new Date().toISOString(),
         });
+        pushHistory({
+          id: job.id,
+          table: job.payload?.order?.tableNumber,
+          total: job.payload?.order?.totalAmount,
+          itemsCount: job.payload?.order?.items?.length,
+          at: new Date().toISOString(),
+          status: "printed",
+        });
         updateTray(true);
       } catch (e: any) {
         const msg = String(e?.message ?? e);
@@ -123,6 +149,13 @@ async function startWorker() {
           status: "failed",
           lastError: msg.slice(0, 200),
           attempts: (job.attempts ?? 0) + 1,
+        });
+        pushHistory({
+          id: job.id,
+          table: job.payload?.order?.tableNumber,
+          at: new Date().toISOString(),
+          status: "failed",
+          error: msg.slice(0, 120),
         });
         updateTray(true, msg);
       } finally {
@@ -196,6 +229,19 @@ ipcMain.handle(
   }
 );
 
+// 인쇄 이력 조회 — UI 에서 표시용
+ipcMain.handle("history:get", () => history.slice(0, 50));
+
+// 수동 업데이트 확인
+ipcMain.handle("update:check", async () => {
+  try {
+    const r = await autoUpdater.checkForUpdates();
+    return { ok: true, version: r?.updateInfo?.version ?? null };
+  } catch (e: any) {
+    return { ok: false, error: String(e?.message ?? e) };
+  }
+});
+
 ipcMain.handle("config:reset", () => {
   if (unsubJobs) unsubJobs();
   unsubJobs = null;
@@ -229,6 +275,18 @@ app.on("ready", async () => {
   } else {
     openSetupWindow();
   }
+
+  // 자동 업데이트 — GitHub Releases 에서 4시간마다 체크
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.on("update-downloaded", () => {
+    updateTray(config.isPaired(), "새 버전이 준비됐어요. 종료 시 자동 설치됩니다.");
+  });
+  autoUpdater.on("error", (e) => {
+    console.warn("[autoUpdater]", e?.message ?? e);
+  });
+  setTimeout(() => autoUpdater.checkForUpdates().catch(() => {}), 5000);
+  setInterval(() => autoUpdater.checkForUpdates().catch(() => {}), 4 * 60 * 60 * 1000);
 });
 
 app.on("window-all-closed", (e: Event) => {

@@ -123,6 +123,19 @@
     <div id="printer-status" class="status hidden"></div>
   </div>
 
+  <!-- 3. 인쇄 이력 -->
+  <div class="card">
+    <h2>③ 최근 인쇄 이력</h2>
+    <div id="history" style="max-height: 180px; overflow-y: auto; font-size: 12px;">
+      <p class="sub" style="margin:0">아직 인쇄된 영수증이 없어요.</p>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button id="btn-refresh" class="secondary">새로고침</button>
+      <button id="btn-check-update" class="secondary">업데이트 확인</button>
+    </div>
+    <div id="update-status" class="status hidden"></div>
+  </div>
+
   <script>
     const $ = (id) => document.getElementById(id);
     const setStatus = (el, kind, msg) => {
@@ -218,7 +231,41 @@
       else setStatus(st, "err", `테스트 실패: ${res.error}`);
     });
 
+    async function loadHistory() {
+      const list = await window.gyeolAgent.getHistory();
+      const box = document.getElementById("history");
+      if (!list || list.length === 0) {
+        box.innerHTML = '<p class="sub" style="margin:0">아직 인쇄된 영수증이 없어요.</p>';
+        return;
+      }
+      box.innerHTML = list.map((h) => {
+        const time = new Date(h.at).toLocaleTimeString("ko-KR");
+        const color = h.status === "printed" ? "#0f7a3a" : "#c0392b";
+        const icon = h.status === "printed" ? "✓" : "✗";
+        const total = h.total != null ? `₩${h.total.toLocaleString("ko-KR")}` : "";
+        const detail = h.error
+          ? `<span style="color:${color}">${h.error}</span>`
+          : `테이블 ${h.table ?? "-"} · ${h.itemsCount ?? 0}건 · ${total}`;
+        return `<div style="padding:6px 0;border-bottom:1px solid #eef2f8">
+          <span style="color:${color};font-weight:700">${icon}</span>
+          <span style="color:#6b7589;margin:0 6px">${time}</span>
+          ${detail}
+        </div>`;
+      }).join("");
+    }
+
+    document.getElementById("btn-refresh").addEventListener("click", loadHistory);
+    document.getElementById("btn-check-update").addEventListener("click", async () => {
+      const st = document.getElementById("update-status");
+      setStatus(st, "info", "업데이트 확인 중…");
+      const r = await window.gyeolAgent.checkUpdate();
+      if (r.ok) setStatus(st, "ok", r.version ? `버전 ${r.version} 사용 가능` : "최신 버전입니다.");
+      else setStatus(st, "err", `확인 실패: ${r.error}`);
+    });
+
     init();
+    loadHistory();
+    setInterval(loadHistory, 10_000);
   </script>
 </body>
 </html>

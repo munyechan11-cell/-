@@ -599,6 +599,16 @@ function PrintBridgeSection({
           </Button>
         )}
 
+        {/* 다운로드 버튼 — GitHub Releases 최신 버전을 OS 자동 감지로 안내 */}
+        <a
+          href="https://github.com/munyechan11-cell/-/releases/latest"
+          target="_blank"
+          rel="noreferrer noopener"
+          className="block w-full text-center h-12 leading-[48px] rounded-[14px] bg-[var(--color-navy-700)] text-white text-[13px] font-bold hover:bg-[var(--color-navy-800)] active:scale-[0.98] transition-all"
+        >
+          📥 결 인쇄 브릿지 프로그램 다운로드
+        </a>
+
         {/* 다운로드 가이드 */}
         <div className="text-[11.5px] text-[var(--color-ink-500)] leading-relaxed border-t border-[var(--color-line)] pt-3">
           <p className="font-bold text-[var(--color-ink-700)] mb-1">설치 가이드</p>
