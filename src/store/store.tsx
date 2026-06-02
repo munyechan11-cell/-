@@ -17,7 +17,7 @@ import {
   writeBatch,
   increment,
 } from "firebase/firestore";
-import { db, isFirebaseConfigured } from "../lib/firebase";
+import { db, isFirebaseConfigured, ensureAnonymousAuth } from "../lib/firebase";
 import { updateFirestoreDoc, flushOfflineQueue } from "../lib/firestore";
 import { calculateAgeGroup } from "../lib/auth";
 import { generateId, digitsOnly } from "../lib/ids";
@@ -325,28 +325,38 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setFirebaseStatus("ok");
     flushOfflineQueue();
 
-    // Always subscribe to users (login matching needs full list)
-    const usersUnsub = onSnapshot(
-      collection(db, "users"),
-      (snap) => setUsers(snap.docs.map((d) => ({ id: d.id, ...d.data() } as User))),
-      (err) => {
-        console.error("[users listener]", err);
-        setFirebaseError(err.message);
-        setFirebaseStatus("error");
-      }
-    );
+    // 익명 로그인 보장 후 listener 등록 — Firestore 보안 규칙의 인증 게이트 통과용.
+    // 카카오 사용자는 익명 토큰 위에 자체 매칭, Google 사용자는 익명 → 본 계정 자동 전환.
+    let usersUnsub: (() => void) | null = null;
+    let cancelled = false;
+    ensureAnonymousAuth().then(() => {
+      if (cancelled || !db) return;
 
-    // Master password
-    getDoc(doc(db, "appState", "settings")).then((s) => {
-      if (s.exists()) {
-        const data = s.data() as any;
-        if (data.masterPassword) setMasterPasswordState(data.masterPassword);
-      }
+      // users — 로그인 매칭용 전체 구독
+      usersUnsub = onSnapshot(
+        collection(db, "users"),
+        (snap) => setUsers(snap.docs.map((d) => ({ id: d.id, ...d.data() } as User))),
+        (err) => {
+          console.error("[users listener]", err);
+          setFirebaseError(err.message);
+          setFirebaseStatus("error");
+        }
+      );
+
+      // Master password — 한 번만 읽기
+      getDoc(doc(db, "appState", "settings")).then((s) => {
+        if (s.exists()) {
+          const data = s.data() as any;
+          if (data.masterPassword) setMasterPasswordState(data.masterPassword);
+        }
+      }).catch((e) => console.warn("[appState/settings]", e?.message));
+
+      setReady(true);
     });
 
-    setReady(true);
     return () => {
-      usersUnsub();
+      cancelled = true;
+      if (usersUnsub) usersUnsub();
     };
   }, []);
 
