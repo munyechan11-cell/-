@@ -10,7 +10,18 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.set('trust proxy', 1);
-app.use(cors());
+// CORS — 운영 환경에서는 ALLOWED_ORIGINS(콤마구분) 으로 제한, 미설정이면 same-origin만 허용
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean);
+app.use(cors({
+  origin: (origin, cb) => {
+    // 같은 출처(서버 사이드 호출 등) 는 origin 헤더가 없음 — 허용
+    if (!origin) return cb(null, true);
+    if (allowedOrigins.length === 0) return cb(null, true); // 미설정이면 기존 동작 유지
+    if (allowedOrigins.includes(origin)) return cb(null, true);
+    return cb(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+}));
 // AI 비전 요청용 이미지(base64 데이터 URL)는 100kb를 쉽게 넘어가므로 한도 상향
 app.use(express.json({ limit: '10mb' }));
 
@@ -391,8 +402,9 @@ async function fetchWithTimeout(url: string, init: RequestInit, ms: number): Pro
 }
 
 app.post('/api/ai/floor-plan', async (req, res) => {
-  // Rate limit
-  const ip = String(req.ip || req.headers['x-forwarded-for'] || 'unknown').split(',')[0].trim();
+  // Rate limit — trust proxy=1 설정 하에서 req.ip 는 proxy 가 검증한 첫 X-Forwarded-For 값.
+  // raw 헤더를 직접 fallback 으로 쓰면 클라이언트가 IP 를 위조해 rate limit 우회 가능 → req.ip 만 신뢰.
+  const ip = String(req.ip || 'unknown').split(',')[0].trim();
   const rl = checkAiRateLimit(ip);
   if (!rl.ok) {
     return res.status(429).json({
@@ -404,6 +416,14 @@ app.post('/api/ai/floor-plan', async (req, res) => {
   const { image, canvasWidth = 1000, canvasHeight = 700 } = req.body ?? {};
   if (!image || typeof image !== 'string' || !image.startsWith('data:image/')) {
     return res.status(400).json({ error: 'image (data URL) is required' });
+  }
+  // base64 본문 크기 가드 — express.json 의 10mb 한도와 별개로 AI 비용 폭주·요청 거부 방어
+  // 8MB raw 이상 차단 (base64 인코딩 후 ~10.7MB → 한도 근접)
+  const MAX_IMG_BYTES = 8 * 1024 * 1024;
+  const b64Body = image.split(',')[1] ?? '';
+  const approxBytes = Math.floor((b64Body.length * 3) / 4);
+  if (approxBytes > MAX_IMG_BYTES) {
+    return res.status(413).json({ error: '도면 이미지가 너무 큽니다. 8MB 이하로 줄여 주세요.' });
   }
 
   const geminiKey = process.env.GEMINI_API_KEY;
@@ -579,19 +599,25 @@ app.post('/api/ai/floor-plan', async (req, res) => {
   }
 });
 
-function extractJson(text: string): any {
+function extractJson(text: string): { tables: any[]; structures: any[] } {
   // 모델이 ```json ... ``` 블록으로 감쌀 경우 대비
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
   const raw = fenced ? fenced[1] : text;
+  let parsed: any;
   try {
-    return JSON.parse(raw);
+    parsed = JSON.parse(raw);
   } catch {
-    // 첫 { 부터 마지막 } 까지 슬라이스
+    // 첫 { 부터 마지막 } 까지 슬라이스 — 단, 두 인덱스가 모두 명확한 JSON 객체 경계여야 함
     const i = raw.indexOf('{');
     const j = raw.lastIndexOf('}');
-    if (i >= 0 && j > i) return JSON.parse(raw.slice(i, j + 1));
-    throw new Error('AI 응답에서 JSON을 찾지 못했습니다.');
+    if (i < 0 || j <= i) throw new Error('AI 응답에서 JSON을 찾지 못했습니다.');
+    try { parsed = JSON.parse(raw.slice(i, j + 1)); }
+    catch { throw new Error('AI 응답을 JSON 으로 파싱할 수 없습니다.'); }
   }
+  // 스키마 가드 — 모델이 다른 모양으로 답해도 클라이언트는 항상 동일한 구조를 받도록
+  const tables = Array.isArray(parsed?.tables) ? parsed.tables : [];
+  const structures = Array.isArray(parsed?.structures) ? parsed.structures : [];
+  return { tables, structures };
 }
 
 // --- ORDER STATUS WEBHOOK (from Foodtech or internal) ---

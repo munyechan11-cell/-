@@ -1044,12 +1044,18 @@ function SketchPad({
     }
   };
 
+  // 마지막 restore 호출만 화면에 반영 — undo/redo 빠르게 누를 때 이전 이미지 onload 가 늦게 도착해
+  // 사용자가 본 상태와 캔버스가 어긋나는 race 방지.
+  const restoreTokenRef = useRef(0);
   const restoreFromDataUrl = (dataUrl: string) => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
+    const token = ++restoreTokenRef.current;
     const img = new Image();
     img.onload = () => {
+      if (token !== restoreTokenRef.current) return; // 더 새 호출이 있으면 폐기
+      if (!canvasRef.current) return; // 언마운트 방어
       const rect = canvas.getBoundingClientRect();
       ctx.save();
       ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -1057,6 +1063,11 @@ function SketchPad({
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.restore();
       ctx.drawImage(img, 0, 0, rect.width, rect.height);
+    };
+    img.onerror = () => {
+      // 손상된 dataURL — 무한 대기 방지, 사용자에게 별도 알림은 불필요(히스토리 내부값이므로)
+      if (token !== restoreTokenRef.current) return;
+      console.warn("[SketchPad] restoreFromDataUrl: 이미지 로드 실패");
     };
     img.src = dataUrl;
   };
@@ -1171,12 +1182,18 @@ function SketchPad({
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  // 모달 열릴 때 포커스를 안으로 이동 (Tab 트랩의 약식 구현)
+  // 모달 열릴 때 포커스를 안으로 이동 (Tab 트랩의 약식 구현) + 배경 스크롤 잠금
   useEffect(() => {
     const t = setTimeout(() => {
       modalRef.current?.focus();
     }, 50);
-    return () => clearTimeout(t);
+    // 배경 스크롤 잠금 — 캔버스 그리기 중 페이지가 같이 스크롤되는 사고 방지
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      clearTimeout(t);
+      document.body.style.overflow = prevOverflow;
+    };
   }, []);
 
   const canUndo = historyRef.current.length > 1;
@@ -1366,13 +1383,21 @@ function LayoutCanvas({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canvasW, canvasH]);
 
-  // 마우스 휠 + Ctrl/Cmd로 줌 (데스크탑)
-  const onWheel = (e: React.WheelEvent) => {
-    if (!(e.ctrlKey || e.metaKey)) return;
-    e.preventDefault();
-    const delta = e.deltaY > 0 ? -0.1 : 0.1;
-    setZoom((z) => Math.max(0.3, Math.min(2, +(z + delta).toFixed(2))));
-  };
+  // 마우스 휠 + Ctrl/Cmd 로 줌 (데스크탑)
+  // React onWheel 은 passive listener 라 preventDefault 가 무시되어 페이지 전체가 같이 스크롤·확대됨.
+  // native addEventListener 로 passive:false 등록해야 wheel 기본 동작을 막을 수 있다.
+  useEffect(() => {
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+    const handler = (e: WheelEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? -0.1 : 0.1;
+      setZoom((z) => Math.max(0.3, Math.min(2, +(z + delta).toFixed(2))));
+    };
+    wrap.addEventListener("wheel", handler, { passive: false });
+    return () => wrap.removeEventListener("wheel", handler);
+  }, []);
 
   const structureStyleByKind: Record<string, string> = {
     wall: "bg-[var(--color-ink-700)]",
@@ -1464,7 +1489,6 @@ function LayoutCanvas({
         </div>
         <div
           ref={wrapRef}
-          onWheel={onWheel}
           className="relative overflow-auto bg-white h-[min(70vh,640px)] landscape:h-[min(85vh,640px)] lg:h-[min(78vh,820px)]"
         >
           {/* 줌 시 스크롤바가 정확히 작동하도록 외부 wrapper가 시각 크기를 잡고, overflow:hidden으로 내부 layout box를 클립 */}
