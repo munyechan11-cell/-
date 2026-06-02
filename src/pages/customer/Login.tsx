@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { MessageCircle, Phone, Mars, Venus, Check, Store as StoreIcon, Armchair } from "lucide-react";
+import { MessageCircle, Phone, Mars, Venus, Check, Store as StoreIcon, Armchair, MapPin } from "lucide-react";
 import { MobileShell } from "../../components/layout/MobileShell";
 import { TopBar } from "../../components/ui/TopBar";
 import { Button } from "../../components/ui/Button";
@@ -33,6 +33,8 @@ export default function CustomerLogin() {
   const [birthYear, setBirthYear] = useState("");
   const [birthMonth, setBirthMonth] = useState("");
   const [birthDay, setBirthDay] = useState("");
+  // 포항시 거주 여부 — 지역 단골 혜택 통계에 사용. null = 미선택
+  const [isPohangResident, setIsPohangResident] = useState<boolean | null>(null);
   const [agreePrivacy, setAgreePrivacy] = useState(false);
   const [agreeService, setAgreeService] = useState(false);
   const [agreeMarketing, setAgreeMarketing] = useState(false);
@@ -208,6 +210,10 @@ export default function CustomerLogin() {
       showToast(`일은 1~${lastDay} 사이여야 합니다.`, "error");
       return;
     }
+    if (isPohangResident === null) {
+      showToast("거주 지역을 선택해 주세요.", "error");
+      return;
+    }
     setStep(3);
   };
 
@@ -229,6 +235,7 @@ export default function CustomerLogin() {
         gender: gender ?? undefined,
         birthYear: birthYear ? Number(birthYear) : undefined,
         birthday: `${birthYear}-${birthMonth.padStart(2, "0")}-${birthDay.padStart(2, "0")}`,
+        isPohangResident: isPohangResident ?? undefined,
         privacyAgreedAt: new Date().toISOString(),
       });
       onAfterLogin();
@@ -449,6 +456,19 @@ export default function CustomerLogin() {
               </div>
             </div>
 
+            <div className="mt-6">
+              <p className="text-[13px] font-semibold text-[var(--color-navy-800)] mb-1">거주 지역</p>
+              <p className="text-[11.5px] text-[var(--color-ink-500)] mb-2">지역 단골 혜택 통계에만 사용됩니다.</p>
+              <div className="grid grid-cols-2 gap-3">
+                <ResidenceChip active={isPohangResident === true} onClick={() => setIsPohangResident(true)}>
+                  <MapPin className="w-4 h-4" /> 포항시 거주
+                </ResidenceChip>
+                <ResidenceChip active={isPohangResident === false} onClick={() => setIsPohangResident(false)}>
+                  <MapPin className="w-4 h-4" /> 다른 지역
+                </ResidenceChip>
+              </div>
+            </div>
+
             <Button block className="mt-8" onClick={submitStep2}>다음</Button>
           </>
         )}
@@ -527,6 +547,31 @@ function GenderChip({
         "h-14 rounded-[14px] font-bold text-[15px] inline-flex items-center justify-center gap-2 border-[1.5px] transition-all",
         active
           ? "border-[var(--color-navy-700)] bg-[var(--color-navy-50)] text-[var(--color-navy-800)]"
+          : "border-[var(--color-line)] bg-white text-[var(--color-ink-500)]"
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+// 거주 지역 — GenderChip 과 동일 스타일이지만 색상은 mint 계열로 시각적 구분
+function ResidenceChip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "h-14 rounded-[14px] font-bold text-[14.5px] inline-flex items-center justify-center gap-2 border-[1.5px] transition-all",
+        active
+          ? "border-[var(--color-mint-700)] bg-[var(--color-mint-50)] text-[var(--color-mint-700)]"
           : "border-[var(--color-line)] bg-white text-[var(--color-ink-500)]"
       )}
     >

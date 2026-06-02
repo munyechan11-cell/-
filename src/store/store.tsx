@@ -175,6 +175,7 @@ interface LoginInput {
   gender?: "male" | "female";
   birthYear?: number;
   birthday?: string;
+  isPohangResident?: boolean;
   privacyAgreedAt?: string;
   posVendor?: string;
   posApiKey?: string;
@@ -512,6 +513,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         }
         if (input.birthday) patch.birthday = input.birthday;
         if (input.gender) patch.gender = input.gender;
+        if (input.isPohangResident !== undefined) patch.isPohangResident = input.isPohangResident;
         if (input.privacyAgreedAt) patch.privacyAgreedAt = input.privacyAgreedAt;
 
         await updateFirestoreDoc("users", match.id, patch);
@@ -556,6 +558,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
       if (input.birthday) user.birthday = input.birthday;
       if (input.gender) user.gender = input.gender;
+      if (input.isPohangResident !== undefined) user.isPohangResident = input.isPohangResident;
       if (input.privacyAgreedAt) user.privacyAgreedAt = input.privacyAgreedAt;
 
       await updateFirestoreDoc("users", newId, user);
