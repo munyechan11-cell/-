@@ -184,7 +184,9 @@ export default function CustomerLogin() {
       }
       return;
     }
-    setStep(2);
+    // 소셜 가입은 step 2(성별·생일·거주) 건너뛰고 바로 약관(step 3)으로
+    // 일반 가입은 step 2 → step 3 풀 흐름
+    setStep(social ? 3 : 2);
   };
 
   const submitStep2 = () => {
@@ -234,7 +236,10 @@ export default function CustomerLogin() {
         avatarUrl: social?.avatarUrl,
         gender: gender ?? undefined,
         birthYear: birthYear ? Number(birthYear) : undefined,
-        birthday: `${birthYear}-${birthMonth.padStart(2, "0")}-${birthDay.padStart(2, "0")}`,
+        // 소셜 가입(step 2 스킵)일 땐 birthday 가 모두 빈 문자열 → 잘못된 '--' 값 저장 방지
+        birthday: birthYear && birthMonth && birthDay
+          ? `${birthYear}-${birthMonth.padStart(2, "0")}-${birthDay.padStart(2, "0")}`
+          : undefined,
         isPohangResident: isPohangResident ?? undefined,
         privacyAgreedAt: new Date().toISOString(),
       });
@@ -261,7 +266,10 @@ export default function CustomerLogin() {
             ? "고객 로그인"
             : step === 1
             ? "회원가입"
-            : `회원가입 ${step - 1}/2`
+            : // 소셜 가입은 2단계(전번 → 약관) 라 step 3 을 2/2 로, 일반은 3단계
+              social
+              ? `회원가입 2/2`
+              : `회원가입 ${step - 1}/2`
         }
         back
       />
@@ -311,7 +319,7 @@ export default function CustomerLogin() {
         )}
 
         {/* 회원가입 진행 중(step 2/3)이면 Stepper */}
-        {mode === "signup" && step > 1 && <Stepper step={step} />}
+        {mode === "signup" && step > 1 && <Stepper step={step} total={social ? 2 : 3} />}
 
         {/* ===== 로그인 모드 ===== */}
         {mode === "login" && (
@@ -515,15 +523,19 @@ export default function CustomerLogin() {
   );
 }
 
-function Stepper({ step }: { step: Step }) {
+function Stepper({ step, total = 3 }: { step: Step; total?: number }) {
+  // 소셜 가입은 2단계, 일반 가입은 3단계
+  const bars = Array.from({ length: total }, (_, i) => i + 1);
+  // total=2 모드에선 step 3 도 2 로 표시 (실제로는 step 3 = 약관 = 마지막)
+  const active = total === 2 ? Math.min(step - (step === 3 ? 1 : 0), 2) : step;
   return (
     <div className="mt-4 flex items-center gap-2">
-      {[1, 2, 3].map((s) => (
+      {bars.map((s) => (
         <div
           key={s}
           className={cn(
             "h-1.5 flex-1 rounded-full transition-colors",
-            s <= step ? "bg-[var(--color-navy-700)]" : "bg-[var(--color-ink-100)]"
+            s <= active ? "bg-[var(--color-navy-700)]" : "bg-[var(--color-ink-100)]"
           )}
         />
       ))}
