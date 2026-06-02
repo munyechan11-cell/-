@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <title>결 인쇄 브릿지 설정</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0;
+      font-family: -apple-system, "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+      font-size: 14px;
+      color: #1b2330;
+      background: #f6f8fc;
+    }
+    body { padding: 22px 24px; }
+    h1 { font-size: 17px; margin: 0 0 4px; letter-spacing: -0.01em; }
+    p.sub { font-size: 12.5px; color: #6b7589; margin: 0 0 18px; line-height: 1.5; }
+    .card {
+      background: #fff;
+      border: 1px solid #e3e8f0;
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+    .card h2 {
+      font-size: 13px;
+      margin: 0 0 10px;
+      color: #1b3a6b;
+      letter-spacing: -0.005em;
+    }
+    label { display: block; font-size: 12px; color: #4a556b; margin-bottom: 6px; }
+    input, select {
+      width: 100%;
+      height: 38px;
+      padding: 0 12px;
+      border: 1.5px solid #d6dde9;
+      border-radius: 10px;
+      font-size: 14px;
+      background: #fff;
+      color: #1b2330;
+      outline: none;
+    }
+    input:focus, select:focus { border-color: #1b3a6b; }
+    input.code {
+      letter-spacing: 0.4em;
+      text-align: center;
+      font-weight: 700;
+      font-size: 22px;
+      height: 54px;
+    }
+    button {
+      height: 40px;
+      padding: 0 16px;
+      border: 0;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      background: #1b3a6b;
+      color: #fff;
+    }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+    button.secondary { background: #fff; color: #1b3a6b; border: 1.5px solid #d6dde9; }
+    .row { display: flex; gap: 8px; }
+    .row > * { flex: 1; }
+    .status {
+      margin-top: 10px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      font-size: 12.5px;
+      line-height: 1.5;
+    }
+    .status.ok { background: #e6f8ee; color: #0f7a3a; border: 1px solid #b6e8c8; }
+    .status.err { background: #fdecec; color: #c0392b; border: 1px solid #f3c0bd; }
+    .status.info { background: #eef2f8; color: #1b3a6b; border: 1px solid #d2dcec; }
+    .hidden { display: none !important; }
+    small.helper { color: #6b7589; font-size: 11.5px; }
+  </style>
+</head>
+<body>
+  <h1>결 인쇄 브릿지 설정</h1>
+  <p class="sub">매장 PC 에서 결 주문이 자동으로 영수증 프린터에 출력되도록 연결합니다.</p>
+
+  <!-- 1. 페어링 -->
+  <div class="card" id="card-pair">
+    <h2>① 매장 연결</h2>
+    <p id="pair-info" class="sub" style="margin-bottom:10px"></p>
+    <label for="code">6자리 페어링 코드</label>
+    <input id="code" class="code" maxlength="6" inputmode="numeric" placeholder="000000" />
+    <small class="helper">결 웹앱 → 브랜드 설정 → 영수증 자동 인쇄 → '페어링 코드 발급' 으로 받은 코드.</small>
+    <div class="row" style="margin-top:12px">
+      <button id="btn-pair">연결</button>
+      <button id="btn-unpair" class="secondary hidden">연결 해제</button>
+    </div>
+    <div id="pair-status" class="status hidden"></div>
+  </div>
+
+  <!-- 2. 프린터 -->
+  <div class="card" id="card-printer">
+    <h2>② 프린터 선택</h2>
+    <label for="printer">OS 에 설치된 프린터</label>
+    <select id="printer"></select>
+    <div class="row" style="margin-top:10px">
+      <div>
+        <label for="vendor">제조사</label>
+        <select id="vendor">
+          <option value="EPSON">EPSON / 빅솔론 / 호환 ESC/POS</option>
+          <option value="STAR">STAR</option>
+        </select>
+      </div>
+      <div>
+        <label for="width">용지 폭</label>
+        <select id="width">
+          <option value="42">80mm (42자)</option>
+          <option value="32">58mm (32자)</option>
+        </select>
+      </div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button id="btn-save-printer" class="secondary">저장</button>
+      <button id="btn-test">테스트 인쇄</button>
+    </div>
+    <div id="printer-status" class="status hidden"></div>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const setStatus = (el, kind, msg) => {
+      el.classList.remove("hidden", "ok", "err", "info");
+      el.classList.add(kind);
+      el.textContent = msg;
+    };
+
+    async function init() {
+      const cfg = await window.gyeolAgent.getAll();
+      const paired = !!cfg.paired;
+      $("pair-info").textContent = paired
+        ? `현재 매장: ${cfg.storeId} 와 연결되어 있어요.`
+        : "아직 연결된 매장이 없어요. 6자리 코드를 입력해 주세요.";
+      $("btn-unpair").classList.toggle("hidden", !paired);
+      $("btn-pair").textContent = paired ? "다시 연결" : "연결";
+
+      // 프린터 목록
+      const printers = await window.gyeolAgent.listPrinters();
+      const sel = $("printer");
+      sel.innerHTML = "";
+      if (!printers || printers.length === 0) {
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.textContent = "(설치된 프린터가 없어요 — OS 에서 먼저 설치)";
+        sel.appendChild(opt);
+      } else {
+        printers.forEach((name) => {
+          const opt = document.createElement("option");
+          opt.value = name;
+          opt.textContent = name;
+          if (cfg.printer?.name === name) opt.selected = true;
+          sel.appendChild(opt);
+        });
+      }
+      if (cfg.printer?.vendor) $("vendor").value = cfg.printer.vendor;
+      if (cfg.printer?.width) $("width").value = String(cfg.printer.width);
+    }
+
+    $("btn-pair").addEventListener("click", async () => {
+      const code = $("code").value.trim();
+      const st = $("pair-status");
+      if (!/^\d{6}$/.test(code)) {
+        setStatus(st, "err", "6자리 숫자 코드를 입력해 주세요.");
+        return;
+      }
+      $("btn-pair").disabled = true;
+      const deviceName = `${navigator.platform} PC`;
+      const res = await window.gyeolAgent.exchangeCode(code, deviceName);
+      $("btn-pair").disabled = false;
+      if (res.ok) {
+        setStatus(st, "ok", `연결 성공! 매장 ${res.storeId} 와 페어링되었어요.`);
+        $("code").value = "";
+        await init();
+      } else {
+        setStatus(st, "err", `연결 실패: ${res.error || "알 수 없는 오류"}`);
+      }
+    });
+
+    $("btn-unpair").addEventListener("click", async () => {
+      if (!confirm("정말 연결을 해제할까요? 다시 페어링하려면 새 코드를 받아야 합니다.")) return;
+      await window.gyeolAgent.reset();
+      await init();
+    });
+
+    $("btn-save-printer").addEventListener("click", async () => {
+      const name = $("printer").value;
+      const vendor = $("vendor").value;
+      const width = parseInt($("width").value, 10);
+      const st = $("printer-status");
+      if (!name) {
+        setStatus(st, "err", "프린터를 먼저 선택해 주세요.");
+        return;
+      }
+      await window.gyeolAgent.selectPrinter({ name, vendor, width });
+      setStatus(st, "ok", "프린터를 저장했어요. 테스트 인쇄로 확인해 보세요.");
+    });
+
+    $("btn-test").addEventListener("click", async () => {
+      const st = $("printer-status");
+      // 저장도 같이
+      const name = $("printer").value;
+      const vendor = $("vendor").value;
+      const width = parseInt($("width").value, 10);
+      if (!name) {
+        setStatus(st, "err", "프린터를 먼저 선택해 주세요.");
+        return;
+      }
+      await window.gyeolAgent.selectPrinter({ name, vendor, width });
+      setStatus(st, "info", "테스트 인쇄 전송 중…");
+      const res = await window.gyeolAgent.testPrint();
+      if (res.ok) setStatus(st, "ok", "테스트 인쇄 전송 완료! 종이가 나왔다면 설정 끝.");
+      else setStatus(st, "err", `테스트 실패: ${res.error}`);
+    });
+
+    init();
+  </script>
+</body>
+</html>

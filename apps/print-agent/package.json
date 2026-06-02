@@ -1,0 +1,57 @@
+{
+  "name": "gyeol-print-agent",
+  "version": "0.1.0",
+  "description": "결(Gyeol) 영수증 인쇄 브릿지 - 매장 PC 트레이 앱",
+  "main": "dist/main.js",
+  "author": "Gyeol",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "npm run build && electron .",
+    "start": "electron .",
+    "dist": "npm run build && electron-builder",
+    "dist:win": "npm run build && electron-builder --win",
+    "dist:mac": "npm run build && electron-builder --mac"
+  },
+  "dependencies": {
+    "electron-store": "^8.2.0",
+    "firebase": "^10.13.0",
+    "node-thermal-printer": "^4.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "electron": "^31.6.0",
+    "electron-builder": "^24.13.3",
+    "typescript": "^5.5.3"
+  },
+  "build": {
+    "appId": "kr.gyeol.print-agent",
+    "productName": "결 인쇄 브릿지",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "src/ui/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "icon": "assets/icon.ico"
+    },
+    "mac": {
+      "target": [{ "target": "dmg", "arch": ["x64", "arm64"] }],
+      "icon": "assets/icon.icns",
+      "category": "public.app-category.business"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "runAfterFinish": true,
+      "shortcutName": "결 인쇄 브릿지"
+    }
+  }
+}
