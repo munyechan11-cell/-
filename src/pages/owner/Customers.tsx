@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Search, Ticket, MessageSquare, Save, X } from "lucide-react";
+import { Search, Ticket, MessageSquare, Save, X, Download } from "lucide-react";
 import { OwnerShell } from "../../components/layout/OwnerShell";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
@@ -9,6 +9,8 @@ import { calculateRFM, getRFMCluster, getEffectiveTier, TIER_BADGE, TIER_ORDER, 
 import { sendKakaoMessage, sendPhysicalSms } from "../../lib/messaging";
 import { showToast } from "../../lib/toast";
 import { useEscapeClose } from "../../lib/useEscapeClose";
+import { downloadCsv, todayStamp } from "../../lib/csv";
+import { formatPhoneNumber } from "../../lib/ids";
 import type { Tier, User } from "../../lib/types";
 
 type Filter = "all" | "vip" | "new" | "slipping" | "cold";
@@ -80,6 +82,97 @@ export default function OwnerCustomers() {
     setSelectedMode(new Set());
   };
 
+  // ============================================================
+  // 엑셀(CSV) 내보내기 — 한국어 엑셀에서 바로 열리는 UTF-8 BOM 형식
+  // 선택된 고객만 / 또는 현재 필터·검색 결과 전체
+  // ============================================================
+  const exportToExcel = () => {
+    const target = selectedMode.size > 0
+      ? myCustomers.filter((c) => selectedMode.has(c.user.id))
+      : myCustomers;
+
+    if (target.length === 0) {
+      showToast("내보낼 고객이 없습니다.", "info");
+      return;
+    }
+
+    // 가독성 — 빈 값은 '-' 로, 날짜는 YYYY-MM-DD, 전화는 010-XXXX-XXXX
+    const dash = "-";
+    const fmtPhone = (p?: string) => (p ? formatPhoneNumber(p) : dash);
+    const fmtDate = (iso?: string) => {
+      if (!iso) return dash;
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return dash;
+      const pad = (n: number) => String(n).padStart(2, "0");
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    };
+    const fmtGender = (g?: string) => (g === "male" ? "남" : g === "female" ? "여" : dash);
+    const fmtResidence = (v?: boolean) => (v === true ? "포항시" : v === false ? "다른 지역" : "미응답");
+    const fmtAuthType = (t?: string) =>
+      t === "google" ? "Google" : t === "kakao" ? "카카오" : t === "phone" ? "전화번호" : dash;
+    const fmtMoney = (n: number) => n.toLocaleString("ko-KR");
+    const ynPrivacy = (iso?: string) => (iso ? "동의" : dash);
+
+    const headers = [
+      "이름",
+      "전화번호",
+      "등급",
+      "클러스터",
+      "방문 횟수",
+      "유니크 방문일",
+      "첫 방문일",
+      "마지막 방문일",
+      "누적 소비액(원)",
+      "성별",
+      "생년",
+      "생일",
+      "거주지",
+      "가입 경로",
+      "마케팅 동의",
+      "메모",
+    ];
+
+    const rows = target.map(({ user, visits, uniqueDays, cluster, tier }) => {
+      const sortedByDate = [...visits].sort(
+        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+      );
+      const firstVisit = sortedByDate[0]?.date;
+      const lastVisit = sortedByDate[sortedByDate.length - 1]?.date;
+      const totalSpent = visits.reduce((s, v) => s + (v.totalAmount ?? 0), 0);
+
+      return [
+        user.name ?? dash,
+        fmtPhone(user.phone),
+        tier,
+        cluster.label,
+        visits.length,
+        uniqueDays,
+        fmtDate(firstVisit),
+        fmtDate(lastVisit),
+        fmtMoney(totalSpent),
+        fmtGender(user.gender),
+        user.birthYear ?? dash,
+        user.birthday ?? dash,
+        fmtResidence(user.isPohangResident),
+        fmtAuthType(user.authType),
+        ynPrivacy(user.privacyAgreedAt),
+        user.memo ?? dash,
+      ];
+    });
+
+    const storeName = currentUser?.restaurantName ?? "매장";
+    const safeStore = storeName.replace(/[\\/:*?"<>|]/g, "_"); // 파일명 안전화
+    const scope = selectedMode.size > 0 ? `선택${target.length}명` : `전체${target.length}명`;
+    const filename = `결_고객명단_${safeStore}_${scope}_${todayStamp()}.csv`;
+
+    try {
+      downloadCsv(filename, headers, rows);
+      showToast(`고객 ${target.length}명 엑셀 파일을 내려받았어요.`, "success");
+    } catch (e: any) {
+      showToast(`엑셀 내보내기 실패: ${e?.message ?? "잠시 후 다시 시도해 주세요."}`, "error");
+    }
+  };
+
   return (
     <OwnerShell
       title={selectedMode.size > 0 ? `${selectedMode.size}명 선택` : "고객 관리"}
@@ -91,7 +184,18 @@ export default function OwnerCustomers() {
           >
             선택 해제
           </button>
-        ) : null
+        ) : (
+          <button
+            onClick={exportToExcel}
+            disabled={myCustomers.length === 0}
+            className="inline-flex items-center gap-1.5 h-10 px-3.5 rounded-full bg-[var(--color-mint-100)] text-[var(--color-mint-700)] text-[12.5px] font-bold hover:bg-[var(--color-mint-50)] active:scale-[0.97] transition-all disabled:opacity-40"
+            aria-label="고객 명단 엑셀 내보내기"
+            title="현재 필터·검색에 잡힌 고객을 엑셀(CSV) 로 내려받습니다"
+          >
+            <Download className="w-4 h-4" />
+            <span className="hidden sm:inline">엑셀</span>
+          </button>
+        )
       }
     >
       <div>
@@ -127,9 +231,17 @@ export default function OwnerCustomers() {
         </div>
 
         {selectedMode.size > 0 && (
-          <div className="mt-3 grid grid-cols-2 gap-2">
+          <div className="mt-3 grid grid-cols-3 gap-2">
             <Button variant="mint" size="md" onClick={sendBulkCoupon} leftIcon={<Ticket className="w-4 h-4" />}>
-              일괄 쿠폰 발급
+              쿠폰
+            </Button>
+            <Button
+              variant="outline"
+              size="md"
+              onClick={exportToExcel}
+              leftIcon={<Download className="w-4 h-4" />}
+            >
+              엑셀
             </Button>
             <Button
               variant="outline"
