@@ -327,8 +327,8 @@ export default function OwnerTables() {
         </div>
       }
     >
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 lg:gap-6">
-        <div className="lg:col-span-2">
+      <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-5 lg:gap-6">
+        <div className="lg:col-span-2 xl:col-span-3">
           {/* Add buttons */}
           <div className="grid grid-cols-3 gap-2">
             <Button size="md" variant="ghost" onClick={() => addTable(storeId, "table")} leftIcon={<Plus className="w-4 h-4" />}>
@@ -787,14 +787,18 @@ function SketchPad({
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
   const [tool, setTool] = useState<"pen" | "eraser">("pen");
   const [size, setSize] = useState(4);
   const [color, setColor] = useState("#0B1220");
   const [dirty, setDirty] = useState(false);
+  // 강제 리렌더 (canUndo/canRedo 표시 갱신용)
+  const [, force] = useState(0);
   const drawingRef = useRef(false);
   const lastRef = useRef<{ x: number; y: number } | null>(null);
-  // 되돌리기용 dataURL 스택 — ImageData 대비 메모리 70-90% 절감, 모바일 OOM 방지
+  // 되돌리기/다시실행 dataURL 스택 — ImageData 대비 메모리 70-90% 절감, 모바일 OOM 방지
   const historyRef = useRef<string[]>([]);
+  const redoRef = useRef<string[]>([]);
 
   // 캔버스 초기화 + 회전·리사이즈 시 그림 보존 재설정
   useEffect(() => {
@@ -804,7 +808,9 @@ function SketchPad({
     if (!canvas || !wrap) return;
 
     const setupCanvas = (preserveData?: string) => {
-      const dpr = Math.min(window.devicePixelRatio || 1, 2); // DPR 2 상한 — 메모리 보호
+      // 데스크탑은 Retina 선명도 확보 위해 DPR 3까지, 모바일은 메모리 보호로 2 상한
+      const isDesktop = window.innerWidth >= 1024;
+      const dpr = Math.min(window.devicePixelRatio || 1, isDesktop ? 3 : 2);
       const rect = wrap.getBoundingClientRect();
       if (rect.width < 10 || rect.height < 10) return; // 모달 진입 중
       canvas.width = Math.round(rect.width * dpr);
@@ -869,26 +875,25 @@ function SketchPad({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialDataUrl]);
 
-  const pushHistory = () => {
+  const pushHistory = (clearRedo = true) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     try {
       const snap = canvas.toDataURL("image/png");
       historyRef.current.push(snap);
-      // 모바일 메모리 보호: 최대 12개로 제한
       if (historyRef.current.length > 12) historyRef.current.shift();
+      // 새 그리기 발생 → redo 스택은 무효
+      if (clearRedo) redoRef.current = [];
+      force((n) => n + 1);
     } catch {
       /* CORS 등 직렬화 실패 시 무시 */
     }
   };
 
-  const undo = () => {
-    if (historyRef.current.length <= 1) return;
-    historyRef.current.pop();
-    const last = historyRef.current[historyRef.current.length - 1];
+  const restoreFromDataUrl = (dataUrl: string) => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
-    if (!canvas || !ctx || !last) return;
+    if (!canvas || !ctx) return;
     const img = new Image();
     img.onload = () => {
       const rect = canvas.getBoundingClientRect();
@@ -899,7 +904,28 @@ function SketchPad({
       ctx.restore();
       ctx.drawImage(img, 0, 0, rect.width, rect.height);
     };
-    img.src = last;
+    img.src = dataUrl;
+  };
+
+  const undo = () => {
+    if (historyRef.current.length <= 1) return;
+    const current = historyRef.current.pop();
+    if (current) redoRef.current.push(current);
+    const last = historyRef.current[historyRef.current.length - 1];
+    if (!last) return;
+    restoreFromDataUrl(last);
+    force((n) => n + 1);
+  };
+
+  const redo = () => {
+    if (redoRef.current.length === 0) return;
+    const next = redoRef.current.pop();
+    if (!next) return;
+    historyRef.current.push(next);
+    if (historyRef.current.length > 12) historyRef.current.shift();
+    restoreFromDataUrl(next);
+    setDirty(true);
+    force((n) => n + 1);
   };
 
   const clearAll = () => {
@@ -963,15 +989,42 @@ function SketchPad({
     onClose();
   };
 
-  // ESC 키로 닫기 (데스크탑)
+  // 키보드 단축키 (데스크탑) — ESC: 닫기, Ctrl/Cmd+Z: 실행취소, Ctrl/Cmd+Y or Shift+Z: 다시실행, Delete/Backspace: 지움, B: 펜, E: 지우개
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") handleClose();
+      // input·textarea·color picker 안에선 무시
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+      const meta = e.ctrlKey || e.metaKey;
+      if (e.key === "Escape") { e.preventDefault(); handleClose(); return; }
+      if (meta && (e.key === "z" || e.key === "Z")) {
+        e.preventDefault();
+        if (e.shiftKey) redo();
+        else undo();
+        return;
+      }
+      if (meta && (e.key === "y" || e.key === "Y")) { e.preventDefault(); redo(); return; }
+      if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); clearAll(); return; }
+      if (e.key === "b" || e.key === "B") { e.preventDefault(); setTool("pen"); return; }
+      if (e.key === "e" || e.key === "E") { e.preventDefault(); setTool("eraser"); return; }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dirty]);
+
+  // 모달 열릴 때 포커스를 안으로 이동 (Tab 트랩의 약식 구현)
+  useEffect(() => {
+    const t = setTimeout(() => {
+      modalRef.current?.focus();
+    }, 50);
+    return () => clearTimeout(t);
+  }, []);
+
+  const canUndo = historyRef.current.length > 1;
+  const canRedo = redoRef.current.length > 0;
+  const isMac = typeof navigator !== "undefined" && /Mac/i.test(navigator.platform);
+  const modKey = isMac ? "⌘" : "Ctrl";
 
   return (
     <div
@@ -980,14 +1033,23 @@ function SketchPad({
       onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
     >
       <div
-        className="w-full sm:max-w-3xl bg-white sm:rounded-[18px] overflow-hidden shadow-[var(--shadow-lifted)] flex flex-col"
+        ref={modalRef}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
+        aria-label="도면 그리기"
+        className="w-full sm:max-w-3xl lg:max-w-5xl bg-white sm:rounded-[18px] overflow-hidden shadow-[var(--shadow-lifted)] flex flex-col outline-none"
         style={{ maxHeight: "100vh" }}
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-2 px-4 h-12 border-b border-[var(--color-line)] shrink-0">
           <Pencil className="w-4 h-4 text-[var(--color-navy-700)]" />
           <h3 className="text-[14px] font-extrabold text-[var(--color-navy-900)]">도면 그리기</h3>
           {dirty && <span className="text-[10px] font-bold text-[var(--color-mint-700)] bg-[var(--color-mint-50)] px-2 py-0.5 rounded-full">편집 중</span>}
-          <button onClick={handleClose} className="ml-auto h-9 w-9 rounded-full hover:bg-[var(--color-ink-50)] inline-flex items-center justify-center" aria-label="닫기">
+          <span className="ml-auto text-[10.5px] text-[var(--color-ink-400)] font-medium hidden lg:inline">
+            {modKey}+Z 실행취소 · {modKey}+Y 다시실행 · B 펜 · E 지우개 · Delete 지움
+          </span>
+          <button onClick={handleClose} className="lg:ml-3 h-9 w-9 rounded-full hover:bg-[var(--color-ink-50)] inline-flex items-center justify-center" aria-label="닫기 (ESC)">
             <X className="w-5 h-5 text-[var(--color-ink-600)]" />
           </button>
         </div>
@@ -1026,16 +1088,27 @@ function SketchPad({
           )}
           <button
             onClick={undo}
-            disabled={historyRef.current.length <= 1}
+            disabled={!canUndo}
             className="h-9 px-2.5 rounded-full bg-white text-[12px] font-bold text-[var(--color-navy-800)] inline-flex items-center gap-1 disabled:opacity-40"
-            aria-label="되돌리기"
+            aria-label={`되돌리기 (${modKey}+Z)`}
+            title={`되돌리기 (${modKey}+Z)`}
           >
             <Undo2 className="w-3.5 h-3.5" />
           </button>
           <button
+            onClick={redo}
+            disabled={!canRedo}
+            className="h-9 px-2.5 rounded-full bg-white text-[12px] font-bold text-[var(--color-navy-800)] inline-flex items-center gap-1 disabled:opacity-40"
+            aria-label={`다시실행 (${modKey}+Y)`}
+            title={`다시실행 (${modKey}+Y)`}
+          >
+            <Undo2 className="w-3.5 h-3.5 scale-x-[-1]" />
+          </button>
+          <button
             onClick={clearAll}
             className="h-9 px-2.5 rounded-full bg-white text-[12px] font-bold text-[var(--color-danger)] inline-flex items-center gap-1"
-            aria-label="전체 지움"
+            aria-label="전체 지움 (Delete)"
+            title="전체 지움 (Delete)"
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -1142,8 +1215,7 @@ function LayoutCanvas({ tables, selectedId, onSelect, onMove, backgroundDataUrl,
         </div>
         <div
           ref={wrapRef}
-          className="relative overflow-auto bg-white"
-          style={{ height: "min(70vh, 640px)" }}
+          className="relative overflow-auto bg-white h-[min(70vh,640px)] lg:h-[min(78vh,820px)]"
         >
           <div
             className="relative bg-[repeating-linear-gradient(0deg,transparent,transparent_39px,#eef2f8_39px,#eef2f8_40px),repeating-linear-gradient(90deg,transparent,transparent_39px,#eef2f8_39px,#eef2f8_40px)]"

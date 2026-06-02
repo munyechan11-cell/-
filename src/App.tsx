@@ -118,36 +118,54 @@ function BizEntry() {
 
   return (
     <div
-      className="min-h-screen bg-[var(--color-navy-900)] text-white flex items-center justify-center px-6 py-8"
+      className="min-h-screen bg-[var(--color-navy-900)] text-white flex items-center justify-center px-6 py-8 relative overflow-hidden"
       style={{
         paddingTop: "max(2rem, env(safe-area-inset-top))",
         paddingBottom: "max(2rem, env(safe-area-inset-bottom))",
       }}
     >
-      <div className="w-full max-w-sm">
-        <div className="flex items-center gap-3 mb-7">
-          <span className="w-11 h-11 rounded-xl bg-white text-[var(--color-navy-900)] text-xl font-extrabold flex items-center justify-center">
-            결
-          </span>
-          <div>
-            <p className="text-[11px] font-bold opacity-60 uppercase tracking-widest">Gyeol Business</p>
-            <p className="text-[18px] font-extrabold tracking-tight">운영자 콘솔</p>
+      {/* 배경 장식 — 데스크탑에서 카드 한 장이 외롭게 떠 있는 느낌 제거 */}
+      <div className="hidden lg:block absolute inset-0 pointer-events-none">
+        <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-[var(--color-mint-700)]/10 blur-3xl" />
+        <div className="absolute -bottom-32 -right-32 w-[500px] h-[500px] rounded-full bg-[var(--color-navy-700)]/30 blur-3xl" />
+      </div>
+
+      <div className="relative w-full max-w-sm lg:max-w-4xl lg:grid lg:grid-cols-2 lg:gap-12 lg:items-center">
+        {/* 좌측: 브랜드·메시지 (데스크탑 전용 확장) */}
+        <div>
+          <div className="flex items-center gap-3 mb-7">
+            <span className="w-11 h-11 lg:w-14 lg:h-14 rounded-xl bg-white text-[var(--color-navy-900)] text-xl lg:text-2xl font-extrabold flex items-center justify-center">
+              결
+            </span>
+            <div>
+              <p className="text-[11px] font-bold opacity-60 uppercase tracking-widest">Gyeol Business</p>
+              <p className="text-[18px] lg:text-[22px] font-extrabold tracking-tight">운영자 콘솔</p>
+            </div>
           </div>
+          <h1 className="hidden lg:block text-[40px] xl:text-[48px] font-extrabold tracking-tight leading-[1.1] mb-5">
+            매장의 모든 흐름,
+            <br />
+            <span className="text-[var(--color-mint-400)]">결</span>로 정리하세요.
+          </h1>
+          <p className="text-[13.5px] lg:text-[15px] opacity-70 font-medium leading-relaxed mb-7 lg:mb-0">
+            매장 운영자 전용 입구입니다. 손님이라면 <Link to="/" className="underline font-bold">홈으로 돌아가세요</Link>.
+          </p>
         </div>
-        <p className="text-[13.5px] opacity-70 font-medium leading-relaxed mb-7">
-          매장 운영자 전용 입구입니다. 손님이라면 <Link to="/" className="underline font-bold">홈으로 돌아가세요</Link>.
-        </p>
+
+        {/* 우측: 로그인 진입 카드들 */}
         <div className="space-y-3">
           <Link
             to="/biz/owner/login"
-            className="block rounded-2xl bg-white text-[var(--color-navy-900)] p-5 font-extrabold text-[16px] tracking-tight hover:-translate-y-0.5 transition-transform"
+            className="block rounded-2xl bg-white text-[var(--color-navy-900)] p-5 lg:p-6 font-extrabold text-[16px] lg:text-[18px] tracking-tight hover:-translate-y-0.5 transition-transform shadow-[var(--shadow-navy)]"
           >
+            <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-ink-500)] mb-1">For Owner</div>
             사장님 로그인 →
           </Link>
           <Link
             to="/biz/staff/login"
-            className="block rounded-2xl bg-white/10 border border-white/15 text-white p-5 font-extrabold text-[16px] tracking-tight hover:bg-white/15 transition-colors"
+            className="block rounded-2xl bg-white/10 border border-white/15 text-white p-5 lg:p-6 font-extrabold text-[16px] lg:text-[18px] tracking-tight hover:bg-white/15 transition-colors"
           >
+            <div className="text-[10px] font-bold uppercase tracking-widest opacity-60 mb-1">For Staff</div>
             직원 로그인 →
           </Link>
         </div>

@@ -114,6 +114,21 @@ export default function QrPrint() {
               className="w-full mt-1"
             />
           </div>
+          {/* 인쇄 전 요약 — QR이 몇 개·예상 페이지 수 */}
+          <div className="grid grid-cols-2 gap-2 pt-1">
+            <div className="rounded-[10px] bg-[var(--color-navy-50)] px-2.5 py-2">
+              <p className="text-[10px] font-bold text-[var(--color-ink-500)] uppercase">테이블</p>
+              <p className="text-[16px] font-extrabold text-[var(--color-navy-900)] leading-tight">
+                {myTables.length}개
+              </p>
+            </div>
+            <div className="rounded-[10px] bg-[var(--color-mint-50)] px-2.5 py-2">
+              <p className="text-[10px] font-bold text-[var(--color-mint-700)] uppercase">예상 페이지</p>
+              <p className="text-[16px] font-extrabold text-[var(--color-navy-900)] leading-tight">
+                약 {Math.max(1, Math.ceil(myTables.length / (cols * Math.max(1, Math.floor(8 / Math.max(1, cols))))))}장
+              </p>
+            </div>
+          </div>
           <Button block onClick={() => window.print()} leftIcon={<Printer className="w-4 h-4" />}>
             인쇄하기
           </Button>
