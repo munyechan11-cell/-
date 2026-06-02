@@ -362,15 +362,43 @@ app.post('/api/ai/floor-plan', async (req, res) => {
     return res.status(503).json({ error: 'AI_NOT_CONFIGURED' });
   }
 
-  const systemPrompt =
-    `당신은 식당 도면을 분석해 테이블 배치를 추출하는 비전 엔지니어입니다. ` +
-    `입력은 정밀한 CAD 도면일 수도, 사장님이 손가락으로 끄적인 거친 스케치일 수도 있습니다. ` +
-    `손그림은 사각형/원/네모박스가 테이블, 큰 사각형이 룸, 벽 끝의 작은 표시가 출입구를 의미하는 경우가 많습니다. ` +
-    `이미지에서 테이블/룸/출입구를 찾아 ${canvasWidth}x${canvasHeight} 좌표계로 정규화해 반환하세요. ` +
-    `JSON만 출력하고 그 외 텍스트는 절대 포함하지 마세요. 스키마: ` +
-    `{"tables":[{"number":1,"type":"table"|"room"|"door","x":120,"y":80,"width":70,"height":70,"shape":"square"|"circle","seats":4}]}. ` +
-    `규칙: number는 1부터 순차 부여. x,y는 좌상단 기준 픽셀. 일반 테이블은 70x70(원형이면 shape=circle), 룸은 150x80, 출입구는 60x60·type=door·seats 생략 가능. ` +
-    `좌석수는 도면의 의자 수 또는 면적으로 추정. 명백한 객체만 추출 — 애매하면 누락이 과추출보다 낫습니다. 비어 보이면 빈 배열을 반환하세요.`;
+  // 정규화 좌표 (0-1) 사용 — 이미지 종횡비와 무관하게 클라이언트가 캔버스에 정확히 매핑 가능
+  const systemPrompt = `
+당신은 식당 도면(CAD 도면 또는 사장님이 그린 손스케치)을 분석해 두 가지를 분리해서 추출합니다.
+
+## 핵심 원칙
+1. **테이블(tables)** = 손님이 실제로 앉는 자리만. 사각형/원형 박스로 그려진 자리, 의자에 둘러싸인 자리.
+2. **구조물(structures)** = 벽, 출입구(문), 룸(방) 경계, 카운터 등 자리가 아닌 모든 것.
+3. 벽/문/룸 경계는 **절대 tables 배열에 넣지 마세요.** 그건 structures 입니다.
+4. 룸(별실)은 그 자체로 자리가 아닙니다. 룸 안에 그려진 개별 테이블만 tables에 넣고, 룸 경계는 structures에 넣으세요.
+5. 도면에 번호가 적혀 있으면 그 번호를 그대로 사용. 없으면 좌상단부터 행 우선으로 1,2,3... 부여.
+
+## 좌표 규칙 (매우 중요)
+- 모든 x, y, width, height는 **이미지 너비/높이에 대한 0~1 정규화 비율**입니다.
+- 예: 이미지 좌상단 = (0, 0), 우하단 = (1, 1), 중앙 = (0.5, 0.5)
+- 이미지에서 보이는 위치에 정확히 맞추세요. 임의로 재배치하지 마세요.
+
+## 출력 스키마 (JSON만, 다른 텍스트 금지)
+{
+  "tables": [
+    { "number": 1, "x": 0.12, "y": 0.08, "width": 0.07, "height": 0.07, "shape": "square"|"circle", "seats": 4 }
+  ],
+  "structures": [
+    { "kind": "wall"|"door"|"room"|"counter", "x": 0.0, "y": 0.0, "width": 0.5, "height": 0.02, "label": "주방" }
+  ]
+}
+
+## 손그림 해석 규칙
+- 작은 사각형/원 = 일반 테이블 (보통 width 0.04~0.10)
+- 큰 사각형 = 룸 또는 구역 (structures.kind="room")
+- 직선/실선 = 벽 (structures.kind="wall", 얇은 height/width)
+- 호 모양/벽 끝의 빈 틈 = 출입구 (structures.kind="door")
+- "주방", "카운터", "화장실" 같은 글씨가 있는 영역 = structures.kind="counter" (label에 글씨 그대로)
+
+## 누락 우선 원칙
+명백한 객체만 추출. 애매하면 누락이 과추출보다 훨씬 낫습니다.
+도면이 거의 비어 보이면 빈 배열 두 개를 반환하세요: {"tables":[],"structures":[]}.
+`.trim();
 
   try {
     // 우선순위: Gemini(무료) → Anthropic → OpenAI
@@ -397,7 +425,7 @@ app.post('/api/ai/floor-plan', async (req, res) => {
                 role: 'user',
                 parts: [
                   { inlineData: { mimeType: mediaType, data: b64 } },
-                  { text: `이 도면을 분석하여 ${canvasWidth}x${canvasHeight} 좌표계의 테이블 배치 JSON을 반환하세요.` },
+                  { text: `이 도면을 분석해 tables(실제 자리)와 structures(벽·문·룸·카운터)를 분리하여 0~1 정규화 좌표 JSON으로 반환하세요. 도면에서 보이는 위치를 정확히 따르고, 임의 재배치 금지.` },
                 ],
               },
             ],
@@ -446,7 +474,7 @@ app.post('/api/ai/floor-plan', async (req, res) => {
               role: 'user',
               content: [
                 { type: 'image', source: { type: 'base64', media_type: mediaType, data: b64 } },
-                { type: 'text', text: `이 도면을 분석하여 ${canvasWidth}x${canvasHeight} 좌표계의 테이블 배치 JSON을 반환하세요.` },
+                { type: 'text', text: `이 도면을 분석해 tables(실제 자리)와 structures(벽·문·룸·카운터)를 분리하여 0~1 정규화 좌표 JSON으로 반환하세요. 도면에서 보이는 위치를 정확히 따르고, 임의 재배치 금지.` },
               ],
             },
           ],
@@ -477,7 +505,7 @@ app.post('/api/ai/floor-plan', async (req, res) => {
           {
             role: 'user',
             content: [
-              { type: 'text', text: `이 도면을 분석하여 ${canvasWidth}x${canvasHeight} 좌표계의 테이블 배치 JSON을 반환하세요.` },
+              { type: 'text', text: `이 도면을 분석해 tables(실제 자리)와 structures(벽·문·룸·카운터)를 분리하여 0~1 정규화 좌표 JSON으로 반환하세요. 도면에서 보이는 위치를 정확히 따르고, 임의 재배치 금지.` },
               { type: 'image_url', image_url: { url: image } },
             ],
           },

@@ -96,6 +96,15 @@ export default function OwnerTables() {
   const [aiDraft, setAiDraft] = useState<Array<Partial<TableDoc> & { number: number; type: TableDoc["type"]; x: number; y: number }> | null>(
     null
   );
+  // AI가 인식한 구조물 (벽·문·룸 경계·카운터) — 테이블이 아니므로 Firestore에 저장 안 함, 캔버스에 시각적으로만 표시
+  type AiStructure = {
+    kind: "wall" | "door" | "room" | "counter";
+    x: number; y: number; width: number; height: number;
+    label?: string;
+  };
+  const [aiStructures, setAiStructures] = useState<AiStructure[] | null>(null);
+  // AI 분석 시점의 캔버스 크기 (도면 종횡비 기반) — LayoutCanvas가 이걸 우선 사용
+  const [aiCanvasSize, setAiCanvasSize] = useState<{ w: number; h: number } | null>(null);
 
   useEffect(() => {
     if (!floorPlanKey) return;
@@ -139,13 +148,23 @@ export default function OwnerTables() {
     }
     setAiLoading(true);
     try {
-      // 실제 LayoutCanvas와 동일한 좌표계 사용 — 도면 위치와 테이블 배치가 어긋나지 않도록
-      const AI_CW = 1000;
-      const AI_CH = 700;
+      // 1) 도면 이미지의 자연 크기를 측정 → 이미지 종횡비 그대로 캔버스 좌표계 구성
+      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const im = new Image();
+        im.onload = () => resolve(im);
+        im.onerror = () => reject(new Error("도면 이미지를 읽을 수 없어요."));
+        im.src = floorPlan;
+      });
+      // 캔버스 최대 변을 1200px로 스케일 (긴 변 기준)
+      const MAX = 1200;
+      const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+      const CW = Math.round(img.width * scale);
+      const CH = Math.round(img.height * scale);
+
       const res = await fetch("/api/ai/floor-plan", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ image: floorPlan, canvasWidth: AI_CW, canvasHeight: AI_CH }),
+        body: JSON.stringify({ image: floorPlan, canvasWidth: CW, canvasHeight: CH }),
       });
       if (!res.ok) {
         const t = await res.text();
@@ -153,45 +172,72 @@ export default function OwnerTables() {
       }
       const data = (await res.json()) as {
         tables: Array<{
-          number: number;
-          type?: TableDoc["type"];
-          x: number;
-          y: number;
-          width?: number;
-          height?: number;
+          number?: number;
+          x: number; y: number;
+          width?: number; height?: number;
           shape?: "square" | "circle";
           seats?: number;
         }>;
+        structures?: Array<{
+          kind?: "wall" | "door" | "room" | "counter";
+          x: number; y: number;
+          width: number; height: number;
+          label?: string;
+        }>;
       };
-      if (!data.tables?.length) throw new Error("도면에서 테이블을 찾지 못했어요.");
-      // 좌표·치수 클램프 + 번호 재할당으로 모델이 망가진 데이터를 보내도 안전
-      const CW = AI_CW;
-      const CH = AI_CH;
+
+      // 2) 정규화 좌표 (0~1) → 실제 픽셀로 변환
       const clamp = (v: number, min: number, max: number) =>
         Number.isFinite(v) ? Math.max(min, Math.min(max, Math.round(v))) : min;
-      // type 유효성 화이트리스트
-      const VALID_TYPES = new Set<TableDoc["type"]>(["table", "room", "door"]);
-      const cleaned = data.tables
+      // AI가 정규화 대신 픽셀로 반환할 가능성도 있어 자동 감지
+      const looksNormalized = (arr: { x: number; y: number; width?: number; height?: number }[]) => {
+        if (!arr.length) return true;
+        return arr.every((t) => (t.x ?? 0) <= 1.5 && (t.y ?? 0) <= 1.5 && (t.width ?? 0) <= 1.5 && (t.height ?? 0) <= 1.5);
+      };
+      const all = [...(data.tables ?? []), ...(data.structures ?? [])];
+      const normalized = looksNormalized(all);
+      const toPx = (v: number, isX: boolean) =>
+        normalized ? Math.round(v * (isX ? CW : CH)) : Math.round(v);
+
+      // 3) 테이블 정제 — 좌석만 추출, 번호 1부터 재부여
+      const cleanedTables = (data.tables ?? [])
         .map((t) => {
-          const type = VALID_TYPES.has(t.type as TableDoc["type"]) ? (t.type as TableDoc["type"]) : "table";
-          const defaultW = type === "room" ? 150 : type === "door" ? 60 : 70;
-          const defaultH = type === "room" ? 80 : type === "door" ? 60 : 70;
-          const width = clamp(t.width ?? defaultW, 30, 300);
-          const height = clamp(t.height ?? defaultH, 30, 300);
+          const w = clamp(toPx(t.width ?? 0.06, true) || 70, 30, 300);
+          const h = clamp(toPx(t.height ?? 0.06, false) || 70, 30, 300);
           return {
-            type,
-            x: clamp(t.x, 0, CW - width),
-            y: clamp(t.y, 0, CH - height),
-            width,
-            height,
+            type: "table" as TableDoc["type"], // AI 응답은 자리만 받음. room/door는 structures로 분리
+            x: clamp(toPx(t.x, true), 0, CW - w),
+            y: clamp(toPx(t.y, false), 0, CH - h),
+            width: w,
+            height: h,
             shape: (t.shape === "circle" ? "circle" : "square") as "square" | "circle",
             seats: clamp(t.seats ?? 4, 1, 30),
           };
         })
-        // 번호는 모델 출력 무시하고 1부터 재부여 (중복/누락 방지)
         .map((t, i) => ({ ...t, number: i + 1 }));
-      setAiDraft(cleaned);
-      showToast(`AI가 ${cleaned.length}개 자리를 제안했어요. 미리보기를 확인하세요.`, "success");
+
+      // 4) 구조물 정제 — 벽/문/룸/카운터 (Firestore 저장 X, 시각 안내용)
+      const VALID_KINDS = new Set(["wall", "door", "room", "counter"]);
+      const cleanedStructures = (data.structures ?? [])
+        .filter((s) => VALID_KINDS.has(s.kind ?? "wall"))
+        .map((s) => ({
+          kind: (s.kind ?? "wall") as AiStructure["kind"],
+          x: clamp(toPx(s.x, true), 0, CW),
+          y: clamp(toPx(s.y, false), 0, CH),
+          width: clamp(toPx(s.width, true) || 20, 4, CW),
+          height: clamp(toPx(s.height, false) || 20, 4, CH),
+          label: s.label?.slice(0, 20),
+        }));
+
+      if (cleanedTables.length === 0 && cleanedStructures.length === 0) {
+        throw new Error("도면에서 자리나 구조물을 찾지 못했어요. 더 선명한 이미지를 시도해 주세요.");
+      }
+
+      setAiCanvasSize({ w: CW, h: CH });
+      setAiDraft(cleanedTables);
+      setAiStructures(cleanedStructures.length ? cleanedStructures : null);
+      const msg = `AI가 자리 ${cleanedTables.length}개${cleanedStructures.length ? ` · 구조물 ${cleanedStructures.length}개` : ""}를 인식했어요. 미리보기를 확인하세요.`;
+      showToast(msg, "success");
     } catch (e: any) {
       const msg = String(e?.message ?? "");
       if (msg.includes("AI_NOT_CONFIGURED")) {
@@ -247,6 +293,8 @@ export default function OwnerTables() {
       }
     }
     setAiDraft(null);
+    setAiStructures(null);
+    setAiCanvasSize(null);
     if (deleteFails === 0 && createFails === 0) {
       showToast("AI 초안을 적용했어요. 드래그로 미세 조정하세요.", "success");
     } else {
@@ -255,6 +303,12 @@ export default function OwnerTables() {
         "error"
       );
     }
+  };
+
+  const discardAiDraft = () => {
+    setAiDraft(null);
+    setAiStructures(null);
+    setAiCanvasSize(null);
   };
 
   useEffect(() => {
@@ -468,7 +522,7 @@ export default function OwnerTables() {
                 aiDraftCount={aiDraft?.length ?? 0}
                 onRunAi={runAiDraft}
                 onApplyAi={applyAiDraft}
-                onDiscardAi={() => setAiDraft(null)}
+                onDiscardAi={discardAiDraft}
               />
               <LayoutCanvas
                 tables={sorted}
@@ -478,6 +532,8 @@ export default function OwnerTables() {
                 backgroundDataUrl={floorPlan}
                 backgroundOpacity={floorPlanOpacity}
                 aiDraft={aiDraft}
+                aiStructures={aiStructures}
+                canvasOverride={aiCanvasSize}
               />
             </>
           )}
@@ -1151,18 +1207,49 @@ interface CanvasProps {
   backgroundDataUrl?: string | null;
   backgroundOpacity?: number;
   aiDraft?: Array<Partial<TableDoc> & { number: number; type: TableDoc["type"]; x: number; y: number }> | null;
+  aiStructures?: Array<{ kind: "wall" | "door" | "room" | "counter"; x: number; y: number; width: number; height: number; label?: string }> | null;
+  /** AI 분석 시점에 정한 캔버스 크기 (도면 종횡비 기반). 있으면 기존 maxX/Y 계산보다 우선. */
+  canvasOverride?: { w: number; h: number } | null;
 }
 
-function LayoutCanvas({ tables, selectedId, onSelect, onMove, backgroundDataUrl, backgroundOpacity = 35, aiDraft }: CanvasProps) {
+function LayoutCanvas({
+  tables, selectedId, onSelect, onMove,
+  backgroundDataUrl, backgroundOpacity = 35,
+  aiDraft, aiStructures, canvasOverride,
+}: CanvasProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
-  // 드래그 중 임시 위치 (Firestore 저장 전 화면 즉시 반영)
   const [drag, setDrag] = useState<{ id: string; x: number; y: number } | null>(null);
+  // 모바일·소화면용 줌 (0.5x ~ 2x)
+  const [zoom, setZoom] = useState(1);
 
-  // 최대 좌표로 캔버스 크기 계산 (최소 800x600)
+  // 캔버스 크기: AI 오버라이드 > 테이블 최대 좌표 > 최소 800x600
   const maxX = tables.reduce((m, t) => Math.max(m, (t.x ?? 0) + (t.width ?? 70)), 0);
   const maxY = tables.reduce((m, t) => Math.max(m, (t.y ?? 0) + (t.height ?? 70)), 0);
-  const canvasW = Math.max(800, maxX + 100);
-  const canvasH = Math.max(600, maxY + 100);
+  const canvasW = canvasOverride?.w ?? Math.max(800, maxX + 100);
+  const canvasH = canvasOverride?.h ?? Math.max(600, maxY + 100);
+
+  // 전체 보기 — wrap 크기에 맞춰 자동 줌
+  const fitToScreen = () => {
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+    const rect = wrap.getBoundingClientRect();
+    const sx = (rect.width - 16) / canvasW;
+    const sy = (rect.height - 16) / canvasH;
+    setZoom(Math.max(0.3, Math.min(1, Math.min(sx, sy))));
+  };
+
+  const structureStyleByKind: Record<string, string> = {
+    wall: "bg-[var(--color-ink-700)]",
+    door: "bg-transparent border-2 border-dashed border-[var(--color-warn)]",
+    room: "bg-[var(--color-navy-50)]/40 border-[1.5px] border-dashed border-[var(--color-navy-300)]",
+    counter: "bg-[var(--color-mint-50)]/60 border-[1.5px] border-[var(--color-mint-300)]",
+  };
+  const structureLabelByKind: Record<string, string> = {
+    wall: "벽",
+    door: "출입구",
+    room: "룸",
+    counter: "카운터",
+  };
 
   const startDrag = (e: React.PointerEvent, table: TableDoc) => {
     e.preventDefault();
@@ -1178,8 +1265,9 @@ function LayoutCanvas({ tables, selectedId, onSelect, onMove, backgroundDataUrl,
     let moved = false;
 
     const onMove = (ev: PointerEvent) => {
-      const dx = ev.clientX - startClientX;
-      const dy = ev.clientY - startClientY;
+      // 줌 상태 보정: 화면 픽셀 이동량을 캔버스 좌표 이동량으로 환산
+      const dx = (ev.clientX - startClientX) / Math.max(0.01, zoom);
+      const dy = (ev.clientY - startClientY) / Math.max(0.01, zoom);
       if (Math.abs(dx) + Math.abs(dy) > 3) moved = true;
       lastX = Math.max(0, origX + dx);
       lastY = Math.max(0, origY + dy);
@@ -1209,27 +1297,77 @@ function LayoutCanvas({ tables, selectedId, onSelect, onMove, backgroundDataUrl,
   return (
     <div className="mt-4">
       <Card padding="none" className="overflow-hidden">
-        <div className="px-4 py-2.5 bg-[var(--color-navy-50)] border-b border-[var(--color-line)] flex items-center gap-2 text-[12px] font-semibold text-[var(--color-ink-700)]">
-          <Move className="w-3.5 h-3.5" />
-          드래그해서 배치하기 · 탭으로 선택 · 우측에서 크기·형태 변경
+        <div className="px-3 py-2 bg-[var(--color-navy-50)] border-b border-[var(--color-line)] flex items-center gap-1.5 text-[11px] sm:text-[12px] font-semibold text-[var(--color-ink-700)] flex-wrap">
+          <Move className="w-3.5 h-3.5 shrink-0" />
+          <span className="hidden sm:inline">드래그 · 탭 · 우측에서 편집</span>
+          <span className="sm:hidden">드래그·탭</span>
+          {/* 줌 컨트롤 — 모바일 작은 화면에서 한눈 보기 */}
+          <div className="ml-auto inline-flex items-center gap-0.5">
+            <button
+              onClick={() => setZoom((z) => Math.max(0.3, +(z - 0.1).toFixed(2)))}
+              className="h-7 w-7 rounded-md hover:bg-white text-[14px] font-bold text-[var(--color-navy-800)] flex items-center justify-center"
+              aria-label="축소"
+            >−</button>
+            <span className="text-[11px] font-bold text-[var(--color-navy-800)] w-9 text-center">{Math.round(zoom * 100)}%</span>
+            <button
+              onClick={() => setZoom((z) => Math.min(2, +(z + 0.1).toFixed(2)))}
+              className="h-7 w-7 rounded-md hover:bg-white text-[14px] font-bold text-[var(--color-navy-800)] flex items-center justify-center"
+              aria-label="확대"
+            >+</button>
+            <button
+              onClick={fitToScreen}
+              className="h-7 px-2 rounded-md hover:bg-white text-[10.5px] font-bold text-[var(--color-navy-800)]"
+              aria-label="전체 보기"
+            >전체</button>
+            <button
+              onClick={() => setZoom(1)}
+              className="h-7 px-2 rounded-md hover:bg-white text-[10.5px] font-bold text-[var(--color-navy-800)] hidden sm:block"
+              aria-label="100%"
+            >1:1</button>
+          </div>
         </div>
         <div
           ref={wrapRef}
           className="relative overflow-auto bg-white h-[min(70vh,640px)] lg:h-[min(78vh,820px)]"
         >
+          {/* 줌 시 스크롤바가 정확히 작동하도록 외부 wrapper가 시각 크기를 잡고, 내부가 scale */}
+          <div style={{ width: canvasW * zoom, height: canvasH * zoom }}>
           <div
-            className="relative bg-[repeating-linear-gradient(0deg,transparent,transparent_39px,#eef2f8_39px,#eef2f8_40px),repeating-linear-gradient(90deg,transparent,transparent_39px,#eef2f8_39px,#eef2f8_40px)]"
-            style={{ width: canvasW, height: canvasH }}
+            className="relative origin-top-left bg-[repeating-linear-gradient(0deg,transparent,transparent_39px,#eef2f8_39px,#eef2f8_40px),repeating-linear-gradient(90deg,transparent,transparent_39px,#eef2f8_39px,#eef2f8_40px)]"
+            style={{ width: canvasW, height: canvasH, transform: `scale(${zoom})`, transformOrigin: "top left" }}
           >
             {backgroundDataUrl && (
               <img
                 src={backgroundDataUrl}
                 alt="도면 배경"
                 draggable={false}
-                className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
+                // AI 캔버스 오버라이드 모드(도면 종횡비와 일치): stretch fill로 AI 좌표와 도면 위치 정확 매칭
+                // 그렇지 않은 일반 모드: contain으로 비율 유지
+                className={cn(
+                  "absolute inset-0 w-full h-full pointer-events-none select-none",
+                  canvasOverride ? "object-fill" : "object-contain"
+                )}
                 style={{ opacity: backgroundOpacity / 100 }}
               />
             )}
+            {/* AI가 인식한 구조물 — 벽/문/룸/카운터, 시각 안내용 (Firestore에 저장되지 않음) */}
+            {aiStructures?.map((s, i) => (
+              <div
+                key={`struct-${i}`}
+                className={cn(
+                  "absolute pointer-events-none flex items-center justify-center",
+                  structureStyleByKind[s.kind] ?? "bg-[var(--color-ink-200)]/40"
+                )}
+                style={{ left: s.x, top: s.y, width: s.width, height: s.height }}
+                title={s.label || structureLabelByKind[s.kind]}
+              >
+                {(s.kind === "room" || s.kind === "counter") && (
+                  <span className="text-[10px] font-bold text-[var(--color-ink-700)] px-1 bg-white/70 rounded">
+                    {s.label || structureLabelByKind[s.kind]}
+                  </span>
+                )}
+              </div>
+            ))}
             {aiDraft?.map((d) => {
               const w = d.width ?? 70;
               const h = d.height ?? 70;
@@ -1302,6 +1440,7 @@ function LayoutCanvas({ tables, selectedId, onSelect, onMove, backgroundDataUrl,
                 </div>
               );
             })}
+          </div>
           </div>
         </div>
       </Card>

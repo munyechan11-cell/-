@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Users,
@@ -15,7 +16,10 @@ import {
   Minus,
   Receipt,
   Briefcase,
+  List,
+  Move,
 } from "lucide-react";
+import { cn } from "../../lib/cn";
 import { OwnerShell } from "../../components/layout/OwnerShell";
 import { Card } from "../../components/ui/Card";
 import { EmptyState } from "../../components/ui/EmptyState";
@@ -152,11 +156,15 @@ export default function OwnerDashboard() {
       {/* Tables + Quick links */}
       <div className="mt-6 lg:mt-8 grid grid-cols-1 lg:grid-cols-3 gap-5 lg:gap-6">
         <div className="lg:col-span-2">
-          <div className="flex items-center justify-between mb-3 px-1">
+          <div className="flex items-center justify-between mb-3 px-1 gap-2">
             <h2 className="headline-sub">테이블 현황 ({tables.length})</h2>
-            <Link to="/biz/owner/tables" className="text-[13px] font-bold text-[var(--color-navy-700)]">
-              편집 →
-            </Link>
+            <div className="flex items-center gap-1.5">
+              {/* 리스트 / 배치도 토글 — localStorage로 사장님 선호 기억 */}
+              <DashboardTableViewToggle />
+              <Link to="/biz/owner/tables" className="text-[13px] font-bold text-[var(--color-navy-700)] hidden sm:inline">
+                편집 →
+              </Link>
+            </div>
           </div>
           {tables.length === 0 ? (
             <EmptyState
@@ -171,29 +179,7 @@ export default function OwnerDashboard() {
               tone="navy"
             />
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {[...tables]
-                .sort((a, b) => {
-                  const order = { occupied: 0, dirty: 1, paid: 2, available: 3 } as const;
-                  return (
-                    order[a.status ?? "available"] - order[b.status ?? "available"] || a.number - b.number
-                  );
-                })
-                .map((t) => (
-                  <Card key={t.id} padding="md" className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-xl bg-[var(--color-navy-50)] text-[var(--color-navy-800)] font-extrabold inline-flex items-center justify-center">
-                      {t.number}
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-[14px] font-bold text-[var(--color-navy-900)]">
-                        {t.type === "room" ? "룸" : t.type === "door" ? "출입구" : "테이블"} {t.number}
-                      </p>
-                      {t.type !== "door" && <p className="body-sm">{t.seats}인</p>}
-                    </div>
-                    <StatusBadge status={t.status ?? "available"} />
-                  </Card>
-                ))}
-            </div>
+            <DashboardTableArea tables={tables} />
           )}
         </div>
 
@@ -258,6 +244,155 @@ function DeltaPill({ value, suffix }: { value: number; suffix?: string }) {
       {suffix}
     </span>
   );
+}
+
+// 대시보드 테이블 영역 — 리스트 또는 미니 배치도 (localStorage 유지)
+type TableLite = {
+  id: string;
+  number: number;
+  type?: string;
+  status?: "available" | "occupied" | "paid" | "dirty";
+  seats?: number;
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  shape?: "square" | "circle";
+};
+
+const VIEW_KEY = "gyeol:dashboard-tables-view";
+
+function useDashboardTableView() {
+  const [view, setView] = useState<"list" | "layout">(() => {
+    if (typeof window === "undefined") return "list";
+    return (localStorage.getItem(VIEW_KEY) as "list" | "layout") || "list";
+  });
+  const change = (v: "list" | "layout") => {
+    setView(v);
+    if (typeof window !== "undefined") localStorage.setItem(VIEW_KEY, v);
+  };
+  return [view, change] as const;
+}
+
+function DashboardTableViewToggle() {
+  const [view, setView] = useDashboardTableView();
+  return (
+    <div className="inline-flex p-0.5 bg-[var(--color-navy-50)] rounded-full">
+      <button
+        onClick={() => setView("list")}
+        className={cn(
+          "h-7 px-2.5 rounded-full text-[11.5px] font-bold inline-flex items-center gap-1 transition-all",
+          view === "list" ? "bg-white text-[var(--color-navy-800)] shadow-[var(--shadow-press)]" : "text-[var(--color-ink-500)]"
+        )}
+      >
+        <List className="w-3 h-3" /> 리스트
+      </button>
+      <button
+        onClick={() => setView("layout")}
+        className={cn(
+          "h-7 px-2.5 rounded-full text-[11.5px] font-bold inline-flex items-center gap-1 transition-all",
+          view === "layout" ? "bg-white text-[var(--color-navy-800)] shadow-[var(--shadow-press)]" : "text-[var(--color-ink-500)]"
+        )}
+      >
+        <Move className="w-3 h-3" /> 배치도
+      </button>
+    </div>
+  );
+}
+
+function DashboardTableArea({ tables }: { tables: TableLite[] }) {
+  const [view] = useDashboardTableView();
+  if (view === "layout") return <DashboardLayoutMini tables={tables} />;
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+      {[...tables]
+        .sort((a, b) => {
+          const order = { occupied: 0, dirty: 1, paid: 2, available: 3 } as const;
+          return (
+            order[a.status ?? "available"] - order[b.status ?? "available"] || a.number - b.number
+          );
+        })
+        .map((t) => (
+          <Card key={t.id} padding="md" className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-xl bg-[var(--color-navy-50)] text-[var(--color-navy-800)] font-extrabold inline-flex items-center justify-center">
+              {t.number}
+            </div>
+            <div className="flex-1">
+              <p className="text-[14px] font-bold text-[var(--color-navy-900)]">
+                {t.type === "room" ? "룸" : t.type === "door" ? "출입구" : "테이블"} {t.number}
+              </p>
+              {t.type !== "door" && <p className="body-sm">{t.seats}인</p>}
+            </div>
+            <StatusBadge status={t.status ?? "available"} />
+          </Card>
+        ))}
+    </div>
+  );
+}
+
+// 미니 배치도 — 읽기 전용. 상태 색상 표시. 클릭 → 편집 페이지
+function DashboardLayoutMini({ tables }: { tables: TableLite[] }) {
+  const maxX = tables.reduce((m, t) => Math.max(m, (t.x ?? 0) + (t.width ?? 70)), 0);
+  const maxY = tables.reduce((m, t) => Math.max(m, (t.y ?? 0) + (t.height ?? 70)), 0);
+  const W = Math.max(600, maxX + 60);
+  const H = Math.max(400, maxY + 60);
+
+  return (
+    <Card padding="none" className="overflow-hidden">
+      <div className="px-3 py-2 bg-[var(--color-navy-50)] border-b border-[var(--color-line)] flex items-center gap-2 text-[11.5px] font-semibold text-[var(--color-ink-700)]">
+        <Move className="w-3.5 h-3.5" />
+        실시간 배치도 (탭하면 편집)
+        <div className="ml-auto flex items-center gap-2 text-[10.5px]">
+          <Dot color="bg-[var(--color-mint-500)]" /> 사용 중
+          <Dot color="bg-[var(--color-warn)]" /> 정리
+          <Dot color="bg-[var(--color-navy-300)]" /> 결제완료
+        </div>
+      </div>
+      <Link to="/biz/owner/tables" className="block">
+        <div className="relative overflow-auto bg-white h-[300px] sm:h-[380px] lg:h-[500px]">
+          <div
+            className="relative bg-[repeating-linear-gradient(0deg,transparent,transparent_39px,#eef2f8_39px,#eef2f8_40px),repeating-linear-gradient(90deg,transparent,transparent_39px,#eef2f8_39px,#eef2f8_40px)]"
+            style={{ width: W, height: H }}
+          >
+            {tables.map((t) => {
+              const w = t.width ?? (t.type === "room" ? 150 : 70);
+              const h = t.height ?? (t.type === "room" ? 80 : 70);
+              const color =
+                t.type === "door"
+                  ? "bg-[#fff1e0] text-[var(--color-warn)] border-[var(--color-warn)]/40"
+                  : t.status === "occupied"
+                  ? "bg-[var(--color-mint-100)] text-[var(--color-mint-700)] border-[var(--color-mint-400)]"
+                  : t.status === "dirty"
+                  ? "bg-[#fff1e0] text-[var(--color-warn)] border-[var(--color-warn)]/40"
+                  : t.status === "paid"
+                  ? "bg-[var(--color-navy-100)] text-[var(--color-navy-700)] border-[var(--color-navy-300)]"
+                  : "bg-white text-[var(--color-navy-800)] border-[var(--color-line)]";
+              const shape = t.shape === "circle" ? "rounded-full" : "rounded-[12px]";
+              return (
+                <div
+                  key={t.id}
+                  className={cn("absolute border-2 flex flex-col items-center justify-center", color, shape)}
+                  style={{ left: t.x ?? 40, top: t.y ?? 40, width: w, height: h }}
+                  title={`${t.type === "room" ? "룸" : t.type === "door" ? "출입구" : "테이블"} ${t.number}`}
+                >
+                  <p className="text-[16px] font-extrabold leading-none">
+                    {t.type === "door" ? "출입" : t.number}
+                  </p>
+                  {t.type !== "door" && (
+                    <p className="text-[10px] font-semibold opacity-80 mt-0.5">{t.seats}인</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </Link>
+    </Card>
+  );
+}
+
+function Dot({ color }: { color: string }) {
+  return <span className={cn("inline-block w-2 h-2 rounded-full", color)} />;
 }
 
 function StatusBadge({ status }: { status: "available" | "occupied" | "paid" | "dirty" }) {
