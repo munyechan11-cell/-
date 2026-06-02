@@ -26,6 +26,7 @@ import { getCustomerTier } from "../lib/tier";
 import { relayOrderToPos } from "../lib/pos";
 import { printReceipt } from "../lib/receipt";
 import { printReceiptViaUsb, getAuthorizedPrinters } from "../lib/thermalPrinter";
+import { enqueuePrintJob } from "../lib/printBridge";
 import type {
   User,
   Visit,
@@ -994,6 +995,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const owner = users.find((u) => u.id === storeId && u.role === "owner");
       const hasPosApi =
         owner?.posVendor && owner.posVendor !== "none" && owner.posApiKey;
+
+      // ④ 영수증 브릿지(옵션 B) — 사장님 PC 에이전트가 페어링되어 있으면 큐 발행.
+      // 본 인쇄 흐름과 병렬 — 실패해도 ①②③ 폴백이 계속 동작하므로 await 하지 않음.
+      if (owner?.printBridgeEnabled) {
+        void enqueuePrintJob({
+          storeId,
+          type: "receipt",
+          payload: { storeName: owner?.restaurantName ?? "결", order },
+        });
+      }
 
       // 인쇄 시도: ① POS API → ② USB 프린터 직결 → ③ 브라우저 팝업 (폴백)
       const tryThermalThenPopup = async (failureFooter?: string) => {

@@ -48,6 +48,12 @@ export interface User {
   posVendor?: string;
   /** POS API Key 또는 매장 코드 (벤더별로 의미 다름). 비어 있으면 영수증 인쇄 폴백 */
   posApiKey?: string;
+  /** 영수증 인쇄 브릿지 사용 의도 (사장님 토글). PC 트레이 앱이 페어링되면 자동으로 큐 발행 */
+  printBridgeEnabled?: boolean;
+  /** 페어링된 에이전트 식별자 (디바이스명·OS·페어링 시각). 페어링 해제 시 비움 */
+  printBridgeDevice?: { name?: string; pairedAt: string };
+  /** 에이전트 마지막 하트비트 시각 — 60초 이상 지나면 '오프라인'으로 표시 */
+  printBridgeHeartbeatAt?: string;
   storeConfig?: StoreConfig;
   rewardBalance?: number;
   lat?: number;

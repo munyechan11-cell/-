@@ -15,6 +15,7 @@ import {
   getAuthorizedPrinters,
   printTestPage,
 } from "../../lib/thermalPrinter";
+import { issuePairingCode } from "../../lib/printBridge";
 import type { Industry, RewardType } from "../../lib/types";
 
 export default function BrandSettings() {
@@ -269,6 +270,18 @@ export default function BrandSettings() {
           )}
         </Sec>
 
+        {/* ===== 영수증 자동 인쇄 (브릿지) — 옵션 B ===== */}
+        <PrintBridgeSection
+          storeId={storeId}
+          ownerName={currentUser.restaurantName}
+          enabled={!!currentUser.printBridgeEnabled}
+          device={currentUser.printBridgeDevice}
+          onToggle={async (v) => {
+            await updateBrandSettings(storeId, { printBridgeEnabled: v });
+            showToast(v ? "영수증 자동 인쇄가 켜졌어요." : "자동 인쇄를 껐어요.", "success");
+          }}
+        />
+
         <Sec title="업종 · 보상">
           <div className="grid grid-cols-4 gap-2">
             {(["cafe", "meat", "bakery", "general"] as Industry[]).map((i) => (
@@ -401,6 +414,24 @@ function Pill({ active, onClick, children }: { active: boolean; onClick: () => v
   );
 }
 
+// 라벨 없는 작은 토글 — 카드 우측 정렬용
+function ToggleSwitch({ value, onChange }: { value: boolean; onChange: (v: boolean) => void | Promise<void> }) {
+  return (
+    <button
+      onClick={() => onChange(!value)}
+      role="switch"
+      aria-checked={value}
+      className={`w-11 h-6 rounded-full relative transition-colors shrink-0 ${
+        value ? "bg-[var(--color-navy-700)]" : "bg-[var(--color-ink-100)]"
+      }`}
+    >
+      <span
+        className={`absolute top-0.5 ${value ? "left-[22px]" : "left-0.5"} w-5 h-5 rounded-full bg-white shadow transition-all`}
+      />
+    </button>
+  );
+}
+
 function Toggle({ label, value, onChange }: { label: string; value: boolean; onChange: (v: boolean) => void }) {
   return (
     <button
@@ -418,5 +449,167 @@ function Toggle({ label, value, onChange }: { label: string; value: boolean; onC
       </span>
       <span className="text-[14px] font-semibold text-[var(--color-navy-900)]">{label}</span>
     </button>
+  );
+}
+
+// ============================================================
+// 영수증 자동 인쇄 브릿지 — 사장님 PC 에이전트 페어링 섹션 (옵션 B)
+// ============================================================
+function PrintBridgeSection({
+  storeId,
+  ownerName,
+  enabled,
+  device,
+  onToggle,
+}: {
+  storeId: string;
+  ownerName?: string;
+  enabled: boolean;
+  device?: { name?: string; pairedAt: string };
+  onToggle: (v: boolean) => Promise<void>;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [code, setCode] = useState<string | null>(null);
+  const [expiresAt, setExpiresAt] = useState<number | null>(null);
+  const [remaining, setRemaining] = useState(0);
+
+  // 카운트다운 — 5분 안에 안 쓰면 폐기
+  useEffect(() => {
+    if (!expiresAt) return;
+    const tick = () => {
+      const r = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
+      setRemaining(r);
+      if (r === 0) {
+        setCode(null);
+        setExpiresAt(null);
+      }
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [expiresAt]);
+
+  const requestCode = async () => {
+    setBusy(true);
+    try {
+      const { code, expiresAt } = await issuePairingCode(storeId, ownerName);
+      setCode(code);
+      setExpiresAt(new Date(expiresAt).getTime());
+      showToast("페어링 코드가 발급됐어요. PC 에이전트에 입력하세요.", "success");
+    } catch (e: any) {
+      showToast(`코드 발급 실패: ${e?.message ?? ""}`, "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const copyCode = async () => {
+    if (!code) return;
+    try {
+      await navigator.clipboard.writeText(code);
+      showToast("코드를 복사했어요.", "info");
+    } catch {
+      showToast("복사에 실패했어요. 직접 입력해 주세요.", "error");
+    }
+  };
+
+  const mmss = (s: number) => {
+    const m = Math.floor(s / 60);
+    const r = s % 60;
+    return `${m}:${String(r).padStart(2, "0")}`;
+  };
+
+  return (
+    <Sec title="영수증 자동 인쇄 (브릿지)">
+      <div className="space-y-3">
+        {/* 토글 */}
+        <div className="p-3.5 rounded-[14px] border border-[var(--color-line)] bg-white">
+          <div className="flex items-start gap-3">
+            <Printer className="w-5 h-5 text-[var(--color-navy-700)] mt-0.5 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-[14px] font-bold text-[var(--color-navy-900)]">자동 인쇄 사용</p>
+              <p className="text-[12px] text-[var(--color-ink-600)] leading-relaxed mt-0.5">
+                매장 PC에 결 인쇄 브릿지를 설치하면, 새 주문이 들어올 때마다
+                <br />그 PC의 영수증 프린터에서 자동으로 출력됩니다.
+              </p>
+            </div>
+            <ToggleSwitch value={enabled} onChange={onToggle} />
+          </div>
+        </div>
+
+        {/* 페어링 상태 */}
+        {device ? (
+          <div className="p-3.5 rounded-[14px] bg-[var(--color-mint-50)] border border-[var(--color-mint-200)]">
+            <div className="flex items-start gap-2">
+              <CheckCircle2 className="w-4 h-4 text-[var(--color-mint-700)] mt-0.5 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-[13px] font-bold text-[var(--color-mint-700)]">
+                  연결됨{device.name ? ` · ${device.name}` : ""}
+                </p>
+                <p className="text-[11.5px] text-[var(--color-mint-700)] font-medium opacity-90 mt-0.5">
+                  {new Date(device.pairedAt).toLocaleString("ko-KR")} 페어링
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="p-3.5 rounded-[14px] bg-[var(--color-navy-50)] border border-[var(--color-navy-200)]">
+            <div className="flex items-start gap-2">
+              <Info className="w-4 h-4 text-[var(--color-navy-700)] mt-0.5 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-[12px] text-[var(--color-navy-700)] font-semibold leading-relaxed">
+                  아직 페어링된 PC가 없어요.
+                  <br />
+                  <span className="font-medium opacity-90">
+                    PC에 결 인쇄 브릿지 프로그램을 깐 뒤, 아래 코드를 입력하면 연결됩니다.
+                  </span>
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 코드 발급·표시 */}
+        {code ? (
+          <div className="p-4 rounded-[14px] bg-white border-2 border-[var(--color-navy-700)]">
+            <p className="text-[11px] font-bold text-[var(--color-ink-500)] uppercase tracking-wider text-center">
+              페어링 코드 · {mmss(remaining)} 남음
+            </p>
+            <button
+              onClick={copyCode}
+              className="w-full mt-2 text-[34px] font-extrabold text-[var(--color-navy-900)] tabular-nums tracking-[0.25em] text-center active:scale-[0.97] transition-transform"
+              aria-label="코드 복사"
+            >
+              {code}
+            </button>
+            <p className="text-[11.5px] text-[var(--color-ink-500)] text-center mt-2">
+              PC 트레이의 결 아이콘 → "매장 연결" → 코드 입력
+            </p>
+          </div>
+        ) : (
+          <Button
+            block
+            variant="outline"
+            onClick={requestCode}
+            loading={busy}
+            leftIcon={<KeyRound className="w-4 h-4" />}
+            disabled={!enabled}
+          >
+            {device ? "다시 페어링하기" : "페어링 코드 발급"}
+          </Button>
+        )}
+
+        {/* 다운로드 가이드 */}
+        <div className="text-[11.5px] text-[var(--color-ink-500)] leading-relaxed border-t border-[var(--color-line)] pt-3">
+          <p className="font-bold text-[var(--color-ink-700)] mb-1">설치 가이드</p>
+          <ol className="list-decimal pl-4 space-y-0.5">
+            <li>매장 PC에서 "결 인쇄 브릿지" 프로그램 다운로드 (준비 중)</li>
+            <li>설치 → 우하단 트레이에 🟢 아이콘 생김</li>
+            <li>여기서 코드 발급 → 트레이 아이콘 → "매장 연결" → 코드 입력</li>
+            <li>프린터 선택 → 테스트 인쇄 → 끝!</li>
+          </ol>
+        </div>
+      </div>
+    </Sec>
   );
 }
