@@ -9,6 +9,8 @@
   "scripts": {
     "dev": "tsx server.ts",
     "build": "npm run clean && vite build && npx esbuild server.ts --bundle --platform=node --format=esm --outfile=dist/server.mjs --packages=external",
+    "build:static": "npm run clean && vite build",
+    "build:server": "npx rimraf dist/server.mjs && npx esbuild server.ts --bundle --platform=node --format=esm --outfile=dist/server.mjs --packages=external",
     "start": "node dist/server.mjs",
     "preview": "vite preview",
     "clean": "npx rimraf dist",

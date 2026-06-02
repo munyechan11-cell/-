@@ -646,6 +646,16 @@ async function startServer() {
       appType: "spa",
     });
     app.use(vite.middlewares);
+  } else if (process.env.SERVE_STATIC === "false") {
+    // API 전용 모드 — Static Site 가 프론트를 따로 호스팅함 (Render Static Site + CDN)
+    // 정적 파일 서빙·SPA fallback 둘 다 끔. 알려지지 않은 경로는 404 로 끝.
+    app.use((req, res, next) => {
+      if (req.method === "GET" && req.path === "/") {
+        return res.json({ ok: true, mode: "api-only" });
+      }
+      next();
+    });
+    console.log("[Mode] API-only (SERVE_STATIC=false)");
   } else {
     // 2. Production: Concurrent path detection
     const fs = await import('fs');

@@ -31,6 +31,7 @@ import { useStore } from "../../store/store";
 import { cn } from "../../lib/cn";
 import type { TableDoc, TableStatus } from "../../lib/types";
 import { showToast } from "../../lib/toast";
+import { api } from "../../lib/api";
 
 // 도면 이미지 압축: 최대 폭 1280px, JPEG 0.8 — Firestore 1MB 제한 대응 + Vision API 토큰 절약
 async function compressImageToDataUrl(file: File, maxWidth = 1280): Promise<string> {
@@ -230,7 +231,7 @@ export default function OwnerTables() {
       const CW = Math.round(img.width * scale);
       const CH = Math.round(img.height * scale);
 
-      const res = await fetch("/api/ai/floor-plan", {
+      const res = await fetch(api("/api/ai/floor-plan"), {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ image: floorPlan, canvasWidth: CW, canvasHeight: CH }),

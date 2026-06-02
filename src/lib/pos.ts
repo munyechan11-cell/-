@@ -1,4 +1,5 @@
 import type { Order } from "./types";
+import { api } from "./api";
 
 /**
  * 서버의 /api/order/relay-to-pos 가 푸드테크 형식으로 받기 때문에
@@ -34,7 +35,7 @@ export async function relayOrderToPos(
     })),
   };
   try {
-    const res = await fetch("/api/order/relay-to-pos", {
+    const res = await fetch(api("/api/order/relay-to-pos"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),

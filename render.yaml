@@ -1,21 +1,25 @@
 services:
+  # ===== ① API 서버 (Express, server.ts) — Web Service =====
   - type: web
-    name: gyeol-pos
+    name: gyeol-api
     runtime: node
     plan: free
     region: singapore
-    # main 브랜치에 푸시되면 자동 배포
     branch: main
     autoDeploy: true
-    buildCommand: npm install && npm run build
+    buildCommand: npm install && npm run build:server
     startCommand: npm start
     healthCheckPath: /
     envVars:
       - key: NODE_VERSION
         value: 22.x
+      - key: SERVE_STATIC
+        value: "false"              # ← 정적 파일 서빙 OFF (Static Site 가 담당)
       - key: APP_URL
         fromContext: instanceUrl
-      # ===== Render 대시보드에서 값 직접 입력 (sync: false) =====
+      - key: ALLOWED_ORIGINS
+        sync: false                  # ← Static Site URL 을 여기 등록 (예: https://gyeol-app.onrender.com)
+      # ===== Render 대시보드에서 값 직접 입력 =====
       - key: FIREBASE_PROJECT_ID
         sync: false
       - key: FIREBASE_CLIENT_EMAIL
@@ -36,6 +40,31 @@ services:
         sync: false
       - key: TOSS_SECRET_KEY
         sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+
+  # ===== ② React SPA — Static Site (자동 글로벌 CDN, 무료) =====
+  - type: web
+    name: gyeol-app
+    runtime: static
+    plan: free
+    branch: main
+    autoDeploy: true
+    buildCommand: npm install && npm run build:static
+    staticPublishPath: ./dist
+    # SPA 라우팅: 모든 경로를 index.html 로 (React Router 가 처리)
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    # Vite 가 가져갈 환경변수 (VITE_ prefix)
+    envVars:
+      - key: VITE_API_URL
+        sync: false                  # ← API 서비스 URL 등록 (예: https://gyeol-api.onrender.com)
       - key: VITE_FIREBASE_API_KEY
         sync: false
       - key: VITE_FIREBASE_PROJECT_ID
