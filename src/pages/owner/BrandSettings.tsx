@@ -593,7 +593,6 @@ function PrintBridgeSection({
             onClick={requestCode}
             loading={busy}
             leftIcon={<KeyRound className="w-4 h-4" />}
-            disabled={!enabled}
           >
             {device ? "다시 페어링하기" : "페어링 코드 발급"}
           </Button>
