@@ -10,6 +10,12 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.set('trust proxy', 1);
+
+// 헬스 체크 — Render 가 부팅 후 / 와 /api/health 둘 다 폴링.
+// 둘 중 하나라도 200 응답이 없으면 'Timed Out' 으로 배포 실패 처리됨.
+// 라우터 가장 위에 둬서 다른 미들웨어 부작용을 받지 않게.
+app.get('/api/health', (_req, res) => res.json({ ok: true, ts: Date.now() }));
+app.get('/healthz', (_req, res) => res.json({ ok: true, ts: Date.now() }));
 // CORS — 운영 환경에서는 ALLOWED_ORIGINS(콤마구분) 으로 제한, 미설정이면 same-origin만 허용
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean);
 app.use(cors({

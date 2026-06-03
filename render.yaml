@@ -9,7 +9,7 @@ services:
     autoDeploy: true
     buildCommand: npm install && npm run build:server
     startCommand: npm start
-    healthCheckPath: /
+    healthCheckPath: /api/health
     envVars:
       - key: NODE_VERSION
         value: 22.x
