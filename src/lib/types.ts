@@ -177,7 +177,7 @@ export interface Order {
   items: OrderItem[];
   totalAmount: number;
   status: OrderStatus;
-  paymentStatus?: "unpaid" | "paid" | "refunded";
+  paymentStatus?: "unpaid" | "requested" | "paid" | "refunded";
   createdAt: string;
 }
 

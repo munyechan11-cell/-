@@ -360,7 +360,7 @@ function DashboardTableArea({ tables, view }: { tables: TableLite[]; view: "list
 // 테이블 상세 모달 — 누가, 얼마나 있었는지, 인원, 주문, 합계, 퇴장 처리
 // ============================================================
 function TableDetailModal({ table, onClose }: { table: TableLite; onClose: () => void }) {
-  const { users, orders, evictTable, currentUser } = useStore();
+  const { users, orders, evictTable, approvePayment, completeTable, printInterimReceipt, currentUser } = useStore();
   const storeId = currentUser?.id ?? "";
 
   // 현재 매장의 이 테이블 미결제 주문 (취소 제외)
@@ -373,8 +373,10 @@ function TableDetailModal({ table, onClose }: { table: TableLite; onClose: () =>
     )
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   const unpaidOrders = tableOrders.filter((o) => o.paymentStatus !== "paid");
+  const requestedOrders = tableOrders.filter((o) => o.paymentStatus === "requested");
   const total = tableOrders.reduce((s, o) => s + o.totalAmount, 0);
   const unpaidTotal = unpaidOrders.reduce((s, o) => s + o.totalAmount, 0);
+  const hasPaymentRequest = requestedOrders.length > 0;
 
   const occupants = (table.occupantIds ?? [])
     .map((id) => users.find((u) => u.id === id))
@@ -395,8 +397,38 @@ function TableDetailModal({ table, onClose }: { table: TableLite; onClose: () =>
       await evictTable(table.number, storeId);
       onClose();
     } catch (e: any) {
-      // showToast 는 store 측에서
       console.warn("[evictTable]", e?.message);
+    }
+  };
+
+  const handleApprove = async () => {
+    const msg = hasPaymentRequest
+      ? `손님이 ₩ ${unpaidTotal.toLocaleString()} 결제를 요청했어요. 승인 + 영수증 출력할까요?`
+      : `₩ ${unpaidTotal.toLocaleString()} 결제 승인 + 영수증 출력할까요?`;
+    if (!confirm(msg)) return;
+    try {
+      await approvePayment(storeId, table.number);
+      // 모달은 닫지 않음 — 사장님이 그 다음 '계산 완료' 누르도록 같은 화면에서
+    } catch (e: any) {
+      console.warn("[approvePayment]", e?.message);
+    }
+  };
+
+  const handleComplete = async () => {
+    if (!confirm(`테이블 ${table.number}번을 비어있음으로 정리할까요?`)) return;
+    try {
+      await completeTable(storeId, table.number);
+      onClose();
+    } catch (e: any) {
+      console.warn("[completeTable]", e?.message);
+    }
+  };
+
+  const handleInterim = async () => {
+    try {
+      await printInterimReceipt(storeId, table.number);
+    } catch (e: any) {
+      console.warn("[interim receipt]", e?.message);
     }
   };
 
@@ -433,6 +465,22 @@ function TableDetailModal({ table, onClose }: { table: TableLite; onClose: () =>
 
         {/* 본문 — 스크롤 가능 */}
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+          {/* 결제 요청 배너 — 최우선 표시 */}
+          {hasPaymentRequest && (
+            <div className="p-3.5 rounded-[14px] bg-[#fff8e6] border-2 border-[var(--color-warn)] flex items-start gap-2.5">
+              <Receipt className="w-5 h-5 text-[var(--color-warn)] mt-0.5 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-[13.5px] font-extrabold text-[var(--color-warn)]">
+                  결제 요청 ({requestedOrders.length}건)
+                </p>
+                <p className="text-[12.5px] text-[var(--color-ink-700)] mt-0.5 leading-relaxed">
+                  손님이 ₩ {unpaidTotal.toLocaleString()} 결제를 요청했어요.
+                  <br />아래 '결제 승인' 을 누르면 영수증이 출력됩니다.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* 점유 정보 */}
           {table.status === "occupied" ? (
             <>
@@ -523,22 +571,60 @@ function TableDetailModal({ table, onClose }: { table: TableLite; onClose: () =>
           )}
         </div>
 
-        {/* 액션 */}
-        <div className="px-5 py-3 border-t border-[var(--color-line)] flex items-center gap-2 shrink-0">
-          <button
-            onClick={onClose}
-            className="flex-1 h-11 rounded-[12px] bg-[var(--color-ink-50)] text-[var(--color-ink-700)] font-bold text-[13.5px]"
-          >
-            닫기
-          </button>
-          {table.status === "occupied" && (
+        {/* 액션 — 상황별 노출 */}
+        <div className="px-5 py-3 border-t border-[var(--color-line)] shrink-0 space-y-2">
+          {/* 1) 결제 승인 — 미결제 주문이 있으면 (요청 여부 무관) */}
+          {unpaidOrders.length > 0 && (
             <button
-              onClick={handleEvict}
-              className="flex-1 h-11 rounded-[12px] bg-[var(--color-danger)] text-white font-bold text-[13.5px]"
+              onClick={handleApprove}
+              className={cn(
+                "w-full h-12 rounded-[12px] font-extrabold text-[14px]",
+                hasPaymentRequest
+                  ? "bg-[var(--color-warn)] text-white"
+                  : "bg-[var(--color-navy-700)] text-white"
+              )}
             >
-              퇴장 처리
+              {hasPaymentRequest
+                ? `결제 승인 + 영수증 출력 (₩ ${unpaidTotal.toLocaleString()})`
+                : `결제 승인 (₩ ${unpaidTotal.toLocaleString()})`}
             </button>
           )}
+
+          {/* 2) 계산 완료 — paid 상태일 때 (테이블 비우기) */}
+          {table.status === "paid" && (
+            <button
+              onClick={handleComplete}
+              className="w-full h-12 rounded-[12px] bg-[var(--color-mint-500)] text-white font-extrabold text-[14px]"
+            >
+              계산 완료 → 테이블 비우기
+            </button>
+          )}
+
+          {/* 3) 부가 액션 — 중간 영수증 / 닫기 / 퇴장처리 */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onClose}
+              className="flex-1 h-10 rounded-[12px] bg-[var(--color-ink-50)] text-[var(--color-ink-700)] font-bold text-[12.5px]"
+            >
+              닫기
+            </button>
+            {tableOrders.length > 0 && (
+              <button
+                onClick={handleInterim}
+                className="flex-1 h-10 rounded-[12px] bg-white border border-[var(--color-line)] text-[var(--color-navy-700)] font-bold text-[12.5px]"
+              >
+                중간 영수증
+              </button>
+            )}
+            {table.status === "occupied" && unpaidOrders.length === 0 && (
+              <button
+                onClick={handleEvict}
+                className="flex-1 h-10 rounded-[12px] bg-white border border-[var(--color-danger)]/40 text-[var(--color-danger)] font-bold text-[12.5px]"
+              >
+                퇴장
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

@@ -71,6 +71,8 @@ export default function OwnerOrders() {
     approveCouponUse,
     rejectCouponUse,
     updateOrderStatus,
+    approvePayment,
+    completeTable,
   } = useStore();
   const storeId = effectiveStoreId;
 
@@ -92,8 +94,9 @@ export default function OwnerOrders() {
   );
 
   // 테이블별 미결제 합계 (서빙 완료 포함, 결제만 안 된 것)
+  // requested 도 포함되어 미결제로 잡힘. 따로 표시 위해 hasRequest 플래그 추가.
   const unpaidByTable = useMemo(() => {
-    const map = new Map<number, { total: number; count: number }>();
+    const map = new Map<number, { total: number; count: number; hasRequest: boolean }>();
     orders
       .filter(
         (o) =>
@@ -102,15 +105,22 @@ export default function OwnerOrders() {
           o.paymentStatus !== "paid"
       )
       .forEach((o) => {
-        const cur = map.get(o.tableNumber) ?? { total: 0, count: 0 };
+        const cur = map.get(o.tableNumber) ?? { total: 0, count: 0, hasRequest: false };
         cur.total += o.totalAmount;
         cur.count += 1;
+        if (o.paymentStatus === "requested") cur.hasRequest = true;
         map.set(o.tableNumber, cur);
       });
     return Array.from(map.entries())
       .map(([table, v]) => ({ table, ...v }))
-      .sort((a, b) => a.table - b.table);
+      .sort((a, b) => Number(b.hasRequest) - Number(a.hasRequest) || a.table - b.table);
   }, [orders, storeId]);
+
+  // 결제 요청 들어온 테이블 — 사장님이 바로 보고 승인할 수 있게 별도 카드
+  const paymentRequests = useMemo(
+    () => unpaidByTable.filter((u) => u.hasRequest),
+    [unpaidByTable]
+  );
 
   // 새 주문 도착 알림
   useEffect(() => {
@@ -200,6 +210,41 @@ export default function OwnerOrders() {
         </button>
       }
     >
+      {/* 결제 요청 — 손님이 결제하기 누른 테이블, 가장 위에 강조 */}
+      {paymentRequests.length > 0 && (
+        <div className="mb-5">
+          <h2 className="text-[14px] font-bold text-[var(--color-warn)] px-1 mb-2 flex items-center gap-1.5">
+            <ReceiptIcon className="w-4 h-4" />
+            결제 요청 ({paymentRequests.length})
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {paymentRequests.map((u) => (
+              <Card key={`req-${u.table}`} padding="md" className="border-2 border-[var(--color-warn)] bg-[#fff8e6]">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[11.5px] font-extrabold text-[var(--color-warn)] uppercase tracking-wide">
+                    💰 결제 요청
+                  </span>
+                  <span className="text-[11px] text-[var(--color-ink-700)] font-semibold">{u.count}건</span>
+                </div>
+                <p className="text-[15px] font-extrabold text-[var(--color-navy-900)]">테이블 {u.table}</p>
+                <p className="text-[18px] font-extrabold text-[var(--color-navy-900)] tabular-nums mt-1 mb-2">
+                  ₩ {u.total.toLocaleString()}
+                </p>
+                <button
+                  onClick={async () => {
+                    if (!confirm(`테이블 ${u.table}번 ₩ ${u.total.toLocaleString()} 결제 승인 + 영수증 출력?`)) return;
+                    try { await approvePayment(storeId, u.table); } catch (e: any) { console.warn(e); }
+                  }}
+                  className="w-full h-10 rounded-[10px] bg-[var(--color-warn)] text-white font-bold text-[13px]"
+                >
+                  결제 승인 + 영수증 출력
+                </button>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* 미결제 테이블 요약 */}
       {unpaidByTable.length > 0 && (
         <div className="mb-5">

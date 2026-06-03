@@ -131,12 +131,18 @@ interface StoreState {
     items: OrderItem[];
   }) => Promise<Order>;
   updateOrderStatus: (id: string, status: OrderStatus) => Promise<void>;
-  /** 현재 테이블의 미결제 주문 일괄 결제 처리. 결제 합계 반환. */
+  /** 손님 측 — 결제 요청만 보냄(paymentStatus: requested). 실제 결제는 사장님 승인. */
   payTableSession: (
     customerId: string,
     storeId: string,
     tableNumber: number
   ) => Promise<number>;
+  /** 사장님 측 — 결제 승인. paid 처리 + 총 영수증 인쇄. table.status: paid */
+  approvePayment: (storeId: string, tableNumber: number) => Promise<number>;
+  /** 사장님 측 — 계산 완료. 테이블 정리 (status: available + occupant null) */
+  completeTable: (storeId: string, tableNumber: number) => Promise<void>;
+  /** 사장님 또는 손님 측 — 중간 계산서 즉시 출력 (정식 영수증 아님 표시) */
+  printInterimReceipt: (storeId: string, tableNumber: number) => Promise<void>;
 
   // CRM
   recordCommunication: (
@@ -1069,46 +1075,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const hasPosApi =
         owner?.posVendor && owner.posVendor !== "none" && owner.posApiKey;
 
-      // ④ 영수증 브릿지(옵션 B) — 사장님 PC 에이전트가 페어링되어 있으면 큐 발행.
-      // 본 인쇄 흐름과 병렬 — 실패해도 ①②③ 폴백이 계속 동작하므로 await 하지 않음.
-      // expectedUid 로 storeId 위조 가드 (Firestore 룰이 최종 방어).
-      if (owner?.printBridgeEnabled) {
-        void enqueuePrintJob({
-          storeId,
-          type: "receipt",
-          payload: { storeName: owner?.restaurantName ?? "결", order },
-          expectedUid: storeId,
-        });
-      }
-
-      // 인쇄 시도: ① POS API → ② USB 프린터 직결 → ③ 브라우저 팝업 (폴백)
-      const tryThermalThenPopup = async (failureFooter?: string) => {
-        try {
-          const printers = await getAuthorizedPrinters();
-          if (printers.length > 0) {
-            await printReceiptViaUsb({
-              storeName: owner?.restaurantName ?? "결",
-              order,
-              footer: failureFooter,
-            });
-            return;
-          }
-        } catch (e) {
-          console.warn("[thermal print failed, falling back to popup]", e);
-        }
-        printReceipt({
-          storeName: owner?.restaurantName ?? "결",
-          order,
-          footer: failureFooter,
-        });
-      };
-
-      // 손님 화면에서는 영수증을 출력하지 않음 — 손님 브라우저에 매장 영수증 팝업이
-      // 뜨던 사고 차단. 인쇄는 매장 PC 트레이 앱(브릿지) 또는 사장님 화면에서만.
-      const isCustomer = currentUser?.role === "customer";
-      if (isCustomer) {
-        // 손님 사이드는 ④ 브릿지 큐만 발행하고 ①②③ 인쇄 흐름은 스킵.
-      } else if (hasPosApi || owner?.foodtechStoreCode) {
+      // ⚠️ 주문 시점에는 영수증 인쇄하지 않음 (정책 변경 — 2026-06).
+      //   영수증은 결제 승인 시점에 '총 영수증' 한 번만 출력.
+      //   POS API 연동만 즉시 호출 (주방 전달 등 매장 운영에 필요).
+      if (hasPosApi || owner?.foodtechStoreCode) {
         const apiKey = owner?.posApiKey || owner?.foodtechStoreCode || "";
         const ok = await relayOrderToPos(
           apiKey,
@@ -1117,13 +1087,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           owner?.posVendor
         );
         if (!ok) {
-          showToast("POS 전달 실패. 영수증을 인쇄합니다.", "info");
-          await tryThermalThenPopup("POS 전송 실패 - 수동 처리 필요");
+          console.warn("[POS relay] failed — manual handling needed");
         }
-      } else {
-        // POS 미설정 → 영수증 인쇄 (USB 프린터 있으면 직결, 없으면 팝업)
-        await tryThermalThenPopup();
       }
+      // 영수증 인쇄(①②③④) 는 모두 결제 승인 시점(approvePayment) 으로 이동.
+      // 손님이 중간에 영수증을 원하면 BillModal 의 '계산서 보기' 로 확인 가능.
 
       showToast("주문이 접수되었습니다.", "success");
       return order;
@@ -1135,10 +1103,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     await updateFirestoreDoc("orders", id, { status });
   }, []);
 
+  /**
+   * 손님이 '결제하기' — 결제 요청만 보냄. 실제 결제·영수증은 사장님 승인 시점에.
+   * 미결제 주문들의 paymentStatus 를 'requested' 로 변경 + 테이블 표시는 유지.
+   */
   const payTableSession = useCallback(
     async (customerId: string, storeId: string, tableNumber: number): Promise<number> => {
       const ordersNow = ordersRef.current;
-      const tablesNow = tablesRef.current;
       const unpaid = ordersNow.filter(
         (o) =>
           o.customerId === customerId &&
@@ -1153,13 +1124,50 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const total = unpaid.reduce((s, o) => s + o.totalAmount, 0);
 
       if (!db) {
-        // 오프라인: 개별로 큐에 적재
         for (const o of unpaid) {
-          await updateFirestoreDoc("orders", o.id, { paymentStatus: "paid" });
+          await updateFirestoreDoc("orders", o.id, { paymentStatus: "requested" });
         }
       } else {
         const batch = writeBatch(db);
         unpaid.forEach((o) => {
+          batch.set(doc(db!, "orders", o.id), { paymentStatus: "requested" }, { merge: true });
+        });
+        await batch.commit();
+      }
+
+      showToast(`결제 요청을 보냈어요. 매장에서 확인 후 결제해 주세요. (₩ ${total.toLocaleString()})`, "info");
+      return total;
+    },
+    []
+  );
+
+  /**
+   * 사장님이 '결제 승인' — 실제 결제 처리 + 총 영수증 인쇄.
+   * - paymentStatus: requested|unpaid → paid
+   * - 테이블 status: occupied → paid (정리 대기)
+   * - 영수증 인쇄 ①POS → ②USB → ③팝업 → ④브릿지 큐 모두 시도
+   */
+  const approvePayment = useCallback(
+    async (storeId: string, tableNumber: number): Promise<number> => {
+      const ordersNow = ordersRef.current;
+      const tablesNow = tablesRef.current;
+      const targets = ordersNow.filter(
+        (o) =>
+          o.storeId === storeId &&
+          o.tableNumber === tableNumber &&
+          o.status !== "cancelled" &&
+          o.paymentStatus !== "paid"
+      );
+      if (targets.length === 0) {
+        showToast("승인할 결제 요청이 없어요.", "info");
+        return 0;
+      }
+      const total = targets.reduce((s, o) => s + o.totalAmount, 0);
+
+      // 1) Firestore 일괄 업데이트: 주문 paid + 테이블 status: paid
+      if (db) {
+        const batch = writeBatch(db);
+        targets.forEach((o) => {
           batch.set(doc(db!, "orders", o.id), { paymentStatus: "paid" }, { merge: true });
         });
         const tableId = `${storeId}_${tableNumber}`;
@@ -1167,12 +1175,117 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           batch.set(doc(db, "tables", tableId), { status: "paid" }, { merge: true });
         }
         await batch.commit();
+      } else {
+        for (const o of targets) {
+          await updateFirestoreDoc("orders", o.id, { paymentStatus: "paid" });
+        }
       }
 
-      showToast(`₩ ${total.toLocaleString()} 결제 완료`, "success");
+      // 2) 총 영수증 1장 — 모든 주문 항목 합쳐서
+      const owner = users.find((u) => u.id === storeId && u.role === "owner");
+      const aggregated: Order = {
+        id: `RECEIPT_${storeId}_${tableNumber}_${Date.now()}`,
+        storeId,
+        tableNumber,
+        customerId: targets[0].customerId,
+        items: targets.flatMap((o) => o.items),
+        totalAmount: total,
+        status: "served",
+        paymentStatus: "paid",
+        createdAt: new Date().toISOString(),
+      };
+      const payload = {
+        storeName: owner?.restaurantName ?? "결",
+        order: aggregated,
+        footer: `테이블 ${tableNumber} · ${targets.length}건 합산 영수증`,
+      };
+
+      // 브릿지 큐 우선 (매장 PC 에이전트가 처리)
+      if (owner?.printBridgeEnabled) {
+        void enqueuePrintJob({
+          storeId, type: "receipt", payload, expectedUid: storeId,
+        });
+      }
+      // USB → 팝업 폴백 (사장님 화면에서 호출되는 경우만)
+      try {
+        const printers = await getAuthorizedPrinters();
+        if (printers.length > 0) {
+          await printReceiptViaUsb(payload);
+        } else {
+          printReceipt(payload);
+        }
+      } catch (e: any) {
+        try { printReceipt(payload); } catch { /* 팝업도 차단됨 — 브릿지 큐에 맡김 */ }
+      }
+
+      showToast(`₩ ${total.toLocaleString()} 결제 승인 — 영수증 출력`, "success");
       return total;
     },
-    []
+    [users]
+  );
+
+  /**
+   * 사장님 '계산 완료' — 테이블을 비어있음(available) 으로 정리.
+   * occupant 정리 + status: available + sessionStartTime 초기화.
+   * approvePayment 가 status: paid 로 둔 테이블에 대해 호출.
+   */
+  const completeTable = useCallback(async (storeId: string, tableNumber: number) => {
+    const tableId = `${storeId}_${tableNumber}`;
+    await updateFirestoreDoc("tables", tableId, {
+      status: "available",
+      currentCustomerId: null,
+      currentCustomerName: null,
+      occupantIds: [],
+      partySize: null,
+      sessionStartTime: null,
+    });
+    showToast(`테이블 ${tableNumber}번이 비었어요.`, "success");
+  }, []);
+
+  /** 선택 인쇄 — 사장님 또는 손님이 원할 때 즉시 영수증(합산 미리보기) 출력 */
+  const printInterimReceipt = useCallback(
+    async (storeId: string, tableNumber: number) => {
+      const ordersNow = ordersRef.current;
+      const open = ordersNow.filter(
+        (o) =>
+          o.storeId === storeId &&
+          o.tableNumber === tableNumber &&
+          o.status !== "cancelled"
+      );
+      if (open.length === 0) {
+        showToast("출력할 주문이 없어요.", "info");
+        return;
+      }
+      const owner = users.find((u) => u.id === storeId && u.role === "owner");
+      const total = open.reduce((s, o) => s + o.totalAmount, 0);
+      const aggregated: Order = {
+        id: `INTERIM_${storeId}_${tableNumber}_${Date.now()}`,
+        storeId, tableNumber,
+        customerId: open[0].customerId,
+        items: open.flatMap((o) => o.items),
+        totalAmount: total,
+        status: "served",
+        paymentStatus: "unpaid",
+        createdAt: new Date().toISOString(),
+      };
+      const payload = {
+        storeName: owner?.restaurantName ?? "결",
+        order: aggregated,
+        footer: `[중간 계산서] 결제 전 미리보기 — 정식 영수증 아님`,
+      };
+      if (owner?.printBridgeEnabled) {
+        void enqueuePrintJob({ storeId, type: "receipt", payload, expectedUid: storeId });
+      }
+      try {
+        const printers = await getAuthorizedPrinters();
+        if (printers.length > 0) await printReceiptViaUsb(payload);
+        else printReceipt(payload);
+      } catch {
+        try { printReceipt(payload); } catch { /* ignore */ }
+      }
+      showToast("중간 계산서를 출력했어요.", "info");
+    },
+    [users]
   );
 
   // ============ CRM ============
@@ -1473,6 +1586,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       placeOrder,
       updateOrderStatus,
       payTableSession,
+      approvePayment,
+      completeTable,
+      printInterimReceipt,
       recordCommunication,
       updateUserMemo,
       setCustomerTier,
@@ -1546,6 +1662,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       placeOrder,
       updateOrderStatus,
       payTableSession,
+      approvePayment,
+      completeTable,
+      printInterimReceipt,
       recordCommunication,
       updateUserMemo,
       setCustomerTier,

@@ -191,7 +191,10 @@ export default function CustomerDashboard() {
   const handlePay = async () => {
     if (!currentUser || !myTable) return;
     if (unpaidTotal === 0) return;
-    if (!confirm(`총 ₩ ${unpaidTotal.toLocaleString()}을 결제할까요?\n결제는 매장 카운터에서 마무리해 주세요.`)) return;
+    if (!confirm(
+      `₩ ${unpaidTotal.toLocaleString()} 결제 요청을 보낼까요?\n\n` +
+      `직원이 확인 후 결제를 마무리하고 영수증을 드립니다.`
+    )) return;
     await payTableSession(currentUser.id, storeId, myTable.number);
   };
 
@@ -361,23 +364,41 @@ export default function CustomerDashboard() {
                 >
                   계산서 보기
                 </Button>
-                {unpaidTotal > 0 && myTable ? (
-                  <Button
-                    size="md"
-                    onClick={handlePay}
-                    leftIcon={<CreditCard className="w-4 h-4" />}
-                  >
-                    결제하기
-                  </Button>
-                ) : (
-                  <Button size="md" disabled leftIcon={<CreditCard className="w-4 h-4" />}>
-                    결제 완료
-                  </Button>
-                )}
+                {(() => {
+                  const hasRequested = mySessionOrders.some((o) => o.paymentStatus === "requested");
+                  if (hasRequested) {
+                    return (
+                      <Button size="md" disabled leftIcon={<CreditCard className="w-4 h-4" />}>
+                        결제 요청 중
+                      </Button>
+                    );
+                  }
+                  if (unpaidTotal > 0 && myTable) {
+                    return (
+                      <Button
+                        size="md"
+                        onClick={handlePay}
+                        leftIcon={<CreditCard className="w-4 h-4" />}
+                      >
+                        결제하기
+                      </Button>
+                    );
+                  }
+                  return (
+                    <Button size="md" disabled leftIcon={<CreditCard className="w-4 h-4" />}>
+                      결제 완료
+                    </Button>
+                  );
+                })()}
               </div>
+              {mySessionOrders.some((o) => o.paymentStatus === "requested") && (
+                <div className="mt-3 py-2.5 px-3 rounded-xl bg-[#fff8e6] text-[var(--color-warn)] text-[12.5px] font-bold text-center border border-[var(--color-warn)]/30">
+                  💰 직원이 결제 처리 중입니다. 잠시만 기다려 주세요.
+                </div>
+              )}
               {unpaidTotal === 0 && mySessionOrders.length > 0 && (
                 <div className="mt-3 py-2.5 px-3 rounded-xl bg-[var(--color-mint-100)] text-[var(--color-mint-700)] text-[13px] font-bold text-center">
-                  모든 주문이 결제되었습니다. 매장 카운터에서 마무리해 주세요.
+                  모든 주문이 결제되었습니다. 좋은 시간 보내세요!
                 </div>
               )}
             </Card>
