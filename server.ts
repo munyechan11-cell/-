@@ -44,6 +44,30 @@ function getFirebaseAdmin() {
       adminApp = admin.app();
       return adminApp;
     }
+
+    // 우선순위 1: FIREBASE_SERVICE_ACCOUNT_BASE64 (전체 JSON 을 base64 로 인코딩한 단일 값)
+    // Render UI 가 PEM 멀티라인을 자동 줄바꿈으로 망가뜨리는 사고를 100% 회피.
+    const b64 = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64?.trim();
+    if (b64) {
+      try {
+        const decoded = Buffer.from(b64, 'base64').toString('utf-8');
+        const sa = JSON.parse(decoded);
+        adminApp = admin.initializeApp({
+          credential: admin.credential.cert({
+            projectId: sa.project_id,
+            clientEmail: sa.client_email,
+            privateKey: sa.private_key,
+          }),
+        });
+        console.log('[Firebase Admin] initialized via FIREBASE_SERVICE_ACCOUNT_BASE64');
+        return adminApp;
+      } catch (e: any) {
+        console.error('[Firebase Admin] base64 decode failed —', e?.message ?? e);
+        // fallthrough → 개별 환경변수 시도
+      }
+    }
+
+    // 우선순위 2: 개별 환경변수 (기존 호환)
     const projectId = process.env.FIREBASE_PROJECT_ID?.trim();
     const clientEmail = process.env.FIREBASE_CLIENT_EMAIL?.trim();
     // PRIVATE_KEY 입력 사고 전수 정상화:
