@@ -11,6 +11,8 @@ export interface AgentConfig {
   authToken?: string;
   /** 페어링된 매장 ID */
   storeId?: string;
+  /** 매장명 — 페어링 후 Firestore 에서 자동 동기화, UI 표시·트레이 툴팁용 */
+  storeName?: string;
   /** 사장님이 선택한 프린터 정보 */
   printer?: {
     name: string;            // OS 에 등록된 프린터 이름 (예: "EPSON TM-T20II Receipt")

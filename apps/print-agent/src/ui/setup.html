@@ -147,8 +147,11 @@
     async function init() {
       const cfg = await window.gyeolAgent.getAll();
       const paired = !!cfg.paired;
-      $("pair-info").textContent = paired
-        ? `현재 매장: ${cfg.storeId} 와 연결되어 있어요.`
+      // 매장명이 있으면 그 이름으로, 없으면 매장 ID 로 fallback
+      const label = cfg.storeName ? `${cfg.storeName}` : (cfg.storeId ?? "");
+      const sub = cfg.storeName && cfg.storeId ? ` (ID: ${cfg.storeId.slice(0, 8)}…)` : "";
+      $("pair-info").innerHTML = paired
+        ? `<strong>${label}</strong>${sub} 와 연결되어 있어요.`
         : "아직 연결된 매장이 없어요. 6자리 코드를 입력해 주세요.";
       $("btn-unpair").classList.toggle("hidden", !paired);
       $("btn-pair").textContent = paired ? "다시 연결" : "연결";
@@ -187,7 +190,8 @@
       const res = await window.gyeolAgent.exchangeCode(code, deviceName);
       $("btn-pair").disabled = false;
       if (res.ok) {
-        setStatus(st, "ok", `연결 성공! 매장 ${res.storeId} 와 페어링되었어요.`);
+        const name = res.storeName || res.storeId;
+        setStatus(st, "ok", `연결 성공! "${name}" 와 페어링되었어요.`);
         $("code").value = "";
         await init();
       } else {

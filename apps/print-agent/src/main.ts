@@ -10,7 +10,7 @@
 import { app, Tray, Menu, BrowserWindow, ipcMain, nativeImage, dialog } from "electron";
 import * as path from "path";
 import { config } from "./config";
-import { signInWithStoredToken, subscribePendingJobs, markJob, heartbeat, type PrintJob } from "./firebase";
+import { signInWithStoredToken, subscribePendingJobs, markJob, heartbeat, fetchStoreInfo, type PrintJob } from "./firebase";
 import { printReceipt, printTestPage, listSystemPrinters } from "./printer";
 // 자동 업데이트 — GitHub Releases 에서 latest.yml 폴링
 import { autoUpdater } from "electron-updater";
@@ -42,9 +42,12 @@ const inFlight = new Set<string>();
 const TRAY_ICON = path.join(__dirname, "..", "assets", "tray-icon.png");
 
 function buildTrayMenu(connected: boolean, lastError?: string) {
+  const storeName = config.get("storeName");
   return Menu.buildFromTemplate([
     {
-      label: connected ? "🟢 연결됨" : "🟡 페어링 필요",
+      label: connected
+        ? (storeName ? `🟢 ${storeName} 연결됨` : "🟢 연결됨")
+        : "🟡 페어링 필요",
       enabled: false,
     },
     ...(lastError ? [{ label: `⚠️ ${lastError.slice(0, 60)}`, enabled: false }] : []),
@@ -77,8 +80,11 @@ function buildTrayMenu(connected: boolean, lastError?: string) {
 
 function updateTray(connected: boolean, lastError?: string) {
   if (!tray) return;
+  const storeName = config.get("storeName");
   tray.setToolTip(
-    connected ? "결 인쇄 브릿지 — 연결됨" : "결 인쇄 브릿지 — 페어링이 필요해요"
+    connected
+      ? (storeName ? `결 인쇄 브릿지 — ${storeName}` : "결 인쇄 브릿지 — 연결됨")
+      : "결 인쇄 브릿지 — 페어링이 필요해요"
   );
   tray.setContextMenu(buildTrayMenu(connected, lastError));
 }
@@ -172,6 +178,17 @@ async function startWorker() {
   await heartbeat(storeId);
   heartbeatTimer = setInterval(() => heartbeat(storeId), 60_000);
 
+  // 매장명 동기화 — 페어링 직후 + 10분마다 갱신 (사장님이 결 웹앱에서 매장명 바꿔도 따라감)
+  const refreshStoreName = async () => {
+    const info = await fetchStoreInfo(storeId);
+    if (info?.restaurantName) {
+      config.set("storeName", info.restaurantName);
+      updateTray(true);
+    }
+  };
+  void refreshStoreName();
+  setInterval(refreshStoreName, 10 * 60_000);
+
   updateTray(true);
 }
 
@@ -181,6 +198,7 @@ async function startWorker() {
 ipcMain.handle("config:get-all", () => ({
   apiBaseUrl: config.apiUrl(),
   storeId: config.get("storeId"),
+  storeName: config.get("storeName"),
   printer: config.get("printer"),
   autoLaunch: !!config.get("autoLaunch"),
   paired: config.isPaired(),
@@ -220,9 +238,17 @@ ipcMain.handle(
       const data = (await res.json()) as { token: string; storeId: string };
       config.set("authToken", data.token);
       config.set("storeId", data.storeId);
+      // 매장명도 즉시 받아오기 (UI 가 코드 입력 직후 매장명을 보여줄 수 있도록)
+      try {
+        await signInWithStoredToken();
+        const info = await fetchStoreInfo(data.storeId);
+        if (info?.restaurantName) config.set("storeName", info.restaurantName);
+      } catch (e: any) {
+        console.warn("[pairing:exchange] storeName fetch skip", e?.message);
+      }
       // 즉시 워커 시작
       startWorker().catch(console.error);
-      return { ok: true, storeId: data.storeId };
+      return { ok: true, storeId: data.storeId, storeName: config.get("storeName") };
     } catch (e: any) {
       return { ok: false, error: String(e?.message ?? e) };
     }

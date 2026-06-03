@@ -113,3 +113,18 @@ export async function heartbeat(storeId: string) {
     console.warn("[firebase] heartbeat skip", e?.message);
   }
 }
+
+/** 매장 정보 조회 — restaurantName 등 사장님이 결 웹앱에서 설정한 값 */
+export async function fetchStoreInfo(storeId: string): Promise<{ restaurantName?: string } | null> {
+  try {
+    const { getDoc } = await import("firebase/firestore");
+    const db = getDb();
+    const snap = await getDoc(doc(db, "users", storeId));
+    if (!snap.exists()) return null;
+    const data = snap.data() as any;
+    return { restaurantName: data?.restaurantName };
+  } catch (e: any) {
+    console.warn("[firebase] fetchStoreInfo failed", e?.message);
+    return null;
+  }
+}
