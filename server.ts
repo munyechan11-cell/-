@@ -46,20 +46,30 @@ function getFirebaseAdmin() {
     }
     const projectId = process.env.FIREBASE_PROJECT_ID?.trim();
     const clientEmail = process.env.FIREBASE_CLIENT_EMAIL?.trim();
-    // 환경변수 UI 에서 흔히 발생하는 사고를 모두 흡수:
-    //  · 앞뒤 큰따옴표 / 작은따옴표 → strip
-    //  · 끝에 쉼표 → strip
-    //  · '\n' 리터럴 문자열 → 실제 줄바꿈
-    //  · 양끝 공백·개행 → trim
+    // PRIVATE_KEY 입력 사고 전수 정상화:
+    //  · 양끝 따옴표·쉼표·공백
+    //  · '\n' 리터럴 / 실제 줄바꿈 / CRLF 혼재
+    //  · UI 에서 자동 줄바꿈된 PEM
+    // → BEGIN/END 사이의 모든 공백을 제거 후 64자 라인으로 표준 PEM 재조립
     let privateKey = process.env.FIREBASE_PRIVATE_KEY;
     if (privateKey) {
       privateKey = privateKey.trim();
-      // JSON value 그대로 붙여 양끝 따옴표 + 콤마 들어온 케이스
+      // 양끝 따옴표·쉼표 strip
       if (/^["'].*["']\s*,?\s*$/s.test(privateKey)) {
         privateKey = privateKey.replace(/^["']/, '').replace(/["']\s*,?\s*$/, '');
       }
-      // '\n' 문자열을 실제 줄바꿈으로
-      privateKey = privateKey.replace(/\\n/g, '\n');
+      // '\n' 리터럴 → 실제 줄바꿈, CRLF 통일
+      privateKey = privateKey.replace(/\\n/g, '\n').replace(/\r\n/g, '\n');
+
+      // PEM 표준 재조립 — 어떤 형태로 들어왔든 BEGIN/END 사이를 정규화
+      const m = privateKey.match(/-----BEGIN[^-]*PRIVATE KEY-----([\s\S]*?)-----END[^-]*PRIVATE KEY-----/);
+      if (m) {
+        const header = privateKey.match(/-----BEGIN[^-]*PRIVATE KEY-----/)?.[0] ?? '-----BEGIN PRIVATE KEY-----';
+        const footer = privateKey.match(/-----END[^-]*PRIVATE KEY-----/)?.[0] ?? '-----END PRIVATE KEY-----';
+        const body = m[1].replace(/[\s\\]+/g, '');           // 공백·백슬래시 전부 제거
+        const lines = body.match(/.{1,64}/g) ?? [];          // 64자 라인으로 분할
+        privateKey = `${header}\n${lines.join('\n')}\n${footer}\n`;
+      }
     }
     
     if (projectId && clientEmail && privateKey) {
