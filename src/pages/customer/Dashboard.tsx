@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   Ticket,
   Home as HomeIcon,
@@ -16,6 +16,7 @@ import {
   ShoppingBag,
   CreditCard,
   Receipt as ReceiptIcon,
+  DoorOpen,
 } from "lucide-react";
 import { MobileShell } from "../../components/layout/MobileShell";
 import { TopBar } from "../../components/ui/TopBar";
@@ -31,6 +32,8 @@ type Tab = "home" | "menu" | "coupons" | "profile";
 
 export default function CustomerDashboard() {
   const { storeId: paramStoreId } = useParams();
+  const [searchParams] = useSearchParams();
+  const tableParam = searchParams.get("table");
   const nav = useNavigate();
   const {
     currentUser,
@@ -48,18 +51,53 @@ export default function CustomerDashboard() {
     placeOrder,
     payTableSession,
     setActiveStoreId,
+    enterTable,
+    leaveTable,
   } = useStore();
   const [tab, setTab] = useState<Tab>("home");
   const [cart, setCart] = useState<Record<string, number>>({});
   const [billOpen, setBillOpen] = useState(false);
 
   // 이 페이지에 있는 동안 해당 매장의 tables/menus/orders/photos 구독
+  // 페이지 떠나도 테이블 점유는 유지 — 명시적 '가게 퇴장' 또는 사장님 강제 퇴장만 점유 해제.
   useEffect(() => {
     setActiveStoreId(paramStoreId ?? null);
     // 매장이 바뀌면 카트도 비움 (이전 매장 메뉴 ID는 새 매장에서 무효)
     setCart({});
     return () => setActiveStoreId(null);
   }, [paramStoreId, setActiveStoreId]);
+
+  // QR 로 ?table=N 받아 진입한 경우 — 자리 점유 자동 등록(합석 가능)
+  useEffect(() => {
+    if (!currentUser || !paramStoreId) return;
+    const n = Number(tableParam);
+    if (!Number.isFinite(n) || n <= 0) return;
+    enterTable({
+      tableNumber: n,
+      storeId: paramStoreId,
+      customerId: currentUser.id,
+      customerName: currentUser.name,
+    }).catch((e) => console.warn("[enterTable]", e?.message));
+    // tableParam 이 같은 한 다시 호출되어도 합석 occupantIds 만 갱신 → 안전
+  }, [tableParam, paramStoreId, currentUser?.id]);
+
+  const handleExitStore = async () => {
+    if (!currentUser) return;
+    const tableNum = myTable?.number;
+    if (!tableNum) {
+      // 점유한 테이블이 없으면 그냥 홈으로
+      nav("/customer", { replace: true });
+      return;
+    }
+    if (!window.confirm("가게에서 나가시겠어요?\n미결제 주문이 있다면 매장에 안내해 주세요.")) return;
+    try {
+      await leaveTable(tableNum, paramStoreId ?? "");
+      showToast("좋은 시간 보내셨길 바라요. 또 만나요!", "success");
+      nav("/customer", { replace: true });
+    } catch (e: any) {
+      showToast(`퇴장 처리 실패: ${e?.message ?? "잠시 후 다시 시도해 주세요."}`, "error");
+    }
+  };
 
   const storeId = paramStoreId ?? "";
   const owner = users.find((u) => u.id === storeId && u.role === "owner");
@@ -223,15 +261,37 @@ export default function CustomerDashboard() {
 
           {/* Active table HUD */}
           {myTable && (
-            <Card padding="md" className="flex items-center gap-3 border-[var(--color-mint-300)]">
-              <div className="w-12 h-12 rounded-xl bg-[var(--color-mint-100)] text-[var(--color-mint-700)] inline-flex items-center justify-center font-extrabold">
-                {myTable.number}
+            <>
+              <Card padding="md" className="flex items-center gap-3 border-[var(--color-mint-300)]">
+                <div className="w-12 h-12 rounded-xl bg-[var(--color-mint-100)] text-[var(--color-mint-700)] inline-flex items-center justify-center font-extrabold">
+                  {myTable.number}
+                </div>
+                <div className="flex-1">
+                  <p className="text-[13px] font-bold text-[var(--color-navy-900)]">테이블 {myTable.number}번 이용 중</p>
+                  <SessionTimer start={myTable.sessionStartTime ?? null} />
+                </div>
+              </Card>
+              {/* 계산서 · 가게 퇴장 — 손님이 직접 컨트롤 */}
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="outline"
+                  block
+                  onClick={() => setBillOpen(true)}
+                  leftIcon={<ReceiptIcon className="w-4 h-4" />}
+                  disabled={mySessionOrders.length === 0}
+                >
+                  계산서 보기
+                </Button>
+                <Button
+                  variant="ghost"
+                  block
+                  onClick={handleExitStore}
+                  leftIcon={<DoorOpen className="w-4 h-4" />}
+                >
+                  가게 퇴장
+                </Button>
               </div>
-              <div className="flex-1">
-                <p className="text-[13px] font-bold text-[var(--color-navy-900)]">테이블 {myTable.number}번 이용 중</p>
-                <SessionTimer start={myTable.sessionStartTime ?? null} />
-              </div>
-            </Card>
+            </>
           )}
 
           {/* Session orders & 결제 */}

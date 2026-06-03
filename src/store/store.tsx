@@ -92,6 +92,16 @@ interface StoreState {
   // visits & coupons
   recordVisit: (customerId: string, tableNumber: number, storeId: string, amount?: number) => Promise<void>;
   leaveTable: (tableNumber: number, storeId: string) => Promise<void>;
+  /** 손님 측 — QR 진입 시 테이블 점유 시작 (합석 시 occupantIds 추가) */
+  enterTable: (input: {
+    tableNumber: number;
+    storeId: string;
+    customerId: string;
+    customerName?: string;
+    partySize?: number;
+  }) => Promise<void>;
+  /** 사장님 측 — 손님 강제 퇴장 (미결제 주문은 cancelled 로) */
+  evictTable: (tableNumber: number, storeId: string) => Promise<void>;
   issueCoupon: (customerId: string, storeId: string, type: string, description: string) => Promise<void>;
   requestCouponUse: (couponId: string, tableNumber?: number) => Promise<void>;
   cancelCouponRequest: (couponId: string) => Promise<void>;
@@ -816,10 +826,73 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const tableId = `${storeId}_${tableNumber}`;
     await updateFirestoreDoc("tables", tableId, {
       currentCustomerId: null,
+      occupantIds: [],
+      currentCustomerName: null,
+      partySize: null,
       sessionStartTime: null,
       status: "dirty",
     });
   }, []);
+
+  /**
+   * 손님이 QR 로 매장 진입 — 테이블 점유 시작.
+   * 이미 점유 상태면 추가 손님으로 occupantIds 에 합석.
+   * 호출처: customer/TableEntry.tsx (또는 customer/Dashboard.tsx 진입 시점)
+   */
+  const enterTable = useCallback(
+    async (input: {
+      tableNumber: number;
+      storeId: string;
+      customerId: string;
+      customerName?: string;
+      partySize?: number;
+    }) => {
+      const tableId = `${input.storeId}_${input.tableNumber}`;
+      const existing = tablesRef.current.find((t) => t.id === tableId);
+      const occupantIds = Array.from(
+        new Set([...(existing?.occupantIds ?? []), input.customerId])
+      );
+      await updateFirestoreDoc("tables", tableId, {
+        currentCustomerId: existing?.currentCustomerId ?? input.customerId,
+        currentCustomerName: existing?.currentCustomerName ?? input.customerName ?? null,
+        occupantIds,
+        partySize: input.partySize ?? existing?.partySize ?? occupantIds.length,
+        sessionStartTime: existing?.sessionStartTime ?? new Date().toISOString(),
+        status: "occupied",
+      });
+    },
+    []
+  );
+
+  /**
+   * 사장님이 손님을 강제 퇴장 처리.
+   * 미결제 주문은 cancelled 로 정리 (집계 보호) 후 테이블 정리.
+   */
+  const evictTable = useCallback(
+    async (tableNumber: number, storeId: string) => {
+      const tableId = `${storeId}_${tableNumber}`;
+      const unpaid = ordersRef.current.filter(
+        (o) => o.storeId === storeId && o.tableNumber === tableNumber && o.paymentStatus !== "paid"
+      );
+      for (const o of unpaid) {
+        try {
+          await updateFirestoreDoc("orders", o.id, { status: "cancelled" });
+        } catch (e) {
+          console.warn("[evictTable] cancel order skip", o.id, e);
+        }
+      }
+      await updateFirestoreDoc("tables", tableId, {
+        currentCustomerId: null,
+        occupantIds: [],
+        currentCustomerName: null,
+        partySize: null,
+        sessionStartTime: null,
+        status: "dirty",
+      });
+      showToast(`테이블 ${tableNumber}번 손님을 퇴장 처리했어요.`, "success");
+    },
+    []
+  );
 
   // ============ COUPONS ============
   const issueCoupon = useCallback(
@@ -1030,7 +1103,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         });
       };
 
-      if (hasPosApi || owner?.foodtechStoreCode) {
+      // 손님 화면에서는 영수증을 출력하지 않음 — 손님 브라우저에 매장 영수증 팝업이
+      // 뜨던 사고 차단. 인쇄는 매장 PC 트레이 앱(브릿지) 또는 사장님 화면에서만.
+      const isCustomer = currentUser?.role === "customer";
+      if (isCustomer) {
+        // 손님 사이드는 ④ 브릿지 큐만 발행하고 ①②③ 인쇄 흐름은 스킵.
+      } else if (hasPosApi || owner?.foodtechStoreCode) {
         const apiKey = owner?.posApiKey || owner?.foodtechStoreCode || "";
         const ok = await relayOrderToPos(
           apiKey,
@@ -1374,6 +1452,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       deleteUser,
       recordVisit,
       leaveTable,
+      enterTable,
+      evictTable,
       issueCoupon,
       requestCouponUse,
       cancelCouponRequest,
@@ -1445,6 +1525,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       deleteUser,
       recordVisit,
       leaveTable,
+      enterTable,
+      evictTable,
       issueCoupon,
       requestCouponUse,
       cancelCouponRequest,

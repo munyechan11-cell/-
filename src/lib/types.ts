@@ -108,6 +108,12 @@ export interface TableDoc {
   number: number;
   storeId: string;
   currentCustomerId?: string | null;
+  /** 함께 앉은 손님 customerId 들 (currentCustomerId 포함). 합석·인원 수 표시용 */
+  occupantIds?: string[];
+  /** 캐시된 대표 손님 이름 — 사장님 화면에서 빠르게 표시 */
+  currentCustomerName?: string | null;
+  /** 인원수 (사장님이 입력 또는 손님이 진입 시 선언). 미정이면 null */
+  partySize?: number | null;
   sessionStartTime?: string | null;
   x: number;
   y: number;

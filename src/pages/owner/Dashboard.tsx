@@ -270,6 +270,11 @@ type TableLite = {
   width?: number;
   height?: number;
   shape?: "square" | "circle";
+  currentCustomerId?: string | null;
+  currentCustomerName?: string | null;
+  occupantIds?: string[];
+  partySize?: number | null;
+  sessionStartTime?: string | null;
 };
 
 function DashboardTableViewToggle({
@@ -300,30 +305,251 @@ function DashboardTableViewToggle({
 }
 
 function DashboardTableArea({ tables, view }: { tables: TableLite[]; view: "list" | "layout" }) {
+  const [detailTable, setDetailTable] = useState<TableLite | null>(null);
   if (view === "layout") return <DashboardLayoutMini tables={tables} />;
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-      {[...tables]
-        .sort((a, b) => {
-          const order = { occupied: 0, dirty: 1, paid: 2, available: 3 } as const;
-          return (
-            order[a.status ?? "available"] - order[b.status ?? "available"] || a.number - b.number
-          );
-        })
-        .map((t) => (
-          <Card key={t.id} padding="md" className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl bg-[var(--color-navy-50)] text-[var(--color-navy-800)] font-extrabold inline-flex items-center justify-center">
-              {t.number}
+    <>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        {[...tables]
+          .sort((a, b) => {
+            const order = { occupied: 0, dirty: 1, paid: 2, available: 3 } as const;
+            return (
+              order[a.status ?? "available"] - order[b.status ?? "available"] || a.number - b.number
+            );
+          })
+          .map((t) => (
+            <Card
+              key={t.id}
+              padding="md"
+              className={cn(
+                "flex items-center gap-3",
+                t.type !== "door" && "cursor-pointer hover:bg-[var(--color-navy-50)]/40 active:scale-[0.99] transition-all"
+              )}
+              onClick={() => {
+                if (t.type === "door") return;
+                setDetailTable(t);
+              }}
+            >
+              <div className="w-11 h-11 rounded-xl bg-[var(--color-navy-50)] text-[var(--color-navy-800)] font-extrabold inline-flex items-center justify-center">
+                {t.number}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[14px] font-bold text-[var(--color-navy-900)]">
+                  {t.type === "room" ? "룸" : t.type === "door" ? "출입구" : "테이블"} {t.number}
+                </p>
+                {t.type !== "door" && (
+                  <p className="body-sm truncate">
+                    {t.status === "occupied" && t.currentCustomerName
+                      ? `${t.currentCustomerName}님${t.partySize ? ` · ${t.partySize}명` : ""}`
+                      : `${t.seats}인`}
+                  </p>
+                )}
+              </div>
+              <StatusBadge status={t.status ?? "available"} />
+            </Card>
+          ))}
+      </div>
+      {detailTable && (
+        <TableDetailModal table={detailTable} onClose={() => setDetailTable(null)} />
+      )}
+    </>
+  );
+}
+
+// ============================================================
+// 테이블 상세 모달 — 누가, 얼마나 있었는지, 인원, 주문, 합계, 퇴장 처리
+// ============================================================
+function TableDetailModal({ table, onClose }: { table: TableLite; onClose: () => void }) {
+  const { users, orders, evictTable, currentUser } = useStore();
+  const storeId = currentUser?.id ?? "";
+
+  // 현재 매장의 이 테이블 미결제 주문 (취소 제외)
+  const tableOrders = orders
+    .filter(
+      (o) =>
+        o.storeId === storeId &&
+        o.tableNumber === table.number &&
+        o.status !== "cancelled"
+    )
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  const unpaidOrders = tableOrders.filter((o) => o.paymentStatus !== "paid");
+  const total = tableOrders.reduce((s, o) => s + o.totalAmount, 0);
+  const unpaidTotal = unpaidOrders.reduce((s, o) => s + o.totalAmount, 0);
+
+  const occupants = (table.occupantIds ?? [])
+    .map((id) => users.find((u) => u.id === id))
+    .filter(Boolean) as { id: string; name: string; phone?: string }[];
+
+  // 체류 시간
+  const startMs = table.sessionStartTime ? new Date(table.sessionStartTime).getTime() : null;
+  const elapsed = startMs ? Math.max(0, Math.floor((Date.now() - startMs) / 60000)) : null;
+  const elapsedLabel = elapsed != null
+    ? elapsed < 60
+      ? `${elapsed}분`
+      : `${Math.floor(elapsed / 60)}시간 ${elapsed % 60}분`
+    : "—";
+
+  const handleEvict = async () => {
+    if (!confirm(`테이블 ${table.number}번 손님을 퇴장 처리할까요?\n미결제 주문은 자동으로 취소됩니다.`)) return;
+    try {
+      await evictTable(table.number, storeId);
+      onClose();
+    } catch (e: any) {
+      // showToast 는 store 측에서
+      console.warn("[evictTable]", e?.message);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/55 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4"
+      style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div
+        className="w-full sm:max-w-md bg-white sm:rounded-[18px] rounded-t-[18px] overflow-hidden shadow-[var(--shadow-lifted)] flex flex-col"
+        style={{ maxHeight: "85vh" }}
+      >
+        {/* 헤더 */}
+        <div className="px-5 py-4 border-b border-[var(--color-line)] shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-[var(--color-navy-50)] text-[var(--color-navy-800)] font-extrabold text-[18px] inline-flex items-center justify-center">
+              {table.number}
             </div>
             <div className="flex-1">
-              <p className="text-[14px] font-bold text-[var(--color-navy-900)]">
-                {t.type === "room" ? "룸" : t.type === "door" ? "출입구" : "테이블"} {t.number}
+              <p className="text-[16px] font-extrabold text-[var(--color-navy-900)]">
+                테이블 {table.number}
               </p>
-              {t.type !== "door" && <p className="body-sm">{t.seats}인</p>}
+              <p className="text-[12px] text-[var(--color-ink-500)]">
+                {table.type === "room" ? "룸" : "일반"} · {table.seats}인석 ·{" "}
+                {table.status === "occupied" ? "사용 중"
+                  : table.status === "dirty" ? "정리 필요"
+                  : table.status === "paid" ? "결제 완료"
+                  : "비어있음"}
+              </p>
             </div>
-            <StatusBadge status={t.status ?? "available"} />
-          </Card>
-        ))}
+          </div>
+        </div>
+
+        {/* 본문 — 스크롤 가능 */}
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+          {/* 점유 정보 */}
+          {table.status === "occupied" ? (
+            <>
+              <div className="grid grid-cols-2 gap-2">
+                <DetailStat label="체류 시간" value={elapsedLabel} />
+                <DetailStat label="인원" value={table.partySize ? `${table.partySize}명` : "—"} />
+              </div>
+              {/* 손님 명단 */}
+              {occupants.length > 0 ? (
+                <div>
+                  <p className="text-[11.5px] font-bold text-[var(--color-ink-500)] uppercase tracking-wide mb-1.5">손님</p>
+                  <div className="space-y-1.5">
+                    {occupants.map((u) => (
+                      <div key={u.id} className="flex items-center gap-2 text-[13.5px]">
+                        <div className="w-7 h-7 rounded-full bg-[var(--color-mint-100)] text-[var(--color-mint-700)] font-extrabold inline-flex items-center justify-center text-[12px]">
+                          {u.name?.[0] ?? "?"}
+                        </div>
+                        <span className="font-bold text-[var(--color-navy-900)]">{u.name}</span>
+                        {u.phone && <span className="text-[var(--color-ink-500)] text-[12px] ml-auto">{u.phone}</span>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : table.currentCustomerName ? (
+                <p className="text-[13.5px] font-bold text-[var(--color-navy-900)]">{table.currentCustomerName}님</p>
+              ) : null}
+            </>
+          ) : (
+            <p className="text-[13px] text-[var(--color-ink-500)] py-4 text-center">
+              {table.status === "dirty" ? "정리 후 비워주세요." : "현재 손님이 없습니다."}
+            </p>
+          )}
+
+          {/* 주문 목록 */}
+          {tableOrders.length > 0 && (
+            <div>
+              <p className="text-[11.5px] font-bold text-[var(--color-ink-500)] uppercase tracking-wide mb-1.5">
+                주문 ({tableOrders.length}건)
+              </p>
+              <div className="space-y-2">
+                {tableOrders.map((o) => (
+                  <div key={o.id} className="rounded-[12px] border border-[var(--color-line)] p-2.5">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[11px] font-bold text-[var(--color-ink-600)]">
+                        #{o.id.slice(-6).toUpperCase()}
+                      </span>
+                      <span
+                        className={cn(
+                          "text-[10.5px] font-bold px-2 py-0.5 rounded-full",
+                          o.paymentStatus === "paid"
+                            ? "bg-[var(--color-ink-50)] text-[var(--color-ink-500)]"
+                            : "bg-[#fff1e0] text-[var(--color-warn)]"
+                        )}
+                      >
+                        {o.paymentStatus === "paid" ? "결제완료" : "미결제"}
+                      </span>
+                    </div>
+                    <ul className="text-[13px] space-y-0.5">
+                      {o.items.map((it, i) => (
+                        <li key={i} className="flex justify-between text-[var(--color-navy-900)]">
+                          <span className="truncate mr-2">{it.name} × {it.quantity}</span>
+                          <span className="font-semibold tabular-nums">
+                            ₩{(it.price * it.quantity).toLocaleString()}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 flex justify-between items-baseline border-t border-[var(--color-line)] pt-3">
+                <span className="text-[12px] text-[var(--color-ink-500)]">
+                  미결제 {unpaidOrders.length}건 / 총 {tableOrders.length}건
+                </span>
+                <div className="text-right">
+                  <p className="text-[11px] text-[var(--color-ink-500)]">합계</p>
+                  <p className="text-[18px] font-extrabold text-[var(--color-navy-900)] tabular-nums">
+                    ₩ {total.toLocaleString()}
+                  </p>
+                  {unpaidTotal > 0 && unpaidTotal !== total && (
+                    <p className="text-[11px] text-[var(--color-warn)] font-bold mt-0.5">
+                      미결제 ₩ {unpaidTotal.toLocaleString()}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 액션 */}
+        <div className="px-5 py-3 border-t border-[var(--color-line)] flex items-center gap-2 shrink-0">
+          <button
+            onClick={onClose}
+            className="flex-1 h-11 rounded-[12px] bg-[var(--color-ink-50)] text-[var(--color-ink-700)] font-bold text-[13.5px]"
+          >
+            닫기
+          </button>
+          {table.status === "occupied" && (
+            <button
+              onClick={handleEvict}
+              className="flex-1 h-11 rounded-[12px] bg-[var(--color-danger)] text-white font-bold text-[13.5px]"
+            >
+              퇴장 처리
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DetailStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-[12px] bg-[var(--color-navy-50)] p-3">
+      <p className="text-[10.5px] font-bold text-[var(--color-ink-500)] uppercase tracking-wide">{label}</p>
+      <p className="text-[16px] font-extrabold text-[var(--color-navy-900)] mt-0.5">{value}</p>
     </div>
   );
 }

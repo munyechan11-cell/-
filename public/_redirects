@@ -1,0 +1,4 @@
+# SPA fallback — 모든 비-자산 경로를 index.html 로 매핑.
+# Render Static Site / Netlify 호환.
+# 새로고침 시 404 가 뜨던 사고 해소.
+/*    /index.html   200
