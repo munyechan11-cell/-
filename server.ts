@@ -44,9 +44,23 @@ function getFirebaseAdmin() {
       adminApp = admin.app();
       return adminApp;
     }
-    const projectId = process.env.FIREBASE_PROJECT_ID;
-    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-    const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+    const projectId = process.env.FIREBASE_PROJECT_ID?.trim();
+    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL?.trim();
+    // 환경변수 UI 에서 흔히 발생하는 사고를 모두 흡수:
+    //  · 앞뒤 큰따옴표 / 작은따옴표 → strip
+    //  · 끝에 쉼표 → strip
+    //  · '\n' 리터럴 문자열 → 실제 줄바꿈
+    //  · 양끝 공백·개행 → trim
+    let privateKey = process.env.FIREBASE_PRIVATE_KEY;
+    if (privateKey) {
+      privateKey = privateKey.trim();
+      // JSON value 그대로 붙여 양끝 따옴표 + 콤마 들어온 케이스
+      if (/^["'].*["']\s*,?\s*$/s.test(privateKey)) {
+        privateKey = privateKey.replace(/^["']/, '').replace(/["']\s*,?\s*$/, '');
+      }
+      // '\n' 문자열을 실제 줄바꿈으로
+      privateKey = privateKey.replace(/\\n/g, '\n');
+    }
     
     if (projectId && clientEmail && privateKey) {
       adminApp = admin.initializeApp({
