@@ -324,6 +324,11 @@ function CustomerPicker({
 }) {
   const [query, setQuery] = useState(value.customerName);
   const [open, setOpen] = useState(false);
+  // 게스트 추가 인라인 폼 — 이름·전화 한 번에 입력
+  const [guestMode, setGuestMode] = useState(false);
+  const [guestName, setGuestName] = useState("");
+  const [guestPhone, setGuestPhone] = useState("");
+  const [guestError, setGuestError] = useState("");
 
   // 입력에 따라 후보 필터링 — 단골 우선, 그 다음 이전 예약 손님
   const matches = useMemo(() => {
@@ -369,13 +374,39 @@ function CustomerPicker({
     setOpen(false);
   };
 
-  const selectGuest = () => {
+  const startGuestForm = () => {
+    // 검색어를 이름 기본값으로 (게스트 prefix 없이)
+    const raw = query.trim().replace(/^게스트\s*/, "");
+    setGuestName(raw);
+    setGuestPhone("");
+    setGuestError("");
+    setGuestMode(true);
+    setOpen(false);
+  };
+
+  const confirmGuest = () => {
+    const name = guestName.trim();
+    const phoneDigits = digitsOnly(guestPhone);
+    if (!name) { setGuestError("이름을 입력해 주세요."); return; }
+    if (phoneDigits.length < 10) { setGuestError("전화번호를 정확히 입력해 주세요."); return; }
     onChange({
       customerId: undefined,
-      customerName: query.startsWith("게스트") ? query : `게스트 ${query}`.trim(),
+      customerName: name.startsWith("게스트") ? name : `게스트 ${name}`,
+      customerPhone: formatPhoneNumber(guestPhone),
       isGuest: true,
     });
-    setOpen(false);
+    setQuery("");
+    setGuestName("");
+    setGuestPhone("");
+    setGuestError("");
+    setGuestMode(false);
+  };
+
+  const cancelGuest = () => {
+    setGuestMode(false);
+    setGuestName("");
+    setGuestPhone("");
+    setGuestError("");
   };
 
   const clearPick = () => {
@@ -390,7 +421,54 @@ function CustomerPicker({
     <div className="relative">
       <label className="block text-[12px] font-bold text-[var(--color-navy-800)] mb-1.5">고객</label>
 
-      {isPicked ? (
+      {/* 게스트 추가 인라인 폼 — 이름·전화 동시 입력 */}
+      {guestMode ? (
+        <div className="rounded-[14px] border-2 border-[#f0b400] bg-[#fff8e6] p-3.5 space-y-2.5">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-[#f0b400] text-white inline-flex items-center justify-center">
+              <UserPlus className="w-4 h-4" />
+            </div>
+            <p className="text-[13px] font-extrabold text-[#b07b00] flex-1">
+              게스트 추가 — 이름과 전화번호를 함께 입력하세요
+            </p>
+          </div>
+          <input
+            type="text"
+            value={guestName}
+            onChange={(e) => { setGuestName(e.target.value); setGuestError(""); }}
+            placeholder="이름 (예: 김민수)"
+            autoFocus
+            className="w-full h-11 px-3 rounded-[10px] border-[1.5px] border-[#f0b400]/40 bg-white text-[14px] font-semibold focus:border-[#f0b400] focus:outline-none"
+          />
+          <input
+            type="tel"
+            value={guestPhone}
+            onChange={(e) => { setGuestPhone(formatPhoneNumber(e.target.value)); setGuestError(""); }}
+            inputMode="numeric"
+            placeholder="전화번호 (010-0000-0000)"
+            className="w-full h-11 px-3 rounded-[10px] border-[1.5px] border-[#f0b400]/40 bg-white text-[14px] font-semibold tabular-nums focus:border-[#f0b400] focus:outline-none"
+          />
+          {guestError && (
+            <p className="text-[11.5px] font-bold text-[var(--color-danger)]">{guestError}</p>
+          )}
+          <div className="grid grid-cols-2 gap-2 pt-1">
+            <button
+              type="button"
+              onClick={cancelGuest}
+              className="h-10 rounded-[10px] bg-white border-[1.5px] border-[var(--color-line)] text-[var(--color-ink-700)] font-bold text-[13px]"
+            >
+              취소
+            </button>
+            <button
+              type="button"
+              onClick={confirmGuest}
+              className="h-10 rounded-[10px] bg-[#f0b400] text-white font-extrabold text-[13px]"
+            >
+              게스트 추가
+            </button>
+          </div>
+        </div>
+      ) : isPicked ? (
         // 선택 완료 칩
         <div
           className={cn(
@@ -482,26 +560,22 @@ function CustomerPicker({
                 </button>
               ))}
 
-              {/* 게스트로 추가 옵션 — 항상 노출 */}
+              {/* 게스트로 추가 옵션 — 항상 노출. 클릭 시 이름·전화 동시 입력 폼으로 전환 */}
               <button
                 type="button"
                 onMouseDown={(e) => e.preventDefault()}
-                onClick={selectGuest}
-                disabled={!query.trim()}
-                className={cn(
-                  "w-full px-3 py-2.5 flex items-center gap-2.5 text-left border-t border-[var(--color-line)]",
-                  query.trim() ? "hover:bg-[#fff8e6]" : "opacity-50 cursor-not-allowed"
-                )}
+                onClick={startGuestForm}
+                className="w-full px-3 py-2.5 flex items-center gap-2.5 text-left border-t border-[var(--color-line)] hover:bg-[#fff8e6]"
               >
                 <div className="w-8 h-8 rounded-full bg-[#f0b400] text-white inline-flex items-center justify-center">
                   <UserPlus className="w-4 h-4" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-[13px] font-bold text-[#b07b00] truncate">
-                    게스트로 추가{query.trim() ? `: ${query.trim().startsWith("게스트") ? query : `게스트 ${query}`}` : ""}
+                    + 게스트로 추가
                   </p>
                   <p className="text-[11px] text-[var(--color-ink-500)]">
-                    등록되지 않은 손님 — 전화번호 직접 입력
+                    이름·전화번호 한 번에 입력
                   </p>
                 </div>
               </button>
