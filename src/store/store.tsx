@@ -28,6 +28,7 @@ import { printReceipt } from "../lib/receipt";
 import { printReceiptViaUsb, getAuthorizedPrinters } from "../lib/thermalPrinter";
 import { enqueuePrintJob } from "../lib/printBridge";
 import { sendOwnerPush } from "../lib/pushTriggers";
+import { getStoreOpenStatus } from "../lib/businessHours";
 import type {
   User,
   Visit,
@@ -1083,6 +1084,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       customerId: string;
       items: OrderItem[];
     }): Promise<Order> => {
+      // 영업 시간 검증 — 영업 외 시간이거나 임시 마감이면 손님 주문 차단
+      const ownerForCheck = usersRef.current.find((u) => u.id === storeId && u.role === "owner");
+      const status = getStoreOpenStatus(ownerForCheck);
+      if (status.open === false) {
+        const msg = status.reason;
+        showToast(`주문할 수 없어요: ${msg}`, "error");
+        throw new Error(msg);
+      }
+
       const totalAmount = items.reduce((s, it) => s + it.price * it.quantity, 0);
       const order: Order = {
         id: generateId(),

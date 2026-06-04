@@ -19,10 +19,11 @@ import {
   Clock,
   Lock,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useStore } from "../../store/store";
 import { cn } from "../../lib/cn";
 import { showToast } from "../../lib/toast";
+import { getStoreOpenStatus, summarizeStatus } from "../../lib/businessHours";
 
 interface Props {
   children: React.ReactNode;
@@ -61,7 +62,7 @@ const NAV: NavItem[] = [
 const STAFF_DASHBOARD: NavItem = { to: "/biz/staff", label: "대시보드", icon: LayoutDashboard, end: true, staff: true, staffFree: true };
 
 export function OwnerShell({ children, title, headerRight, width = "default" }: Props) {
-  const { currentUser, users, logout, activeShift, clockIn, clockOut } = useStore();
+  const { currentUser, users, logout, activeShift, clockIn, clockOut, updateBrandSettings } = useStore();
   const nav = useNavigate();
   const loc = useLocation();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -79,6 +80,28 @@ export function OwnerShell({ children, title, headerRight, width = "default" }: 
   const employerName = isStaff
     ? users.find((u) => u.id === currentUser?.employerStoreId)?.restaurantName ?? "매장"
     : currentUser?.restaurantName ?? "결";
+
+  // 영업 상태 — 사장님 화면 헤더에 실시간 표시. 1분마다 자동 재계산.
+  const storeOwner = isStaff
+    ? users.find((u) => u.id === currentUser?.employerStoreId)
+    : currentUser;
+  const [openStatus, setOpenStatus] = useState(() => getStoreOpenStatus(storeOwner));
+  useEffect(() => {
+    setOpenStatus(getStoreOpenStatus(storeOwner));
+    const t = setInterval(() => setOpenStatus(getStoreOpenStatus(storeOwner)), 60_000);
+    return () => clearInterval(t);
+  }, [storeOwner?.temporarilyClosed, storeOwner?.businessHours]);
+  const ownerId = storeOwner?.id ?? "";
+  const toggleTemporaryClose = async () => {
+    if (!ownerId || isStaff) return;
+    const next = !storeOwner?.temporarilyClosed;
+    try {
+      await updateBrandSettings(ownerId, { temporarilyClosed: next });
+      showToast(next ? "임시 마감했어요. 손님 새 주문이 막힙니다." : "영업을 다시 시작했어요.", next ? "info" : "success");
+    } catch (e: any) {
+      showToast(`상태 변경 실패: ${e?.message ?? ""}`, "error");
+    }
+  };
 
   const handleStaffLinkClick = (item: NavItem, e: React.MouseEvent) => {
     if (!isStaff) return;
@@ -230,6 +253,26 @@ export function OwnerShell({ children, title, headerRight, width = "default" }: 
               {heading}
             </h1>
             <div className="ml-auto flex items-center gap-2">
+              {/* 영업 상태 칩 — 사장님만 클릭 시 임시 마감 토글, 직원은 표시만 */}
+              <button
+                onClick={isStaff ? undefined : toggleTemporaryClose}
+                disabled={isStaff}
+                title={isStaff ? summarizeStatus(openStatus) : "클릭하면 임시 마감 ON/OFF"}
+                className={cn(
+                  "inline-flex items-center gap-1.5 h-9 px-2.5 sm:px-3 rounded-full text-[11.5px] sm:text-[12px] font-extrabold transition-colors",
+                  openStatus.open
+                    ? "bg-[var(--color-mint-100)] text-[var(--color-mint-700)] hover:bg-[var(--color-mint-200)]"
+                    : "bg-[#fef2f2] text-[var(--color-danger)] hover:bg-[#fde2e2]",
+                  isStaff && "cursor-default opacity-90"
+                )}
+              >
+                <span className={cn(
+                  "w-1.5 h-1.5 rounded-full",
+                  openStatus.open ? "bg-[var(--color-mint-500)] animate-pulse" : "bg-[var(--color-danger)]"
+                )} />
+                <span className="hidden sm:inline">{openStatus.open ? "영업 중" : "영업 마감"}</span>
+                <span className="sm:hidden">{openStatus.open ? "영업" : "마감"}</span>
+              </button>
               {isStaff && (
                 <button
                   onClick={async () => {
