@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>결(Gyeol) 사장님 운영 가이드</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css">
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, sans-serif;
+    color: #1b2330;
+    line-height: 1.7;
+    font-size: 15px;
+    background: #f6f8fc;
+  }
+  body { padding: 40px 60px; max-width: 800px; margin: 0 auto; background: white; }
+
+  /* 인쇄 최적화 */
+  @media print {
+    @page { size: A4; margin: 18mm 16mm; }
+    body { background: white; padding: 0; }
+    h1, h2 { page-break-after: avoid; }
+    .section, .step-row, .tip-box { page-break-inside: avoid; }
+    .no-print { display: none; }
+    a { color: #173762; text-decoration: none; }
+  }
+
+  /* 표지 */
+  .cover {
+    text-align: center;
+    padding: 80px 0 60px;
+    border-bottom: 3px solid #173762;
+    margin-bottom: 40px;
+    page-break-after: always;
+  }
+  .cover h1 {
+    font-size: 38px; margin: 0 0 16px; color: #173762;
+    letter-spacing: -0.02em; font-weight: 800;
+  }
+  .cover .subtitle {
+    font-size: 16px; color: #6b7589; margin-bottom: 40px; font-weight: 500;
+  }
+  .cover .badge {
+    display: inline-block; padding: 8px 20px;
+    background: #173762; color: white; border-radius: 999px;
+    font-size: 13px; font-weight: 700;
+  }
+  .cover .version {
+    margin-top: 30px; font-size: 13px; color: #6b7589;
+  }
+
+  /* 인쇄 안내 */
+  .print-hint {
+    background: #fff8e6; border: 2px solid #f0b400;
+    border-radius: 12px; padding: 16px; margin-bottom: 30px;
+    font-size: 14px; color: #b07b00;
+  }
+  .print-hint strong { color: #8a5a00; }
+  .print-hint button {
+    margin-top: 10px; padding: 10px 24px;
+    background: #173762; color: white; border: 0; border-radius: 8px;
+    font-size: 14px; font-weight: 700; cursor: pointer;
+  }
+
+  /* 목차 */
+  .toc {
+    background: #f6f8fc; border-radius: 14px; padding: 24px 28px;
+    margin-bottom: 50px;
+    page-break-after: always;
+  }
+  .toc h2 { font-size: 20px; margin: 0 0 16px; color: #173762; }
+  .toc ol { padding-left: 24px; margin: 0; }
+  .toc li { padding: 6px 0; font-size: 15px; }
+  .toc a { color: #1b2330; text-decoration: none; }
+
+  /* 섹션 */
+  h1 {
+    font-size: 26px; color: #173762; margin: 50px 0 12px;
+    padding-bottom: 8px; border-bottom: 2px solid #173762;
+    letter-spacing: -0.02em; font-weight: 800;
+    page-break-before: always;
+  }
+  h1:first-of-type { page-break-before: avoid; }
+  h2 {
+    font-size: 19px; color: #2a5da0; margin: 32px 0 12px;
+    letter-spacing: -0.01em; font-weight: 700;
+  }
+  h3 {
+    font-size: 16px; color: #1b2330; margin: 24px 0 8px;
+    letter-spacing: -0.005em; font-weight: 700;
+  }
+  p { margin: 8px 0 12px; }
+  strong { color: #173762; font-weight: 700; }
+
+  /* 단계 표시 */
+  .step {
+    display: flex; gap: 14px; margin: 14px 0;
+    align-items: flex-start;
+  }
+  .step-num {
+    flex: 0 0 32px; height: 32px;
+    background: #173762; color: white; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 14px;
+  }
+  .step-body { flex: 1; padding-top: 4px; font-size: 15px; }
+
+  /* 팁 박스 */
+  .tip-box {
+    background: #e6f8ee; border: 1.5px solid #2dd4a4;
+    border-radius: 10px; padding: 14px 18px;
+    margin: 16px 0; font-size: 14px; color: #0a6e4f;
+  }
+  .tip-box .label {
+    font-size: 11px; font-weight: 800; letter-spacing: 0.05em;
+    color: #0a6e4f; display: block; margin-bottom: 6px;
+  }
+
+  .warn-box {
+    background: #fff8e6; border: 1.5px solid #f0b400;
+    border-radius: 10px; padding: 14px 18px;
+    margin: 16px 0; font-size: 14px; color: #8a5a00;
+  }
+
+  /* 표 */
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+  th, td {
+    border: 1px solid #e3e8f0; padding: 8px 12px;
+    text-align: left; vertical-align: top;
+  }
+  th { background: #f6f8fc; color: #173762; font-weight: 700; }
+
+  /* 코드 */
+  code {
+    background: #f1f4f9; padding: 2px 6px;
+    border-radius: 4px; font-family: 'Consolas', 'Menlo', monospace;
+    font-size: 13px; color: #173762;
+  }
+  pre {
+    background: #1b2330; color: #f1f4f9;
+    padding: 14px 18px; border-radius: 10px;
+    overflow-x: auto; font-size: 13px;
+  }
+  pre code { background: none; color: inherit; padding: 0; }
+
+  /* 리스트 */
+  ul, ol { padding-left: 24px; margin: 8px 0; }
+  li { padding: 3px 0; }
+
+  /* 핵심 강조 */
+  .highlight {
+    background: linear-gradient(transparent 60%, #fff700 60%);
+    font-weight: 700;
+  }
+
+  hr { border: none; border-top: 1px solid #e3e8f0; margin: 40px 0; }
+
+  /* 푸터 */
+  .footer {
+    margin-top: 60px; padding-top: 30px; border-top: 2px solid #173762;
+    text-align: center; color: #6b7589; font-size: 13px;
+  }
+</style>
+</head>
+<body>
+
+<!-- 인쇄 안내 (인쇄 시 숨김) -->
+<div class="print-hint no-print">
+  <strong>📄 PDF로 저장하시려면:</strong><br>
+  아래 버튼을 누른 후 인쇄 다이얼로그에서 <strong>"PDF로 저장"</strong>을 선택하세요.<br>
+  <button onclick="window.print()">🖨️ 지금 인쇄 / PDF로 저장</button>
+</div>
+
+<!-- 표지 -->
+<div class="cover">
+  <span class="badge">사장님 운영 안내문</span>
+  <h1 style="margin-top: 24px;">🏪 결(Gyeol)<br>사장님 운영 가이드</h1>
+  <p class="subtitle">
+    결을 처음 쓰시는 사장님을 위해 만든 안내문입니다.<br>
+    컴퓨터·핸드폰이 익숙하지 않으셔도 차근차근 따라하실 수 있어요.
+  </p>
+  <p class="version">
+    버전 v1.0 · 2026년 6월<br>
+    한국 식당 사장님을 위한 무료 운영 클라우드
+  </p>
+</div>
+
+<!-- 목차 -->
+<div class="toc">
+  <h2>📖 차례</h2>
+  <ol>
+    <li>결이란 무엇인가요?</li>
+    <li>시작하기 — 가입과 매장 설정</li>
+    <li>메뉴 등록하기</li>
+    <li>테이블 배치하기</li>
+    <li>QR 코드 인쇄 후 부착하기</li>
+    <li>영수증 자동 인쇄 프로그램 설치</li>
+    <li>폰으로 알림 받기</li>
+    <li>영업 시간 설정</li>
+    <li>주문 받기 — 손님이 QR 찍으면</li>
+    <li>결제 처리하기</li>
+    <li>테이블 관리 — 8단계 흐름</li>
+    <li>예약 받기</li>
+    <li>직원 등록·관리</li>
+    <li>단골 손님 관리</li>
+    <li>매출·통계 보기</li>
+    <li>매일 운영 흐름 (아침→마감)</li>
+    <li>자주 묻는 질문 (FAQ)</li>
+    <li>문제가 생겼을 때</li>
+  </ol>
+</div>
+
+<!-- ============ 1. 결이란 ============ -->
+<h1>1. 결이란 무엇인가요?</h1>
+
+<p><strong>결(Gyeol)</strong>은 식당 사장님이 손님 주문·결제·단골 관리를 한 번에 할 수 있는 <strong>무료 프로그램</strong>입니다.</p>
+
+<h2>💡 결로 할 수 있는 일</h2>
+<ul>
+  <li>손님이 <strong>QR 코드만 찍으면</strong> 메뉴를 보고 주문해요</li>
+  <li>사장님 <strong>폰으로 새 주문이 왔다고 알림</strong>이 와요</li>
+  <li><strong>영수증이 자동으로 매장 프린터</strong>에서 출력돼요</li>
+  <li>손님이 몇 번 왔는지, 뭘 좋아하는지 <strong>자동으로 기록</strong>돼요</li>
+  <li><strong>단골 손님에게 쿠폰</strong>을 줄 수 있어요</li>
+  <li>매일·매주·매월 <strong>매출을 한눈에</strong> 볼 수 있어요</li>
+</ul>
+
+<h2>🆓 사용료</h2>
+<ul>
+  <li>결 사용료는 <span class="highlight">0원</span></li>
+  <li>인터넷·핸드폰 데이터만 있으면 사용 가능</li>
+</ul>
+
+<!-- ============ 2. 시작하기 ============ -->
+<h1>2. 시작하기 — 가입과 매장 설정</h1>
+
+<h2>📱 처음 가입하기 (5분)</h2>
+
+<div class="step">
+  <span class="step-num">1</span>
+  <div class="step-body">
+    <strong>인터넷 주소 열기</strong><br>
+    핸드폰이나 PC의 인터넷에서 다음 주소를 입력해주세요:<br>
+    <pre>https://gyeol-app.onrender.com</pre>
+  </div>
+</div>
+
+<div class="step">
+  <span class="step-num">2</span>
+  <div class="step-body">
+    "<strong>사장님으로 시작</strong>" 버튼을 누릅니다.
+  </div>
+</div>
+
+<div class="step">
+  <span class="step-num">3</span>
+  <div class="step-body">
+    가입 정보 입력:
+    <table>
+      <tr><th>칸</th><th>입력할 것</th></tr>
+      <tr><td>매장 이름</td><td>예: 결식당, 김밥천국 강남점</td></tr>
+      <tr><td>사장님 성함</td><td>예: 홍길동</td></tr>
+      <tr><td>전화번호</td><td>010-0000-0000</td></tr>
+    </table>
+  </div>
+</div>
+
+<div class="step">
+  <span class="step-num">4</span>
+  <div class="step-body">
+    약관 동의 → <strong>가입 완료</strong>
+  </div>
+</div>
+
+<div class="tip-box">
+  <span class="label">💡 알아두면 좋아요</span>
+  한 번 들어가신 후 화면 우측 상단의 🔖 별표(즐겨찾기) 또는 핸드폰의 <strong>공유 → 홈 화면에 추가</strong>를 해두시면 다음부터 빠르게 접속할 수 있어요.
+</div>
+
+<h2>🏪 매장 기본 설정</h2>
+<p>가입이 끝나면 좌측 메뉴 <strong>브랜드 설정</strong>을 누르세요. 처음 한 번만 설정하면 돼요.</p>
+
+<h3>꼭 설정해야 하는 것</h3>
+<ol>
+  <li><strong>매장 이름</strong> — 영수증·QR 인쇄에 사용됨</li>
+  <li><strong>업종</strong> — 한식·카페·고깃집 등</li>
+  <li><strong>보상 방식</strong> — 포인트 / 스탬프 / 등급제 중 하나</li>
+  <li><strong>매장 위치</strong> — "위치 가져오기" 버튼 누르면 자동 입력</li>
+</ol>
+
+<h3>나중에 해도 되는 것</h3>
+<ul>
+  <li>POS 연동 (이지포스·OKPOS 등)</li>
+  <li>알림톡·SMS 연동</li>
+  <li>결제 시스템 연동</li>
+</ul>
+
+<!-- ============ 3. 메뉴 등록 ============ -->
+<h1>3. 메뉴 등록하기</h1>
+
+<h2>메뉴 추가하는 법</h2>
+
+<div class="step">
+  <span class="step-num">1</span>
+  <div class="step-body">좌측 메뉴에서 <strong>메뉴 관리</strong> 클릭</div>
+</div>
+<div class="step">
+  <span class="step-num">2</span>
+  <div class="step-body">우측 상단 <strong>+ 새 메뉴</strong> 버튼 클릭</div>
+</div>
+<div class="step">
+  <span class="step-num">3</span>
+  <div class="step-body">
+    메뉴 정보 입력:
+    <table>
+      <tr><th>칸</th><th>입력 예시</th></tr>
+      <tr><td>이름</td><td>김치찌개</td></tr>
+      <tr><td>가격</td><td>8000 (숫자만)</td></tr>
+      <tr><td>분류</td><td>식사류 (예: 식사·찌개·고기·음료·반찬)</td></tr>
+      <tr><td>설명</td><td>(선택) "매콤하고 진한 국물"</td></tr>
+    </table>
+  </div>
+</div>
+<div class="step">
+  <span class="step-num">4</span>
+  <div class="step-body"><strong>저장</strong> 클릭 → 메뉴 목록에 즉시 추가됩니다.</div>
+</div>
+
+<h2>메뉴 품절 표시</h2>
+<p>매장에서 <strong>"김치 떨어졌어요!"</strong> 같은 상황엔:</p>
+<ul>
+  <li>메뉴 옆 <strong>토글 스위치</strong> 클릭 → 손님 화면에서 안 보임</li>
+  <li>다시 클릭 → 다시 판매</li>
+</ul>
+
+<h2>메뉴 수정·삭제</h2>
+<p>메뉴 우측 <strong>연필 아이콘</strong> → 수정 또는 <strong>휴지통 아이콘</strong> → 삭제</p>
+
+<!-- ============ 4. 테이블 ============ -->
+<h1>4. 테이블 배치하기</h1>
+
+<p>손님이 어느 자리에 앉을지 정해주는 단계예요.</p>
+
+<h2>🚀 빠른 방법 — 도면 사진으로 자동 만들기 (AI)</h2>
+
+<div class="step"><span class="step-num">1</span><div class="step-body">좌측 메뉴 <strong>테이블 편집</strong> 클릭</div></div>
+<div class="step"><span class="step-num">2</span><div class="step-body"><strong>도면 업로드</strong> 버튼</div></div>
+<div class="step"><span class="step-num">3</span><div class="step-body">매장 도면 사진 선택 (또는 손으로 그린 스케치도 OK)</div></div>
+<div class="step"><span class="step-num">4</span><div class="step-body"><strong>AI 초안 자동 생성</strong> 클릭<br>AI가 30초 안에 도면을 분석해 테이블을 자동 배치</div></div>
+<div class="step"><span class="step-num">5</span><div class="step-body">결과 확인 → <strong>적용</strong> 클릭</div></div>
+
+<div class="tip-box">
+  <span class="label">💡 알아두면 좋아요</span>
+  AI가 잘못 인식한 자리는 마우스로 끌어서 옮기시면 돼요. 룸(별실)은 <strong>+ 테이블 추가</strong> → <strong>룸</strong> 선택.
+</div>
+
+<h2>✋ 수동으로 만드는 법</h2>
+<ol>
+  <li><strong>+ 테이블 추가</strong> 버튼</li>
+  <li>화면에 새 테이블이 나타남 → 마우스로 끌어서 위치 조정</li>
+  <li>테이블 클릭 → 우측에서 <strong>인원수·모양(사각/원형)</strong> 변경</li>
+  <li>끝나면 자동으로 저장됨</li>
+</ol>
+
+<!-- ============ 5. QR 인쇄 ============ -->
+<h1>5. QR 코드 인쇄 후 부착하기</h1>
+
+<h2>인쇄하기</h2>
+
+<div class="step"><span class="step-num">1</span><div class="step-body">좌측 메뉴 <strong>QR 인쇄</strong> 클릭</div></div>
+<div class="step"><span class="step-num">2</span><div class="step-body">
+  템플릿 선택:
+  <table>
+    <tr><th>종류</th><th>추천 상황</th></tr>
+    <tr><td>디럭스 ⭐</td><td>처음 사용 — 사용 방법이 자동으로 같이 인쇄됨</td></tr>
+    <tr><td>미니멀</td><td>잉크 절약</td></tr>
+    <tr><td>와이드</td><td>테이블 번호를 크게 보여주고 싶을 때</td></tr>
+  </table>
+</div></div>
+<div class="step"><span class="step-num">3</span><div class="step-body">
+  종이 종류 선택:
+  <ul>
+    <li><strong>A4 종이</strong> → 잘라서 사용</li>
+    <li><strong>스티커 라벨</strong> → 24칸짜리 라벨지</li>
+    <li><strong>명함 종이</strong> → 10칸짜리</li>
+  </ul>
+</div></div>
+<div class="step"><span class="step-num">4</span><div class="step-body">우측 상단 <strong>인쇄</strong> 버튼</div></div>
+
+<h2>테이블에 붙이기</h2>
+<ol>
+  <li>인쇄한 종이를 가위로 자르기</li>
+  <li>각 테이블 번호 확인</li>
+  <li>손님이 바로 보이는 위치에 부착 (테이블 모서리, 양념통 옆 등)</li>
+  <li>투명 시트지나 코팅으로 덮으면 오래 사용 가능</li>
+</ol>
+
+<!-- ============ 6. 영수증 브릿지 ============ -->
+<h1>6. 영수증 자동 인쇄 프로그램 설치</h1>
+
+<h2>🤔 꼭 해야 하나요?</h2>
+<ul>
+  <li><strong>POS API가 연동된 매장</strong> → 안 해도 됨 (POS에서 자동 인쇄)</li>
+  <li><strong>POS 없거나 수동 매장</strong> → ⭐ 꼭 설치 권장</li>
+</ul>
+
+<h2>설치 방법</h2>
+<div class="step"><span class="step-num">1</span><div class="step-body">결 웹앱 → <strong>브랜드 설정</strong> → <strong>영수증 자동 인쇄</strong></div></div>
+<div class="step"><span class="step-num">2</span><div class="step-body"><strong>결 인쇄 브릿지 프로그램 다운로드</strong> 클릭</div></div>
+<div class="step"><span class="step-num">3</span><div class="step-body">다운로드된 <code>.exe</code> 파일 더블클릭</div></div>
+<div class="step"><span class="step-num">4</span><div class="step-body">
+  Windows 보호 경고 발생 시:
+  <div class="warn-box">
+    "Windows에서 PC를 보호했습니다" 경고는 정상이에요.<br>
+    → <strong>추가 정보 → 실행</strong> 클릭
+  </div>
+</div></div>
+<div class="step"><span class="step-num">5</span><div class="step-body">설치 마법사 진행 (3분)</div></div>
+<div class="step"><span class="step-num">6</span><div class="step-body">우측 하단 트레이에 🟢 결 아이콘 생김</div></div>
+
+<h2>페어링 (매장 연결)</h2>
+
+<div class="step"><span class="step-num">1</span><div class="step-body">결 웹앱 → 브랜드 설정 → 영수증 자동 인쇄</div></div>
+<div class="step"><span class="step-num">2</span><div class="step-body"><strong>자동 인쇄 사용</strong> 토글 켜기</div></div>
+<div class="step"><span class="step-num">3</span><div class="step-body"><strong>페어링 코드 발급</strong> 클릭 → 6자리 숫자 표시 (예: 483921)</div></div>
+<div class="step"><span class="step-num">4</span><div class="step-body">PC 우측 하단 트레이 🟢 결 아이콘 <strong>우클릭</strong> → <strong>매장 연결</strong></div></div>
+<div class="step"><span class="step-num">5</span><div class="step-body">6자리 코드 입력 → <strong>연결</strong></div></div>
+<div class="step"><span class="step-num">6</span><div class="step-body">"<strong>결식당 강남점과 페어링되었어요</strong>" 메시지 → 성공! 🎉</div></div>
+
+<h2>프린터 선택</h2>
+<div class="step"><span class="step-num">1</span><div class="step-body">같은 창에서 <strong>프린터 선택</strong> 드롭다운</div></div>
+<div class="step"><span class="step-num">2</span><div class="step-body">사용할 영수증 프린터 선택 (EPSON, 빅솔론 등)</div></div>
+<div class="step"><span class="step-num">3</span><div class="step-body">제조사 선택</div></div>
+<div class="step"><span class="step-num">4</span><div class="step-body"><strong>테스트 인쇄</strong> 버튼 → 종이가 나오면 끝!</div></div>
+
+<div class="tip-box">
+  <span class="label">💡 알아두면 좋아요</span>
+  이후 손님이 결제 승인하면 <strong>영수증이 자동으로 출력</strong>됩니다. 한 번 깔면 자동 업데이트되어 평생 사용 가능해요.
+</div>
+
+<!-- ============ 7. 푸시 알림 ============ -->
+<h1>7. 폰으로 알림 받기 (푸시 알림)</h1>
+
+<p>매장 화면을 보지 않고도 <strong>사장님 폰에 알림</strong>이 와요.</p>
+
+<h2>📱 알림 받는 종류</h2>
+<ul>
+  <li>🔔 새 주문 도착</li>
+  <li>💳 손님이 결제 요청</li>
+  <li>🎟 손님이 쿠폰 사용 요청</li>
+  <li>👤 새 직원 가입 요청</li>
+</ul>
+
+<h2>알림 설정 방법</h2>
+<div class="step"><span class="step-num">1</span><div class="step-body">결 웹앱 → <strong>브랜드 설정</strong> → <strong>푸시 알림</strong> 섹션</div></div>
+<div class="step"><span class="step-num">2</span><div class="step-body"><strong>이 기기로 알림 받기</strong> 버튼 클릭</div></div>
+<div class="step"><span class="step-num">3</span><div class="step-body">브라우저 권한 팝업 → <strong>허용</strong></div></div>
+<div class="step"><span class="step-num">4</span><div class="step-body">"이 기기 알림 켜짐 · 총 1대 등록" 메시지 → 성공!</div></div>
+
+<h2>여러 기기에서 알림 받기</h2>
+<p>사장님 폰뿐만 아니라 <strong>태블릿·매장 PC</strong> 어디서든 같은 방법으로 등록 가능. 어떤 기기에서든 결 웹앱 로그인 → 브랜드 설정 → <strong>"이 기기로 알림 받기"</strong></p>
+
+<div class="warn-box">
+  <strong>⚠️ 주의:</strong>
+  <ul style="margin: 8px 0;">
+    <li><strong>iPhone</strong>: 결 웹앱 열고 → <strong>공유 → 홈 화면에 추가</strong> 한 뒤에만 작동 (iOS 16.4 이상)</li>
+    <li>Android·Windows·Mac은 그냥 브라우저에서 바로 작동</li>
+    <li>권한 거부 시: 주소창 왼쪽 <strong>🔒 자물쇠 → 알림 → 허용</strong></li>
+  </ul>
+</div>
+
+<!-- ============ 8. 영업시간 ============ -->
+<h1>8. 영업 시간 설정</h1>
+
+<p>영업 시간을 등록하면 <strong>영업 외 시간에 손님 주문이 자동으로 차단</strong>돼요.</p>
+
+<h2>설정 방법</h2>
+<div class="step"><span class="step-num">1</span><div class="step-body">결 웹앱 → <strong>브랜드 설정</strong> → <strong>영업 시간</strong> 섹션</div></div>
+<div class="step"><span class="step-num">2</span><div class="step-body">
+  요일별로 영업 시간 입력. 예시:
+  <pre>월요일 09:00 ~ 22:00
+화요일 09:00 ~ 22:00
+...
+일요일 휴무</pre>
+</div></div>
+<div class="step"><span class="step-num">3</span><div class="step-body">
+  <strong>휴게 시간 (선택)</strong>: 점심 후 잠시 닫는 식당이면 <strong>+ 쉬는시간</strong> 클릭 → 시간 입력 (예: 15:00 ~ 17:00)
+</div></div>
+<div class="step"><span class="step-num">4</span><div class="step-body">
+  <strong>24시간 영업</strong>: 24시간 운영 매장은 토글 켜기 → 요일별 시간 무시
+</div></div>
+<div class="step"><span class="step-num">5</span><div class="step-body">
+  <strong>특정 날짜 휴무</strong> (명절·임시휴무): 날짜 선택 → 추가 클릭
+</div></div>
+<div class="step"><span class="step-num">6</span><div class="step-body"><strong>영업 시간 저장</strong> 버튼</div></div>
+
+<h2>긴급 임시 마감</h2>
+<p>갑자기 매장을 닫아야 할 때:</p>
+<ul>
+  <li>매장 상단의 <strong>🟢 영업 중</strong> 칩 클릭 → 🔴 마감으로 즉시 변경</li>
+  <li>사유 입력 (선택): "재료 소진", "사장님 부재" 등</li>
+  <li>다시 클릭하면 영업 재개</li>
+</ul>
+<p>→ 손님이 QR 찍어도 <strong>"지금은 주문할 수 없어요"</strong> 안내가 표시됩니다.</p>
+
+<!-- ============ 9. 주문 받기 ============ -->
+<h1>9. 주문 받기 — 손님이 QR 찍으면</h1>
+
+<h2>흐름 한눈에</h2>
+<pre>손님이 QR 찍기
+    ↓
+손님 회원가입·로그인
+    ↓
+메뉴 보고 카트 담기
+    ↓
+주문하기 버튼
+    ↓
+🔔 사장님 폰에 알림 도착!
+    ↓
+주문 화면에 새 주문 카드 표시</pre>
+
+<h2>사장님이 할 일</h2>
+<div class="step"><span class="step-num">1</span><div class="step-body">좌측 메뉴 <strong>주문·쿠폰</strong> 클릭</div></div>
+<div class="step"><span class="step-num">2</span><div class="step-body">새 주문 카드 (네이비 강조) 확인</div></div>
+<div class="step"><span class="step-num">3</span><div class="step-body"><strong>접수 완료</strong> 버튼 1번 클릭 → 자동으로 "조리 중" 상태로 변경</div></div>
+<div class="step"><span class="step-num">4</span><div class="step-body">조리 완료 후 <strong>서빙 완료</strong> 버튼 1번 클릭 → 끝!</div></div>
+
+<div class="tip-box">
+  <span class="label">💡 알아두면 좋아요</span>
+  <strong>사장님이 누르는 버튼은 총 2번이에요.</strong><br>
+  다른 POS는 4단계인데, 결은 2단계로 단순화했어요.
+</div>
+
+<h2>주문 취소 / 영수증 재인쇄</h2>
+<ul>
+  <li>주문 카드의 <strong>취소</strong> 버튼 → 확인 → 취소됨</li>
+  <li>주문 카드의 <strong>재인쇄</strong> 버튼 → 영수증 다시 출력</li>
+</ul>
+
+<!-- ============ 10. 결제 ============ -->
+<h1>10. 결제 처리하기</h1>
+
+<h2>새 결제 흐름</h2>
+<pre>손님이 '결제하기' 누르기
+    ↓
+💳 사장님 폰 알림: "결제 요청 — 테이블 N · ₩50,000"
+    ↓
+사장님: 주문 페이지 → 노란색 "결제 요청" 카드
+    ↓
+사장님: '결제 승인 + 영수증 출력' 클릭
+    ↓
+📄 총 영수증 1장 자동 출력 (모든 주문 합산)
+    ↓
+사장님: 테이블 클릭 → '계산 완료 → 테이블 비우기'</pre>
+
+<h2>사장님이 해야 할 일</h2>
+<h3>방법 A. 주문 페이지에서</h3>
+<ol>
+  <li>좌측 <strong>주문·쿠폰</strong> 클릭</li>
+  <li>상단 <strong>"💰 결제 요청"</strong> 카드 (노란색)</li>
+  <li><strong>결제 승인 + 영수증 출력</strong> 클릭</li>
+</ol>
+
+<h3>방법 B. 대시보드 테이블 카드에서</h3>
+<ol>
+  <li><strong>대시보드</strong> → 결제 요청 들어온 테이블 클릭</li>
+  <li>모달 상단의 <strong>결제 요청</strong> 배너 (노란색)</li>
+  <li><strong>결제 승인 + 영수증 출력</strong> 클릭</li>
+  <li>사장님이 결제 받음 (현금·카드 단말기)</li>
+  <li><strong>계산 완료 → 테이블 비우기</strong> 클릭</li>
+</ol>
+
+<!-- ============ 11. 8단계 ============ -->
+<h1>11. 테이블 관리 — 8단계 흐름</h1>
+
+<p>매장의 테이블은 <strong>8가지 상태</strong>로 자동으로 흘러가요.</p>
+
+<h2>8단계 그림</h2>
+<pre>1. ⚪ 비어있음     ← 손님 없음
+        ↓
+2. 🟣 예약됨       ← 예약 등록하면 자동
+        ↓
+3. 🟡 세팅완료     ← 사장님이 "준비 완료" 클릭
+        ↓
+4. 🟢 손님입장     ← 손님이 QR 찍으면 자동
+        ↓
+5. 🟢 식사중       ← 첫 주문이 들어오면 자동
+        ↓
+6. 🔵 결제완료     ← 결제 승인하면 자동
+        ↓
+7. 🟠 정리중       ← "정리 시작" 클릭
+        ↓
+   다시 비어있음   ← "청소 완료" 클릭</pre>
+
+<h2>사장님이 직접 누르는 단계</h2>
+<ul>
+  <li><strong>세팅 완료</strong> (③) — 손님 받을 준비</li>
+  <li><strong>정리 시작</strong> (⑦) — 결제 후 정리</li>
+  <li><strong>청소 완료</strong> (→①) — 다음 손님 받을 준비</li>
+</ul>
+<p><strong>나머지는 모두 자동으로 흘러갑니다.</strong></p>
+
+<h2>테이블 상세 보기</h2>
+<p>대시보드에서 테이블 카드 클릭 → 모달 창이 열림</p>
+
+<h3>표시되는 정보</h3>
+<ul>
+  <li>현재 상태 (색깔 + 진행 바)</li>
+  <li><strong>체류 시간</strong> (45분, 1시간 20분 등)</li>
+  <li><strong>인원수 / 손님 명단</strong></li>
+  <li><strong>주문 목록</strong> (각 주문의 메뉴·수량·금액·결제상태)</li>
+  <li><strong>합계 + 미결제 합계</strong></li>
+</ul>
+
+<!-- ============ 12. 예약 ============ -->
+<h1>12. 예약 받기</h1>
+
+<h2>예약 등록</h2>
+<div class="step"><span class="step-num">1</span><div class="step-body">좌측 메뉴 <strong>예약</strong> 클릭</div></div>
+<div class="step"><span class="step-num">2</span><div class="step-body">우측 상단 <strong>+ 새 예약</strong> 버튼</div></div>
+<div class="step"><span class="step-num">3</span><div class="step-body">
+  <strong>단골 손님이라면</strong> (이름 검색):
+  <ul>
+    <li>이름·전화번호 일부 입력 → 등록된 손님 자동 검색</li>
+    <li>클릭 → 정보 자동 채움</li>
+  </ul>
+  <strong>처음 오시는 손님이라면</strong> (게스트로 추가):
+  <ul>
+    <li>검색 결과 없으면 <strong>+ 게스트로 추가</strong> 클릭</li>
+    <li>이름·전화번호 한 화면에서 동시 입력</li>
+    <li><strong>게스트 추가</strong> 클릭</li>
+  </ul>
+</div></div>
+<div class="step"><span class="step-num">4</span><div class="step-body">날짜·시간·테이블·인원·메모 입력</div></div>
+<div class="step"><span class="step-num">5</span><div class="step-body"><strong>저장</strong> → 해당 테이블 자동 "예약됨" (보라색) 표시</div></div>
+
+<h2>예약 상태 변경</h2>
+<p>각 예약 카드 하단의 <strong>4가지 상태</strong> 버튼:</p>
+<ul>
+  <li><strong>예약 확정</strong> (기본)</li>
+  <li><strong>방문 완료</strong> — 손님이 와서 식사함</li>
+  <li><strong>노쇼</strong> — 안 옴</li>
+  <li><strong>취소</strong></li>
+</ul>
+
+<!-- ============ 13. 직원 ============ -->
+<h1>13. 직원 등록·관리</h1>
+
+<h2>직원 가입 요청 받기</h2>
+<div class="step"><span class="step-num">1</span><div class="step-body">직원이 결 웹앱 → <strong>직원으로 시작</strong> → 가입</div></div>
+<div class="step"><span class="step-num">2</span><div class="step-body">직원이 사장님 매장 검색 → <strong>가입 요청</strong></div></div>
+<div class="step"><span class="step-num">3</span><div class="step-body">사장님 폰에 알림: "👤 새 직원 가입 요청"</div></div>
+<div class="step"><span class="step-num">4</span><div class="step-body">사장님: 좌측 <strong>직원 관리</strong> 클릭</div></div>
+<div class="step"><span class="step-num">5</span><div class="step-body">가입 요청 카드 → <strong>승인</strong> 또는 반려</div></div>
+
+<h2>직원이 할 수 있는 일 / 없는 일</h2>
+<table>
+  <tr><th>✅ 할 수 있는 일</th><th>❌ 할 수 없는 일</th></tr>
+  <tr>
+    <td>
+      주문 받기 / 상태 변경<br>
+      결제 승인<br>
+      테이블 상태 변경<br>
+      단골 손님 조회<br>
+      자기 출퇴근 기록
+    </td>
+    <td>
+      매장 설정 변경<br>
+      메뉴 추가·삭제<br>
+      통계 보기<br>
+      다른 직원 관리
+    </td>
+  </tr>
+</table>
+
+<!-- ============ 14. 단골 관리 ============ -->
+<h1>14. 단골 손님·쿠폰 관리</h1>
+
+<h2>손님 목록 보기</h2>
+<p>좌측 <strong>고객 관리</strong> 클릭. 표시되는 정보:</p>
+<ul>
+  <li>이름·전화번호·등급</li>
+  <li>방문 횟수</li>
+  <li>클러스터 (VIP 레전드 / 유망 신규 / 이탈 위험 / 장기 휴면)</li>
+</ul>
+
+<h2>쿠폰 발급</h2>
+<h3>개별 발급</h3>
+<ol>
+  <li>손님 카드 클릭 → <strong>쿠폰 발급</strong></li>
+  <li>종류·설명 입력 → 발급</li>
+</ol>
+
+<h3>일괄 발급 (여러 명에게 한 번에)</h3>
+<ol>
+  <li>손님 카드 우클릭(또는 길게 눌러) <strong>선택 모드</strong> 진입</li>
+  <li>여러 손님 선택</li>
+  <li>하단 <strong>쿠폰</strong> 버튼 → 일괄 발급</li>
+</ol>
+
+<h2>엑셀로 내려받기</h2>
+<ol>
+  <li>우측 상단 <strong>엑셀</strong> 버튼</li>
+  <li>CSV 파일이 다운로드됨</li>
+  <li>Excel 또는 한글 오피스에서 열기 (한글 자동 처리)</li>
+</ol>
+
+<!-- ============ 15. 통계 ============ -->
+<h1>15. 매출·통계 보기</h1>
+
+<p>좌측 <strong>통계</strong> 클릭</p>
+
+<h2>표시 항목</h2>
+<ul>
+  <li><strong>오늘·어제 매출 비교</strong> (증감 % 자동 계산)</li>
+  <li><strong>시간대별</strong> 주문 분포 그래프</li>
+  <li><strong>요일별</strong> 매출</li>
+  <li><strong>메뉴별</strong> 판매 순위</li>
+  <li><strong>고객 등급별</strong> 비율</li>
+  <li><strong>연령대별</strong> 손님 분포</li>
+</ul>
+
+<h2>매출 색상</h2>
+<ul>
+  <li>🟢 mint = 매출 상승</li>
+  <li>🟠 주황 = 매출 하락</li>
+  <li>회색 = 변화 없음</li>
+</ul>
+
+<!-- ============ 16. 매일 운영 ============ -->
+<h1>16. 매일 운영 흐름 (아침→마감)</h1>
+
+<h2>🌅 영업 시작 전 (10분)</h2>
+<ol>
+  <li>결 웹앱 열기 → 사장님 로그인</li>
+  <li><strong>대시보드</strong> 확인: 어제 매출 / 오늘 예약 건수</li>
+  <li><strong>테이블 상태</strong> 확인: 어제 마감 후 정리 안 된 테이블 → 청소 완료 처리</li>
+  <li>재료 점검 → 품절 메뉴 OFF</li>
+</ol>
+
+<h2>🍴 영업 중 — 자동 흐름</h2>
+<ul>
+  <li>주문 들어옴 → 폰 알림 → 접수 완료 → 조리 → 서빙 완료</li>
+  <li>결제 요청 → 알림 → 결제 승인 → 영수증 출력 → 계산 완료</li>
+</ul>
+
+<h2>🌙 영업 종료 후 (5분)</h2>
+<ol>
+  <li><strong>대시보드</strong> → 오늘 매출 확인</li>
+  <li><strong>고객 관리</strong> → 새로 온 신규 손님 확인</li>
+  <li><strong>테이블 정리</strong> → 모두 비어있음 상태로</li>
+  <li>(선택) 단골 손님에게 <strong>다음 방문 쿠폰</strong> 발급</li>
+</ol>
+
+<!-- ============ 17. FAQ ============ -->
+<h1>17. 자주 묻는 질문 (FAQ)</h1>
+
+<h3>Q1. 인터넷이 끊기면 어떻게 되나요?</h3>
+<p><strong>A.</strong> 결은 인터넷이 다시 연결되면 자동으로 동기화돼요. 끊긴 동안 사장님이 입력한 데이터는 PC 안에 보관 → 연결되면 자동 전송.</p>
+
+<h3>Q2. 영수증 프린터를 안 샀어요.</h3>
+<p><strong>A.</strong> POS 연동 또는 일반 A4 프린터로 인쇄 가능. 결제 승인 시 브라우저 팝업으로 출력됩니다.</p>
+
+<h3>Q3. 손님이 QR 찍었는데 회원가입을 안 해요.</h3>
+<p><strong>A.</strong> 첫 가입은 1분 정도. 손님에게 "카카오로 5초 가입 가능해요"라고 안내해주세요.</p>
+
+<h3>Q4. 다른 매장 손님도 우리 매장 정보를 볼 수 있나요?</h3>
+<p><strong>A.</strong> 아니에요. 손님은 QR 찍은 매장 정보만 볼 수 있어요. 매장 간 데이터는 완전히 분리됩니다.</p>
+
+<h3>Q5. 결을 그만 쓸 때 데이터는 어떻게 되나요?</h3>
+<p><strong>A.</strong> 사장님 동의 후 삭제되며, 단골 손님 정보는 엑셀로 받아 가실 수 있어요.</p>
+
+<h3>Q6. 다른 매장 쿠폰이 우리 매장에서 쓰여요?</h3>
+<p><strong>A.</strong> 아니에요. 쿠폰은 발급한 매장에서만 사용 가능해요.</p>
+
+<h3>Q7. 예약을 받았는데 손님이 안 와요.</h3>
+<p><strong>A.</strong> 예약 카드의 <strong>노쇼</strong> 버튼 → 테이블이 자동으로 비어있음으로 복귀.</p>
+
+<h3>Q8. 인쇄 브릿지 프로그램이 자꾸 꺼져요.</h3>
+<p><strong>A.</strong> 트레이의 결 아이콘 우클릭 → <strong>자동 시작</strong> 체크 확인. 그래도 안 되면 재설치.</p>
+
+<h3>Q9. 사장님 폰을 새로 바꿨어요. 알림은?</h3>
+<p><strong>A.</strong> 옛 폰: 알림 끄기. 새 폰: 결 웹앱 → 브랜드 설정 → <strong>이 기기로 알림 받기</strong>.</p>
+
+<h3>Q10. 영업 시간 외 사장님 수동 주문 입력은?</h3>
+<p><strong>A.</strong> 가능해요. 사장님은 영업 시간 무관하게 입력 가능. 손님 QR 주문만 차단됩니다.</p>
+
+<!-- ============ 18. 문제 ============ -->
+<h1>18. 문제가 생겼을 때</h1>
+
+<h2>⚡ 즉시 해결할 수 있는 것</h2>
+
+<h3>"화면이 안 떠요" → 새로고침</h3>
+<ul>
+  <li>PC: <code>Ctrl + Shift + R</code></li>
+  <li>핸드폰: 주소창 옆 새로고침 아이콘</li>
+</ul>
+
+<h3>"주문이 안 보여요" → 알림 권한 확인</h3>
+<ol>
+  <li>브랜드 설정 → 푸시 알림</li>
+  <li>이 기기 알림이 켜져 있는지 확인</li>
+  <li>안 켜져 있으면 다시 등록</li>
+</ol>
+
+<h3>"프린터에서 영수증이 안 나와요"</h3>
+<ol>
+  <li>프린터 전원 확인</li>
+  <li>종이가 들어가 있는지 확인</li>
+  <li>PC 트레이의 결 아이콘이 🟢 (초록)인지 확인</li>
+  <li>🟡 노랑이면 인터넷 연결 확인</li>
+  <li>🔴 빨강이면 우클릭 → 다시 페어링</li>
+</ol>
+
+<h3>"푸시 알림이 안 와요"</h3>
+<ol>
+  <li>결 웹앱 → 브랜드 설정 → 푸시 알림 → 상태 확인</li>
+  <li>권한 거부됐다면 → 주소창 왼쪽 🔒 → 알림 → 허용</li>
+  <li>종류별 토글이 켜져 있는지 확인</li>
+</ol>
+
+<h2>🆘 그래도 안 될 때</h2>
+
+<div class="warn-box">
+  <strong>매장 담당 매니저에게 연락하실 때:</strong>
+  <ol style="margin: 10px 0;">
+    <li>현재 화면을 사진 또는 캡쳐</li>
+    <li>언제 발생했는지 메모</li>
+    <li>무슨 작업을 하던 중이었는지 메모</li>
+  </ol>
+  위 3가지를 보내주시면 빠르게 해결해드려요.
+</div>
+
+<!-- 마치며 -->
+<h1>🎉 마치며</h1>
+
+<p><strong>결을 시작해 주셔서 감사합니다.</strong></p>
+
+<p>처음에는 익숙해질 때까지 시간이 좀 걸릴 수 있어요. 하지만 한 번 익숙해지시면:</p>
+<ul>
+  <li>손님 만족도 ↑</li>
+  <li>운영 시간 ↓</li>
+  <li>단골 정보 자동 축적</li>
+  <li>매출 자동 분석</li>
+</ul>
+<p>이 모든 게 사장님 손에 들어옵니다.</p>
+
+<div class="tip-box">
+  <span class="label">💡 천천히 시작하셔도 좋아요</span>
+  첫 주: 메뉴·테이블 등록만<br>
+  둘째 주: QR 부착<br>
+  셋째 주: 푸시 알림·영수증 자동화<br>
+  넷째 주: 단골 관리·통계<br>
+  이런 식으로 단계적으로 익히시면 부담이 적어요.
+</div>
+
+<p style="text-align: center; margin-top: 40px; font-size: 18px; font-weight: 700; color: #173762;">
+  좋은 영업 되세요! 💚
+</p>
+
+<!-- 푸터 -->
+<div class="footer">
+  <strong>결(Gyeol)</strong> · 한국 식당 사장님을 위한 무료 운영 클라우드<br>
+  사장님 운영 가이드 v1.0 · 2026.06
+</div>
+
+</body>
+</html>
