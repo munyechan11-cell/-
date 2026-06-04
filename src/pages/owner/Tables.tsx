@@ -59,11 +59,17 @@ async function compressImageToDataUrl(file: File, maxWidth = 1280): Promise<stri
   return canvas.toDataURL("image/jpeg", 0.8);
 }
 
+// 8단계 흐름 — 다음 상태 순환 (테이블 편집 페이지의 카드에서 빠른 토글용)
+// 자세한 분기·라벨·색상은 src/lib/tableFlow.ts 의 단일 진실원 사용 권장
 const STATUS_FLOW: Record<TableStatus, { next: TableStatus; label: string; cls: string }> = {
-  available: { next: "occupied", label: "비어있음", cls: "bg-[var(--color-ink-50)] text-[var(--color-ink-600)]" },
-  occupied: { next: "paid", label: "사용 중", cls: "bg-[var(--color-mint-100)] text-[var(--color-mint-700)]" },
-  paid: { next: "dirty", label: "결제 완료", cls: "bg-[var(--color-navy-100)] text-[var(--color-navy-700)]" },
-  dirty: { next: "available", label: "정리 필요", cls: "bg-[#fff1e0] text-[var(--color-warn)]" },
+  available: { next: "setup",    label: "비어있음",   cls: "bg-white border border-[var(--color-line)] text-[var(--color-ink-600)]" },
+  reserved:  { next: "setup",    label: "예약됨",     cls: "bg-[#f1ecff] text-[#6d4cdf]" },
+  setup:     { next: "occupied", label: "세팅완료",   cls: "bg-[#fff8e6] text-[#b07b00]" },
+  occupied:  { next: "dining",   label: "손님입장",   cls: "bg-[var(--color-mint-50)] text-[var(--color-mint-700)]" },
+  dining:    { next: "paid",     label: "식사중",     cls: "bg-[var(--color-mint-100)] text-[var(--color-mint-700)]" },
+  paid:      { next: "cleaning", label: "결제완료",   cls: "bg-[var(--color-navy-100)] text-[var(--color-navy-700)]" },
+  cleaning:  { next: "available",label: "청소중",     cls: "bg-[#fff1e0] text-[var(--color-warn)]" },
+  dirty:     { next: "available",label: "청소중",     cls: "bg-[#fff1e0] text-[var(--color-warn)]" },
 };
 
 type ViewMode = "list" | "layout";

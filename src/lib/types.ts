@@ -102,7 +102,32 @@ export interface Coupon {
   usedAtTable?: number;
 }
 
-export type TableStatus = "available" | "occupied" | "paid" | "dirty";
+/**
+ * 테이블 8단계 워크플로우 (2026-06).
+ *
+ * 자동 = 시스템이 트리거 (loadOrders, enterTable, approvePayment 등)
+ * 수동 = 사장님/직원이 모달에서 버튼 클릭
+ *
+ *  1. available  비어있음    자동 (초기/청소완료 시 복귀)
+ *  2. reserved   예약됨      수동 (사장님이 예약 입력 또는 직접 표시)
+ *  3. setup      세팅완료    수동 (사장님 "준비됐어요" → 손님 입장 대기)
+ *  4. occupied   손님입장    자동 (QR enterTable)
+ *  5. dining     식사중      자동 (첫 주문 발생 시)
+ *  6. paid       결제완료    자동 (approvePayment)
+ *  7. cleaning   청소·정리중 수동 (사장님 "정리 시작")
+ *  8. → available 청소완료    수동 (사장님 "정리 완료") → 비어있음 자동 복귀
+ *
+ * 'dirty' 는 호환을 위한 alias → cleaning 으로 매핑.
+ */
+export type TableStatus =
+  | "available"
+  | "reserved"
+  | "setup"
+  | "occupied"
+  | "dining"
+  | "paid"
+  | "cleaning"
+  | "dirty";  // legacy alias for cleaning
 export interface TableDoc {
   id: string;
   number: number;

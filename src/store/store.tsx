@@ -858,13 +858,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const occupantIds = Array.from(
         new Set([...(existing?.occupantIds ?? []), input.customerId])
       );
+      // 8단계 자동 전이 — 현재 status 가 setup/reserved/available 이었으면 occupied 로
+      // 이미 occupied/dining/paid 면 유지 (합석/주문 후 점유 갱신)
+      const cur = existing?.status;
+      const nextStatus =
+        cur === "dining" || cur === "paid" || cur === "cleaning" || cur === "dirty"
+          ? cur
+          : "occupied";
       await updateFirestoreDoc("tables", tableId, {
         currentCustomerId: existing?.currentCustomerId ?? input.customerId,
         currentCustomerName: existing?.currentCustomerName ?? input.customerName ?? null,
         occupantIds,
         partySize: input.partySize ?? existing?.partySize ?? occupantIds.length,
         sessionStartTime: existing?.sessionStartTime ?? new Date().toISOString(),
-        status: "occupied",
+        status: nextStatus,
       });
     },
     []
@@ -989,8 +996,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const updateTableStatus = useCallback(
     async (storeId: string, number: number, status: TableStatus) => {
       const patch: Partial<TableDoc> = { status };
+      // 비어있음으로 복귀 시 점유 정보 일괄 정리
       if (status === "available") {
         patch.currentCustomerId = null;
+        patch.currentCustomerName = null;
+        patch.occupantIds = [];
+        patch.partySize = null;
         patch.sessionStartTime = null;
       }
       await updateFirestoreDoc("tables", `${storeId}_${number}`, patch);
@@ -1070,6 +1081,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         createdAt: new Date().toISOString(),
       };
       await updateFirestoreDoc("orders", order.id, order);
+
+      // 8단계 자동 전이 — 주문이 발생하면 테이블 상태 dining 으로 (occupied/setup/available 일 때만)
+      try {
+        const tableId = `${storeId}_${tableNumber}`;
+        const cur = tablesRef.current.find((t) => t.id === tableId);
+        const curStatus = cur?.status;
+        if (curStatus === "occupied" || curStatus === "setup" || curStatus === "available" || !curStatus) {
+          await updateFirestoreDoc("tables", tableId, { status: "dining" });
+        }
+      } catch (e: any) {
+        console.warn("[placeOrder] status→dining skip", e?.message);
+      }
 
       const owner = users.find((u) => u.id === storeId && u.role === "owner");
       const hasPosApi =

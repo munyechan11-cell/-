@@ -24,6 +24,8 @@ import { OwnerShell } from "../../components/layout/OwnerShell";
 import { Card } from "../../components/ui/Card";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { useStore } from "../../store/store";
+import { STATUS_LABEL, STATUS_BADGE, STATUS_STEP, nextManualTransitions, normalizeStatus } from "../../lib/tableFlow";
+import type { TableStatus } from "../../lib/types";
 
 const QUICK_LINKS = [
   { to: "/biz/owner/orders", icon: ChefHat, label: "주문·쿠폰", color: "mint" },
@@ -263,7 +265,7 @@ type TableLite = {
   id: string;
   number: number;
   type?: string;
-  status?: "available" | "occupied" | "paid" | "dirty";
+  status?: TableStatus;
   seats?: number;
   x?: number;
   y?: number;
@@ -312,9 +314,13 @@ function DashboardTableArea({ tables, view }: { tables: TableLite[]; view: "list
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         {[...tables]
           .sort((a, b) => {
-            const order = { occupied: 0, dirty: 1, paid: 2, available: 3 } as const;
+            // tableFlow.STATUS_ORDER 와 일치 (cleaning/dirty 0, paid 1, dining 2, occupied 3...)
+            const order: Record<string, number> = {
+              cleaning: 0, dirty: 0, paid: 1, dining: 2, occupied: 3,
+              setup: 4, reserved: 5, available: 6,
+            };
             return (
-              order[a.status ?? "available"] - order[b.status ?? "available"] || a.number - b.number
+              (order[a.status ?? "available"] ?? 6) - (order[b.status ?? "available"] ?? 6) || a.number - b.number
             );
           })
           .map((t) => (
@@ -339,7 +345,7 @@ function DashboardTableArea({ tables, view }: { tables: TableLite[]; view: "list
                 </p>
                 {t.type !== "door" && (
                   <p className="body-sm truncate">
-                    {t.status === "occupied" && t.currentCustomerName
+                    {(t.status === "occupied" || t.status === "dining") && t.currentCustomerName
                       ? `${t.currentCustomerName}님${t.partySize ? ` · ${t.partySize}명` : ""}`
                       : `${t.seats}인`}
                   </p>
@@ -360,8 +366,10 @@ function DashboardTableArea({ tables, view }: { tables: TableLite[]; view: "list
 // 테이블 상세 모달 — 누가, 얼마나 있었는지, 인원, 주문, 합계, 퇴장 처리
 // ============================================================
 function TableDetailModal({ table, onClose }: { table: TableLite; onClose: () => void }) {
-  const { users, orders, evictTable, approvePayment, completeTable, printInterimReceipt, currentUser } = useStore();
+  const { users, orders, evictTable, approvePayment, completeTable, printInterimReceipt, updateTableStatus, currentUser } = useStore();
   const storeId = currentUser?.id ?? "";
+  const curStatus = normalizeStatus(table.status);
+  const transitions = nextManualTransitions(curStatus);
 
   // 현재 매장의 이 테이블 미결제 주문 (취소 제외)
   const tableOrders = orders
@@ -448,19 +456,50 @@ function TableDetailModal({ table, onClose }: { table: TableLite; onClose: () =>
             <div className="w-12 h-12 rounded-xl bg-[var(--color-navy-50)] text-[var(--color-navy-800)] font-extrabold text-[18px] inline-flex items-center justify-center">
               {table.number}
             </div>
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <p className="text-[16px] font-extrabold text-[var(--color-navy-900)]">
                 테이블 {table.number}
               </p>
-              <p className="text-[12px] text-[var(--color-ink-500)]">
-                {table.type === "room" ? "룸" : "일반"} · {table.seats}인석 ·{" "}
-                {table.status === "occupied" ? "사용 중"
-                  : table.status === "dirty" ? "정리 필요"
-                  : table.status === "paid" ? "결제 완료"
-                  : "비어있음"}
+              <p className="text-[12px] text-[var(--color-ink-500)] truncate">
+                {table.type === "room" ? "룸" : "일반"} · {table.seats}인석
               </p>
             </div>
+            <span
+              className={cn(
+                "px-2.5 py-1 rounded-full text-[11.5px] font-extrabold inline-flex items-center gap-1.5 shrink-0",
+                STATUS_BADGE[curStatus].bg,
+                STATUS_BADGE[curStatus].text
+              )}
+            >
+              <span className={cn("w-1.5 h-1.5 rounded-full", STATUS_BADGE[curStatus].dot)} />
+              {STATUS_LABEL[curStatus]}
+            </span>
           </div>
+
+          {/* 8단계 진행 바 */}
+          <div className="mt-3 flex items-center gap-0.5">
+            {[1, 2, 3, 4, 5, 6, 7].map((step) => {
+              const isPast = STATUS_STEP[curStatus] >= step;
+              const isCurrent = STATUS_STEP[curStatus] === step;
+              return (
+                <div
+                  key={step}
+                  className={cn(
+                    "flex-1 h-1.5 rounded-full transition-colors",
+                    isCurrent
+                      ? "bg-[var(--color-navy-700)]"
+                      : isPast
+                      ? "bg-[var(--color-navy-300)]"
+                      : "bg-[var(--color-ink-100)]"
+                  )}
+                  title={`${step}단계`}
+                />
+              );
+            })}
+          </div>
+          <p className="text-[10.5px] text-[var(--color-ink-500)] mt-1.5 text-center font-semibold">
+            {STATUS_STEP[curStatus]}/7 · {STATUS_LABEL[curStatus]}
+          </p>
         </div>
 
         {/* 본문 — 스크롤 가능 */}
@@ -573,6 +612,30 @@ function TableDetailModal({ table, onClose }: { table: TableLite; onClose: () =>
 
         {/* 액션 — 상황별 노출 */}
         <div className="px-5 py-3 border-t border-[var(--color-line)] shrink-0 space-y-2">
+          {/* 0) 8단계 수동 전이 버튼 — 가능한 전이만 노출 */}
+          {transitions.length > 0 && (
+            <div className={cn("grid gap-2", transitions.length === 1 ? "grid-cols-1" : "grid-cols-2")}>
+              {transitions.map((t) => (
+                <button
+                  key={t.to}
+                  onClick={async () => {
+                    try { await updateTableStatus(storeId, table.number, t.to as TableStatus); }
+                    catch (e: any) { console.warn("[setStatus]", e?.message); }
+                  }}
+                  className={cn(
+                    "h-11 rounded-[12px] font-bold text-[13px] transition-all active:scale-[0.98]",
+                    t.tone === "primary" && "bg-[var(--color-navy-700)] text-white",
+                    t.tone === "mint" && "bg-[var(--color-mint-500)] text-white",
+                    t.tone === "warn" && "bg-[var(--color-warn)] text-white",
+                    t.tone === "outline" && "bg-white border-[1.5px] border-[var(--color-line)] text-[var(--color-navy-800)]"
+                  )}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* 1) 결제 승인 — 미결제 주문이 있으면 (요청 여부 무관) */}
           {unpaidOrders.length > 0 && (
             <button
@@ -705,13 +768,13 @@ function Dot({ color }: { color: string }) {
   return <span className={cn("inline-block w-2 h-2 rounded-full", color)} />;
 }
 
-function StatusBadge({ status }: { status: "available" | "occupied" | "paid" | "dirty" }) {
-  const map = {
-    available: { label: "비어있음", cls: "bg-[var(--color-ink-50)] text-[var(--color-ink-600)]" },
-    occupied: { label: "사용 중", cls: "bg-[var(--color-mint-100)] text-[var(--color-mint-700)]" },
-    paid: { label: "결제 완료", cls: "bg-[var(--color-navy-100)] text-[var(--color-navy-700)]" },
-    dirty: { label: "정리 필요", cls: "bg-[#fff1e0] text-[var(--color-warn)]" },
-  } as const;
-  const s = map[status];
-  return <span className={`px-2.5 py-1 rounded-full text-[12px] font-bold ${s.cls}`}>{s.label}</span>;
+function StatusBadge({ status }: { status?: string }) {
+  const s = normalizeStatus(status as any);
+  const badge = STATUS_BADGE[s];
+  return (
+    <span className={cn("px-2.5 py-1 rounded-full text-[11.5px] font-bold inline-flex items-center gap-1.5", badge.bg, badge.text)}>
+      <span className={cn("w-1.5 h-1.5 rounded-full", badge.dot)} />
+      {STATUS_LABEL[s]}
+    </span>
+  );
 }
