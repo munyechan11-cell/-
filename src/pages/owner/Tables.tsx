@@ -32,6 +32,7 @@ import { cn } from "../../lib/cn";
 import type { TableDoc, TableStatus } from "../../lib/types";
 import { showToast } from "../../lib/toast";
 import { api } from "../../lib/api";
+import { useLanguage, t, type Lang } from "../../lib/i18n";
 
 // 도면 이미지 압축: 최대 폭 1280px, JPEG 0.8 — Firestore 1MB 제한 대응 + Vision API 토큰 절약
 async function compressImageToDataUrl(file: File, maxWidth = 1280): Promise<string> {
@@ -44,7 +45,7 @@ async function compressImageToDataUrl(file: File, maxWidth = 1280): Promise<stri
   const img = await new Promise<HTMLImageElement>((resolve, reject) => {
     const im = new Image();
     im.onload = () => resolve(im);
-    im.onerror = () => reject(new Error("이미지를 읽을 수 없습니다."));
+    im.onerror = () => reject(new Error(t("otables.floorplan.readFail")));
     im.src = dataUrl;
   });
   const ratio = Math.min(1, maxWidth / img.width);
@@ -54,22 +55,22 @@ async function compressImageToDataUrl(file: File, maxWidth = 1280): Promise<stri
   canvas.width = w;
   canvas.height = h;
   const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Canvas 컨텍스트 실패");
+  if (!ctx) throw new Error(t("otables.floorplan.canvasFail"));
   ctx.drawImage(img, 0, 0, w, h);
   return canvas.toDataURL("image/jpeg", 0.8);
 }
 
 // 8단계 흐름 — 다음 상태 순환 (테이블 편집 페이지의 카드에서 빠른 토글용)
-// 자세한 분기·라벨·색상은 src/lib/tableFlow.ts 의 단일 진실원 사용 권장
-const STATUS_FLOW: Record<TableStatus, { next: TableStatus; label: string; cls: string }> = {
-  available: { next: "setup",    label: "비어있음",   cls: "bg-white border border-[var(--color-line)] text-[var(--color-ink-600)]" },
-  reserved:  { next: "setup",    label: "예약됨",     cls: "bg-[#f1ecff] text-[#6d4cdf]" },
-  setup:     { next: "occupied", label: "세팅완료",   cls: "bg-[#fff8e6] text-[#b07b00]" },
-  occupied:  { next: "dining",   label: "손님입장",   cls: "bg-[var(--color-mint-50)] text-[var(--color-mint-700)]" },
-  dining:    { next: "paid",     label: "식사중",     cls: "bg-[var(--color-mint-100)] text-[var(--color-mint-700)]" },
-  paid:      { next: "cleaning", label: "결제완료",   cls: "bg-[var(--color-navy-100)] text-[var(--color-navy-700)]" },
-  cleaning:  { next: "available",label: "청소중",     cls: "bg-[#fff1e0] text-[var(--color-warn)]" },
-  dirty:     { next: "available",label: "청소중",     cls: "bg-[#fff1e0] text-[var(--color-warn)]" },
+// 라벨은 tableFlow STATUS_LABEL 키와 매핑되도록 labelKey 만 보관
+const STATUS_FLOW: Record<TableStatus, { next: TableStatus; labelKey: string; cls: string }> = {
+  available: { next: "setup",    labelKey: "tflow.available", cls: "bg-white border border-[var(--color-line)] text-[var(--color-ink-600)]" },
+  reserved:  { next: "setup",    labelKey: "tflow.reserved",  cls: "bg-[#f1ecff] text-[#6d4cdf]" },
+  setup:     { next: "occupied", labelKey: "tflow.setup",     cls: "bg-[#fff8e6] text-[#b07b00]" },
+  occupied:  { next: "dining",   labelKey: "tflow.occupied",  cls: "bg-[var(--color-mint-50)] text-[var(--color-mint-700)]" },
+  dining:    { next: "paid",     labelKey: "tflow.dining",    cls: "bg-[var(--color-mint-100)] text-[var(--color-mint-700)]" },
+  paid:      { next: "cleaning", labelKey: "tflow.paid",      cls: "bg-[var(--color-navy-100)] text-[var(--color-navy-700)]" },
+  cleaning:  { next: "available",labelKey: "tflow.cleaning",  cls: "bg-[#fff1e0] text-[var(--color-warn)]" },
+  dirty:     { next: "available",labelKey: "tflow.cleaning",  cls: "bg-[#fff1e0] text-[var(--color-warn)]" },
 };
 
 type ViewMode = "list" | "layout";
@@ -88,6 +89,7 @@ export default function OwnerTables() {
     deleteSection,
   } = useStore();
   const storeId = effectiveStoreId;
+  const lang = useLanguage();
   const [view, setView] = useState<ViewMode>(() => {
     try {
       const raw = localStorage.getItem("gyeol:tables-view");
@@ -131,7 +133,7 @@ export default function OwnerTables() {
       const img = await new Promise<HTMLImageElement>((resolve, reject) => {
         const im = new Image();
         im.onload = () => resolve(im);
-        im.onerror = () => reject(new Error("이미지 측정 실패"));
+        im.onerror = () => reject(new Error(t("otables.floorplan.measureFail", lang)));
         im.src = dataUrl;
       });
       if (!mountedRef.current) return;
@@ -162,9 +164,9 @@ export default function OwnerTables() {
     } catch (e: any) {
       const msg = String(e?.message ?? "");
       if (e?.name === "QuotaExceededError" || msg.includes("quota")) {
-        showToast("저장 공간이 부족해요. 더 작게 줄여서 다시 시도해 주세요.", "error");
+        showToast(t("otables.floorplan.quota", lang), "error");
       } else {
-        showToast(`도면 저장 실패: ${msg}`, "error");
+        showToast(t("otables.floorplan.saveFail", lang, { msg }), "error");
       }
       return false;
     }
@@ -184,9 +186,9 @@ export default function OwnerTables() {
       setAiDraft(null);
       setAiStructures(null);
       await measureAndSetCanvas(final);
-      showToast("도면이 캔버스 배경으로 설정됐어요.", "success");
+      showToast(t("otables.floorplan.uploaded", lang), "success");
     } catch (e: any) {
-      showToast(`도면 업로드 실패: ${e?.message ?? ""}`, "error");
+      showToast(t("otables.floorplan.uploadFail", lang, { msg: e?.message ?? "" }), "error");
     }
   };
 
@@ -200,7 +202,7 @@ export default function OwnerTables() {
     setAiDraft(null);
     setAiStructures(null);
     setAiCanvasSize(null);
-    showToast("도면을 제거했습니다.", "info");
+    showToast(t("otables.floorplan.removeDone", lang), "info");
   };
 
   const onChangeOpacity = (v: number) => {
@@ -214,7 +216,7 @@ export default function OwnerTables() {
 
   const runAiDraft = async () => {
     if (!floorPlan) {
-      showToast("먼저 도면을 업로드해 주세요.", "error");
+      showToast(t("otables.ai.uploadFirst", lang), "error");
       return;
     }
     // 분석 시작 시점의 매장 ID를 캡처 — 분석 중 매장 변경 시 결과 무시
@@ -228,7 +230,7 @@ export default function OwnerTables() {
       const img = await new Promise<HTMLImageElement>((resolve, reject) => {
         const im = new Image();
         im.onload = () => resolve(im);
-        im.onerror = () => reject(new Error("도면 이미지를 읽을 수 없어요."));
+        im.onerror = () => reject(new Error(t("otables.ai.cannotRead", lang)));
         im.src = floorPlan;
       });
       // 캔버스 최대 변을 1200px로 스케일 (긴 변 기준)
@@ -307,30 +309,31 @@ export default function OwnerTables() {
         }));
 
       if (cleanedTables.length === 0 && cleanedStructures.length === 0) {
-        throw new Error("도면에서 자리나 구조물을 찾지 못했어요. 더 선명한 이미지를 시도해 주세요.");
+        throw new Error(t("otables.ai.empty", lang));
       }
 
       // 분석 중 매장이 바뀌었다면 결과 폐기 — 다른 매장에 적용되지 않도록
       if (requestStoreId !== storeId) {
-        showToast("매장이 변경되어 AI 분석 결과를 폐기했어요.", "info");
+        showToast(t("otables.ai.storeChanged", lang), "info");
         return;
       }
 
       setAiCanvasSize({ w: CW, h: CH });
       setAiDraft(cleanedTables);
       setAiStructures(cleanedStructures.length ? cleanedStructures : null);
-      const msg = `AI가 자리 ${cleanedTables.length}개${cleanedStructures.length ? ` · 구조물 ${cleanedStructures.length}개` : ""}를 인식했어요. 미리보기를 확인하세요.`;
+      const structSuffix = cleanedStructures.length ? t("otables.ai.structSuffix", lang, { n: cleanedStructures.length }) : "";
+      const msg = t("otables.ai.recognized", lang, { tables: cleanedTables.length, structures: structSuffix });
       showToast(msg, "success");
     } catch (e: any) {
       const msg = String(e?.message ?? "");
       if (msg.includes("AI_NOT_CONFIGURED")) {
-        showToast("AI 서비스가 아직 설정되지 않았습니다. 관리자에게 문의해 주세요.", "error");
+        showToast(t("otables.ai.notConfigured", lang), "error");
       } else if (msg.includes("429") || msg.includes("분당") || msg.includes("10초")) {
-        showToast("요청이 잠시 제한됐어요. 10초 후 다시 시도해 주세요.", "error");
+        showToast(t("otables.ai.rateLimit", lang), "error");
       } else if (msg.toLowerCase().includes("abort") || msg.toLowerCase().includes("timeout")) {
-        showToast("AI 응답이 지연되고 있어요. 네트워크 확인 후 다시 시도해 주세요.", "error");
+        showToast(t("otables.ai.timeout", lang), "error");
       } else {
-        showToast(`AI 초안 생성 실패: ${msg || "잠시 후 다시 시도해 주세요."}`, "error");
+        showToast(t("otables.ai.failed", lang, { msg: msg || "" }), "error");
       }
     } finally {
       clearTimeout(timeoutId);
@@ -346,19 +349,19 @@ export default function OwnerTables() {
     // 명시적 confirm — destructive 작업
     if (existing.length > 0) {
       const ok = window.confirm(
-        `현재 테이블 ${existing.length}개를 삭제하고 AI가 제안한 ${aiDraft.length}개로 교체합니다.\n\n이 작업은 되돌릴 수 없습니다. 진행할까요?`
+        t("otables.ai.applyConfirm", lang, { existing: existing.length, next: aiDraft.length })
       );
       if (!ok) return;
     }
     setSelected(null); // 선택 해제 — 곧 삭제될 객체를 가리키지 않도록
     let deleteFails = 0;
     let createFails = 0;
-    for (const t of existing) {
+    for (const tbl of existing) {
       try {
-        await deleteTable(activeStoreId, t.number);
+        await deleteTable(activeStoreId, tbl.number);
       } catch (e) {
         deleteFails++;
-        console.error("[applyAiDraft delete]", t.number, e);
+        console.error("[applyAiDraft delete]", tbl.number, e);
       }
     }
     for (const d of aiDraft) {
@@ -387,10 +390,10 @@ export default function OwnerTables() {
     // aiCanvasSize는 의도적으로 유지 — 도면 종횡비 매칭이 깨지지 않도록
     // (사용자가 도면을 제거하거나 새로 업로드할 때만 reset)
     if (deleteFails === 0 && createFails === 0) {
-      showToast("AI 초안을 적용했어요. 드래그로 미세 조정하세요.", "success");
+      showToast(t("otables.ai.applyOk", lang), "success");
     } else {
       showToast(
-        `일부 작업이 실패했습니다 (삭제 실패 ${deleteFails}, 생성 실패 ${createFails}). 네트워크를 확인하고 다시 시도해 주세요.`,
+        t("otables.ai.applyPartial", lang, { del: deleteFails, create: createFails }),
         "error"
       );
     }
@@ -426,17 +429,17 @@ export default function OwnerTables() {
     if (typeof window === "undefined") return;
     if (window.innerWidth >= 1024) return; // lg 이상은 sticky라 스크롤 불필요
     // 다음 paint 후 스크롤 — DOM이 새 카드 렌더 끝낸 다음
-    const t = setTimeout(() => {
+    const id = setTimeout(() => {
       detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 50);
-    return () => clearTimeout(t);
+    return () => clearTimeout(id);
   }, [selected?.id]);
 
   const sorted = [...tables].sort((a, b) => a.number - b.number);
 
   return (
     <OwnerShell
-      title="테이블 편집"
+      title={t("otables.title", lang)}
       headerRight={
         <div className="flex items-center gap-1.5">
           <div className="inline-flex p-1 bg-[var(--color-navy-50)] rounded-full">
@@ -448,7 +451,7 @@ export default function OwnerTables() {
               )}
             >
               <List className="w-3.5 h-3.5" />
-              리스트
+              {t("otables.view.list", lang)}
             </button>
             <button
               onClick={() => setView("layout")}
@@ -458,20 +461,20 @@ export default function OwnerTables() {
               )}
             >
               <LayoutGrid className="w-3.5 h-3.5" />
-              배치도
+              {t("otables.view.layout", lang)}
             </button>
           </div>
           <button
             onClick={() => {
-              if (confirm("모든 테이블을 삭제하고 기본 15개로 다시 만들까요?")) {
+              if (confirm(t("otables.resetConfirm", lang))) {
                 initTables(storeId);
               }
             }}
             className="h-10 px-3 rounded-full hover:bg-[var(--color-navy-50)] inline-flex items-center gap-1.5 text-[13px] font-bold text-[var(--color-navy-800)]"
-            aria-label="초기화"
+            aria-label={t("otables.reset", lang)}
           >
             <RotateCcw className="w-4 h-4" />
-            <span className="hidden sm:inline">초기화</span>
+            <span className="hidden sm:inline">{t("otables.reset", lang)}</span>
           </button>
         </div>
       }
@@ -481,13 +484,13 @@ export default function OwnerTables() {
           {/* Add buttons */}
           <div className="grid grid-cols-3 gap-2">
             <Button size="md" variant="ghost" onClick={() => addTable(storeId, "table")} leftIcon={<Plus className="w-4 h-4" />}>
-              테이블
+              {t("otables.addTable", lang)}
             </Button>
             <Button size="md" variant="ghost" onClick={() => addTable(storeId, "room")} leftIcon={<Sofa className="w-4 h-4" />}>
-              룸
+              {t("otables.addRoom", lang)}
             </Button>
             <Button size="md" variant="ghost" onClick={() => addTable(storeId, "door")} leftIcon={<DoorOpen className="w-4 h-4" />}>
-              출입구
+              {t("otables.addDoor", lang)}
             </Button>
           </div>
 
@@ -495,7 +498,7 @@ export default function OwnerTables() {
           <Card padding="md" className="mt-4">
             <div className="flex items-center gap-2 mb-3">
               <Layers className="w-4 h-4 text-[var(--color-navy-700)]" />
-              <h3 className="text-[14px] font-bold text-[var(--color-navy-900)]">구역</h3>
+              <h3 className="text-[14px] font-bold text-[var(--color-navy-900)]">{t("otables.sections", lang)}</h3>
             </div>
             <form
               className="flex gap-2"
@@ -507,12 +510,12 @@ export default function OwnerTables() {
               }}
             >
               <Input
-                placeholder="구역 이름 (예: 홀1)"
+                placeholder={t("otables.sectionPh", lang)}
                 value={newSection}
                 onChange={(e) => setNewSection(e.target.value)}
               />
               <Button size="md" type="submit" disabled={!newSection.trim()}>
-                추가
+                {t("otables.sectionAdd", lang)}
               </Button>
             </form>
             {sections.length > 0 && (
@@ -534,38 +537,42 @@ export default function OwnerTables() {
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
               {sorted.length === 0 ? (
                 <Card padding="lg" className="text-center body-md sm:col-span-2">
-                  테이블이 없습니다. 위 버튼으로 추가하세요.
+                  {t("otables.empty", lang)}
                 </Card>
               ) : (
-                sorted.map((t) => {
-                  const st = STATUS_FLOW[t.status ?? "available"];
+                sorted.map((tbl) => {
+                  const st = STATUS_FLOW[tbl.status ?? "available"];
                   return (
                     <Card
-                      key={t.id}
+                      key={tbl.id}
                       padding="md"
                       className={cn(
                         "flex items-center gap-3 transition-shadow cursor-pointer",
-                        selected?.id === t.id && "ring-2 ring-[var(--color-navy-700)]"
+                        selected?.id === tbl.id && "ring-2 ring-[var(--color-navy-700)]"
                       )}
-                      onClick={() => setSelected((s) => (s?.id === t.id ? null : t))}
+                      onClick={() => setSelected((s) => (s?.id === tbl.id ? null : tbl))}
                     >
                       <div className="w-10 h-10 rounded-xl bg-[var(--color-navy-50)] text-[var(--color-navy-800)] font-extrabold inline-flex items-center justify-center">
-                        {t.number}
+                        {tbl.number}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-[14px] font-bold text-[var(--color-navy-900)]">
-                          {t.type === "room" ? "룸" : t.type === "door" ? "출입구" : "테이블"} {t.number}
+                          {tbl.type === "room"
+                            ? t("otables.type.room", lang)
+                            : tbl.type === "door"
+                            ? t("otables.type.door", lang)
+                            : t("otables.type.table", lang)} {tbl.number}
                         </p>
-                        {t.type !== "door" && <p className="body-sm">{t.seats}인</p>}
+                        {tbl.type !== "door" && <p className="body-sm">{t("otables.seats", lang, { n: tbl.seats })}</p>}
                       </div>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          updateTableStatus(storeId, t.number, st.next);
+                          updateTableStatus(storeId, tbl.number, st.next);
                         }}
                         className={`px-2.5 py-1 rounded-full text-[12px] font-bold ${st.cls}`}
                       >
-                        {st.label}
+                        {t(st.labelKey, lang)}
                       </button>
                     </Card>
                   );
@@ -589,7 +596,7 @@ export default function OwnerTables() {
                     setAiDraft(null);
                     setAiStructures(null);
                     await measureAndSetCanvas(finalData);
-                    showToast("스케치를 도면으로 저장했어요.", "success");
+                    showToast(t("otables.sketch.saved", lang), "success");
                   };
 
                   if (dataUrl.length <= 4_500_000) {
@@ -604,14 +611,14 @@ export default function OwnerTables() {
                     tmp.width = Math.round(im.width * ratio);
                     tmp.height = Math.round(im.height * ratio);
                     const ctx = tmp.getContext("2d");
-                    if (!ctx) { showToast("이미지 처리 실패", "error"); return; }
+                    if (!ctx) { showToast(t("otables.floorplan.imageProcFail", lang), "error"); return; }
                     ctx.fillStyle = "#ffffff";
                     ctx.fillRect(0, 0, tmp.width, tmp.height);
                     ctx.drawImage(im, 0, 0, tmp.width, tmp.height);
                     const reduced = tmp.toDataURL("image/jpeg", 0.85);
                     persist(reduced);
                   };
-                  im.onerror = () => showToast("이미지 처리 실패", "error");
+                  im.onerror = () => showToast(t("otables.floorplan.imageProcFail", lang), "error");
                   im.src = dataUrl;
                 }}
                 aiLoading={aiLoading}
@@ -642,20 +649,24 @@ export default function OwnerTables() {
               <div className="flex items-start justify-between mb-3">
                 <div>
                   <p className="text-[12px] font-bold text-[var(--color-ink-500)] uppercase tracking-wide">
-                    {selected.type === "room" ? "룸" : selected.type === "door" ? "출입구" : "테이블"}
+                    {selected.type === "room"
+                      ? t("otables.type.room", lang)
+                      : selected.type === "door"
+                      ? t("otables.type.door", lang)
+                      : t("otables.type.table", lang)}
                   </p>
                   <p className="text-[22px] font-extrabold text-[var(--color-navy-900)] tracking-tight">
-                    {selected.number}번
+                    {t("otables.numSuffix", lang, { n: selected.number })}
                   </p>
                 </div>
                 <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${STATUS_FLOW[selected.status ?? "available"].cls}`}>
-                  {STATUS_FLOW[selected.status ?? "available"].label}
+                  {t(STATUS_FLOW[selected.status ?? "available"].labelKey, lang)}
                 </span>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <p className="text-[12px] text-[var(--color-ink-500)] mb-1.5 font-semibold">좌석 수</p>
+                  <p className="text-[12px] text-[var(--color-ink-500)] mb-1.5 font-semibold">{t("otables.field.seats", lang)}</p>
                   <NumberField
                     value={selected.seats}
                     min={1}
@@ -664,7 +675,7 @@ export default function OwnerTables() {
                   />
                 </div>
                 <div>
-                  <p className="text-[12px] text-[var(--color-ink-500)] mb-1.5 font-semibold">구역</p>
+                  <p className="text-[12px] text-[var(--color-ink-500)] mb-1.5 font-semibold">{t("otables.field.section", lang)}</p>
                   <select
                     value={selected.sectionId ?? ""}
                     onChange={(e) =>
@@ -674,7 +685,7 @@ export default function OwnerTables() {
                     }
                     className="input-field"
                   >
-                    <option value="">없음</option>
+                    <option value="">{t("otables.field.sectionNone", lang)}</option>
                     {sections.map((s) => (
                       <option key={s.id} value={s.id}>
                         {s.name}
@@ -686,7 +697,7 @@ export default function OwnerTables() {
 
               {/* Shape / size (배치도 모드에서 더 유용) */}
               <div className="mt-4">
-                <p className="text-[12px] text-[var(--color-ink-500)] mb-1.5 font-semibold">형태</p>
+                <p className="text-[12px] text-[var(--color-ink-500)] mb-1.5 font-semibold">{t("otables.field.shape", lang)}</p>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => updateTableLayout(storeId, selected.number, { shape: "square" })}
@@ -697,7 +708,7 @@ export default function OwnerTables() {
                         : "bg-white text-[var(--color-ink-700)] border-[var(--color-line)]"
                     )}
                   >
-                    <Square className="w-4 h-4" /> 사각
+                    <Square className="w-4 h-4" /> {t("otables.shape.square", lang)}
                   </button>
                   <button
                     onClick={() => updateTableLayout(storeId, selected.number, { shape: "circle" })}
@@ -708,14 +719,14 @@ export default function OwnerTables() {
                         : "bg-white text-[var(--color-ink-700)] border-[var(--color-line)]"
                     )}
                   >
-                    <Circle className="w-4 h-4" /> 원형
+                    <Circle className="w-4 h-4" /> {t("otables.shape.circle", lang)}
                   </button>
                 </div>
               </div>
 
               <div className="mt-4">
                 <p className="text-[12px] text-[var(--color-ink-500)] mb-1.5 font-semibold flex items-center gap-1">
-                  <Maximize2 className="w-3 h-3" /> 크기
+                  <Maximize2 className="w-3 h-3" /> {t("otables.field.size", lang)}
                 </p>
                 <div className="grid grid-cols-2 gap-2">
                   <NumberField
@@ -739,13 +750,13 @@ export default function OwnerTables() {
                 className="mt-5 text-[var(--color-danger)] border-[var(--color-danger)]/30"
                 leftIcon={<Trash2 className="w-4 h-4" />}
                 onClick={() => {
-                  if (confirm(`테이블 ${selected.number}번을 삭제하시겠습니까?`)) {
+                  if (confirm(t("otables.deleteConfirm", lang, { n: selected.number }))) {
                     deleteTable(storeId, selected.number);
                     setSelected(null);
                   }
                 }}
               >
-                삭제
+                {t("otables.delete", lang)}
               </Button>
             </Card>
           ) : (
@@ -753,12 +764,10 @@ export default function OwnerTables() {
               {view === "layout" ? (
                 <>
                   <Move className="w-8 h-8 text-[var(--color-ink-300)] mx-auto mb-2" />
-                  드래그로 테이블을 옮기고,
-                  <br />
-                  탭하면 상세 설정이 표시됩니다.
+                  {t("otables.hintTouch", lang)}
                 </>
               ) : (
-                <>테이블을 선택하면 상세 설정이 표시됩니다.</>
+                <>{t("otables.hintMouse", lang)}</>
               )}
             </Card>
           )}
@@ -798,15 +807,16 @@ function FloorPlanPanel({
   onApplyAi: () => void;
   onDiscardAi: () => void;
 }) {
+  const lang = useLanguage();
   const fileRef = useRef<HTMLInputElement>(null);
   const [sketchOpen, setSketchOpen] = useState(false);
   return (
     <Card padding="md" className="mt-4">
       <div className="flex items-center gap-2 mb-3">
         <ImagePlus className="w-4 h-4 text-[var(--color-navy-700)]" />
-        <h3 className="text-[14px] font-bold text-[var(--color-navy-900)]">도면 배경 · AI 초안</h3>
+        <h3 className="text-[14px] font-bold text-[var(--color-navy-900)]">{t("otables.floorplan.title", lang)}</h3>
         <span className="ml-auto text-[10.5px] text-[var(--color-ink-400)] font-medium">
-          이 기기에 저장됩니다
+          {t("otables.floorplan.localOnly", lang)}
         </span>
       </div>
 
@@ -829,7 +839,7 @@ function FloorPlanPanel({
             className="h-28 rounded-[12px] border-2 border-dashed border-[var(--color-line)] hover:border-[var(--color-navy-700)] hover:bg-[var(--color-navy-50)] flex flex-col items-center justify-center gap-1 text-[var(--color-ink-500)] hover:text-[var(--color-navy-700)] transition-colors"
           >
             <ImagePlus className="w-5 h-5" />
-            <span className="text-[13px] font-bold">도면 업로드</span>
+            <span className="text-[13px] font-bold">{t("otables.floorplan.upload", lang)}</span>
             <span className="text-[11px] font-medium opacity-70">JPG · PNG</span>
           </button>
           <button
@@ -837,8 +847,8 @@ function FloorPlanPanel({
             className="h-28 rounded-[12px] border-2 border-dashed border-[var(--color-mint-300)] hover:border-[var(--color-mint-500)] bg-[var(--color-mint-50)]/40 hover:bg-[var(--color-mint-50)] flex flex-col items-center justify-center gap-1 text-[var(--color-mint-700)] transition-colors"
           >
             <Pencil className="w-5 h-5" />
-            <span className="text-[13px] font-bold">직접 그리기</span>
-            <span className="text-[11px] font-medium opacity-70">손가락·마우스로 스케치</span>
+            <span className="text-[13px] font-bold">{t("otables.floorplan.draw", lang)}</span>
+            <span className="text-[11px] font-medium opacity-70">{t("otables.floorplan.drawDesc", lang)}</span>
           </button>
         </div>
       ) : (
@@ -847,26 +857,26 @@ function FloorPlanPanel({
             <button
               onClick={() => fileRef.current?.click()}
               className="h-9 px-2.5 sm:px-3 rounded-full bg-[var(--color-navy-50)] text-[12px] font-bold text-[var(--color-navy-800)] inline-flex items-center gap-1"
-              aria-label="다시 업로드"
+              aria-label={t("otables.floorplan.reupload", lang)}
             >
-              <ImagePlus className="w-3.5 h-3.5" /> <span className="hidden sm:inline">다시 업로드</span>
+              <ImagePlus className="w-3.5 h-3.5" /> <span className="hidden sm:inline">{t("otables.floorplan.reupload", lang)}</span>
             </button>
             <button
               onClick={() => setSketchOpen(true)}
               className="h-9 px-2.5 sm:px-3 rounded-full bg-[var(--color-mint-50)] text-[12px] font-bold text-[var(--color-mint-700)] inline-flex items-center gap-1"
-              aria-label="그림판 편집"
+              aria-label={t("otables.floorplan.editSketch", lang)}
             >
-              <Pencil className="w-3.5 h-3.5" /> <span className="hidden sm:inline">그림판 편집</span>
+              <Pencil className="w-3.5 h-3.5" /> <span className="hidden sm:inline">{t("otables.floorplan.editSketch", lang)}</span>
             </button>
             <button
               onClick={onRemove}
               className="h-9 px-2.5 sm:px-3 rounded-full hover:bg-[#fef2f2] text-[12px] font-bold text-[var(--color-danger)] inline-flex items-center gap-1"
-              aria-label="제거"
+              aria-label={t("otables.floorplan.remove", lang)}
             >
-              <X className="w-3.5 h-3.5" /> <span className="hidden sm:inline">제거</span>
+              <X className="w-3.5 h-3.5" /> <span className="hidden sm:inline">{t("otables.floorplan.remove", lang)}</span>
             </button>
             <div className="ml-auto flex items-center gap-1.5 w-full sm:w-auto sm:min-w-[140px] mt-1.5 sm:mt-0">
-              <span className="text-[11px] font-bold text-[var(--color-ink-600)] whitespace-nowrap">투명도 {opacity}%</span>
+              <span className="text-[11px] font-bold text-[var(--color-ink-600)] whitespace-nowrap">{t("otables.floorplan.opacity", lang, { pct: opacity })}</span>
               <input
                 type="range"
                 min={10}
@@ -874,7 +884,7 @@ function FloorPlanPanel({
                 value={opacity}
                 onChange={(e) => onOpacity(Number(e.target.value))}
                 className="flex-1"
-                aria-label="도면 투명도"
+                aria-label={t("otables.floorplan.opacityAria", lang)}
               />
             </div>
           </div>
@@ -884,16 +894,17 @@ function FloorPlanPanel({
               <div className="flex-1">
                 <p className="text-[13px] font-extrabold text-[var(--color-navy-900)] inline-flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-[var(--color-mint-700)]" />
-                  AI 초안 — 자리 {aiDraftCount}개 제안
+                  {t("otables.ai.draftTitle", lang, { n: aiDraftCount })}
                 </p>
-                <p className="text-[11.5px] text-[var(--color-ink-600)] mt-0.5">
-                  적용하면 <b className="text-[var(--color-danger)]">기존 테이블이 모두 교체</b>됩니다.
-                </p>
+                <p
+                  className="text-[11.5px] text-[var(--color-ink-600)] mt-0.5"
+                  dangerouslySetInnerHTML={{ __html: t("otables.ai.draftWarn", lang).replace(/<b>/g, '<b class="text-[var(--color-danger)]">') }}
+                />
               </div>
               <div className="flex gap-2">
-                <Button size="md" variant="ghost" onClick={onDiscardAi}>취소</Button>
+                <Button size="md" variant="ghost" onClick={onDiscardAi}>{t("otables.ai.cancel", lang)}</Button>
                 <Button size="md" onClick={onApplyAi} leftIcon={<Wand2 className="w-4 h-4" />}>
-                  적용
+                  {t("otables.ai.apply", lang)}
                 </Button>
               </div>
             </div>
@@ -905,7 +916,7 @@ function FloorPlanPanel({
               onClick={onRunAi}
               leftIcon={<Sparkles className="w-4 h-4" />}
             >
-              AI로 테이블 배치 초안 만들기
+              {t("otables.ai.generate", lang)}
             </Button>
           )}
         </div>
@@ -937,6 +948,7 @@ function SketchPad({
   onClose: () => void;
   onSave: (dataUrl: string) => void;
 }) {
+  const lang = useLanguage();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
@@ -1104,7 +1116,7 @@ function SketchPad({
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
-    if (dirty && !window.confirm("그린 내용을 모두 지울까요?")) return;
+    if (dirty && !window.confirm(t("otables.sketch.clearConfirm", lang))) return;
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = "#ffffff";
@@ -1158,7 +1170,7 @@ function SketchPad({
   };
 
   const handleClose = () => {
-    if (dirty && !window.confirm("그린 내용이 저장되지 않았어요. 정말 닫을까요?")) return;
+    if (dirty && !window.confirm(t("otables.sketch.unsavedConfirm", lang))) return;
     onClose();
   };
 
@@ -1169,8 +1181,8 @@ function SketchPad({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       // input·textarea·color picker 안에선 무시
-      const t = e.target as HTMLElement | null;
-      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+      const targ = e.target as HTMLElement | null;
+      if (targ && (targ.tagName === "INPUT" || targ.tagName === "TEXTAREA" || targ.isContentEditable)) return;
       const meta = e.ctrlKey || e.metaKey;
       const h = handlersRef.current;
       if (e.key === "Escape") { e.preventDefault(); h.handleClose(); return; }
@@ -1191,14 +1203,14 @@ function SketchPad({
 
   // 모달 열릴 때 포커스를 안으로 이동 (Tab 트랩의 약식 구현) + 배경 스크롤 잠금
   useEffect(() => {
-    const t = setTimeout(() => {
+    const focusTimer = setTimeout(() => {
       modalRef.current?.focus();
     }, 50);
     // 배경 스크롤 잠금 — 캔버스 그리기 중 페이지가 같이 스크롤되는 사고 방지
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
-      clearTimeout(t);
+      clearTimeout(focusTimer);
       document.body.style.overflow = prevOverflow;
     };
   }, []);
@@ -1219,19 +1231,19 @@ function SketchPad({
         tabIndex={-1}
         role="dialog"
         aria-modal="true"
-        aria-label="도면 그리기"
+        aria-label={t("otables.sketch.aria", lang)}
         className="w-full sm:max-w-3xl lg:max-w-5xl bg-white sm:rounded-[18px] overflow-hidden shadow-[var(--shadow-lifted)] flex flex-col outline-none"
         style={{ maxHeight: "100vh" }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-2 px-4 h-12 border-b border-[var(--color-line)] shrink-0">
           <Pencil className="w-4 h-4 text-[var(--color-navy-700)]" />
-          <h3 className="text-[14px] font-extrabold text-[var(--color-navy-900)]">도면 그리기</h3>
-          {dirty && <span className="text-[10px] font-bold text-[var(--color-mint-700)] bg-[var(--color-mint-50)] px-2 py-0.5 rounded-full">편집 중</span>}
+          <h3 className="text-[14px] font-extrabold text-[var(--color-navy-900)]">{t("otables.sketch.title", lang)}</h3>
+          {dirty && <span className="text-[10px] font-bold text-[var(--color-mint-700)] bg-[var(--color-mint-50)] px-2 py-0.5 rounded-full">{t("otables.sketch.editing", lang)}</span>}
           <span className="ml-auto text-[10.5px] text-[var(--color-ink-400)] font-medium hidden lg:inline">
-            {modKey}+Z 실행취소 · {modKey}+Y 다시실행 · B 펜 · E 지우개 · Delete 지움
+            {t("otables.sketch.shortcuts", lang, { mod: modKey })}
           </span>
-          <button onClick={handleClose} className="lg:ml-3 h-9 w-9 rounded-full hover:bg-[var(--color-ink-50)] inline-flex items-center justify-center" aria-label="닫기 (ESC)">
+          <button onClick={handleClose} className="lg:ml-3 h-9 w-9 rounded-full hover:bg-[var(--color-ink-50)] inline-flex items-center justify-center" aria-label={t("otables.sketch.close", lang)}>
             <X className="w-5 h-5 text-[var(--color-ink-600)]" />
           </button>
         </div>
@@ -1244,7 +1256,7 @@ function SketchPad({
               tool === "pen" ? "bg-[var(--color-navy-700)] text-white" : "bg-white text-[var(--color-navy-800)]"
             )}
           >
-            <Pencil className="w-3.5 h-3.5" /> <span className="hidden xs:inline">펜</span>
+            <Pencil className="w-3.5 h-3.5" /> <span className="hidden xs:inline">{t("otables.sketch.pen", lang)}</span>
           </button>
           <button
             onClick={() => setTool("eraser")}
@@ -1253,10 +1265,10 @@ function SketchPad({
               tool === "eraser" ? "bg-[var(--color-navy-700)] text-white" : "bg-white text-[var(--color-navy-800)]"
             )}
           >
-            <Eraser className="w-3.5 h-3.5" /> <span className="hidden xs:inline">지우개</span>
+            <Eraser className="w-3.5 h-3.5" /> <span className="hidden xs:inline">{t("otables.sketch.eraser", lang)}</span>
           </button>
           <div className="flex items-center gap-1.5">
-            <input type="range" min={1} max={20} value={size} onChange={(e) => setSize(Number(e.target.value))} className="w-16 sm:w-24" aria-label="굵기" />
+            <input type="range" min={1} max={20} value={size} onChange={(e) => setSize(Number(e.target.value))} className="w-16 sm:w-24" aria-label={t("otables.sketch.thickness", lang)} />
             <span className="text-[11px] font-bold text-[var(--color-ink-700)] w-5 text-center">{size}</span>
           </div>
           {tool === "pen" && (
@@ -1265,15 +1277,15 @@ function SketchPad({
               value={color}
               onChange={(e) => setColor(e.target.value)}
               className="h-9 w-9 rounded-full border-[1.5px] border-[var(--color-line)] bg-white cursor-pointer shrink-0"
-              aria-label="펜 색상"
+              aria-label={t("otables.sketch.color", lang)}
             />
           )}
           <button
             onClick={undo}
             disabled={!canUndo}
             className="h-9 px-2.5 rounded-full bg-white text-[12px] font-bold text-[var(--color-navy-800)] inline-flex items-center gap-1 disabled:opacity-40"
-            aria-label={`되돌리기 (${modKey}+Z)`}
-            title={`되돌리기 (${modKey}+Z)`}
+            aria-label={t("otables.sketch.undo", lang, { mod: modKey })}
+            title={t("otables.sketch.undo", lang, { mod: modKey })}
           >
             <Undo2 className="w-3.5 h-3.5" />
           </button>
@@ -1281,16 +1293,16 @@ function SketchPad({
             onClick={redo}
             disabled={!canRedo}
             className="h-9 px-2.5 rounded-full bg-white text-[12px] font-bold text-[var(--color-navy-800)] inline-flex items-center gap-1 disabled:opacity-40"
-            aria-label={`다시실행 (${modKey}+Y)`}
-            title={`다시실행 (${modKey}+Y)`}
+            aria-label={t("otables.sketch.redo", lang, { mod: modKey })}
+            title={t("otables.sketch.redo", lang, { mod: modKey })}
           >
             <Undo2 className="w-3.5 h-3.5 scale-x-[-1]" />
           </button>
           <button
             onClick={clearAll}
             className="h-9 px-2.5 rounded-full bg-white text-[12px] font-bold text-[var(--color-danger)] inline-flex items-center gap-1"
-            aria-label="전체 지움 (Delete)"
-            title="전체 지움 (Delete)"
+            aria-label={t("otables.sketch.clear", lang)}
+            title={t("otables.sketch.clear", lang)}
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -1312,9 +1324,9 @@ function SketchPad({
         </div>
 
         <div className="px-4 py-3 border-t border-[var(--color-line)] flex items-center gap-2 justify-end shrink-0">
-          <Button variant="ghost" onClick={handleClose}>닫기</Button>
+          <Button variant="ghost" onClick={handleClose}>{t("otables.sketch.cancel", lang)}</Button>
           <Button onClick={save} leftIcon={<Check className="w-4 h-4" />}>
-            도면으로 사용
+            {t("otables.sketch.useAsPlan", lang)}
           </Button>
         </div>
       </div>
@@ -1343,14 +1355,15 @@ function LayoutCanvas({
   backgroundDataUrl, backgroundOpacity = 35,
   aiDraft, aiStructures, canvasOverride,
 }: CanvasProps) {
+  const lang = useLanguage();
   const wrapRef = useRef<HTMLDivElement>(null);
   const [drag, setDrag] = useState<{ id: string; x: number; y: number } | null>(null);
   // 모바일·소화면용 줌 (0.5x ~ 2x)
   const [zoom, setZoom] = useState(1);
 
   // 캔버스 크기: AI 오버라이드 > 테이블 최대 좌표 > 최소 800x600
-  const maxX = tables.reduce((m, t) => Math.max(m, (t.x ?? 0) + (t.width ?? 70)), 0);
-  const maxY = tables.reduce((m, t) => Math.max(m, (t.y ?? 0) + (t.height ?? 70)), 0);
+  const maxX = tables.reduce((m, tbl) => Math.max(m, (tbl.x ?? 0) + (tbl.width ?? 70)), 0);
+  const maxY = tables.reduce((m, tbl) => Math.max(m, (tbl.y ?? 0) + (tbl.height ?? 70)), 0);
   const canvasW = canvasOverride?.w ?? Math.max(800, maxX + 100);
   const canvasH = canvasOverride?.h ?? Math.max(600, maxY + 100);
 
@@ -1369,16 +1382,16 @@ function LayoutCanvas({
   useEffect(() => {
     if (!canvasOverride) return;
     // wrap 레이아웃이 안정된 후 fit
-    const t = setTimeout(fitToScreen, 80);
-    return () => clearTimeout(t);
+    const id = setTimeout(fitToScreen, 80);
+    return () => clearTimeout(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canvasOverride?.w, canvasOverride?.h]);
 
   // 키보드 단축키 (데스크탑): +/- 줌, 0=전체보기
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const t = e.target as HTMLElement | null;
-      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+      const targ = e.target as HTMLElement | null;
+      if (targ && (targ.tagName === "INPUT" || targ.tagName === "TEXTAREA" || targ.isContentEditable)) return;
       // 모달/그림판이 열려있을 때 충돌 방지 — 스케치팟에서도 같은 키를 다루므로 fixed inset 모달이 위에 있으면 스킵
       if (document.querySelector('[role="dialog"][aria-modal="true"]')) return;
       if (e.key === "+" || e.key === "=") { e.preventDefault(); setZoom((z) => Math.min(2, +(z + 0.1).toFixed(2))); }
@@ -1413,10 +1426,10 @@ function LayoutCanvas({
     counter: "bg-[var(--color-mint-50)]/60 border-[1.5px] border-[var(--color-mint-300)]",
   };
   const structureLabelByKind: Record<string, string> = {
-    wall: "벽",
-    door: "출입구",
-    room: "룸",
-    counter: "카운터",
+    wall: t("otables.ai.struct.wall", lang),
+    door: t("otables.ai.struct.door", lang),
+    room: t("otables.ai.struct.room", lang),
+    counter: t("otables.ai.struct.counter", lang),
   };
 
   const startDrag = (e: React.PointerEvent, table: TableDoc) => {
@@ -1458,8 +1471,8 @@ function LayoutCanvas({
     document.addEventListener("pointercancel", onUp);
   };
 
-  const onMoveFinal = (t: TableDoc, x: number, y: number) => {
-    onMove(t, Math.round(x), Math.round(y));
+  const onMoveFinal = (tbl: TableDoc, x: number, y: number) => {
+    onMove(tbl, Math.round(x), Math.round(y));
   };
 
   return (
@@ -1467,26 +1480,26 @@ function LayoutCanvas({
       <Card padding="none" className="overflow-hidden">
         <div className="px-3 py-2 bg-[var(--color-navy-50)] border-b border-[var(--color-line)] flex items-center gap-1.5 text-[11px] sm:text-[12px] font-semibold text-[var(--color-ink-700)] flex-wrap">
           <Move className="w-3.5 h-3.5 shrink-0" />
-          <span className="hidden sm:inline">드래그 · 탭 · 우측에서 편집</span>
-          <span className="sm:hidden">드래그·탭</span>
+          <span className="hidden sm:inline">{t("otables.canvas.hint", lang)}</span>
+          <span className="sm:hidden">{t("otables.canvas.hintShort", lang)}</span>
           {/* 줌 컨트롤 — 모바일 작은 화면에서 한눈 보기 */}
           <div className="ml-auto inline-flex items-center gap-0.5">
             <button
               onClick={() => setZoom((z) => Math.max(0.3, +(z - 0.1).toFixed(2)))}
               className="h-7 w-7 rounded-md hover:bg-white text-[14px] font-bold text-[var(--color-navy-800)] flex items-center justify-center"
-              aria-label="축소"
+              aria-label={t("otables.canvas.zoomOut", lang)}
             >−</button>
             <span className="text-[11px] font-bold text-[var(--color-navy-800)] w-9 text-center">{Math.round(zoom * 100)}%</span>
             <button
               onClick={() => setZoom((z) => Math.min(2, +(z + 0.1).toFixed(2)))}
               className="h-7 w-7 rounded-md hover:bg-white text-[14px] font-bold text-[var(--color-navy-800)] flex items-center justify-center"
-              aria-label="확대"
+              aria-label={t("otables.canvas.zoomIn", lang)}
             >+</button>
             <button
               onClick={fitToScreen}
               className="h-7 px-2 rounded-md hover:bg-white text-[10.5px] font-bold text-[var(--color-navy-800)]"
-              aria-label="전체 보기"
-            >전체</button>
+              aria-label={t("otables.canvas.fit", lang)}
+            >{t("otables.canvas.fitShort", lang)}</button>
             <button
               onClick={() => setZoom(1)}
               className="h-7 px-2 rounded-md hover:bg-white text-[10.5px] font-bold text-[var(--color-navy-800)] hidden sm:block"
@@ -1507,7 +1520,7 @@ function LayoutCanvas({
             {backgroundDataUrl && (
               <img
                 src={backgroundDataUrl}
-                alt="도면 배경"
+                alt={t("otables.bgAlt", lang)}
                 draggable={false}
                 // AI 캔버스 오버라이드 모드(도면 종횡비와 일치): stretch fill로 AI 좌표와 도면 위치 정확 매칭
                 // 그렇지 않은 일반 모드: contain으로 비율 유지
@@ -1550,40 +1563,41 @@ function LayoutCanvas({
                   style={{ left: d.x, top: d.y, width: w, height: h }}
                 >
                   <p className="text-[16px] font-extrabold leading-none">{d.number}</p>
-                  <p className="text-[10px] font-bold opacity-80 mt-0.5">AI 제안</p>
+                  <p className="text-[10px] font-bold opacity-80 mt-0.5">{t("otables.ai.suggestion", lang)}</p>
                 </div>
               );
             })}
             {tables.length === 0 && (
               <div className="absolute inset-0 flex items-center justify-center text-[14px] text-[var(--color-ink-500)] font-medium">
-                테이블이 없습니다. 위에서 추가하세요.
+                {t("otables.canvas.empty", lang)}
               </div>
             )}
-            {tables.map((t) => {
-              const isDragging = drag?.id === t.id;
-              const x = isDragging ? drag!.x : t.x ?? 40;
-              const y = isDragging ? drag!.y : t.y ?? 40;
-              const w = t.width ?? (t.type === "room" ? 150 : 70);
-              const h = t.height ?? (t.type === "room" ? 80 : 70);
-              const isSelected = selectedId === t.id;
+            {tables.map((tbl) => {
+              const isDragging = drag?.id === tbl.id;
+              const x = isDragging ? drag!.x : tbl.x ?? 40;
+              const y = isDragging ? drag!.y : tbl.y ?? 40;
+              const w = tbl.width ?? (tbl.type === "room" ? 150 : 70);
+              const h = tbl.height ?? (tbl.type === "room" ? 80 : 70);
+              const isSelected = selectedId === tbl.id;
 
               const colorCls =
-                t.type === "door"
+                tbl.type === "door"
                   ? "bg-[#fff1e0] text-[var(--color-warn)] border-[var(--color-warn)]/30"
-                  : t.type === "room"
+                  : tbl.type === "room"
                   ? "bg-[var(--color-mint-100)] text-[var(--color-mint-700)] border-[var(--color-mint-300)]"
-                  : t.status === "occupied"
+                  : tbl.status === "occupied"
                   ? "bg-[var(--color-mint-100)] text-[var(--color-mint-700)] border-[var(--color-mint-300)]"
-                  : t.status === "dirty"
+                  : tbl.status === "dirty"
                   ? "bg-[#fff1e0] text-[var(--color-warn)] border-[var(--color-warn)]/30"
                   : "bg-white text-[var(--color-navy-800)] border-[var(--color-line)]";
 
-              const shapeCls = t.shape === "circle" ? "rounded-full" : "rounded-[14px]";
+              const shapeCls = tbl.shape === "circle" ? "rounded-full" : "rounded-[14px]";
+              const typeLabel = tbl.type === "room" ? t("otables.type.room", lang) : tbl.type === "door" ? t("otables.type.door", lang) : t("otables.type.table", lang);
 
               return (
                 <div
-                  key={t.id}
-                  onPointerDown={(e) => startDrag(e, t)}
+                  key={tbl.id}
+                  onPointerDown={(e) => startDrag(e, tbl)}
                   className={cn(
                     "absolute border-2 flex flex-col items-center justify-center select-none touch-none transition-shadow",
                     colorCls,
@@ -1597,13 +1611,13 @@ function LayoutCanvas({
                     width: w,
                     height: h,
                   }}
-                  title={`${t.type === "room" ? "룸" : t.type === "door" ? "출입구" : "테이블"} ${t.number}`}
+                  title={`${typeLabel} ${tbl.number}`}
                 >
                   <p className="text-[18px] font-extrabold leading-none">
-                    {t.type === "door" ? "출입" : t.number}
+                    {tbl.type === "door" ? t("otables.type.doorShort", lang) : tbl.number}
                   </p>
-                  {t.type !== "door" && (
-                    <p className="text-[11px] font-semibold opacity-80 mt-0.5">{t.seats}인</p>
+                  {tbl.type !== "door" && (
+                    <p className="text-[11px] font-semibold opacity-80 mt-0.5">{t("otables.seats", lang, { n: tbl.seats })}</p>
                   )}
                 </div>
               );
@@ -1613,7 +1627,7 @@ function LayoutCanvas({
         </div>
       </Card>
       <p className="mt-2 px-1 text-[12px] text-[var(--color-ink-600)] font-medium flex items-center gap-1">
-        <Save className="w-3 h-3" /> 위치 변경은 손을 떼는 즉시 자동 저장됩니다.
+        <Save className="w-3 h-3" /> {t("otables.canvas.autosave", lang)}
       </p>
     </div>
   );
