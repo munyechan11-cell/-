@@ -1199,6 +1199,38 @@ const ko: Dict = {
   "owd.today.title": "오늘의 예약 ({n}건)",
   "owd.rest.tableLine": "테이블 {n}",
   "owd.rest.partyLine": "{n}명",
+
+  // 404 / Stub
+  "notFound.desc": "요청하신 페이지를 찾을 수 없습니다.",
+  "notFound.home": "홈으로",
+  "stub.note": "다음 단계에서 구현됩니다.",
+  "stub.title": "준비 중",
+
+  // PWA 설치 프롬프트
+  "install.title": "결을 앱처럼 사용하세요",
+  "install.desc": "홈 화면에 추가하면 더 빠르게 열려요",
+  "install.btn": "설치",
+  "install.close": "닫기",
+  "install.ios.title": "앱처럼 사용해 보세요",
+  "install.ios.descPrefix": "하단",
+  "install.ios.descSuffix": "공유 버튼 → \"홈 화면에 추가\"",
+
+  // 글로벌 주문 알림
+  "gnotif.summary": "{tables} 외 {n}건",
+  "gnotif.tableLabel": "테이블 {n}",
+
+  // 사장님/직원 입구 (BizEntry)
+  "bizEntry.brand": "Gyeol Business",
+  "bizEntry.consoleTitle": "운영자 콘솔",
+  "bizEntry.heroLine1": "매장의 모든 흐름,",
+  "bizEntry.heroLine2": "결로 정리하세요.",
+  "bizEntry.subtitle": "매장 운영자 전용 입구입니다. 손님이라면",
+  "bizEntry.homeLink": "홈으로 돌아가세요",
+  "bizEntry.subtitleSuffix": ".",
+  "bizEntry.ownerSection": "For Owner",
+  "bizEntry.ownerCta": "사장님 로그인 →",
+  "bizEntry.staffSection": "For Staff",
+  "bizEntry.staffCta": "직원 로그인 →",
 };
 
 const en: Dict = {
@@ -2281,6 +2313,34 @@ const en: Dict = {
   "owd.today.title": "Today's reservations ({n})",
   "owd.rest.tableLine": "Table {n}",
   "owd.rest.partyLine": "{n} guests",
+
+  "notFound.desc": "The page you requested couldn't be found.",
+  "notFound.home": "Home",
+  "stub.note": "Coming in the next step.",
+  "stub.title": "Coming soon",
+
+  "install.title": "Use Gyeol like a native app",
+  "install.desc": "Add to home screen for faster access",
+  "install.btn": "Install",
+  "install.close": "Close",
+  "install.ios.title": "Try it as an app",
+  "install.ios.descPrefix": "Tap the",
+  "install.ios.descSuffix": "share button → \"Add to Home Screen\"",
+
+  "gnotif.summary": "{tables} +{n} more",
+  "gnotif.tableLabel": "Table {n}",
+
+  "bizEntry.brand": "Gyeol Business",
+  "bizEntry.consoleTitle": "Operator console",
+  "bizEntry.heroLine1": "Every flow at your store,",
+  "bizEntry.heroLine2": "organized by Gyeol.",
+  "bizEntry.subtitle": "Operator entrance only. If you're a customer,",
+  "bizEntry.homeLink": "go back to the home",
+  "bizEntry.subtitleSuffix": ".",
+  "bizEntry.ownerSection": "For Owner",
+  "bizEntry.ownerCta": "Owner login →",
+  "bizEntry.staffSection": "For Staff",
+  "bizEntry.staffCta": "Staff login →",
 };
 
 const vi: Dict = {
@@ -3363,6 +3423,34 @@ const vi: Dict = {
   "owd.today.title": "Đặt chỗ hôm nay ({n})",
   "owd.rest.tableLine": "Bàn {n}",
   "owd.rest.partyLine": "{n} người",
+
+  "notFound.desc": "Không tìm thấy trang bạn yêu cầu.",
+  "notFound.home": "Trang chủ",
+  "stub.note": "Sẽ được triển khai ở bước tiếp theo.",
+  "stub.title": "Đang chuẩn bị",
+
+  "install.title": "Dùng Gyeol như ứng dụng",
+  "install.desc": "Thêm vào màn hình chính để mở nhanh hơn",
+  "install.btn": "Cài đặt",
+  "install.close": "Đóng",
+  "install.ios.title": "Dùng như app nhé",
+  "install.ios.descPrefix": "Nhấn nút",
+  "install.ios.descSuffix": "chia sẻ → \"Thêm vào màn hình chính\"",
+
+  "gnotif.summary": "{tables} và {n} nữa",
+  "gnotif.tableLabel": "Bàn {n}",
+
+  "bizEntry.brand": "Gyeol Business",
+  "bizEntry.consoleTitle": "Bảng vận hành",
+  "bizEntry.heroLine1": "Mọi hoạt động cửa hàng,",
+  "bizEntry.heroLine2": "sắp xếp bởi Gyeol.",
+  "bizEntry.subtitle": "Lối vào dành cho người vận hành. Nếu là khách,",
+  "bizEntry.homeLink": "hãy về trang chủ",
+  "bizEntry.subtitleSuffix": ".",
+  "bizEntry.ownerSection": "Cho chủ quán",
+  "bizEntry.ownerCta": "Chủ quán đăng nhập →",
+  "bizEntry.staffSection": "Cho nhân viên",
+  "bizEntry.staffCta": "Nhân viên đăng nhập →",
 };
 
 const zh: Dict = {
@@ -4445,6 +4533,34 @@ const zh: Dict = {
   "owd.today.title": "今日预约 ({n})",
   "owd.rest.tableLine": "{n} 号桌",
   "owd.rest.partyLine": "{n} 位",
+
+  "notFound.desc": "找不到您请求的页面。",
+  "notFound.home": "返回首页",
+  "stub.note": "将在下一步实现。",
+  "stub.title": "敬请期待",
+
+  "install.title": "像 App 一样使用 Gyeol",
+  "install.desc": "添加到主屏幕可更快打开",
+  "install.btn": "安装",
+  "install.close": "关闭",
+  "install.ios.title": "试试作为 App 使用",
+  "install.ios.descPrefix": "点击底部",
+  "install.ios.descSuffix": "分享按钮 → \"添加到主屏幕\"",
+
+  "gnotif.summary": "{tables} 等 {n} 件",
+  "gnotif.tableLabel": "{n} 号桌",
+
+  "bizEntry.brand": "Gyeol Business",
+  "bizEntry.consoleTitle": "运营者控制台",
+  "bizEntry.heroLine1": "门店的每一处流程,",
+  "bizEntry.heroLine2": "由 Gyeol 梳理。",
+  "bizEntry.subtitle": "门店运营专用入口。若为顾客,",
+  "bizEntry.homeLink": "请返回首页",
+  "bizEntry.subtitleSuffix": "。",
+  "bizEntry.ownerSection": "店主入口",
+  "bizEntry.ownerCta": "店主登录 →",
+  "bizEntry.staffSection": "员工入口",
+  "bizEntry.staffCta": "员工登录 →",
 };
 
 const DICT: Record<Lang, Dict> = { ko, en, vi, zh };

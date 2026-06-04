@@ -1,7 +1,9 @@
 import { MobileShell } from "../components/layout/MobileShell";
 import { TopBar } from "../components/ui/TopBar";
+import { useLanguage, t } from "../lib/i18n";
 
 export function Stub({ title, note }: { title: string; note?: string }) {
+  const lang = useLanguage();
   return (
     <MobileShell>
       <TopBar title={title} back />
@@ -13,7 +15,7 @@ export function Stub({ title, note }: { title: string; note?: string }) {
           {title}
         </h2>
         <p className="mt-2 text-[14px] text-[var(--color-ink-500)]">
-          {note ?? "다음 단계에서 구현됩니다."}
+          {note ?? t("stub.note", lang)}
         </p>
       </div>
     </MobileShell>
@@ -21,5 +23,6 @@ export function Stub({ title, note }: { title: string; note?: string }) {
 }
 
 export default function StubPage() {
-  return <Stub title="준비 중" />;
+  const lang = useLanguage();
+  return <Stub title={t("stub.title", lang)} />;
 }

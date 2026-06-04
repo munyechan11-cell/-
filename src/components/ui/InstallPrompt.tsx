@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Download, Smartphone, X } from "lucide-react";
+import { useLanguage, t } from "../../lib/i18n";
 
 interface BIPEvent extends Event {
   prompt: () => Promise<void>;
@@ -15,6 +16,7 @@ const LS_DISMISSED = "gyeol:install-dismissed";
  * 사용자가 닫으면 30일간 다시 띄우지 않음.
  */
 export function InstallPrompt() {
+  const lang = useLanguage();
   const [deferred, setDeferred] = useState<BIPEvent | null>(null);
   const [iosHint, setIosHint] = useState(false);
 
@@ -65,16 +67,16 @@ export function InstallPrompt() {
           <Download className="w-5 h-5" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-[14px] font-extrabold">결을 앱처럼 사용하세요</p>
-          <p className="text-[12px] opacity-80">홈 화면에 추가하면 더 빠르게 열려요</p>
+          <p className="text-[14px] font-extrabold">{t("install.title", lang)}</p>
+          <p className="text-[12px] opacity-80">{t("install.desc", lang)}</p>
         </div>
         <button
           onClick={install}
           className="h-9 px-4 rounded-full bg-[var(--color-mint-500)] text-white text-[13px] font-extrabold shrink-0"
         >
-          설치
+          {t("install.btn", lang)}
         </button>
-        <button onClick={dismiss} className="w-8 h-8 rounded-full hover:bg-white/10 inline-flex items-center justify-center shrink-0" aria-label="닫기">
+        <button onClick={dismiss} className="w-8 h-8 rounded-full hover:bg-white/10 inline-flex items-center justify-center shrink-0" aria-label={t("install.close", lang)}>
           <X className="w-4 h-4" />
         </button>
       </div>
@@ -89,12 +91,12 @@ export function InstallPrompt() {
             <Smartphone className="w-5 h-5" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[14px] font-extrabold text-[var(--color-navy-900)]">앱처럼 사용해 보세요</p>
+            <p className="text-[14px] font-extrabold text-[var(--color-navy-900)]">{t("install.ios.title", lang)}</p>
             <p className="text-[12px] text-[var(--color-ink-600)] leading-relaxed mt-0.5">
-              하단 <span className="inline-block px-1.5 py-0.5 rounded bg-[var(--color-bg)] font-mono text-[11px]">⎙</span> 공유 버튼 → "홈 화면에 추가"
+              {t("install.ios.descPrefix", lang)} <span className="inline-block px-1.5 py-0.5 rounded bg-[var(--color-bg)] font-mono text-[11px]">⎙</span> {t("install.ios.descSuffix", lang)}
             </p>
           </div>
-          <button onClick={dismiss} className="w-8 h-8 rounded-full hover:bg-[var(--color-navy-50)] inline-flex items-center justify-center shrink-0" aria-label="닫기">
+          <button onClick={dismiss} className="w-8 h-8 rounded-full hover:bg-[var(--color-navy-50)] inline-flex items-center justify-center shrink-0" aria-label={t("install.close", lang)}>
             <X className="w-4 h-4 text-[var(--color-ink-500)]" />
           </button>
         </div>

@@ -1,6 +1,7 @@
 import React, { Suspense, lazy, useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation, Link } from "react-router-dom";
 import { useStore } from "./store/store";
+import { useLanguage, t } from "./lib/i18n";
 import { ToastHost } from "./components/ui/Toast";
 import { PageLoader } from "./components/ui/PageLoader";
 import { GlobalOrderNotifier } from "./components/layout/GlobalOrderNotifier";
@@ -115,6 +116,7 @@ function BizNoIndex() {
 // 손님에겐 노출하지 않는 운영자 입구
 function BizEntry() {
   const { currentUser } = useStore();
+  const lang = useLanguage();
   if (currentUser?.role === "owner") return <Navigate to="/biz/owner" replace />;
   if (currentUser?.role === "staff") return <Navigate to="/biz/staff" replace />;
 
@@ -140,17 +142,17 @@ function BizEntry() {
               결
             </span>
             <div>
-              <p className="text-[11px] font-bold opacity-60 uppercase tracking-widest">Gyeol Business</p>
-              <p className="text-[18px] lg:text-[22px] font-extrabold tracking-tight">운영자 콘솔</p>
+              <p className="text-[11px] font-bold opacity-60 uppercase tracking-widest">{t("bizEntry.brand", lang)}</p>
+              <p className="text-[18px] lg:text-[22px] font-extrabold tracking-tight">{t("bizEntry.consoleTitle", lang)}</p>
             </div>
           </div>
           <h1 className="hidden lg:block text-[40px] xl:text-[48px] font-extrabold tracking-tight leading-[1.1] mb-5">
-            매장의 모든 흐름,
+            {t("bizEntry.heroLine1", lang)}
             <br />
-            <span className="text-[var(--color-mint-400)]">결</span>로 정리하세요.
+            <span className="text-[var(--color-mint-400)]">{t("bizEntry.heroLine2", lang)}</span>
           </h1>
           <p className="text-[13.5px] lg:text-[15px] opacity-70 font-medium leading-relaxed mb-7 lg:mb-0">
-            매장 운영자 전용 입구입니다. 손님이라면 <Link to="/" className="underline font-bold">홈으로 돌아가세요</Link>.
+            {t("bizEntry.subtitle", lang)} <Link to="/" className="underline font-bold">{t("bizEntry.homeLink", lang)}</Link>{t("bizEntry.subtitleSuffix", lang)}
           </p>
         </div>
 
@@ -160,15 +162,15 @@ function BizEntry() {
             to="/biz/owner/login"
             className="block rounded-2xl bg-white text-[var(--color-navy-900)] p-5 lg:p-6 font-extrabold text-[16px] lg:text-[18px] tracking-tight hover:-translate-y-0.5 transition-transform shadow-[var(--shadow-navy)]"
           >
-            <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-ink-500)] mb-1">For Owner</div>
-            사장님 로그인 →
+            <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-ink-500)] mb-1">{t("bizEntry.ownerSection", lang)}</div>
+            {t("bizEntry.ownerCta", lang)}
           </Link>
           <Link
             to="/biz/staff/login"
             className="block rounded-2xl bg-white/10 border border-white/15 text-white p-5 lg:p-6 font-extrabold text-[16px] lg:text-[18px] tracking-tight hover:bg-white/15 transition-colors"
           >
-            <div className="text-[10px] font-bold uppercase tracking-widest opacity-60 mb-1">For Staff</div>
-            직원 로그인 →
+            <div className="text-[10px] font-bold uppercase tracking-widest opacity-60 mb-1">{t("bizEntry.staffSection", lang)}</div>
+            {t("bizEntry.staffCta", lang)}
           </Link>
         </div>
       </div>

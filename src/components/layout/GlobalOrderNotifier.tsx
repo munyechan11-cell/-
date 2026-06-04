@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { useStore } from "../../store/store";
 import { notifyNewOrder } from "../../lib/notify";
+import { t, getLanguage } from "../../lib/i18n";
 
 const LS_SOUND = "gyeol:order-sound";
 
@@ -44,11 +45,12 @@ export function GlobalOrderNotifier() {
     const soundOn = localStorage.getItem(LS_SOUND) !== "0";
 
     if (newPending.length > 0 && soundOn) {
+      const L = getLanguage();
       const summary = newPending
         .slice(0, 3)
-        .map((o) => `테이블 ${o.tableNumber}`)
+        .map((o) => t("gnotif.tableLabel", L, { n: o.tableNumber }))
         .join(", ");
-      notifyNewOrder(`${summary} 외 ${newPending.length}건`);
+      notifyNewOrder(t("gnotif.summary", L, { tables: summary, n: newPending.length }));
     }
 
     knownIdsRef.current = currentIds;
