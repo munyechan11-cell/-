@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Plus, Trash2, Phone, UserPlus, User as UserIcon, Search, X, Minus } from "lucide-react";
+import { Plus, Trash2, Phone, UserPlus, User as UserIcon, Search, X, Minus, Monitor } from "lucide-react";
 import { OwnerShell } from "../../components/layout/OwnerShell";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
@@ -155,13 +155,29 @@ export default function OwnerReservations() {
     <OwnerShell
       title="예약 관리"
       headerRight={
-        <button
-          onClick={() => setDraft(newDraft())}
-          className="h-10 px-4 rounded-full bg-[var(--color-navy-700)] text-white inline-flex items-center gap-1.5 text-[13px] font-bold shadow-[var(--shadow-navy)]"
-        >
-          <Plus className="w-4 h-4" />
-          새 예약
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() =>
+              window.open(
+                "/biz/owner/welcome-display",
+                "gyeol-welcome-display",
+                "popup=yes,width=1280,height=800"
+              )
+            }
+            className="h-10 px-3.5 rounded-full bg-white border border-[var(--color-line)] text-[var(--color-navy-700)] inline-flex items-center gap-1.5 text-[13px] font-bold"
+            title="듀얼 모니터/큰 화면용 환영 화면을 새 창으로 엽니다"
+          >
+            <Monitor className="w-4 h-4" />
+            큰 화면 열기
+          </button>
+          <button
+            onClick={() => setDraft(newDraft())}
+            className="h-10 px-4 rounded-full bg-[var(--color-navy-700)] text-white inline-flex items-center gap-1.5 text-[13px] font-bold shadow-[var(--shadow-navy)]"
+          >
+            <Plus className="w-4 h-4" />
+            새 예약
+          </button>
+        </div>
       }
     >
       <div className="max-w-[900px] mx-auto">

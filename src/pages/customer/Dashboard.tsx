@@ -17,7 +17,12 @@ import {
   CreditCard,
   Receipt as ReceiptIcon,
   DoorOpen,
+  Star,
+  Camera,
+  X as XIcon,
 } from "lucide-react";
+import { resizeImage } from "../owner/PhotoVault";
+import { LANGS, useLanguage, setLanguage, t } from "../../lib/i18n";
 import { MobileShell } from "../../components/layout/MobileShell";
 import { TopBar } from "../../components/ui/TopBar";
 import { Card } from "../../components/ui/Card";
@@ -52,6 +57,7 @@ export default function CustomerDashboard() {
     cancelCouponRequest,
     placeOrder,
     payTableSession,
+    addPhoto,
     setActiveStoreId,
     enterTable,
     leaveTable,
@@ -59,6 +65,9 @@ export default function CustomerDashboard() {
   const [tab, setTab] = useState<Tab>("home");
   const [cart, setCart] = useState<Record<string, number>>({});
   const [billOpen, setBillOpen] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  // 언어 변경 시 상위 리렌더 — 프로필 탭의 언어 선택 버튼에서 사용
+  const lang = useLanguage();
 
   // 이 페이지에 있는 동안 해당 매장의 tables/menus/orders/photos 구독
   // 페이지 떠나도 테이블 점유는 유지 — 명시적 '가게 퇴장' 또는 사장님 강제 퇴장만 점유 해제.
@@ -242,14 +251,36 @@ export default function CustomerDashboard() {
     setTab("home");
   };
 
-  const handlePay = async () => {
+  const handlePay = () => {
     if (!currentUser || !myTable) return;
     if (unpaidTotal === 0) return;
-    if (!confirm(
-      `₩ ${unpaidTotal.toLocaleString()} 결제 요청을 보낼까요?\n\n` +
-      `직원이 확인 후 결제를 마무리하고 영수증을 드립니다.`
-    )) return;
-    await payTableSession(currentUser.id, storeId, myTable.number);
+    // 결제 요청 전에 리뷰(사진+별점+글) 모달을 띄움 — 건너뛰기 가능
+    setReviewOpen(true);
+  };
+
+  const submitPaymentWithReview = async (
+    review?: { rating?: number; reviewText?: string; imageData?: string }
+  ) => {
+    if (!currentUser || !myTable) return;
+    setReviewOpen(false);
+    try {
+      // 리뷰 내용이 하나라도 있으면 photos 컬렉션에 type="review"로 저장
+      if (review && (review.rating || review.reviewText?.trim() || review.imageData)) {
+        await addPhoto({
+          storeId,
+          type: "review",
+          ...(review.imageData ? { imageData: review.imageData } : {}),
+          ...(review.rating ? { rating: review.rating } : {}),
+          ...(review.reviewText?.trim() ? { reviewText: review.reviewText.trim() } : {}),
+          customerId: currentUser.id,
+          customerName: currentUser.name,
+          tableNumber: myTable.number,
+        });
+      }
+      await payTableSession(currentUser.id, storeId, myTable.number);
+    } catch {
+      // store 에서 토스트 처리됨
+    }
   };
 
   const override = tierOverrides.find(
@@ -632,6 +663,31 @@ export default function CustomerDashboard() {
             </div>
           </Card>
 
+          {/* 언어 선택 — 점진 i18n 적용용. 적용된 화면만 자동으로 바뀝니다. */}
+          <Card padding="md">
+            <p className="text-[13px] font-bold text-[var(--color-navy-900)] mb-1">언어 / Language</p>
+            <p className="text-[11.5px] text-[var(--color-ink-500)] font-medium mb-2.5">
+              원하는 언어를 선택하세요.
+            </p>
+            <div className="flex gap-2 flex-wrap">
+              {LANGS.map((l) => (
+                <button
+                  key={l.code}
+                  type="button"
+                  onClick={() => setLanguage(l.code)}
+                  className={cn(
+                    "h-9 px-3.5 rounded-full border text-[12.5px] font-bold",
+                    lang === l.code
+                      ? "bg-[var(--color-navy-700)] text-white border-transparent"
+                      : "bg-white text-[var(--color-ink-700)] border-[var(--color-line)]"
+                  )}
+                >
+                  {l.native}
+                </button>
+              ))}
+            </div>
+          </Card>
+
           <Button block variant="ghost" onClick={() => { logout(); nav("/", { replace: true }); }} leftIcon={<LogOut className="w-4 h-4" />}>
             로그아웃
           </Button>
@@ -663,9 +719,20 @@ export default function CustomerDashboard() {
           paidTotal={mySessionOrders.filter((o) => o.paymentStatus === "paid").reduce((s, o) => s + o.totalAmount, 0)}
           canPay={!!myTable}
           onClose={() => setBillOpen(false)}
-          onPay={async () => {
+          onPay={() => {
             setBillOpen(false);
-            await handlePay();
+            handlePay();
+          }}
+        />
+      )}
+
+      {/* 리뷰 입력 모달 — 결제 요청 전에 사진+별점+글 받기 (선택). 건너뛰기 가능. */}
+      {reviewOpen && (
+        <ReviewModal
+          unpaidTotal={unpaidTotal}
+          onCancel={() => setReviewOpen(false)}
+          onSubmit={(review) => {
+            submitPaymentWithReview(review);
           }}
         />
       )}
@@ -1029,12 +1096,182 @@ function OrderStatusPill({ status }: { status: "pending" | "accepted" | "cooking
   return <span className={`px-2.5 py-1 rounded-full text-[12px] font-bold ${s.cls}`}>{s.label}</span>;
 }
 
+function ReviewModal({
+  unpaidTotal,
+  onCancel,
+  onSubmit,
+}: {
+  unpaidTotal: number;
+  onCancel: () => void;
+  onSubmit: (review?: { rating?: number; reviewText?: string; imageData?: string }) => void;
+}) {
+  const [rating, setRating] = useState(0);
+  const [text, setText] = useState("");
+  const [image, setImage] = useState<string>("");
+  const [busy, setBusy] = useState(false);
+
+  const onPickImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      showToast("이미지 파일만 선택할 수 있어요.", "error");
+      return;
+    }
+    setBusy(true);
+    try {
+      const data = await resizeImage(file);
+      setImage(data);
+    } catch {
+      showToast("이미지 처리에 실패했어요.", "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const submit = () => {
+    onSubmit({
+      rating: rating > 0 ? rating : undefined,
+      reviewText: text.trim() || undefined,
+      imageData: image || undefined,
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] bg-black/50 flex items-end" onClick={onCancel}>
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-[480px] mx-auto bg-white rounded-t-[28px] p-6 pb-[max(env(safe-area-inset-bottom),24px)] max-h-[88vh] overflow-y-auto"
+      >
+        <div className="w-12 h-1.5 rounded-full bg-[var(--color-ink-100)] mx-auto mb-5" />
+        <h2 className="text-[18px] font-extrabold text-[var(--color-navy-900)] mb-1">
+          오늘 식사는 어떠셨나요?
+        </h2>
+        <p className="text-[12.5px] text-[var(--color-ink-500)] font-medium mb-5">
+          리뷰는 선택입니다. 매장 개선과 다른 손님께 큰 도움이 됩니다.
+        </p>
+
+        {/* 별점 */}
+        <div className="mb-4">
+          <p className="text-[12px] font-bold text-[var(--color-navy-800)] mb-2">별점 (선택)</p>
+          <div className="flex items-center gap-1">
+            {[1, 2, 3, 4, 5].map((n) => (
+              <button
+                key={n}
+                type="button"
+                onClick={() => setRating(rating === n ? 0 : n)}
+                className="w-11 h-11 inline-flex items-center justify-center"
+                aria-label={`${n}점`}
+              >
+                <Star
+                  className={cn(
+                    "w-8 h-8 transition-colors",
+                    n <= rating
+                      ? "fill-[#f59e0b] text-[#f59e0b]"
+                      : "text-[var(--color-ink-300)]"
+                  )}
+                />
+              </button>
+            ))}
+            {rating > 0 && (
+              <span className="ml-2 text-[13px] font-bold text-[var(--color-navy-700)]">
+                {rating}점
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* 글 */}
+        <div className="mb-4">
+          <p className="text-[12px] font-bold text-[var(--color-navy-800)] mb-2">한 줄 리뷰 (선택)</p>
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value.slice(0, 300))}
+            placeholder="맛, 분위기, 서비스 등 자유롭게 남겨주세요."
+            rows={3}
+            className="w-full px-3 py-2.5 rounded-[12px] border-[1.5px] border-[var(--color-line)] text-[14px] focus:border-[var(--color-navy-700)] focus:outline-none resize-none"
+          />
+          <p className="text-[10.5px] text-[var(--color-ink-400)] text-right mt-1">{text.length}/300</p>
+        </div>
+
+        {/* 사진 */}
+        <div className="mb-5">
+          <p className="text-[12px] font-bold text-[var(--color-navy-800)] mb-2">사진 (선택)</p>
+          <div className="flex items-center gap-3">
+            {image ? (
+              <div className="relative">
+                <img src={image} alt="" className="w-20 h-20 rounded-xl object-cover" />
+                <button
+                  type="button"
+                  onClick={() => setImage("")}
+                  className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-white border border-[var(--color-ink-200)] inline-flex items-center justify-center shadow-sm"
+                  aria-label="사진 제거"
+                >
+                  <XIcon className="w-3.5 h-3.5 text-[var(--color-ink-700)]" />
+                </button>
+              </div>
+            ) : (
+              <label className="w-20 h-20 rounded-xl bg-[var(--color-ink-50)] inline-flex items-center justify-center text-[var(--color-ink-400)] cursor-pointer">
+                <Camera className="w-6 h-6" />
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={onPickImage}
+                />
+              </label>
+            )}
+            <p className="text-[12px] text-[var(--color-ink-500)] font-medium flex-1">
+              {busy ? "이미지 처리 중…" : image ? "사진을 선택했어요." : "한 장만 첨부할 수 있어요."}
+            </p>
+          </div>
+        </div>
+
+        {/* 결제 요청 금액 + 세금 breakdown */}
+        {(() => {
+          const vat = Math.round((unpaidTotal * 0.1) / 1.1);
+          const supply = unpaidTotal - vat;
+          return (
+            <div className="rounded-[12px] bg-[var(--color-bg)] px-3 py-3 mb-4 space-y-1">
+              <div className="flex items-center justify-between text-[11.5px] text-[var(--color-ink-500)]">
+                <span>공급가액</span>
+                <span className="tabular-nums">₩ {supply.toLocaleString()}</span>
+              </div>
+              <div className="flex items-center justify-between text-[11.5px] text-[var(--color-ink-500)]">
+                <span>부가세 (10%)</span>
+                <span className="tabular-nums">₩ {vat.toLocaleString()}</span>
+              </div>
+              <div className="flex items-center justify-between pt-1.5 border-t border-dashed border-[var(--color-line)]">
+                <span className="text-[12.5px] font-bold text-[var(--color-ink-700)]">결제 요청 금액</span>
+                <span className="text-[16px] font-extrabold text-[var(--color-navy-900)] tabular-nums">
+                  ₩ {unpaidTotal.toLocaleString()}
+                </span>
+              </div>
+            </div>
+          );
+        })()}
+
+        <div className="grid grid-cols-2 gap-2">
+          <Button variant="ghost" size="md" onClick={() => onSubmit(undefined)}>
+            건너뛰고 결제
+          </Button>
+          <Button size="md" onClick={submit} disabled={busy}>
+            리뷰 남기고 결제
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function BottomNav({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
+  const lang = useLanguage();
   const items: { id: Tab; label: string; icon: React.ReactNode }[] = [
-    { id: "home", label: "홈", icon: <HomeIcon className="w-5 h-5" /> },
-    { id: "menu", label: "메뉴", icon: <UtensilsCrossed className="w-5 h-5" /> },
-    { id: "coupons", label: "쿠폰", icon: <Ticket className="w-5 h-5" /> },
-    { id: "profile", label: "내 정보", icon: <UserIcon className="w-5 h-5" /> },
+    { id: "home", label: t("nav.home", lang), icon: <HomeIcon className="w-5 h-5" /> },
+    { id: "menu", label: t("nav.menu", lang), icon: <UtensilsCrossed className="w-5 h-5" /> },
+    { id: "coupons", label: t("nav.coupons", lang), icon: <Ticket className="w-5 h-5" /> },
+    { id: "profile", label: t("nav.profile", lang), icon: <UserIcon className="w-5 h-5" /> },
   ];
   return (
     <div className="grid grid-cols-4">

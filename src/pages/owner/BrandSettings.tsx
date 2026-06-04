@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { MapPin, Save, Receipt, KeyRound, Info, Printer, Plug, CheckCircle2, AlertCircle, Bell, BellOff, Smartphone, Clock } from "lucide-react";
+import { MapPin, Save, Receipt, KeyRound, Info, Printer, Plug, CheckCircle2, AlertCircle, Bell, BellOff, Smartphone, Clock, Languages } from "lucide-react";
+import { LANGS, useLanguage, setLanguage } from "../../lib/i18n";
 import { cn } from "../../lib/cn";
 import { OwnerShell } from "../../components/layout/OwnerShell";
 import { Card } from "../../components/ui/Card";
@@ -96,6 +97,9 @@ export default function BrandSettings() {
   const [tierNames, setTierNames] = useState<Record<string, string>>(currentUser?.tierNames ?? {});
   const [tierRewards, setTierRewards] = useState<Record<string, string>>(currentUser?.tierRewards ?? {});
 
+  // 언어 설정 — localStorage 기반, 컴포넌트 단위 구독
+  const lang = useLanguage();
+
   if (!currentUser) return null;
 
   const saveBasic = async () => {
@@ -155,6 +159,36 @@ export default function BrandSettings() {
       <div className="pb-12">
         <Sec title="기본 정보">
           <Input label="매장명" value={restaurantName} onChange={(e) => setRestaurantName(e.target.value)} />
+        </Sec>
+
+        <Sec title="언어">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[var(--color-navy-50)] inline-flex items-center justify-center flex-shrink-0">
+              <Languages className="w-5 h-5 text-[var(--color-navy-700)]" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[13px] font-bold text-[var(--color-navy-900)]">화면 언어</p>
+              <p className="text-[12px] text-[var(--color-ink-500)] font-medium mt-0.5 break-keep">
+                원하는 언어를 선택하세요. 적용된 화면만 자동으로 바뀝니다. (전체 적용은 점진 확장 중)
+              </p>
+              <div className="flex gap-2 mt-3 flex-wrap">
+                {LANGS.map((l) => (
+                  <button
+                    key={l.code}
+                    type="button"
+                    onClick={() => setLanguage(l.code)}
+                    className={`h-10 px-4 rounded-full border text-[13px] font-bold ${
+                      lang === l.code
+                        ? "bg-[var(--color-navy-700)] text-white border-transparent"
+                        : "bg-white text-[var(--color-ink-700)] border-[var(--color-line)]"
+                    }`}
+                  >
+                    {l.native}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
         </Sec>
 
         <Sec title="POS 연동">

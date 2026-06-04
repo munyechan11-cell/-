@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { Camera, Trash2, Image as ImageIcon, Check, Link2 } from "lucide-react";
+import { Camera, Trash2, Image as ImageIcon, Check, Link2, Star, MessageSquare } from "lucide-react";
 import { OwnerShell } from "../../components/layout/OwnerShell";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
@@ -10,7 +10,7 @@ import { showToast } from "../../lib/toast";
 // Firestore 문서 1MB 제한을 고려, base64 inflation 33% 감안하여 안전 한도 ~700KB
 const MAX_BASE64_BYTES = 700_000;
 
-async function resizeImage(file: File, maxDim = 1280): Promise<string> {
+export async function resizeImage(file: File, maxDim = 1280): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
@@ -58,19 +58,33 @@ async function resizeImage(file: File, maxDim = 1280): Promise<string> {
   });
 }
 
+type TabKey = "review" | "photo";
+// 사진 보기 탭에서 어떤 type 의 사진을 새로 추가할지 — 기본은 메뉴
+type PhotoAddType = "menu" | "customer";
+
 export default function OwnerPhotoVault() {
   const { effectiveStoreId, photos, addPhoto, updatePhoto, deletePhoto } = useStore();
   const storeId = effectiveStoreId;
-  const [tab, setTab] = useState<"menu" | "customer">("menu");
+  const [tab, setTab] = useState<TabKey>("review");
+  const [addType, setAddType] = useState<PhotoAddType>("menu");
   const [pairFrom, setPairFrom] = useState<Photo | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const filtered = useMemo(
+  // 리뷰 탭: type==="review" 인 항목 (글/별점만 있어도 표시)
+  const reviews = useMemo(
     () =>
       photos
-        .filter((p) => p.storeId === storeId && p.type === tab)
+        .filter((p) => p.storeId === storeId && p.type === "review")
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
-    [photos, storeId, tab]
+    [photos, storeId]
+  );
+  // 사진 탭: imageData 가 있는 모든 항목 (menu/customer/review 통합)
+  const allPhotos = useMemo(
+    () =>
+      photos
+        .filter((p) => p.storeId === storeId && !!p.imageData)
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+    [photos, storeId]
   );
 
   const onPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -86,7 +100,7 @@ export default function OwnerPhotoVault() {
         showToast("이미지가 너무 큽니다. 더 작은 사진을 사용해 주세요.", "error");
         return;
       }
-      await addPhoto({ storeId, type: tab, imageData: data });
+      await addPhoto({ storeId, type: addType, imageData: data });
       showToast("사진을 추가했습니다.", "success");
     } catch {
       showToast("이미지 처리 실패", "error");
@@ -114,24 +128,37 @@ export default function OwnerPhotoVault() {
     setPairFrom(null);
   };
 
+  // 리뷰 통계 — 별점 평균 / 개수
+  const reviewStats = useMemo(() => {
+    const rated = reviews.filter((r) => typeof r.rating === "number" && r.rating! > 0);
+    const avg =
+      rated.length > 0
+        ? rated.reduce((s, r) => s + (r.rating ?? 0), 0) / rated.length
+        : 0;
+    return { count: reviews.length, ratedCount: rated.length, avg };
+  }, [reviews]);
+
   return (
     <OwnerShell
-      title="사진 보관소"
+      title="리뷰 저장소"
       headerRight={
-        <button
-          onClick={() => fileRef.current?.click()}
-          className="h-10 px-4 rounded-full bg-[var(--color-navy-700)] text-white inline-flex items-center gap-1.5 text-[13px] font-bold shadow-[var(--shadow-navy)]"
-        >
-          <Camera className="w-4 h-4" />
-          사진 추가
-        </button>
+        tab === "photo" ? (
+          <button
+            onClick={() => fileRef.current?.click()}
+            className="h-10 px-4 rounded-full bg-[var(--color-navy-700)] text-white inline-flex items-center gap-1.5 text-[13px] font-bold shadow-[var(--shadow-navy)]"
+          >
+            <Camera className="w-4 h-4" />
+            사진 추가
+          </button>
+        ) : null
       }
     >
       <input ref={fileRef} type="file" accept="image/*" capture="environment" hidden onChange={onPick} />
 
       <div>
+        {/* 메인 탭: 리뷰 보기 / 사진 보기 */}
         <div className="grid grid-cols-2 gap-1 p-1 bg-[var(--color-navy-50)] rounded-[14px] max-w-xs">
-          {(["menu", "customer"] as const).map((t) => (
+          {(["review", "photo"] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -139,72 +166,193 @@ export default function OwnerPhotoVault() {
                 tab === t ? "bg-white text-[var(--color-navy-800)]" : "text-[var(--color-ink-500)]"
               }`}
             >
-              {t === "menu" ? "메뉴 사진" : "고객 인증샷"}
+              {t === "review" ? "리뷰 보기" : "사진 보기"}
             </button>
           ))}
         </div>
 
-        {pairFrom && (
-          <Card padding="md" className="mt-3 bg-[var(--color-mint-100)] border-transparent">
-            <p className="text-[12px] font-bold text-[var(--color-mint-700)]">
-              짝지을 사진 선택 중 ({pairFrom.type === "menu" ? "고객" : "메뉴"} 사진 탭에서 선택)
-            </p>
-            <Button size="md" variant="ghost" className="mt-2" onClick={() => setPairFrom(null)}>취소</Button>
-          </Card>
+        {/* ===== 리뷰 보기 ===== */}
+        {tab === "review" && (
+          <>
+            {/* 별점 요약 */}
+            {reviews.length > 0 && (
+              <Card padding="md" className="mt-3 flex items-center gap-4">
+                <div className="flex items-center gap-1">
+                  <Star className="w-5 h-5 fill-[#f59e0b] text-[#f59e0b]" />
+                  <span className="text-[20px] font-extrabold text-[var(--color-navy-900)] tabular-nums">
+                    {reviewStats.avg > 0 ? reviewStats.avg.toFixed(1) : "—"}
+                  </span>
+                </div>
+                <div className="text-[12px] text-[var(--color-ink-500)] font-semibold">
+                  리뷰 {reviewStats.count}건 · 별점 {reviewStats.ratedCount}건
+                </div>
+              </Card>
+            )}
+
+            {reviews.length === 0 ? (
+              <Card padding="lg" className="text-center text-[14px] text-[var(--color-ink-500)] mt-4">
+                <MessageSquare className="w-8 h-8 text-[var(--color-ink-300)] mx-auto mb-2" />
+                아직 등록된 리뷰가 없습니다.
+                <p className="text-[12px] text-[var(--color-ink-400)] mt-1 font-medium">
+                  손님이 결제 요청 시 리뷰를 남기면 여기 모입니다.
+                </p>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4 pb-8">
+                {reviews.map((r) => (
+                  <Card key={r.id} padding="md" className="flex flex-col gap-2">
+                    <div className="flex items-center gap-2">
+                      {typeof r.rating === "number" && r.rating > 0 ? (
+                        <div className="flex items-center gap-0.5">
+                          {[1, 2, 3, 4, 5].map((n) => (
+                            <Star
+                              key={n}
+                              className={`w-4 h-4 ${
+                                n <= (r.rating ?? 0)
+                                  ? "fill-[#f59e0b] text-[#f59e0b]"
+                                  : "text-[var(--color-ink-200)]"
+                              }`}
+                            />
+                          ))}
+                          <span className="ml-1 text-[12px] font-bold text-[var(--color-navy-700)] tabular-nums">
+                            {r.rating}점
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-[11px] font-bold text-[var(--color-ink-400)]">
+                          별점 없음
+                        </span>
+                      )}
+                      <span className="ml-auto text-[11px] text-[var(--color-ink-400)] font-semibold tabular-nums">
+                        {new Date(r.createdAt).toLocaleDateString("ko-KR", {
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </span>
+                      <button
+                        onClick={() => {
+                          if (confirm("리뷰를 삭제하시겠습니까?")) deletePhoto(r.id);
+                        }}
+                        className="w-7 h-7 rounded-full hover:bg-[var(--color-danger)]/10 inline-flex items-center justify-center text-[var(--color-danger)]"
+                        aria-label="리뷰 삭제"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    {r.imageData && (
+                      <img
+                        src={r.imageData}
+                        alt=""
+                        className="w-full max-h-60 object-cover rounded-xl bg-[var(--color-ink-50)]"
+                      />
+                    )}
+                    {r.reviewText && (
+                      <p className="text-[13.5px] text-[var(--color-navy-900)] break-keep leading-relaxed">
+                        {r.reviewText}
+                      </p>
+                    )}
+                    <p className="text-[11px] text-[var(--color-ink-500)] font-semibold">
+                      {r.customerName ?? "익명"}
+                      {r.tableNumber ? ` · 테이블 ${r.tableNumber}` : ""}
+                    </p>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </>
         )}
 
-        {filtered.length === 0 ? (
-          <Card padding="lg" className="text-center text-[14px] text-[var(--color-ink-500)] mt-4">
-            <ImageIcon className="w-8 h-8 text-[var(--color-ink-300)] mx-auto mb-2" />
-            아직 등록된 사진이 없습니다.
-          </Card>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 mt-4 pb-8">
-            {filtered.map((p) => (
-              <div key={p.id} className="relative group rounded-2xl overflow-hidden bg-[var(--color-ink-50)] aspect-square">
-                <img src={p.imageData} alt="" className="w-full h-full object-cover" />
-                {p.pairedPhotoId && (
-                  <span className="absolute top-2 left-2 bg-[var(--color-mint-500)] text-white text-[11px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1">
-                    <Link2 className="w-3 h-3" />
-                    짝
-                  </span>
-                )}
-                {p.type === "menu" && (
-                  <button
-                    onClick={() =>
-                      updatePhoto(p.id, {
-                        snsConsent: !p.snsConsent,
-                        // null로 명시해야 Firestore에서 필드가 실제로 비워짐 (undefined는 merge 시 변경 없음)
-                        consentedAt: !p.snsConsent ? new Date().toISOString() : (null as any),
-                      })
-                    }
-                    className={`absolute top-2 right-2 text-[11px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1 ${
-                      p.snsConsent ? "bg-[var(--color-navy-700)] text-white" : "bg-white/80 text-[var(--color-ink-700)]"
-                    }`}
-                  >
-                    <Check className="w-3 h-3" />
-                    SNS
-                  </button>
-                )}
-                <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent p-2 flex gap-1">
-                  <button
-                    onClick={() => togglePair(p)}
-                    className="flex-1 h-8 rounded bg-white/90 text-[11px] font-bold text-[var(--color-navy-700)]"
-                  >
-                    {pairFrom?.id === p.id ? "선택됨" : "짝짓기"}
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (confirm("사진을 삭제하시겠습니까?")) deletePhoto(p.id);
-                    }}
-                    className="w-7 h-7 rounded bg-white/90 inline-flex items-center justify-center text-[var(--color-danger)]"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
+        {/* ===== 사진 보기 ===== */}
+        {tab === "photo" && (
+          <>
+            {/* 사진 추가 시 분류 선택 */}
+            <div className="flex items-center gap-2 mt-3">
+              <span className="text-[12px] font-bold text-[var(--color-ink-500)]">새 사진 분류:</span>
+              {(["menu", "customer"] as const).map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setAddType(t)}
+                  className={`h-8 px-3 rounded-full text-[12px] font-bold border ${
+                    addType === t
+                      ? "bg-[var(--color-navy-700)] text-white border-transparent"
+                      : "bg-white text-[var(--color-ink-600)] border-[var(--color-line)]"
+                  }`}
+                >
+                  {t === "menu" ? "메뉴 사진" : "고객 인증샷"}
+                </button>
+              ))}
+            </div>
+
+            {pairFrom && (
+              <Card padding="md" className="mt-3 bg-[var(--color-mint-100)] border-transparent">
+                <p className="text-[12px] font-bold text-[var(--color-mint-700)]">
+                  짝지을 사진 선택 중 ({pairFrom.type === "menu" ? "고객" : "메뉴"} 사진 탭에서 선택)
+                </p>
+                <Button size="md" variant="ghost" className="mt-2" onClick={() => setPairFrom(null)}>취소</Button>
+              </Card>
+            )}
+
+            {allPhotos.length === 0 ? (
+              <Card padding="lg" className="text-center text-[14px] text-[var(--color-ink-500)] mt-4">
+                <ImageIcon className="w-8 h-8 text-[var(--color-ink-300)] mx-auto mb-2" />
+                아직 등록된 사진이 없습니다.
+              </Card>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 mt-4 pb-8">
+                {allPhotos.map((p) => (
+                  <div key={p.id} className="relative group rounded-2xl overflow-hidden bg-[var(--color-ink-50)] aspect-square">
+                    <img src={p.imageData} alt="" className="w-full h-full object-cover" />
+                    {p.type === "review" && (
+                      <span className="absolute top-2 left-2 bg-[#f59e0b] text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full">
+                        리뷰
+                      </span>
+                    )}
+                    {p.pairedPhotoId && (
+                      <span className="absolute top-2 left-2 bg-[var(--color-mint-500)] text-white text-[11px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                        <Link2 className="w-3 h-3" />
+                        짝
+                      </span>
+                    )}
+                    {p.type === "menu" && (
+                      <button
+                        onClick={() =>
+                          updatePhoto(p.id, {
+                            snsConsent: !p.snsConsent,
+                            // null로 명시해야 Firestore에서 필드가 실제로 비워짐 (undefined는 merge 시 변경 없음)
+                            consentedAt: !p.snsConsent ? new Date().toISOString() : (null as any),
+                          })
+                        }
+                        className={`absolute top-2 right-2 text-[11px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1 ${
+                          p.snsConsent ? "bg-[var(--color-navy-700)] text-white" : "bg-white/80 text-[var(--color-ink-700)]"
+                        }`}
+                      >
+                        <Check className="w-3 h-3" />
+                        SNS
+                      </button>
+                    )}
+                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent p-2 flex gap-1">
+                      {p.type !== "review" && (
+                        <button
+                          onClick={() => togglePair(p)}
+                          className="flex-1 h-8 rounded bg-white/90 text-[11px] font-bold text-[var(--color-navy-700)]"
+                        >
+                          {pairFrom?.id === p.id ? "선택됨" : "짝짓기"}
+                        </button>
+                      )}
+                      <button
+                        onClick={() => {
+                          if (confirm("사진을 삭제하시겠습니까?")) deletePhoto(p.id);
+                        }}
+                        className="w-7 h-7 rounded bg-white/90 inline-flex items-center justify-center text-[var(--color-danger)] ml-auto"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )}
       </div>
     </OwnerShell>

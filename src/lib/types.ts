@@ -258,8 +258,10 @@ export interface Reservation {
 export interface Photo {
   id: string;
   storeId: string;
-  type: "menu" | "customer";
-  imageData: string;
+  /** "review": 손님이 결제 시 남긴 리뷰(글/별점, 사진은 선택). "menu"/"customer": 매장 운영용 사진. */
+  type: "menu" | "customer" | "review";
+  /** 리뷰는 사진 없어도 됨 — 글/별점만으로 저장 가능. */
+  imageData?: string;
   orderId?: string;
   tableNumber?: number;
   customerId?: string;
@@ -268,5 +270,14 @@ export interface Photo {
   snsConsent?: boolean;
   consentedAt?: string;
   pairedPhotoId?: string;
+  /** 리뷰 별점 1~5 (선택). */
+  rating?: number;
+  /** 리뷰 본문 (선택). */
+  reviewText?: string;
+  /** 외부 채널 자동 업로드 상태 — 추후 블로그/구글 리뷰 연동 대비. */
+  syncedTo?: {
+    google?: { id?: string; syncedAt: string };
+    blog?: { id?: string; syncedAt: string };
+  };
   createdAt: string;
 }

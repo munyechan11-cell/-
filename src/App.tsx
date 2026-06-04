@@ -24,6 +24,7 @@ const OwnerStatistics = lazy(() => import("./pages/owner/Statistics"));
 const BrandSettings = lazy(() => import("./pages/owner/BrandSettings"));
 const QrPrint = lazy(() => import("./pages/owner/QrPrint"));
 const OwnerReservations = lazy(() => import("./pages/owner/Reservations"));
+const OwnerWelcomeDisplay = lazy(() => import("./pages/owner/WelcomeDisplay"));
 const OwnerPhotoVault = lazy(() => import("./pages/owner/PhotoVault"));
 const OwnerTables = lazy(() => import("./pages/owner/Tables"));
 const OwnerMenus = lazy(() => import("./pages/owner/Menus"));
@@ -295,6 +296,15 @@ export default function App() {
             element={
               <PrivateRoute role={["owner", "staff"]}>
                 <OwnerReservations />
+              </PrivateRoute>
+            }
+          />
+          {/* 듀얼 모니터/큰 화면 송출 — 손님이 보는 화면 */}
+          <Route
+            path="/biz/owner/welcome-display"
+            element={
+              <PrivateRoute role={["owner", "staff"]}>
+                <OwnerWelcomeDisplay />
               </PrivateRoute>
             }
           />

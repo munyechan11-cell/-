@@ -54,7 +54,7 @@ const NAV: NavItem[] = [
   { to: "/biz/owner/customers", label: "고객 관리", icon: Users },
   { to: "/biz/owner/reservations", label: "예약", icon: Calendar, staff: true, staffFree: true },
   { to: "/biz/owner/statistics", label: "통계", icon: BarChart3 },
-  { to: "/biz/owner/photos", label: "사진 보관소", icon: ImageIcon, staff: true },
+  { to: "/biz/owner/photos", label: "리뷰 저장소", icon: ImageIcon, staff: true },
   { to: "/biz/owner/qr-print", label: "QR 인쇄", icon: QrCode, staff: true },
   { to: "/biz/owner/staff", label: "직원 관리", icon: Briefcase },
   { to: "/biz/owner/brand-settings", label: "브랜드 설정", icon: Settings },

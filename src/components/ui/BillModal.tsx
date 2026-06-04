@@ -43,6 +43,15 @@ export function BillModal({
   }, []);
 
   const totalAll = unpaidTotal + paidTotal;
+  // 한국 음식점 표준 — 메뉴가는 부가세 포함가. 총액에서 역산:
+  //   공급가액 = 총액 / 1.1,  부가세 = 총액 - 공급가액 (= 총액 / 11)
+  const VAT_RATE = 0.1;
+  const vatOf = (total: number) => Math.round((total * VAT_RATE) / (1 + VAT_RATE));
+  const supplyOf = (total: number) => total - vatOf(total);
+  const unpaidVat = vatOf(unpaidTotal);
+  const unpaidSupply = supplyOf(unpaidTotal);
+  const totalVat = vatOf(totalAll);
+  const totalSupply = supplyOf(totalAll);
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center" onClick={onClose}>
@@ -117,11 +126,21 @@ export function BillModal({
                       </li>
                     ))}
                   </ul>
-                  <div className="mt-2 pt-2 border-t border-dashed border-[var(--color-line)] flex justify-between text-[13px] font-bold">
-                    <span className="text-[var(--color-ink-600)]">소계</span>
-                    <span className="text-[var(--color-navy-900)] tabular-nums">
-                      ₩ {o.totalAmount.toLocaleString()}
-                    </span>
+                  <div className="mt-2 pt-2 border-t border-dashed border-[var(--color-line)] space-y-0.5 text-[12px]">
+                    <div className="flex justify-between text-[var(--color-ink-500)]">
+                      <span>공급가액</span>
+                      <span className="tabular-nums">₩ {supplyOf(o.totalAmount).toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between text-[var(--color-ink-500)]">
+                      <span>부가세 (10%)</span>
+                      <span className="tabular-nums">₩ {vatOf(o.totalAmount).toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between text-[13px] font-bold pt-0.5">
+                      <span className="text-[var(--color-ink-700)]">소계</span>
+                      <span className="text-[var(--color-navy-900)] tabular-nums">
+                        ₩ {o.totalAmount.toLocaleString()}
+                      </span>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -146,11 +165,29 @@ export function BillModal({
                 ₩ {unpaidTotal.toLocaleString()}
               </span>
             </div>
-            <div className="flex justify-between text-[20px] font-extrabold pt-2 border-t-2 border-[var(--color-navy-900)]">
+            {/* 세금 breakdown — 결제 시 정확한 세금 내역 안내 */}
+            <div className="mt-2 pt-2 border-t border-dashed border-[var(--color-line)] space-y-1 text-[12.5px]">
+              <p className="text-[10.5px] font-bold uppercase tracking-wider text-[var(--color-ink-400)] mb-0.5">
+                미결제 세부
+              </p>
+              <div className="flex justify-between text-[var(--color-ink-600)]">
+                <span>공급가액</span>
+                <span className="tabular-nums">₩ {unpaidSupply.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-[var(--color-ink-600)]">
+                <span>부가세 (10%)</span>
+                <span className="tabular-nums">₩ {unpaidVat.toLocaleString()}</span>
+              </div>
+            </div>
+            <div className="flex justify-between text-[20px] font-extrabold pt-2 mt-2 border-t-2 border-[var(--color-navy-900)]">
               <span className="text-[var(--color-navy-900)]">총 합계</span>
               <span className="text-[var(--color-navy-900)] tabular-nums">
                 ₩ {totalAll.toLocaleString()}
               </span>
+            </div>
+            <div className="flex justify-between text-[11px] text-[var(--color-ink-500)] mt-0.5">
+              <span>전체 공급가액 ₩ {totalSupply.toLocaleString()}</span>
+              <span>전체 부가세 ₩ {totalVat.toLocaleString()}</span>
             </div>
 
             <div className="grid grid-cols-2 gap-2 mt-4">
