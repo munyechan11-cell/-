@@ -185,6 +185,11 @@ function LegacyBizRedirect({ prefix }: { prefix: "owner" | "staff" }) {
 export default function App() {
   const { isReady } = useStore();
 
+  // 푸시 포그라운드 리스너 — 앱이 열려있을 때 도착하는 알림을 toast 로
+  useEffect(() => {
+    import("./lib/pushNotifications").then((m) => m.listenForeground()).catch(() => {});
+  }, []);
+
   if (!isReady) return <PageLoader />;
 
   return (

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { MapPin, Save, Receipt, KeyRound, Info, Printer, Plug, CheckCircle2, AlertCircle } from "lucide-react";
+import { MapPin, Save, Receipt, KeyRound, Info, Printer, Plug, CheckCircle2, AlertCircle, Bell, BellOff, Smartphone } from "lucide-react";
 import { OwnerShell } from "../../components/layout/OwnerShell";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
@@ -16,6 +16,13 @@ import {
   printTestPage,
 } from "../../lib/thermalPrinter";
 import { issuePairingCode } from "../../lib/printBridge";
+import {
+  isPushSupported,
+  getPermissionState,
+  registerOwnerDevice,
+  unregisterOwnerDevice,
+  type PermissionState,
+} from "../../lib/pushNotifications";
 import type { Industry, RewardType } from "../../lib/types";
 
 export default function BrandSettings() {
@@ -279,6 +286,18 @@ export default function BrandSettings() {
           onToggle={async (v) => {
             await updateBrandSettings(storeId, { printBridgeEnabled: v });
             showToast(v ? "영수증 자동 인쇄가 켜졌어요." : "자동 인쇄를 껐어요.", "success");
+          }}
+        />
+
+        {/* ===== 푸시 알림 — 사장님 폰/PC 로 새 주문·결제 요청·직원 가입 알림 ===== */}
+        <PushNotificationSection
+          storeId={storeId}
+          prefs={currentUser.pushPrefs}
+          deviceCount={(currentUser.fcmTokens ?? []).length}
+          onPrefChange={async (patch) => {
+            await updateBrandSettings(storeId, {
+              pushPrefs: { ...(currentUser.pushPrefs ?? {}), ...patch },
+            });
           }}
         />
 
@@ -620,5 +639,197 @@ function PrintBridgeSection({
         </div>
       </div>
     </Sec>
+  );
+}
+
+// ============================================================
+// 푸시 알림 섹션 — 권한 요청·디바이스 등록·종류별 ON/OFF
+// ============================================================
+function PushNotificationSection({
+  storeId,
+  prefs,
+  deviceCount,
+  onPrefChange,
+}: {
+  storeId: string;
+  prefs?: { newOrder?: boolean; paymentRequest?: boolean; staffJoin?: boolean; couponRequest?: boolean };
+  deviceCount: number;
+  onPrefChange: (patch: NonNullable<typeof prefs>) => Promise<void>;
+}) {
+  const [supported, setSupported] = useState<boolean | null>(null);
+  const [perm, setPerm] = useState<PermissionState>("default");
+  const [busy, setBusy] = useState(false);
+  const [registered, setRegistered] = useState(deviceCount > 0);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const ok = await isPushSupported();
+      const p = await getPermissionState();
+      if (!alive) return;
+      setSupported(ok);
+      setPerm(p);
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  useEffect(() => { setRegistered(deviceCount > 0); }, [deviceCount]);
+
+  const enable = async () => {
+    setBusy(true);
+    try {
+      const r = await registerOwnerDevice(storeId);
+      if (r.ok) {
+        setRegistered(true);
+        setPerm("granted");
+        showToast("이 기기로 알림을 받을게요. 새 주문이 들어오면 바로 알려드려요.", "success");
+      } else if (r.reason === "unsupported") {
+        showToast("이 브라우저는 푸시 알림을 지원하지 않아요. Chrome/Edge 권장.", "info");
+      } else if (r.reason === "denied") {
+        showToast("알림 권한이 거부됐어요. 주소창 자물쇠 아이콘에서 권한을 허용해 주세요.", "error");
+        setPerm("denied");
+      } else {
+        showToast("알림 등록에 실패했어요. 잠시 후 다시 시도해 주세요.", "error");
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const disable = async () => {
+    setBusy(true);
+    try {
+      await unregisterOwnerDevice(storeId);
+      setRegistered(false);
+      showToast("이 기기에서 알림을 껐어요.", "info");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const isOn = perm === "granted" && registered;
+
+  return (
+    <Sec title="푸시 알림 (사장님 폰)">
+      <div className="space-y-3">
+        {/* 상태 카드 */}
+        {supported === false ? (
+          <div className="flex items-start gap-2 p-3.5 rounded-[14px] bg-[#fef2f2] border border-[var(--color-danger)]/30">
+            <AlertCircle className="w-4 h-4 text-[var(--color-danger)] mt-0.5 shrink-0" />
+            <p className="text-[12px] text-[var(--color-danger)] font-semibold leading-relaxed">
+              이 브라우저는 푸시 알림을 지원하지 않아요.
+              <br />
+              <span className="font-medium opacity-90">
+                Chrome / Edge / Firefox 데스크탑 또는 Android 에서 시도해 주세요.
+                iPhone 은 홈 화면에 추가된 PWA(설치형)에서만 작동합니다 (iOS 16.4+).
+              </span>
+            </p>
+          </div>
+        ) : perm === "denied" ? (
+          <div className="flex items-start gap-2 p-3.5 rounded-[14px] bg-[#fff8e6] border border-[#f0b400]/40">
+            <AlertCircle className="w-4 h-4 text-[#b07b00] mt-0.5 shrink-0" />
+            <p className="text-[12px] text-[#b07b00] font-semibold leading-relaxed">
+              알림 권한이 차단되어 있어요. 주소창의 🔒 자물쇠 아이콘 → 알림 → '허용' 으로 바꾼 뒤 다시 시도해 주세요.
+            </p>
+          </div>
+        ) : (
+          <div className={`flex items-start gap-2 p-3.5 rounded-[14px] ${
+            isOn
+              ? "bg-[var(--color-mint-50)] border border-[var(--color-mint-200)]"
+              : "bg-[var(--color-navy-50)] border border-[var(--color-navy-200)]"
+          }`}>
+            {isOn ? (
+              <CheckCircle2 className="w-4 h-4 text-[var(--color-mint-700)] mt-0.5 shrink-0" />
+            ) : (
+              <Info className="w-4 h-4 text-[var(--color-navy-700)] mt-0.5 shrink-0" />
+            )}
+            <div className="flex-1 min-w-0">
+              <p className={`text-[13px] font-bold ${isOn ? "text-[var(--color-mint-700)]" : "text-[var(--color-navy-700)]"}`}>
+                {isOn ? `이 기기 알림 켜짐 · 총 ${deviceCount}대 등록` : "알림 받을 기기를 등록하세요"}
+              </p>
+              <p className={`text-[11.5px] font-medium opacity-90 mt-0.5 ${isOn ? "text-[var(--color-mint-700)]" : "text-[var(--color-navy-700)]"}`}>
+                {isOn
+                  ? "매장 화면을 안 봐도 새 주문·결제 요청을 폰으로 받을 수 있어요."
+                  : "사장님 폰·태블릿·PC 어디서든 등록 가능. 한 번만 권한 허용하면 끝."}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* ON/OFF 큰 버튼 */}
+        {supported !== false && perm !== "denied" && (
+          <Button
+            block
+            onClick={isOn ? disable : enable}
+            loading={busy}
+            variant={isOn ? "outline" : "primary"}
+            leftIcon={isOn ? <BellOff className="w-4 h-4" /> : <Bell className="w-4 h-4" />}
+          >
+            {isOn ? "이 기기에서 알림 끄기" : "이 기기로 알림 받기"}
+          </Button>
+        )}
+
+        {/* 종류별 ON/OFF — 등록된 디바이스가 있을 때만 노출 */}
+        {deviceCount > 0 && (
+          <div className="rounded-[14px] border border-[var(--color-line)] divide-y divide-[var(--color-line)] bg-white">
+            <PrefRow
+              icon="🔔"
+              label="새 주문 도착"
+              hint="손님이 메뉴 주문할 때마다"
+              value={prefs?.newOrder !== false}
+              onChange={(v) => onPrefChange({ newOrder: v })}
+            />
+            <PrefRow
+              icon="💳"
+              label="결제 요청"
+              hint="손님이 '결제하기' 를 눌렀을 때"
+              value={prefs?.paymentRequest !== false}
+              onChange={(v) => onPrefChange({ paymentRequest: v })}
+            />
+            <PrefRow
+              icon="🎟"
+              label="쿠폰 사용 요청"
+              hint="손님이 쿠폰 사용을 요청했을 때"
+              value={prefs?.couponRequest !== false}
+              onChange={(v) => onPrefChange({ couponRequest: v })}
+            />
+            <PrefRow
+              icon="👤"
+              label="새 직원 가입 요청"
+              hint="새 직원이 가입 신청했을 때"
+              value={prefs?.staffJoin !== false}
+              onChange={(v) => onPrefChange({ staffJoin: v })}
+            />
+          </div>
+        )}
+
+        {/* 안내 */}
+        <div className="text-[11px] text-[var(--color-ink-500)] leading-relaxed border-t border-[var(--color-line)] pt-3 flex items-start gap-2">
+          <Smartphone className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+          <div>
+            <p className="font-bold text-[var(--color-ink-700)] mb-1">여러 기기에서 받기</p>
+            <p>
+              사장님 폰·태블릿·PC 각각에서 '이 기기로 알림 받기' 를 한 번씩 누르면
+              모든 기기에 동시에 푸시가 갑니다.
+            </p>
+          </div>
+        </div>
+      </div>
+    </Sec>
+  );
+}
+
+function PrefRow({
+  icon, label, hint, value, onChange,
+}: { icon: string; label: string; hint: string; value: boolean; onChange: (v: boolean) => void | Promise<void> }) {
+  return (
+    <div className="flex items-center gap-3 px-3.5 py-3">
+      <span className="text-[18px]">{icon}</span>
+      <div className="flex-1 min-w-0">
+        <p className="text-[13.5px] font-bold text-[var(--color-navy-900)]">{label}</p>
+        <p className="text-[11px] text-[var(--color-ink-500)] font-medium">{hint}</p>
+      </div>
+      <ToggleSwitch value={value} onChange={onChange} />
+    </div>
   );
 }

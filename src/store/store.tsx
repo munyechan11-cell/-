@@ -27,6 +27,7 @@ import { relayOrderToPos } from "../lib/pos";
 import { printReceipt } from "../lib/receipt";
 import { printReceiptViaUsb, getAuthorizedPrinters } from "../lib/thermalPrinter";
 import { enqueuePrintJob } from "../lib/printBridge";
+import { sendOwnerPush } from "../lib/pushTriggers";
 import type {
   User,
   Visit,
@@ -932,6 +933,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       status: "pending",
       usedAtTable: tableNumber ?? null,
     });
+    // 쿠폰의 매장(storeId) 으로 사장님 푸시
+    const c = couponsRef.current.find((x) => x.id === couponId);
+    if (c?.storeId) {
+      sendOwnerPush({
+        storeId: c.storeId,
+        kind: "coupon-request",
+        title: "🎟 쿠폰 사용 요청",
+        body: `${c.description ?? "쿠폰"}${tableNumber ? ` · 테이블 ${tableNumber}` : ""}`,
+        focusUrl: "/biz/owner/orders",
+        tag: "gyeol-coupon",
+      });
+    }
     showToast("사용 요청을 보냈습니다. 사장님 확인을 기다려 주세요.", "info");
   }, []);
 
@@ -1100,6 +1113,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const hasPosApi =
         owner?.posVendor && owner.posVendor !== "none" && owner.posApiKey;
 
+      // 사장님 디바이스 푸시 — 새 주문 도착
+      sendOwnerPush({
+        storeId,
+        kind: "new-order",
+        title: `🔔 새 주문 — 테이블 ${tableNumber}`,
+        body: `${items.length}종 · ₩${totalAmount.toLocaleString()}`,
+        focusUrl: "/biz/owner/orders",
+        tag: `gyeol-order-T${tableNumber}`,
+      });
+
       // ⚠️ 주문 시점에는 영수증 인쇄하지 않음 (정책 변경 — 2026-06).
       //   영수증은 결제 승인 시점에 '총 영수증' 한 번만 출력.
       //   POS API 연동만 즉시 호출 (주방 전달 등 매장 운영에 필요).
@@ -1159,6 +1182,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         });
         await batch.commit();
       }
+
+      // 사장님 디바이스 푸시 — 결제 요청
+      sendOwnerPush({
+        storeId,
+        kind: "payment-request",
+        title: `💳 결제 요청 — 테이블 ${tableNumber}`,
+        body: `₩ ${total.toLocaleString()} (${unpaid.length}건)`,
+        focusUrl: "/biz/owner/orders",
+        tag: `gyeol-pay-T${tableNumber}`,
+      });
 
       showToast(`결제 요청을 보냈어요. 매장에서 확인 후 결제해 주세요. (₩ ${total.toLocaleString()})`, "info");
       return total;
@@ -1535,6 +1568,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       if (position !== undefined) patch.position = position;
       await updateFirestoreDoc("users", cu.id, patch);
       setCurrentUser({ ...cu, ...patch });
+      // 사장님 디바이스 푸시 — 새 직원 가입 요청
+      sendOwnerPush({
+        storeId,
+        kind: "staff-join",
+        title: "👤 새 직원 가입 요청",
+        body: `${cu.name ?? "직원"}님${position ? ` (${position})` : ""}이 합류를 요청했어요.`,
+        focusUrl: "/biz/owner/staff",
+        tag: "gyeol-staff",
+      });
       showToast("가입 요청을 보냈습니다. 사장님 승인을 기다려주세요.", "success");
     },
     [setCurrentUser]

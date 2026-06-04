@@ -50,6 +50,15 @@ export interface User {
   posApiKey?: string;
   /** 영수증 인쇄 브릿지 사용 의도 (사장님 토글). PC 트레이 앱이 페어링되면 자동으로 큐 발행 */
   printBridgeEnabled?: boolean;
+  /** FCM 디바이스 토큰 목록 — 사장님 폰/PC 여러 대 가능. 다중 발송용 */
+  fcmTokens?: Array<{ token: string; platform?: string; registeredAt: string }>;
+  /** 푸시 알림 종류별 ON/OFF — 사장님이 BrandSettings 에서 조정 */
+  pushPrefs?: {
+    newOrder?: boolean;       // 새 주문 도착
+    paymentRequest?: boolean; // 결제 요청
+    staffJoin?: boolean;      // 직원 가입 요청
+    couponRequest?: boolean;  // 쿠폰 사용 요청
+  };
   /** 페어링된 에이전트 식별자 (디바이스명·OS·페어링 시각). 페어링 해제 시 비움 */
   printBridgeDevice?: { name?: string; pairedAt: string };
   /** 에이전트 마지막 하트비트 시각 — 60초 이상 지나면 '오프라인'으로 표시 */
