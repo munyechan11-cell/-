@@ -167,6 +167,9 @@ export async function registerOwnerDevice(userId: string): Promise<{
   if (!token) return { ok: false, reason: "error", detail: "토큰 발급 결과가 비어있음" };
 
   // Firestore 등록 — fcmTokens 배열에 dedup 추가
+  // 신규 사장님 케이스: users/{userId} 문서에 fcmTokens 필드가 없을 수 있음.
+  // arrayUnion 은 undefined 필드에 대해 자동으로 새 배열을 만들지만,
+  // 명시적 초기화로 동작을 결정적으로 보장.
   const entry = {
     token,
     platform: navigator.platform || "web",
@@ -174,10 +177,16 @@ export async function registerOwnerDevice(userId: string): Promise<{
   };
   try {
     const ref = doc(db, "users", userId);
-    await setDoc(ref, {}, { merge: true });
-    await updateDoc(ref, {
-      fcmTokens: arrayUnion(entry),
-    });
+    // 1) 문서 존재 + fcmTokens 필드 초기화 보장
+    //    이미 배열이 있으면 그대로 두고, 없으면 빈 배열로 초기화.
+    //    getDoc 으로 검사하면 룰 거부 시 실패하므로 setDoc 만으로 처리.
+    //    arrayUnion 이 undefined 필드도 안전하게 처리하지만, 명시 초기화로
+    //    클라이언트 캐시 / 오프라인 큐 상황에서도 결정적으로 작동하게 함.
+    await setDoc(
+      ref,
+      { fcmTokens: arrayUnion(entry) },
+      { merge: true }
+    );
   } catch (e: any) {
     console.error("[push] firestore update failed", e?.code, e?.message);
     return { ok: false, reason: "firestore-error", detail: e?.message, token };

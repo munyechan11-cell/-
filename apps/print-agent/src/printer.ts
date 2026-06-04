@@ -67,11 +67,15 @@ export async function printReceipt(payload: ReceiptPayload): Promise<void> {
   });
 
   // 연결 점검 — 끊긴 프린터면 빠르게 실패
+  // 정상 'false' 응답과 예외(드라이버 오류·OS 권한 등) 를 분리 메시지로
+  let connected = false;
   try {
-    const ok = await printer.isPrinterConnected();
-    if (!ok) throw new Error(`프린터 '${cfg.name}' 와 통신할 수 없어요.`);
+    connected = await printer.isPrinterConnected();
   } catch (e: any) {
-    throw new Error(`프린터 연결 확인 실패: ${e?.message ?? e}`);
+    throw new Error(`프린터 통신 검사 실패 (드라이버·권한 확인): ${e?.message ?? e}`);
+  }
+  if (!connected) {
+    throw new Error(`프린터 '${cfg.name}' 와 통신할 수 없어요. 전원·USB 연결을 확인해 주세요.`);
   }
 
   // 영수증 본문 구성

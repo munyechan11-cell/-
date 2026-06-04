@@ -89,11 +89,20 @@ export function getStoreOpenStatus(
     return { open: false, reason: "영업 시간이 아니에요." };
   }
 
-  // 4) 휴게시간
+  // 4) 휴게시간 — 자정 넘는 케이스도 처리 (예: 영업 21:00~02:00, 휴게 23:00~00:30)
   const breakStart = toMin(w.breakStart);
   const breakEnd = toMin(w.breakEnd);
-  if (breakStart != null && breakEnd != null && cur >= breakStart && cur < breakEnd) {
-    return { open: false, reason: `브레이크 타임 (${w.breakStart} ~ ${w.breakEnd})`, from: w.breakEnd };
+  if (breakStart != null && breakEnd != null) {
+    let inBreak: boolean;
+    if (breakEnd <= breakStart) {
+      // 자정 넘는 휴게시간
+      inBreak = cur >= breakStart || cur < breakEnd;
+    } else {
+      inBreak = cur >= breakStart && cur < breakEnd;
+    }
+    if (inBreak) {
+      return { open: false, reason: `브레이크 타임 (${w.breakStart} ~ ${w.breakEnd})`, from: w.breakEnd };
+    }
   }
 
   return { open: true, until: w.close };
