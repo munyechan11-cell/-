@@ -17,10 +17,13 @@ import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
 import { useStore } from "../../store/store";
 import { getEffectiveTier, TIER_BADGE } from "../../lib/tier";
+import { useLanguage, t } from "../../lib/i18n";
 
 export default function CustomerHome() {
   const nav = useNavigate();
   const { currentUser, users, visits, coupons, tierOverrides, logout, deleteAccount } = useStore();
+  const lang = useLanguage();
+  const locale = lang === "ko" ? "ko-KR" : lang === "zh" ? "zh-CN" : lang === "vi" ? "vi-VN" : "en-US";
 
   // 본인이 방문했던 매장 리스트 + 매장별 등급 계산
   const storesUsed = useMemo(() => {
@@ -56,18 +59,18 @@ export default function CustomerHome() {
   return (
     <MobileShell>
       <TopBar
-        title="내 결"
+        title={t("chome.title", lang)}
         back={() => nav("/")}
         right={
           <button
             onClick={() => {
-              if (confirm("로그아웃 하시겠어요?")) {
+              if (confirm(t("chome.logoutConfirm", lang))) {
                 logout();
                 nav("/", { replace: true });
               }
             }}
             className="w-10 h-10 rounded-full hover:bg-[var(--color-navy-50)] inline-flex items-center justify-center"
-            aria-label="로그아웃"
+            aria-label={t("profile.logout", lang)}
           >
             <LogOut className="w-4 h-4 text-[var(--color-navy-800)]" />
           </button>
@@ -87,14 +90,14 @@ export default function CustomerHome() {
               </div>
             )}
             <div className="flex-1">
-              <p className="text-[12px] opacity-85 font-bold uppercase tracking-wider">고객님</p>
+              <p className="text-[12px] opacity-85 font-bold uppercase tracking-wider">{t("chome.role", lang)}</p>
               <p className="text-[22px] font-extrabold tracking-tight">{currentUser.name}</p>
             </div>
           </div>
           <div className="grid grid-cols-3 mt-5 pt-5 border-t border-white/15 text-[12px]">
-            <Stat label="이용 매장" value={`${storesUsed.length}곳`} />
-            <Stat label="총 방문" value={`${visits.filter((v) => v.customerId === currentUser.id).length}회`} />
-            <Stat label="보유 쿠폰" value={`${activeCoupons.length}장`} />
+            <Stat label={t("chome.stat.stores", lang)} value={`${storesUsed.length}${t("chome.unit.store", lang)}`} />
+            <Stat label={t("chome.stat.visits", lang)} value={`${visits.filter((v) => v.customerId === currentUser.id).length}${t("home.unit.visit", lang)}`} />
+            <Stat label={t("chome.stat.coupons", lang)} value={`${activeCoupons.length}${t("home.unit.coupon", lang)}`} />
           </div>
         </Card>
 
@@ -107,27 +110,27 @@ export default function CustomerHome() {
             <QrCode className="w-6 h-6 text-[var(--color-mint-700)]" />
           </div>
           <div className="flex-1">
-            <p className="text-[15px] font-extrabold text-[var(--color-navy-900)]">매장 QR 스캔하기</p>
-            <p className="text-[12px] text-[var(--color-ink-500)] font-medium">방문 기록 + 매장 등급 확인</p>
+            <p className="text-[15px] font-extrabold text-[var(--color-navy-900)]">{t("chome.scanCta", lang)}</p>
+            <p className="text-[12px] text-[var(--color-ink-500)] font-medium">{t("chome.scanCtaDesc", lang)}</p>
           </div>
           <ChevronRight className="w-5 h-5 text-[var(--color-ink-400)]" />
         </Link>
 
         {/* 이용 매장 리스트 */}
-        <SectionTitle icon={<StoreIcon className="w-4 h-4" />}>이용한 매장</SectionTitle>
+        <SectionTitle icon={<StoreIcon className="w-4 h-4" />}>{t("chome.usedStores", lang)}</SectionTitle>
         {storesUsed.length === 0 ? (
           <Card padding="lg" className="text-center">
             <div className="w-14 h-14 rounded-2xl bg-[var(--color-mint-100)] mx-auto mb-3 inline-flex items-center justify-center">
               <QrCode className="w-7 h-7 text-[var(--color-mint-700)]" />
             </div>
             <p className="text-[15px] text-[var(--color-navy-900)] font-bold mb-1">
-              아직 방문한 매장이 없어요
+              {t("chome.noStores", lang)}
             </p>
             <p className="text-[13px] text-[var(--color-ink-600)] mb-4">
-              테이블 QR을 찍어 첫 매장을 등록해 보세요.
+              {t("chome.noStoresDesc", lang)}
             </p>
             <Button block onClick={() => nav("/scan")} leftIcon={<QrCode className="w-4 h-4" />}>
-              QR 스캔 시작
+              {t("chome.scanStart", lang)}
             </Button>
           </Card>
         ) : (
@@ -149,14 +152,14 @@ export default function CustomerHome() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <p className="text-[15px] font-bold text-[var(--color-navy-900)] truncate">
-                          {owner?.restaurantName ?? "알 수 없는 매장"}
+                          {owner?.restaurantName ?? t("chome.unknownStore", lang)}
                         </p>
                         <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${badge.bg} ${badge.text}`}>
                           {tierName}
                         </span>
                       </div>
                       <p className="text-[12px] text-[var(--color-ink-600)] mt-0.5">
-                        방문 {s.visitCount}회 · {new Date(s.lastVisit).toLocaleDateString("ko-KR")}
+                        {t("chome.visitCount", lang, { n: s.visitCount, date: new Date(s.lastVisit).toLocaleDateString(locale) })}
                       </p>
                     </div>
                     <ChevronRight className="w-4 h-4 text-[var(--color-ink-400)] shrink-0" />
@@ -168,15 +171,15 @@ export default function CustomerHome() {
         )}
 
         {/* 보유 쿠폰 요약 */}
-        <SectionTitle icon={<Ticket className="w-4 h-4" />}>보유 쿠폰 ({activeCoupons.length})</SectionTitle>
+        <SectionTitle icon={<Ticket className="w-4 h-4" />}>{t("chome.couponsTitle", lang, { n: activeCoupons.length })}</SectionTitle>
         {activeCoupons.length === 0 ? (
           <Card padding="lg" className="text-center">
             <Ticket className="w-7 h-7 text-[var(--color-ink-300)] mx-auto mb-2" />
             <p className="text-[14px] text-[var(--color-ink-600)] font-medium">
-              보유 중인 쿠폰이 없습니다.
+              {t("chome.noCoupons", lang)}
             </p>
             <p className="text-[12px] text-[var(--color-ink-500)] mt-1">
-              매장을 방문하면 등급이 올라 쿠폰을 받을 수 있어요.
+              {t("chome.noCouponsDesc", lang)}
             </p>
           </Card>
         ) : (
@@ -196,10 +199,10 @@ export default function CustomerHome() {
                       {badge.label}
                     </span>
                     <span className="text-[12px] text-[var(--color-ink-600)] font-semibold truncate">
-                      {owner?.restaurantName ?? "매장"}
+                      {owner?.restaurantName ?? t("common.store", lang)}
                     </span>
                     {c.status === "pending" && (
-                      <span className="ml-auto text-[11px] text-[var(--color-warn)] font-bold">승인 대기</span>
+                      <span className="ml-auto text-[11px] text-[var(--color-warn)] font-bold">{t("chome.couponPending", lang)}</span>
                     )}
                   </div>
                   <p className="text-[14px] font-bold text-[var(--color-navy-900)]">{c.description}</p>
@@ -208,7 +211,7 @@ export default function CustomerHome() {
                       to={`/customer/store/${c.storeId}`}
                       className="mt-2 inline-block text-[12px] font-bold text-[var(--color-navy-700)]"
                     >
-                      매장 보러가기 →
+                      {t("chome.viewStore", lang)}
                     </Link>
                   )}
                 </Card>
@@ -218,7 +221,7 @@ export default function CustomerHome() {
         )}
 
         {/* 최근 방문 */}
-        <SectionTitle icon={<Calendar className="w-4 h-4" />}>최근 방문</SectionTitle>
+        <SectionTitle icon={<Calendar className="w-4 h-4" />}>{t("chome.recentVisits", lang)}</SectionTitle>
         <Card padding="md">
           {(() => {
             const recent = visits
@@ -226,7 +229,7 @@ export default function CustomerHome() {
               .sort((a, b) => b.date.localeCompare(a.date))
               .slice(0, 5);
             if (recent.length === 0) {
-              return <p className="text-[13px] text-[var(--color-ink-500)] text-center">기록 없음</p>;
+              return <p className="text-[13px] text-[var(--color-ink-500)] text-center">{t("chome.noRecent", lang)}</p>;
             }
             return (
               <ul className="space-y-2">
@@ -239,10 +242,10 @@ export default function CustomerHome() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-bold text-[var(--color-navy-900)] truncate">
-                          {owner?.restaurantName ?? "매장"}
+                          {owner?.restaurantName ?? t("common.store", lang)}
                         </p>
                         <p className="text-[12px] text-[var(--color-ink-600)]">
-                          {new Date(v.date).toLocaleString("ko-KR", { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                          {new Date(v.date).toLocaleString(locale, { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                         </p>
                       </div>
                     </li>
@@ -256,7 +259,7 @@ export default function CustomerHome() {
         {/* Account actions */}
         <div className="mt-8 space-y-2.5">
           <Button block variant="ghost" leftIcon={<UserIcon className="w-4 h-4" />}>
-            {currentUser.phone || "전화번호 없음"}
+            {currentUser.phone || t("chome.noPhone", lang)}
           </Button>
           <Button
             block
@@ -264,13 +267,13 @@ export default function CustomerHome() {
             className="text-[var(--color-danger)] border-[var(--color-danger)]/30 hover:border-[var(--color-danger)]"
             leftIcon={<Trash2 className="w-4 h-4" />}
             onClick={async () => {
-              if (confirm("계정을 삭제하시겠습니까?\n방문·쿠폰 정보는 익명화되어 보관됩니다.")) {
+              if (confirm(t("profile.deleteConfirm", lang))) {
                 await deleteAccount();
                 nav("/", { replace: true });
               }
             }}
           >
-            계정 삭제
+            {t("profile.deleteAccount", lang)}
           </Button>
         </div>
       </div>

@@ -4,11 +4,13 @@ import { CheckCircle2, Store, AlertTriangle } from "lucide-react";
 import { MobileShell } from "../../components/layout/MobileShell";
 import { useStore } from "../../store/store";
 import { Button } from "../../components/ui/Button";
+import { useLanguage, t } from "../../lib/i18n";
 
 export default function TableEntry() {
   const { storeId, tableNumber } = useParams();
   const nav = useNavigate();
   const { currentUser, users, recordVisit } = useStore();
+  const lang = useLanguage();
 
   const [status, setStatus] = useState<"checking" | "recording" | "done" | "missing" | "denied">(
     "checking"
@@ -56,15 +58,15 @@ export default function TableEntry() {
         {status === "checking" && (
           <>
             <Loader />
-            <Title>매장을 찾는 중</Title>
-            <Sub>잠시만 기다려 주세요.</Sub>
+            <Title>{t("entry.checking", lang)}</Title>
+            <Sub>{t("entry.checkingDesc", lang)}</Sub>
           </>
         )}
         {status === "recording" && (
           <>
             <Loader />
-            <Title>방문을 기록하는 중</Title>
-            <Sub>테이블 {tableNumber}번에 정성을 담아 적립 중입니다.</Sub>
+            <Title>{t("entry.recording", lang)}</Title>
+            <Sub>{t("entry.recordingDesc", lang, { n: tableNumber ?? "" })}</Sub>
           </>
         )}
         {status === "done" && (
@@ -72,8 +74,8 @@ export default function TableEntry() {
             <div className="w-20 h-20 rounded-2xl bg-[var(--color-mint-100)] flex items-center justify-center mb-6 animate-[pop_.35s_ease-out]">
               <CheckCircle2 className="w-10 h-10 text-[var(--color-mint-700)]" />
             </div>
-            <Title>방문이 기록되었습니다</Title>
-            <Sub>잠시 후 메뉴로 이동합니다.</Sub>
+            <Title>{t("entry.done", lang)}</Title>
+            <Sub>{t("entry.doneDesc", lang)}</Sub>
             <style>{`@keyframes pop{from{transform:scale(.7);opacity:0}to{transform:scale(1);opacity:1}}`}</style>
           </>
         )}
@@ -82,14 +84,17 @@ export default function TableEntry() {
             <div className="w-20 h-20 rounded-2xl bg-[var(--color-ink-50)] flex items-center justify-center mb-6">
               <Store className="w-10 h-10 text-[var(--color-ink-500)]" />
             </div>
-            <Title>매장을 찾을 수 없습니다</Title>
+            <Title>{t("entry.missing", lang)}</Title>
             <Sub>
-              QR이 손상되었거나 폐업한 매장일 수 있어요.
-              <br />
-              직원에게 QR이 인쇄된 시점을 확인해 주세요.
+              {t("entry.missingDesc", lang).split("\n").map((line, i, arr) => (
+                <span key={i}>
+                  {line}
+                  {i < arr.length - 1 && <br />}
+                </span>
+              ))}
             </Sub>
             <Button className="mt-8" onClick={() => nav("/", { replace: true })}>
-              홈으로
+              {t("entry.goHome", lang)}
             </Button>
           </>
         )}
@@ -98,10 +103,10 @@ export default function TableEntry() {
             <div className="w-20 h-20 rounded-2xl bg-[#fef2f2] flex items-center justify-center mb-6">
               <AlertTriangle className="w-10 h-10 text-[var(--color-danger)]" />
             </div>
-            <Title>방문 기록에 실패했습니다</Title>
-            <Sub>네트워크를 확인하고 다시 시도해 주세요.</Sub>
+            <Title>{t("entry.denied", lang)}</Title>
+            <Sub>{t("entry.deniedDesc", lang)}</Sub>
             <Button className="mt-8" onClick={() => window.location.reload()}>
-              다시 시도
+              {t("entry.retry", lang)}
             </Button>
           </>
         )}

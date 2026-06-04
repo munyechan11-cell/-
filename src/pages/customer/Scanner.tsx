@@ -6,11 +6,13 @@ import { MobileShell } from "../../components/layout/MobileShell";
 import { TopBar } from "../../components/ui/TopBar";
 import { Button } from "../../components/ui/Button";
 import { showToast } from "../../lib/toast";
+import { useLanguage, t } from "../../lib/i18n";
 
 const SCAN_ID = "gyeol-qr-scanner";
 
 export default function Scanner() {
   const nav = useNavigate();
+  const lang = useLanguage();
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const [facing, setFacing] = useState<"environment" | "user">("environment");
   const [error, setError] = useState<string | null>(null);
@@ -48,14 +50,14 @@ export default function Scanner() {
         // URL with ?table=
         const u = new URL(decoded);
         const pathMatch = u.pathname.match(/\/customer\/store\/([^/?#]+)/);
-        const t = u.searchParams.get("table");
-        if (pathMatch && t) {
-          navigateOnce(`/customer/store/${pathMatch[1]}/table/${t}`);
+        const tableQ = u.searchParams.get("table");
+        if (pathMatch && tableQ) {
+          navigateOnce(`/customer/store/${pathMatch[1]}/table/${tableQ}`);
           return;
         }
-        showToast("결 QR이 아닙니다.", "error");
+        showToast(t("scanner.notGyeolQr"), "error");
       } catch {
-        showToast("QR 형식을 인식하지 못했어요.", "error");
+        showToast(t("scanner.invalidQr"), "error");
       }
     };
 
@@ -72,8 +74,8 @@ export default function Scanner() {
         if (cancelled) return;
         const msg =
           e?.name === "NotAllowedError"
-            ? "카메라 권한이 차단되었습니다. 브라우저 설정에서 허용해 주세요."
-            : "카메라를 사용할 수 없습니다.";
+            ? t("scanner.cameraBlocked")
+            : t("scanner.cameraFail");
         setError(msg);
       }
     };
@@ -94,16 +96,16 @@ export default function Scanner() {
   }, [facing, nav]);
 
   const manualInput = () => {
-    const storeId = prompt("매장 ID를 입력하세요");
+    const storeId = prompt(t("scanner.askStore"));
     if (!storeId) return;
-    const tableNum = prompt("테이블 번호");
+    const tableNum = prompt(t("scanner.askTable"));
     if (!tableNum) return;
     nav(`/customer/store/${storeId}/table/${tableNum}`);
   };
 
   return (
     <MobileShell>
-      <TopBar title="QR 스캔" back transparent />
+      <TopBar title={t("scanner.title", lang)} back transparent />
       <div className="px-5">
         <div className="relative aspect-square w-full rounded-[28px] overflow-hidden bg-[var(--color-navy-900)] mt-2">
           <div id={SCAN_ID} className="absolute inset-0 [&_video]:object-cover [&_video]:w-full [&_video]:h-full" />
@@ -125,24 +127,24 @@ export default function Scanner() {
           </div>
           {!scanning && !error && (
             <div className="absolute inset-0 flex items-center justify-center text-white/90 text-[14px] font-semibold">
-              <Camera className="w-5 h-5 mr-2" /> 카메라 시작 중...
+              <Camera className="w-5 h-5 mr-2" /> {t("scanner.starting", lang)}
             </div>
           )}
           {error && (
             <div className="absolute inset-0 flex flex-col items-center justify-center text-white p-6 text-center bg-black/60">
               <p className="text-[14px] font-semibold mb-3 leading-relaxed">{error}</p>
               <Button variant="mint" size="sm" onClick={() => window.location.reload()}>
-                다시 시도
+                {t("entry.retry", lang)}
               </Button>
             </div>
           )}
         </div>
 
         <p className="text-center mt-6 text-[15px] text-[var(--color-ink-700)] font-semibold">
-          매장 QR을 사각형 안에 맞춰주세요.
+          {t("scanner.guide", lang)}
         </p>
         <p className="text-center mt-1 text-[13px] text-[var(--color-ink-500)]">
-          밝은 곳에서 더 잘 인식돼요.
+          {t("scanner.guideTip", lang)}
         </p>
 
         <div className="flex gap-3 mt-6">
@@ -153,10 +155,10 @@ export default function Scanner() {
             onClick={() => setFacing((f) => (f === "environment" ? "user" : "environment"))}
             leftIcon={<FlipHorizontal2 className="w-4 h-4" />}
           >
-            카메라 전환
+            {t("scanner.flip", lang)}
           </Button>
           <Button variant="ghost" block size="md" onClick={manualInput} leftIcon={<Keyboard className="w-4 h-4" />}>
-            수동 입력
+            {t("scanner.manual", lang)}
           </Button>
         </div>
       </div>
