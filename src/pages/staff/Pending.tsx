@@ -5,10 +5,12 @@ import { TopBar } from "../../components/ui/TopBar";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
 import { useStore } from "../../store/store";
+import { useLanguage, t } from "../../lib/i18n";
 
 export default function StaffPending() {
   const nav = useNavigate();
   const { currentUser, users, cancelJoinRequest, logout } = useStore();
+  const lang = useLanguage();
 
   if (!currentUser) return <Navigate to="/biz/owner/login" replace />;
   if (currentUser.role !== "staff") {
@@ -27,7 +29,7 @@ export default function StaffPending() {
   return (
     <MobileShell>
       <TopBar
-        title={rejected ? "가입 거절" : "승인 대기"}
+        title={rejected ? t("spending.title.rejected", lang) : t("spending.title.pending", lang)}
         right={
           <button
             onClick={() => {
@@ -36,7 +38,7 @@ export default function StaffPending() {
             }}
             className="inline-flex items-center gap-1 h-10 px-3 rounded-full text-[13px] font-semibold text-[var(--color-ink-600)] hover:bg-[var(--color-navy-50)]"
           >
-            <LogOut className="w-4 h-4" /> 로그아웃
+            <LogOut className="w-4 h-4" /> {t("spending.logout", lang)}
           </button>
         }
       />
@@ -52,16 +54,16 @@ export default function StaffPending() {
             <Clock className="w-9 h-9" />
           </div>
           <p className="headline-section">
-            {rejected ? "가입이 거절되었어요" : "사장님 승인 대기 중"}
+            {rejected ? t("spending.rejectedTitle", lang) : t("spending.pendingTitle", lang)}
           </p>
           <p className="body-md text-[var(--color-ink-700)] mt-3 font-semibold">
-            {store?.restaurantName ?? "선택한 매장"}
+            {store?.restaurantName ?? t("spending.storeFallback", lang)}
           </p>
           {!rejected && (
             <p className="body-md text-[var(--color-ink-500)] mt-3 leading-relaxed">
-              사장님이 가입을 승인하면
+              {t("spending.desc.line1", lang)}
               <br />
-              자동으로 매장 기능이 열려요.
+              {t("spending.desc.line2", lang)}
             </p>
           )}
 
@@ -74,7 +76,7 @@ export default function StaffPending() {
               }}
               leftIcon={rejected ? <Search className="w-4 h-4" /> : <X className="w-4 h-4" />}
             >
-              {rejected ? "다른 매장 선택" : "요청 취소하고 다시 검색"}
+              {rejected ? t("spending.cta.other", lang) : t("spending.cta.retry", lang)}
             </Button>
           </div>
         </Card>

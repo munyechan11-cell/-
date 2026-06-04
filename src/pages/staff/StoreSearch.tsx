@@ -8,11 +8,13 @@ import { Input } from "../../components/ui/Input";
 import { Button } from "../../components/ui/Button";
 import { useStore } from "../../store/store";
 import { showToast } from "../../lib/toast";
+import { useLanguage, t } from "../../lib/i18n";
 
 export default function StaffStoreSearch() {
   const nav = useNavigate();
   const [sp] = useSearchParams();
   const { users, currentUser, requestJoinStore, logout } = useStore();
+  const lang = useLanguage();
   const [q, setQ] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -49,7 +51,7 @@ export default function StaffStoreSearch() {
       await requestJoinStore(storeId, position || undefined);
       nav("/biz/staff/pending", { replace: true });
     } catch (e: any) {
-      showToast(`요청 실패: ${e?.message ?? ""}`, "error");
+      showToast(t("sstore.err.applyFail", lang, { msg: e?.message ?? "" }), "error");
     } finally {
       setSubmitting(false);
     }
@@ -58,7 +60,7 @@ export default function StaffStoreSearch() {
   return (
     <MobileShell>
       <TopBar
-        title="매장 찾기"
+        title={t("sstore.title", lang)}
         right={
           <button
             onClick={() => {
@@ -67,28 +69,28 @@ export default function StaffStoreSearch() {
             }}
             className="inline-flex items-center gap-1 h-10 px-3 rounded-full text-[13px] font-semibold text-[var(--color-ink-600)] hover:bg-[var(--color-navy-50)]"
           >
-            <LogOut className="w-4 h-4" /> 로그아웃
+            <LogOut className="w-4 h-4" /> {t("sstore.logout", lang)}
           </button>
         }
       />
       <div className="px-5 pt-5 pb-12 space-y-5">
         <div>
-          <h1 className="headline-section mb-1.5">소속 매장 검색</h1>
+          <h1 className="headline-section mb-1.5">{t("sstore.heading", lang)}</h1>
           <p className="body-md text-[var(--color-ink-600)]">
-            가입할 매장을 선택하면 사장님께 승인 요청이 전송돼요.
+            {t("sstore.desc", lang)}
           </p>
         </div>
 
         <Input
-          label="직책 (선택)"
-          placeholder="예) 홀, 주방"
+          label={t("sstore.field.position", lang)}
+          placeholder={t("sstore.field.positionPh", lang)}
           value={position}
           onChange={(e) => setPosition(e.target.value)}
         />
 
         <Input
-          label="매장 검색"
-          placeholder="매장명·대표자명·전화"
+          label={t("sstore.field.search", lang)}
+          placeholder={t("sstore.field.searchPh", lang)}
           value={q}
           onChange={(e) => setQ(e.target.value)}
           leftSlot={<Search className="w-4 h-4" />}
@@ -97,7 +99,7 @@ export default function StaffStoreSearch() {
         <div className="space-y-2.5">
           {owners.length === 0 ? (
             <Card padding="lg" className="text-center body-md text-[var(--color-ink-500)]">
-              검색 결과가 없습니다.
+              {t("sstore.noResults", lang)}
             </Card>
           ) : (
             owners.map((o) => (
@@ -107,14 +109,14 @@ export default function StaffStoreSearch() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-[15px] font-bold text-[var(--color-navy-900)] truncate">
-                    {o.restaurantName || "(매장명 없음)"}
+                    {o.restaurantName || t("sstore.unnamed", lang)}
                   </p>
                   <p className="text-[13px] text-[var(--color-ink-600)] truncate font-medium">
-                    대표 {o.name}
+                    {t("sstore.repPrefix", lang, { name: o.name })}
                   </p>
                 </div>
                 <Button size="md" onClick={() => apply(o.id)} loading={submitting}>
-                  신청
+                  {t("sstore.btn.apply", lang)}
                 </Button>
               </Card>
             ))

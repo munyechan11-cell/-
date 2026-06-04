@@ -11,12 +11,14 @@ import { useStore } from "../../store/store";
 import { signInWithGoogle, signInWithKakao, consumeGoogleRedirect } from "../../lib/auth";
 import type { SocialResult } from "../../lib/auth";
 import { cn } from "../../lib/cn";
+import { useLanguage, t } from "../../lib/i18n";
 
 type Mode = "login" | "signup";
 
 export default function StaffLogin() {
   const nav = useNavigate();
   const { login, users } = useStore();
+  const lang = useLanguage();
   const [mode, setMode] = useState<Mode>("login");
   const [phone, setPhone] = useState("");
   const [name, setName] = useState("");
@@ -31,7 +33,7 @@ export default function StaffLogin() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (phone.replace(/\D/g, "").length < 10 || !name.trim()) {
-      showToast("이름과 전화번호를 정확히 입력해 주세요.", "error");
+      showToast(t("slogin.err.required", lang), "error");
       return;
     }
     // 10분 이상 묵은 stash는 무시 (옛 시도가 의도치 않게 적용되는 사고 방지)
@@ -72,8 +74,8 @@ export default function StaffLogin() {
     } catch (e: any) {
       showToast(
         mode === "login"
-          ? "일치하는 직원 계정이 없어요. '신규 등록' 탭으로 가입해 주세요."
-          : `가입 실패: ${e?.message ?? ""}`,
+          ? t("slogin.err.notFound", lang)
+          : t("slogin.err.signupFail", lang, { msg: e?.message ?? "" }),
         "error"
       );
     } finally {
@@ -111,14 +113,14 @@ export default function StaffLogin() {
       "gyeol:pending-staff-social",
       JSON.stringify({ id: res.id, provider: res.provider, avatarUrl: res.avatarUrl, ts: Date.now() })
     );
-    showToast("성함·전화번호·직책 입력 후 가입을 완료해 주세요.", "info");
+    showToast(t("slogin.info.completeSignup", lang), "info");
   };
 
   // 인앱 브라우저 Google redirect 결과 회수
   useEffect(() => {
     consumeGoogleRedirect()
       .then((res) => { if (res) return applySocialResult(res); })
-      .catch((e) => showToast(`소셜 로그인 실패: ${e?.message ?? ""}`, "error"));
+      .catch((e) => showToast(t("slogin.err.socialFail", lang, { msg: e?.message ?? "" }), "error"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -129,7 +131,7 @@ export default function StaffLogin() {
       await applySocialResult(res);
     } catch (e: any) {
       if (e?.message === "REDIRECT_IN_PROGRESS") return;
-      showToast(`소셜 로그인 실패: ${e?.message ?? ""}`, "error");
+      showToast(t("slogin.err.socialFail", lang, { msg: e?.message ?? "" }), "error");
     } finally {
       setLoading(false);
     }
@@ -140,7 +142,7 @@ export default function StaffLogin() {
     if (!stash) return submit({ preventDefault: () => {} } as React.FormEvent);
     const social = JSON.parse(stash) as { id: string; provider: "google" | "kakao"; avatarUrl?: string };
     if (!name.trim()) {
-      showToast("성함을 입력해 주세요.", "error");
+      showToast(t("slogin.err.nameRequired", lang), "error");
       return;
     }
     setLoading(true);
@@ -158,7 +160,7 @@ export default function StaffLogin() {
       sessionStorage.removeItem("gyeol:pending-staff-social");
       afterStaffLogin();
     } catch (e: any) {
-      showToast(`가입 실패: ${e?.message ?? ""}`, "error");
+      showToast(t("slogin.err.signupFail", lang, { msg: e?.message ?? "" }), "error");
     } finally {
       setLoading(false);
     }
@@ -169,7 +171,7 @@ export default function StaffLogin() {
 
   return (
     <MobileShell>
-      <TopBar title="직원 로그인" back />
+      <TopBar title={t("slogin.title.login", lang)} back />
       <div className="px-6 pt-4 pb-16">
         {/* 사장님/직원 구분 */}
         <div className="grid grid-cols-2 gap-2 mb-5">
@@ -179,24 +181,24 @@ export default function StaffLogin() {
           >
             <Crown className="w-4 h-4 text-[var(--color-ink-500)]" />
             <div>
-              <p className="text-[10px] font-bold text-[var(--color-ink-500)] uppercase tracking-wide">사장님이세요?</p>
-              <p className="text-[13px] font-extrabold text-[var(--color-ink-700)]">사장님 로그인 →</p>
+              <p className="text-[10px] font-bold text-[var(--color-ink-500)] uppercase tracking-wide">{t("slogin.role.ownerQ", lang)}</p>
+              <p className="text-[13px] font-extrabold text-[var(--color-ink-700)]">{t("slogin.role.ownerCta", lang)}</p>
             </div>
           </Link>
           <div className="rounded-[14px] border-2 border-[var(--color-mint-500)] bg-[var(--color-mint-50)] p-3 flex items-center gap-2">
             <Briefcase className="w-4 h-4 text-[var(--color-mint-700)]" />
             <div>
-              <p className="text-[10px] font-bold text-[var(--color-mint-700)] uppercase tracking-wide">현재 화면</p>
-              <p className="text-[13px] font-extrabold text-[var(--color-navy-900)]">직원</p>
+              <p className="text-[10px] font-bold text-[var(--color-mint-700)] uppercase tracking-wide">{t("slogin.role.current", lang)}</p>
+              <p className="text-[13px] font-extrabold text-[var(--color-navy-900)]">{t("slogin.role.staff", lang)}</p>
             </div>
           </div>
         </div>
 
         <h1 className="headline-section mb-1">
-          {mode === "login" ? "직원 로그인" : "직원 가입"}
+          {mode === "login" ? t("slogin.title.login", lang) : t("slogin.title.signup", lang)}
         </h1>
         <p className="body-md text-[var(--color-ink-500)]">
-          가입 후 일하시는 매장을 검색해 합류 요청을 보내세요.
+          {t("slogin.desc", lang)}
         </p>
 
         <div className="mt-6 grid grid-cols-2 p-1 bg-[var(--color-navy-50)] rounded-[14px]">
@@ -211,7 +213,7 @@ export default function StaffLogin() {
                   : "text-[var(--color-ink-500)]"
               )}
             >
-              {m === "login" ? "로그인" : "신규 등록"}
+              {m === "login" ? t("slogin.mode.login", lang) : t("slogin.mode.signup", lang)}
             </button>
           ))}
         </div>
@@ -226,13 +228,13 @@ export default function StaffLogin() {
           className="mt-7 space-y-4"
         >
           <Input
-            label="성함"
-            placeholder="홍길동"
+            label={t("slogin.field.name", lang)}
+            placeholder={t("slogin.field.namePh", lang)}
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
           <Input
-            label={hasSocialPending && mode === "signup" ? "전화번호 (선택)" : "전화번호"}
+            label={hasSocialPending && mode === "signup" ? t("slogin.field.phoneOptional", lang) : t("slogin.field.phone", lang)}
             placeholder="010-0000-0000"
             value={phone}
             onChange={(e) => setPhone(formatPhoneNumber(e.target.value))}
@@ -241,8 +243,8 @@ export default function StaffLogin() {
           />
           {mode === "signup" && (
             <Input
-              label="직책 (선택)"
-              placeholder="예) 홀, 주방"
+              label={t("slogin.field.position", lang)}
+              placeholder={t("slogin.field.positionPh", lang)}
               value={position}
               onChange={(e) => setPosition(e.target.value)}
               leftSlot={<Briefcase className="w-4 h-4" />}
@@ -254,7 +256,7 @@ export default function StaffLogin() {
             loading={loading}
             disabled={!name || (!hasSocialPending && !phone)}
           >
-            {mode === "login" ? "로그인" : "가입하기"}
+            {mode === "login" ? t("slogin.btn.login", lang) : t("slogin.btn.signup", lang)}
           </Button>
         </form>
 
@@ -262,12 +264,12 @@ export default function StaffLogin() {
           <>
             <div className="my-7 flex items-center gap-3 text-[12px] text-[var(--color-ink-300)] font-semibold">
               <div className="flex-1 h-px bg-[var(--color-line)]" />
-              또는 소셜로
+              {t("slogin.orSocial", lang)}
               <div className="flex-1 h-px bg-[var(--color-line)]" />
             </div>
             <div className="space-y-3">
               <Button variant="outline" block onClick={() => handleSocial("google")} loading={loading}>
-                Google로 계속하기
+                {t("slogin.btn.googleContinue", lang)}
               </Button>
               <button
                 onClick={() => handleSocial("kakao")}
@@ -275,7 +277,7 @@ export default function StaffLogin() {
                 className="w-full h-14 rounded-[14px] bg-[#FEE500] text-[#191919] font-bold inline-flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-40"
               >
                 <MessageCircle className="w-5 h-5" />
-                카카오로 계속하기
+                {t("slogin.btn.kakaoContinue", lang)}
               </button>
             </div>
           </>
