@@ -3,7 +3,7 @@ import { X, Printer, CreditCard } from "lucide-react";
 import { Button } from "./Button";
 import { useEscapeClose } from "../../lib/useEscapeClose";
 import type { Order } from "../../lib/types";
-import { useLanguage, t } from "../../lib/i18n";
+import { useLanguage, t, fmtKRW } from "../../lib/i18n";
 
 interface Props {
   storeName: string;
@@ -43,12 +43,6 @@ export function BillModal({
       document.body.style.overflow = prev;
     };
   }, []);
-
-  // 통화 포매팅 — 한국어는 ₩, 영어는 KRW 표기 (가격은 그대로 KRW 단위)
-  const fmtKRW = (n: number) =>
-    lang === "en"
-      ? `₩${n.toLocaleString("en-US")}`
-      : `₩ ${n.toLocaleString("ko-KR")}`;
 
   const totalAll = unpaidTotal + paidTotal;
   // 한국 음식점 표준 — 메뉴가는 부가세 포함가. 총액에서 역산:

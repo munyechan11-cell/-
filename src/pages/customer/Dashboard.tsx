@@ -22,7 +22,7 @@ import {
   X as XIcon,
 } from "lucide-react";
 import { resizeImage } from "../owner/PhotoVault";
-import { LANGS, useLanguage, setLanguage, t } from "../../lib/i18n";
+import { LANGS, useLanguage, setLanguage, t, fmtKRW } from "../../lib/i18n";
 import { MobileShell } from "../../components/layout/MobileShell";
 import { TopBar } from "../../components/ui/TopBar";
 import { Card } from "../../components/ui/Card";
@@ -100,13 +100,13 @@ export default function CustomerDashboard() {
       nav("/customer", { replace: true });
       return;
     }
-    if (!window.confirm("가게에서 나가시겠어요?\n미결제 주문이 있다면 매장에 안내해 주세요.")) return;
+    if (!window.confirm(t("home.leaveConfirm"))) return;
     try {
       await leaveTable(tableNum, paramStoreId ?? "");
-      showToast("좋은 시간 보내셨길 바라요. 또 만나요!", "success");
+      showToast(t("home.leaveToast"), "success");
       nav("/customer", { replace: true });
     } catch (e: any) {
-      showToast(`퇴장 처리 실패: ${e?.message ?? "잠시 후 다시 시도해 주세요."}`, "error");
+      showToast(t("home.leaveFail", undefined, { msg: e?.message ?? "" }), "error");
     }
   };
 
@@ -122,7 +122,7 @@ export default function CustomerDashboard() {
       const t = setTimeout(() => setOwnerCheck((n) => n + 1), 400);
       return () => clearTimeout(t);
     }
-    showToast("매장을 찾을 수 없어 홈으로 이동합니다.", "error");
+    showToast(t("home.storeNotFound"), "error");
     nav("/customer", { replace: true });
   }, [storeId, owner, users.length, ownerCheck, nav]);
 
@@ -224,7 +224,7 @@ export default function CustomerDashboard() {
     // 영업 외 시간 사전 차단 — store.placeOrder 도 검증하지만 사용자 경험 위해 UI 에서도 한 번
     const s = getStoreOpenStatus(owner);
     if (s.open === false) {
-      showToast(`주문할 수 없어요: ${s.reason}`, "error");
+      showToast(t("menu.orderFailReason", undefined, { reason: s.reason }), "error");
       return;
     }
     try {
@@ -300,9 +300,9 @@ export default function CustomerDashboard() {
           <div className="w-12 h-12 rounded-2xl bg-[var(--color-navy-50)] inline-flex items-center justify-center mb-3">
             <UserIcon className="w-6 h-6 text-[var(--color-navy-700)]" />
           </div>
-          <p className="text-[14px] font-bold text-[var(--color-navy-900)]">로그인 정보를 불러오는 중…</p>
+          <p className="text-[14px] font-bold text-[var(--color-navy-900)]">{t("home.loginLoading", lang)}</p>
           <p className="text-[12px] text-[var(--color-ink-500)] mt-1.5 font-medium">
-            화면이 멈춰 보이면 잠시 후 새로고침해 주세요.
+            {t("home.loginLoadingDesc", lang)}
           </p>
         </div>
       </MobileShell>
@@ -314,7 +314,7 @@ export default function CustomerDashboard() {
       bottomNav={<BottomNav tab={tab} setTab={setTab} />}
     >
       <TopBar
-        title={owner?.restaurantName ?? "매장"}
+        title={owner?.restaurantName ?? t("common.store", lang)}
         back={() => nav("/customer")}
         right={
           <Link
@@ -336,7 +336,7 @@ export default function CustomerDashboard() {
           <Card className="bg-[var(--color-navy-700)] text-white border-transparent shadow-[var(--shadow-navy)] p-6">
             <div className="flex items-center justify-between mb-3">
               <div>
-                <p className="text-[13px] font-semibold opacity-90">{currentUser.name}님</p>
+                <p className="text-[13px] font-semibold opacity-90">{t("home.greeting", lang, { name: currentUser.name })}</p>
                 <p className="text-[24px] font-extrabold tracking-tight mt-0.5">{tierName}</p>
               </div>
               <Sparkles className="w-6 h-6 opacity-80" />
@@ -350,19 +350,19 @@ export default function CustomerDashboard() {
                   />
                 </div>
                 <p className="text-[13px] font-semibold opacity-90 mt-3">
-                  {next.tier}까지 {Math.max(next.min - uniqueDays, 0)}회 더 방문
+                  {t("home.nextTier", lang, { tier: next.tier, n: Math.max(next.min - uniqueDays, 0) })}
                 </p>
               </>
             ) : (
-              <p className="text-[13px] font-semibold opacity-90">최고 등급에 도달하셨습니다.</p>
+              <p className="text-[13px] font-semibold opacity-90">{t("home.topTier", lang)}</p>
             )}
           </Card>
 
           {/* Stats row */}
           <div className="grid grid-cols-3 gap-2">
-            <SmallStat label="방문" value={`${myVisits.length}회`} />
-            <SmallStat label="보유 쿠폰" value={`${myCoupons.filter((c) => c.status !== "used").length}장`} />
-            <SmallStat label="포인트" value={`${(currentUser.rewardBalance ?? 0).toLocaleString()}`} />
+            <SmallStat label={t("home.stat.visits", lang)} value={`${myVisits.length}${t("home.unit.visit", lang)}`} />
+            <SmallStat label={t("home.stat.coupons", lang)} value={`${myCoupons.filter((c) => c.status !== "used").length}${t("home.unit.coupon", lang)}`} />
+            <SmallStat label={t("home.stat.points", lang)} value={`${(currentUser.rewardBalance ?? 0).toLocaleString()}`} />
           </div>
 
           {/* Active table HUD */}
@@ -373,7 +373,7 @@ export default function CustomerDashboard() {
                   {myTable.number}
                 </div>
                 <div className="flex-1">
-                  <p className="text-[13px] font-bold text-[var(--color-navy-900)]">테이블 {myTable.number}번 이용 중</p>
+                  <p className="text-[13px] font-bold text-[var(--color-navy-900)]">{t("home.tableInUse", lang, { n: myTable.number })}</p>
                   <SessionTimer start={myTable.sessionStartTime ?? null} />
                 </div>
               </Card>
@@ -386,7 +386,7 @@ export default function CustomerDashboard() {
                   leftIcon={<ReceiptIcon className="w-4 h-4" />}
                   disabled={mySessionOrders.length === 0}
                 >
-                  계산서 보기
+                  {t("home.viewBill", lang)}
                 </Button>
                 <Button
                   variant="ghost"
@@ -394,7 +394,7 @@ export default function CustomerDashboard() {
                   onClick={handleExitStore}
                   leftIcon={<DoorOpen className="w-4 h-4" />}
                 >
-                  가게 퇴장
+                  {t("home.leaveStore", lang)}
                 </Button>
               </div>
             </>
@@ -406,7 +406,7 @@ export default function CustomerDashboard() {
               <div className="flex items-center gap-2 mb-3">
                 <ReceiptIcon className="w-4 h-4 text-[var(--color-navy-700)]" />
                 <p className="text-[13px] font-bold text-[var(--color-navy-900)]">
-                  현재 주문 ({mySessionOrders.length}건)
+                  {t("home.currentOrders", lang, { n: mySessionOrders.length })}
                 </p>
               </div>
 
@@ -415,7 +415,7 @@ export default function CustomerDashboard() {
               )}
               {myActiveOrder && myActiveOrder.status === "cancelled" && (
                 <div className="mb-3 px-3 py-2 rounded-xl bg-[#fef2f2] text-[var(--color-danger)] text-[13px] font-bold text-center">
-                  주문이 취소되었습니다.
+                  {t("home.orderCancelled", lang)}
                 </div>
               )}
 
@@ -425,18 +425,18 @@ export default function CustomerDashboard() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 mb-0.5">
                         <span className="text-[12px] text-[var(--color-ink-600)] font-semibold tabular-nums">
-                          {new Date(o.createdAt).toLocaleTimeString("ko-KR", {
+                          {new Date(o.createdAt).toLocaleTimeString(lang === "ko" ? "ko-KR" : lang === "zh" ? "zh-CN" : lang === "vi" ? "vi-VN" : "en-US", {
                             hour: "2-digit",
                             minute: "2-digit",
                           })}
                         </span>
                         {o.paymentStatus === "paid" ? (
                           <span className="text-[11px] font-bold text-[var(--color-mint-700)] bg-[var(--color-mint-100)] px-1.5 py-0.5 rounded">
-                            결제 완료
+                            {t("pay.paid", lang)}
                           </span>
                         ) : (
                           <span className="text-[11px] font-bold text-[var(--color-warn)] bg-[#fff1e0] px-1.5 py-0.5 rounded">
-                            미결제
+                            {t("pay.unpaid", lang)}
                           </span>
                         )}
                       </div>
@@ -445,16 +445,16 @@ export default function CustomerDashboard() {
                       </p>
                     </div>
                     <span className="text-[13px] font-bold text-[var(--color-navy-900)] tabular-nums shrink-0">
-                      ₩ {o.totalAmount.toLocaleString()}
+                      {fmtKRW(o.totalAmount, lang)}
                     </span>
                   </li>
                 ))}
               </ul>
 
               <div className="mt-3 pt-3 border-t border-[var(--color-line)] flex items-center justify-between">
-                <span className="text-[13px] font-bold text-[var(--color-ink-600)]">미결제 합계</span>
+                <span className="text-[13px] font-bold text-[var(--color-ink-600)]">{t("home.unpaidSum", lang)}</span>
                 <span className="text-[18px] font-extrabold text-[var(--color-navy-900)] tabular-nums">
-                  ₩ {unpaidTotal.toLocaleString()}
+                  {fmtKRW(unpaidTotal, lang)}
                 </span>
               </div>
 
@@ -465,14 +465,14 @@ export default function CustomerDashboard() {
                   onClick={() => setBillOpen(true)}
                   leftIcon={<ReceiptIcon className="w-4 h-4" />}
                 >
-                  계산서 보기
+                  {t("home.viewBill", lang)}
                 </Button>
                 {(() => {
                   const hasRequested = mySessionOrders.some((o) => o.paymentStatus === "requested");
                   if (hasRequested) {
                     return (
                       <Button size="md" disabled leftIcon={<CreditCard className="w-4 h-4" />}>
-                        결제 요청 중
+                        {t("home.paying", lang)}
                       </Button>
                     );
                   }
@@ -483,68 +483,71 @@ export default function CustomerDashboard() {
                         onClick={handlePay}
                         leftIcon={<CreditCard className="w-4 h-4" />}
                       >
-                        결제하기
+                        {t("home.payButton", lang)}
                       </Button>
                     );
                   }
                   return (
                     <Button size="md" disabled leftIcon={<CreditCard className="w-4 h-4" />}>
-                      결제 완료
+                      {t("home.payDone", lang)}
                     </Button>
                   );
                 })()}
               </div>
               {mySessionOrders.some((o) => o.paymentStatus === "requested") && (
                 <div className="mt-3 py-2.5 px-3 rounded-xl bg-[#fff8e6] text-[var(--color-warn)] text-[12.5px] font-bold text-center border border-[var(--color-warn)]/30">
-                  💰 직원이 결제 처리 중입니다. 잠시만 기다려 주세요.
+                  {t("home.payRequestedNote", lang)}
                 </div>
               )}
               {unpaidTotal === 0 && mySessionOrders.length > 0 && (
                 <div className="mt-3 py-2.5 px-3 rounded-xl bg-[var(--color-mint-100)] text-[var(--color-mint-700)] text-[13px] font-bold text-center">
-                  모든 주문이 결제되었습니다. 좋은 시간 보내세요!
+                  {t("home.allPaid", lang)}
                 </div>
               )}
             </Card>
           )}
 
           {/* 지난 방문 영수증 — 같은 매장 재방문 시 명확히 분리 */}
-          {pastVisits.length > 0 && <PastVisitsCard visits={pastVisits} storeName={owner?.restaurantName ?? "매장"} />}
+          {pastVisits.length > 0 && <PastVisitsCard visits={pastVisits} storeName={owner?.restaurantName ?? t("common.store", lang)} />}
 
           {/* Recent visits */}
           <div>
-            <h2 className="text-[14px] font-bold text-[var(--color-navy-900)] mb-2 px-1">최근 방문</h2>
+            <h2 className="text-[14px] font-bold text-[var(--color-navy-900)] mb-2 px-1">{t("home.recentVisits", lang)}</h2>
             {myVisits.length === 0 ? (
               <Card padding="lg" className="text-center">
                 <Sparkles className="w-7 h-7 text-[var(--color-ink-300)] mx-auto mb-2" />
                 <p className="text-[14px] text-[var(--color-ink-600)] font-medium">
-                  이 매장의 첫 방문이에요.
+                  {t("home.firstVisit", lang)}
                 </p>
                 <p className="text-[12px] text-[var(--color-ink-500)] mt-1">
-                  주문하시면 방문 기록과 등급이 쌓입니다.
+                  {t("home.firstVisitDesc", lang)}
                 </p>
               </Card>
             ) : (
               <div className="space-y-2">
-                {myVisits.slice(0, 5).map((v) => (
-                  <Card key={v.id} padding="md" className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-lg bg-[var(--color-navy-50)] text-[var(--color-navy-700)] inline-flex items-center justify-center font-bold text-[12px]">
-                      {v.tableNumber}
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-[13px] font-semibold text-[var(--color-navy-900)]">
-                        {new Date(v.date).toLocaleDateString("ko-KR", { month: "long", day: "numeric" })}
-                      </p>
-                      <p className="text-[12px] text-[var(--color-ink-600)]">
-                        {new Date(v.date).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}
-                      </p>
-                    </div>
-                    {v.totalAmount && (
-                      <p className="text-[13px] font-bold text-[var(--color-navy-800)]">
-                        ₩ {v.totalAmount.toLocaleString()}
-                      </p>
-                    )}
-                  </Card>
-                ))}
+                {myVisits.slice(0, 5).map((v) => {
+                  const locale = lang === "ko" ? "ko-KR" : lang === "zh" ? "zh-CN" : lang === "vi" ? "vi-VN" : "en-US";
+                  return (
+                    <Card key={v.id} padding="md" className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-lg bg-[var(--color-navy-50)] text-[var(--color-navy-700)] inline-flex items-center justify-center font-bold text-[12px]">
+                        {v.tableNumber}
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-[13px] font-semibold text-[var(--color-navy-900)]">
+                          {new Date(v.date).toLocaleDateString(locale, { month: "long", day: "numeric" })}
+                        </p>
+                        <p className="text-[12px] text-[var(--color-ink-600)]">
+                          {new Date(v.date).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}
+                        </p>
+                      </div>
+                      {v.totalAmount && (
+                        <p className="text-[13px] font-bold text-[var(--color-navy-800)]">
+                          {fmtKRW(v.totalAmount, lang)}
+                        </p>
+                      )}
+                    </Card>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -557,7 +560,7 @@ export default function CustomerDashboard() {
             <Card padding="lg" className="text-center mt-2">
               <UtensilsCrossed className="w-8 h-8 text-[var(--color-ink-300)] mx-auto mb-2" />
               <p className="text-[14px] text-[var(--color-ink-500)] font-medium">
-                등록된 메뉴가 없습니다.
+                {t("menu.empty", lang)}
               </p>
             </Card>
           ) : (
@@ -575,7 +578,7 @@ export default function CustomerDashboard() {
                           <p className="text-[13px] text-[var(--color-ink-600)] line-clamp-2 break-keep">{m.description}</p>
                         )}
                         <p className="text-[13px] font-bold text-[var(--color-navy-700)] mt-1">
-                          ₩ {m.price.toLocaleString()}
+                          {fmtKRW(m.price, lang)}
                         </p>
                       </div>
                       <QtyStepper
@@ -608,9 +611,9 @@ export default function CustomerDashboard() {
               >
                 <span className="inline-flex items-center gap-2">
                   <ShoppingBag className="w-4 h-4" />
-                  {myTable ? `테이블 ${myTable.number}에 주문` : "테이블 이용 후 주문 가능"}
+                  {myTable ? t("menu.orderToTable", lang, { n: myTable.number }) : t("menu.needTable", lang)}
                 </span>
-                <span>₩ {cartTotal.toLocaleString()}</span>
+                <span>{fmtKRW(cartTotal, lang)}</span>
               </button>
             </div>
           )}
@@ -619,12 +622,12 @@ export default function CustomerDashboard() {
 
       {tab === "coupons" && (
         <div className="px-5 pt-3 space-y-3">
-          <h2 className="text-[15px] font-bold text-[var(--color-navy-900)] px-1">보유 쿠폰</h2>
+          <h2 className="text-[15px] font-bold text-[var(--color-navy-900)] px-1">{t("coupons.title", lang)}</h2>
           {myCoupons.length === 0 ? (
             <Card padding="lg" className="text-center">
               <Ticket className="w-8 h-8 text-[var(--color-ink-300)] mx-auto mb-2" />
               <p className="text-[14px] text-[var(--color-ink-500)] font-medium">
-                보유한 쿠폰이 없습니다.
+                {t("coupons.empty", lang)}
               </p>
             </Card>
           ) : (
@@ -658,16 +661,16 @@ export default function CustomerDashboard() {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2 text-[12px] text-[var(--color-ink-700)]">
-              <Info label="가입 방식" value={currentUser.authType ?? "phone"} />
-              <Info label="연령대" value={currentUser.ageGroup ?? "—"} />
+              <Info label={t("profile.joinType", lang)} value={currentUser.authType ?? "phone"} />
+              <Info label={t("profile.ageGroup", lang)} value={currentUser.ageGroup ?? "—"} />
             </div>
           </Card>
 
-          {/* 언어 선택 — 점진 i18n 적용용. 적용된 화면만 자동으로 바뀝니다. */}
+          {/* 언어 선택 — 설정의 언어 탭 (손님 측 진입 위치) */}
           <Card padding="md">
-            <p className="text-[13px] font-bold text-[var(--color-navy-900)] mb-1">언어 / Language</p>
+            <p className="text-[13px] font-bold text-[var(--color-navy-900)] mb-1">{t("profile.languageTitle", lang)}</p>
             <p className="text-[11.5px] text-[var(--color-ink-500)] font-medium mb-2.5">
-              원하는 언어를 선택하세요.
+              {t("profile.languageDesc", lang)}
             </p>
             <div className="flex gap-2 flex-wrap">
               {LANGS.map((l) => (
@@ -689,13 +692,13 @@ export default function CustomerDashboard() {
           </Card>
 
           <Button block variant="ghost" onClick={() => { logout(); nav("/", { replace: true }); }} leftIcon={<LogOut className="w-4 h-4" />}>
-            로그아웃
+            {t("profile.logout", lang)}
           </Button>
           <Button
             block
             variant="outline"
             onClick={async () => {
-              if (confirm("정말 계정을 삭제하시겠습니까?\n방문·쿠폰 정보는 익명화되어 보관됩니다.")) {
+              if (confirm(t("profile.deleteConfirm", lang))) {
                 await deleteAccount();
                 nav("/", { replace: true });
               }
@@ -703,7 +706,7 @@ export default function CustomerDashboard() {
             leftIcon={<Trash2 className="w-4 h-4" />}
             className="text-[var(--color-danger)] border-[var(--color-danger)]/30 hover:border-[var(--color-danger)]"
           >
-            계정 삭제
+            {t("profile.deleteAccount", lang)}
           </Button>
         </div>
       )}
@@ -711,7 +714,7 @@ export default function CustomerDashboard() {
       {/* 계산서 모달 */}
       {billOpen && currentUser && (
         <BillModal
-          storeName={owner?.restaurantName ?? "매장"}
+          storeName={owner?.restaurantName ?? t("common.store", lang)}
           tableNumber={myTable?.number}
           customerName={currentUser.name}
           orders={mySessionOrders}
@@ -744,11 +747,12 @@ export default function CustomerDashboard() {
 // 매장 영업 상태 배너 — 영업 외 시간이면 빨간 카드, 영업 중이면 작은 칩
 // ============================================================
 function StoreStatusBanner({ owner }: { owner: any }) {
+  const lang = useLanguage();
   const [status, setStatus] = useState(() => getStoreOpenStatus(owner));
   useEffect(() => {
     setStatus(getStoreOpenStatus(owner));
-    const t = setInterval(() => setStatus(getStoreOpenStatus(owner)), 60_000);
-    return () => clearInterval(t);
+    const id = setInterval(() => setStatus(getStoreOpenStatus(owner)), 60_000);
+    return () => clearInterval(id);
   }, [owner?.temporarilyClosed, owner?.businessHours]);
 
   if (status.open) {
@@ -771,14 +775,14 @@ function StoreStatusBanner({ owner }: { owner: any }) {
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-[14px] font-extrabold text-[var(--color-danger)]">
-            지금은 주문할 수 없어요
+            {t("store.closedTitle", lang)}
           </p>
           <p className="text-[12.5px] text-[var(--color-ink-700)] mt-0.5 font-semibold leading-relaxed">
             {closed.open === false ? closed.reason : ""}
-            {closed.open === false && closed.from ? ` · ${closed.from} 부터 영업 시작` : ""}
+            {closed.open === false && closed.from ? t("store.closedFrom", lang, { time: closed.from }) : ""}
           </p>
           <p className="text-[11px] text-[var(--color-ink-500)] mt-1 font-medium">
-            영업 중 다시 방문해 주세요. 매장 사장님께 직접 문의도 가능합니다.
+            {t("store.closedDesc", lang)}
           </p>
         </div>
       </div>
@@ -796,7 +800,9 @@ type PastVisitGroup = {
   itemsCount: number;
 };
 function PastVisitsCard({ visits, storeName }: { visits: PastVisitGroup[]; storeName: string }) {
+  const lang = useLanguage();
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
+  const locale = lang === "ko" ? "ko-KR" : lang === "zh" ? "zh-CN" : lang === "vi" ? "vi-VN" : "en-US";
 
   const formatDate = (iso: string) => {
     const d = new Date(iso);
@@ -804,9 +810,9 @@ function PastVisitsCard({ visits, storeName }: { visits: PastVisitGroup[]; store
     const yest = new Date(today.getTime() - 86_400_000);
     const isToday = iso === today.toISOString().slice(0, 10);
     const isYest = iso === yest.toISOString().slice(0, 10);
-    if (isToday) return "오늘";
-    if (isYest) return "어제";
-    return d.toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" });
+    if (isToday) return t("past.today", lang);
+    if (isYest) return t("past.yesterday", lang);
+    return d.toLocaleDateString(locale, { month: "long", day: "numeric", weekday: "short" });
   };
 
   const top = visits.slice(0, 5); // 최근 5회만 카드에 노출
@@ -820,10 +826,10 @@ function PastVisitsCard({ visits, storeName }: { visits: PastVisitGroup[]; store
         </div>
         <div className="flex-1">
           <p className="text-[13px] font-extrabold text-[var(--color-navy-900)]">
-            {storeName}에서의 지난 방문
+            {t("past.title", lang, { store: storeName })}
           </p>
           <p className="text-[11.5px] text-[var(--color-ink-500)] font-medium">
-            총 {visits.length}회 · ₩ {allTotal.toLocaleString()} 사용
+            {t("past.summary", lang, { n: visits.length, amount: fmtKRW(allTotal, lang) })}
           </p>
         </div>
       </div>
@@ -840,11 +846,11 @@ function PastVisitsCard({ visits, storeName }: { visits: PastVisitGroup[]; store
                 <div className="flex-1 min-w-0">
                   <p className="text-[13.5px] font-bold text-[var(--color-navy-900)]">{formatDate(v.date)}</p>
                   <p className="text-[11.5px] text-[var(--color-ink-500)] font-medium">
-                    {v.orders.length}건 · {v.itemsCount}개 메뉴
+                    {t("past.orderCount", lang, { orders: v.orders.length, items: v.itemsCount })}
                   </p>
                 </div>
                 <span className="text-[14px] font-extrabold text-[var(--color-navy-900)] tabular-nums">
-                  ₩ {v.total.toLocaleString()}
+                  {fmtKRW(v.total, lang)}
                 </span>
                 <span className={cn(
                   "text-[10px] font-bold text-[var(--color-ink-500)] transition-transform",
@@ -860,24 +866,24 @@ function PastVisitsCard({ visits, storeName }: { visits: PastVisitGroup[]; store
                     <div key={o.id} className="text-[12.5px]">
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-[10.5px] font-bold text-[var(--color-ink-500)] uppercase">
-                          {new Date(o.createdAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}
+                          {new Date(o.createdAt).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}
                         </span>
-                        <span className="text-[11px] font-bold text-[var(--color-mint-700)]">결제 완료</span>
+                        <span className="text-[11px] font-bold text-[var(--color-mint-700)]">{t("pay.paid", lang)}</span>
                       </div>
                       <ul className="space-y-0.5">
                         {o.items.map((it, i) => (
                           <li key={i} className="flex justify-between text-[var(--color-navy-900)]">
                             <span className="truncate mr-2">{it.name} × {it.quantity}</span>
                             <span className="font-semibold tabular-nums text-[var(--color-ink-600)]">
-                              ₩ {(it.price * it.quantity).toLocaleString()}
+                              {fmtKRW(it.price * it.quantity, lang)}
                             </span>
                           </li>
                         ))}
                       </ul>
                       <div className="flex justify-between mt-1 pt-1 border-t border-dashed border-[var(--color-line)]">
-                        <span className="text-[11px] font-bold text-[var(--color-ink-500)]">소계</span>
+                        <span className="text-[11px] font-bold text-[var(--color-ink-500)]">{t("past.subtotal", lang)}</span>
                         <span className="text-[12px] font-extrabold text-[var(--color-navy-900)] tabular-nums">
-                          ₩ {o.totalAmount.toLocaleString()}
+                          {fmtKRW(o.totalAmount, lang)}
                         </span>
                       </div>
                     </div>
@@ -891,7 +897,7 @@ function PastVisitsCard({ visits, storeName }: { visits: PastVisitGroup[]; store
 
       {visits.length > top.length && (
         <p className="text-[11px] text-[var(--color-ink-500)] text-center mt-2 font-semibold">
-          이전 방문 {visits.length - top.length}회 더 있음
+          {t("past.more", lang, { n: visits.length - top.length })}
         </p>
       )}
     </Card>
@@ -909,6 +915,7 @@ function CouponRow({
   onUse: () => void;
   onCancel: () => void;
 }) {
+  const lang = useLanguage();
   const badge =
     TIER_BADGE[coupon.type as keyof typeof TIER_BADGE] ??
     { label: coupon.type, bg: "bg-[var(--color-navy-50)]", text: "text-[var(--color-navy-700)]" };
@@ -920,12 +927,12 @@ function CouponRow({
         </div>
         {coupon.status === "pending" && (
           <span className="ml-auto inline-flex items-center gap-1 text-[11px] text-[#b45309] font-semibold">
-            <Hourglass className="w-3 h-3" /> 승인 대기
+            <Hourglass className="w-3 h-3" /> {t("coupons.pending", lang)}
           </span>
         )}
         {coupon.status === "used" && (
           <span className="ml-auto inline-flex items-center gap-1 text-[11px] text-[var(--color-ink-500)] font-semibold">
-            <CheckCircle2 className="w-3 h-3" /> 사용 완료
+            <CheckCircle2 className="w-3 h-3" /> {t("coupons.used", lang)}
           </span>
         )}
       </div>
@@ -938,12 +945,12 @@ function CouponRow({
           onClick={onUse}
           disabled={!tableNumber}
         >
-          {tableNumber ? `테이블 ${tableNumber}에서 사용` : "테이블 이용 중에만 사용 가능"}
+          {tableNumber ? t("coupons.useAtTable", lang, { n: tableNumber }) : t("coupons.needTable", lang)}
         </Button>
       )}
       {coupon.status === "pending" && (
         <Button size="md" variant="outline" className="mt-3" onClick={onCancel} leftIcon={<XCircle className="w-4 h-4" />}>
-          요청 취소
+          {t("coupons.cancelRequest", lang)}
         </Button>
       )}
     </Card>
@@ -951,6 +958,7 @@ function CouponRow({
 }
 
 function SessionTimer({ start }: { start: string | null }) {
+  const lang = useLanguage();
   const [elapsed, setElapsed] = useState(() => (start ? Date.now() - new Date(start).getTime() : 0));
   useEffect(() => {
     if (!start) {
@@ -968,7 +976,7 @@ function SessionTimer({ start }: { start: string | null }) {
   const s = Math.floor((elapsed % 60000) / 1000);
   return (
     <p className="text-[12px] text-[var(--color-mint-700)] font-semibold tabular-nums">
-      이용 시간 {m}분 {s.toString().padStart(2, "0")}초
+      {t("home.useTime", lang, { m, s: s.toString().padStart(2, "0") })}
     </p>
   );
 }
@@ -992,12 +1000,13 @@ function Info({ label, value }: { label: string; value: string }) {
 }
 
 function QtyStepper({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const lang = useLanguage();
   if (value === 0) {
     return (
       <button
         onClick={() => onChange(1)}
         className="w-9 h-9 rounded-full bg-[var(--color-navy-700)] text-white inline-flex items-center justify-center shadow-[var(--shadow-navy)] active:scale-95"
-        aria-label="담기"
+        aria-label={t("menu.add", lang)}
       >
         <Plus className="w-4 h-4" />
       </button>
@@ -1008,7 +1017,7 @@ function QtyStepper({ value, onChange }: { value: number; onChange: (v: number) 
       <button
         onClick={() => onChange(value - 1)}
         className="w-10 h-10 rounded-full bg-[var(--color-navy-50)] text-[var(--color-navy-700)] inline-flex items-center justify-center active:scale-95"
-        aria-label="수량 감소"
+        aria-label={t("menu.decrease", lang)}
       >
         <Minus className="w-4 h-4" />
       </button>
@@ -1016,7 +1025,7 @@ function QtyStepper({ value, onChange }: { value: number; onChange: (v: number) 
       <button
         onClick={() => onChange(value + 1)}
         className="w-10 h-10 rounded-full bg-[var(--color-navy-700)] text-white inline-flex items-center justify-center active:scale-95"
-        aria-label="수량 증가"
+        aria-label={t("menu.increase", lang)}
       >
         <Plus className="w-4 h-4" />
       </button>
@@ -1025,11 +1034,12 @@ function QtyStepper({ value, onChange }: { value: number; onChange: (v: number) 
 }
 
 function OrderProgress({ status }: { status: "pending" | "accepted" | "cooking" | "served" }) {
+  const lang = useLanguage();
   const steps = [
-    { key: "pending", label: "접수 대기" },
-    { key: "accepted", label: "접수됨" },
-    { key: "cooking", label: "조리 중" },
-    { key: "served", label: "서빙 완료" },
+    { key: "pending", label: t("order.status.pending", lang) },
+    { key: "accepted", label: t("order.status.accepted", lang) },
+    { key: "cooking", label: t("order.status.cooking", lang) },
+    { key: "served", label: t("order.status.served", lang) },
   ] as const;
   const currentIdx = steps.findIndex((s) => s.key === status);
   return (
@@ -1085,15 +1095,16 @@ function OrderProgress({ status }: { status: "pending" | "accepted" | "cooking" 
 }
 
 function OrderStatusPill({ status }: { status: "pending" | "accepted" | "cooking" | "served" | "cancelled" }) {
+  const lang = useLanguage();
   const map = {
-    pending: { label: "접수 대기", cls: "bg-[var(--color-navy-100)] text-[var(--color-navy-700)]" },
-    accepted: { label: "접수됨", cls: "bg-[var(--color-mint-100)] text-[var(--color-mint-700)]" },
-    cooking: { label: "조리 중", cls: "bg-[#fff1e0] text-[#b45309]" },
-    served: { label: "서빙 완료", cls: "bg-[var(--color-ink-50)] text-[var(--color-ink-500)]" },
-    cancelled: { label: "취소됨", cls: "bg-[#fef2f2] text-[var(--color-danger)]" },
+    pending: { key: "order.status.pending", cls: "bg-[var(--color-navy-100)] text-[var(--color-navy-700)]" },
+    accepted: { key: "order.status.accepted", cls: "bg-[var(--color-mint-100)] text-[var(--color-mint-700)]" },
+    cooking: { key: "order.status.cooking", cls: "bg-[#fff1e0] text-[#b45309]" },
+    served: { key: "order.status.served", cls: "bg-[var(--color-ink-50)] text-[var(--color-ink-500)]" },
+    cancelled: { key: "order.status.cancelled", cls: "bg-[#fef2f2] text-[var(--color-danger)]" },
   } as const;
   const s = map[status];
-  return <span className={`px-2.5 py-1 rounded-full text-[12px] font-bold ${s.cls}`}>{s.label}</span>;
+  return <span className={`px-2.5 py-1 rounded-full text-[12px] font-bold ${s.cls}`}>{t(s.key, lang)}</span>;
 }
 
 function ReviewModal({
@@ -1110,15 +1121,13 @@ function ReviewModal({
   const [image, setImage] = useState<string>("");
   const [busy, setBusy] = useState(false);
   const lang = useLanguage();
-  const fmtKRW = (n: number) =>
-    lang === "en" ? `₩${n.toLocaleString("en-US")}` : `₩ ${n.toLocaleString("ko-KR")}`;
 
   const onPickImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
     if (!file.type.startsWith("image/")) {
-      showToast("이미지 파일만 선택할 수 있어요.", "error");
+      showToast(t("review.invalidImage", lang), "error");
       return;
     }
     setBusy(true);
@@ -1126,7 +1135,7 @@ function ReviewModal({
       const data = await resizeImage(file);
       setImage(data);
     } catch {
-      showToast("이미지 처리에 실패했어요.", "error");
+      showToast(t("review.imageFail", lang), "error");
     } finally {
       setBusy(false);
     }
