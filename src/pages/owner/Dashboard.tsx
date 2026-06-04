@@ -26,6 +26,8 @@ import { EmptyState } from "../../components/ui/EmptyState";
 import { useStore } from "../../store/store";
 import { STATUS_LABEL, STATUS_BADGE, STATUS_STEP, nextManualTransitions, normalizeStatus } from "../../lib/tableFlow";
 import type { TableStatus } from "../../lib/types";
+import { useEscapeClose } from "../../lib/useEscapeClose";
+import { showToast } from "../../lib/toast";
 
 const QUICK_LINKS = [
   { to: "/biz/owner/orders", icon: ChefHat, label: "주문·쿠폰", color: "mint" },
@@ -369,6 +371,9 @@ function TableDetailModal({ table: initialTable, onClose }: { table: TableLite; 
   const { users, orders, tables, evictTable, approvePayment, completeTable, printInterimReceipt, updateTableStatus, currentUser } = useStore();
   const storeId = currentUser?.id ?? "";
 
+  // ESC 키로 닫기 + 접근성
+  useEscapeClose(true, onClose);
+
   // 항상 store 의 최신 테이블 상태를 사용 — 클릭 시점 스냅샷에 갇히지 않도록.
   // 같은 id 가 있으면 그걸, 없으면(삭제됨 등) 초기 prop 으로 fallback.
   const table = tables.find((t) => t.id === initialTable.id) ?? initialTable;
@@ -410,6 +415,7 @@ function TableDetailModal({ table: initialTable, onClose }: { table: TableLite; 
       onClose();
     } catch (e: any) {
       console.warn("[evictTable]", e?.message);
+      showToast(`퇴장 처리 실패: ${e?.message ?? "잠시 후 다시 시도해 주세요."}`, "error");
     }
   };
 
@@ -423,6 +429,7 @@ function TableDetailModal({ table: initialTable, onClose }: { table: TableLite; 
       // 모달은 닫지 않음 — 사장님이 그 다음 '계산 완료' 누르도록 같은 화면에서
     } catch (e: any) {
       console.warn("[approvePayment]", e?.message);
+      showToast(`결제 승인 실패: ${e?.message ?? "잠시 후 다시 시도해 주세요."}`, "error");
     }
   };
 
@@ -433,6 +440,7 @@ function TableDetailModal({ table: initialTable, onClose }: { table: TableLite; 
       onClose();
     } catch (e: any) {
       console.warn("[completeTable]", e?.message);
+      showToast(`계산 완료 처리 실패: ${e?.message ?? "잠시 후 다시 시도해 주세요."}`, "error");
     }
   };
 
@@ -441,6 +449,7 @@ function TableDetailModal({ table: initialTable, onClose }: { table: TableLite; 
       await printInterimReceipt(storeId, table.number);
     } catch (e: any) {
       console.warn("[interim receipt]", e?.message);
+      showToast(`중간 영수증 출력 실패: ${e?.message ?? "프린터 연결을 확인해 주세요."}`, "error");
     }
   };
 
@@ -449,8 +458,12 @@ function TableDetailModal({ table: initialTable, onClose }: { table: TableLite; 
       className="fixed inset-0 z-50 bg-black/55 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4"
       style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      role="presentation"
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`테이블 ${table.number} 상세`}
         className="w-full sm:max-w-md bg-white sm:rounded-[18px] rounded-t-[18px] overflow-hidden shadow-[var(--shadow-lifted)] flex flex-col"
         style={{ maxHeight: "85vh" }}
       >
@@ -623,8 +636,12 @@ function TableDetailModal({ table: initialTable, onClose }: { table: TableLite; 
                 <button
                   key={t.to}
                   onClick={async () => {
-                    try { await updateTableStatus(storeId, table.number, t.to as TableStatus); }
-                    catch (e: any) { console.warn("[setStatus]", e?.message); }
+                    try {
+                      await updateTableStatus(storeId, table.number, t.to as TableStatus);
+                    } catch (e: any) {
+                      console.warn("[setStatus]", e?.message);
+                      showToast(`상태 변경 실패: ${e?.message ?? "잠시 후 다시 시도해 주세요."}`, "error");
+                    }
                   }}
                   className={cn(
                     "h-11 rounded-[12px] font-bold text-[13px] transition-all active:scale-[0.98]",

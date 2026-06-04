@@ -257,7 +257,22 @@ export default function CustomerDashboard() {
   const next = getNextTier(tier);
   const progress = next ? Math.min(uniqueDays / next.min, 1) : 1;
 
-  if (!currentUser) return null;
+  // 로그인 상태 로딩 중 — 흰 화면 깜빡임 대신 안내 화면
+  if (!currentUser) {
+    return (
+      <MobileShell>
+        <div className="flex flex-col items-center justify-center min-h-[70vh] px-6 text-center">
+          <div className="w-12 h-12 rounded-2xl bg-[var(--color-navy-50)] inline-flex items-center justify-center mb-3">
+            <UserIcon className="w-6 h-6 text-[var(--color-navy-700)]" />
+          </div>
+          <p className="text-[14px] font-bold text-[var(--color-navy-900)]">로그인 정보를 불러오는 중…</p>
+          <p className="text-[12px] text-[var(--color-ink-500)] mt-1.5 font-medium">
+            화면이 멈춰 보이면 잠시 후 새로고침해 주세요.
+          </p>
+        </div>
+      </MobileShell>
+    );
+  }
 
   return (
     <MobileShell

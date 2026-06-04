@@ -108,6 +108,8 @@ export function flushOfflineQueue() {
   })();
 }
 
-if (typeof window !== "undefined") {
+// online 리스너 1회 등록 보장 — HMR / 동적 import 반복 시 중복 방지
+if (typeof window !== "undefined" && !(window as any).__gyeolOnlineListenerSetup) {
+  (window as any).__gyeolOnlineListenerSetup = true;
   window.addEventListener("online", flushOfflineQueue);
 }

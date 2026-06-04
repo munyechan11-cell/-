@@ -267,6 +267,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const ordersRef = useRef<Order[]>(orders);
   const reservationsRef = useRef<Reservation[]>(reservations);
   const currentUserRef = useRef<User | null>(currentUser);
+  // 결제 승인 중복 실행 방지 (테이블별 in-flight set, 멱등성 보장)
+  const approvingPaymentRef = useRef<Set<string>>(new Set());
   useEffect(() => { usersRef.current = users; }, [users]);
   useEffect(() => { visitsRef.current = visits; }, [visits]);
   useEffect(() => { couponsRef.current = coupons; }, [coupons]);
@@ -1214,9 +1216,23 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
    * - paymentStatus: requested|unpaid → paid
    * - 테이블 status: occupied → paid (정리 대기)
    * - 영수증 인쇄 ①POS → ②USB → ③팝업 → ④브릿지 큐 모두 시도
+   *
+   * 멱등성·중복 방지:
+   *  - 같은 (storeId,tableNumber) 처리 중이면 즉시 0 반환 (2디바이스 동시 승인 차단)
+   *  - 사장님 폰 + PC 동시 클릭 시에도 영수증 2장 출력 방지
+   *  - Firestore 룰이 최종 방어선이지만 클라이언트 mutex 로 1차 차단
    */
   const approvePayment = useCallback(
     async (storeId: string, tableNumber: number): Promise<number> => {
+      const lockKey = `${storeId}_${tableNumber}`;
+      if (approvingPaymentRef.current.has(lockKey)) {
+        showToast("이미 처리 중인 결제 승인이에요. 잠시 후 다시 확인해 주세요.", "info");
+        return 0;
+      }
+      approvingPaymentRef.current.add(lockKey);
+      // 1.5초 안전 락 — 빠른 연타도 차단, 실제 처리는 그 안에 끝남
+      setTimeout(() => approvingPaymentRef.current.delete(lockKey), 1500);
+
       const ordersNow = ordersRef.current;
       const tablesNow = tablesRef.current;
       const targets = ordersNow.filter(
