@@ -406,13 +406,14 @@ function DashboardTableArea({ tables, view }: { tables: TableLite[]; view: "list
 function TableDetailModal({ table: initialTable, onClose }: { table: TableLite; onClose: () => void }) {
   const { users, orders, tables, evictTable, approvePayment, completeTable, printInterimReceipt, updateTableStatus, currentUser } = useStore();
   const storeId = currentUser?.id ?? "";
+  const lang = useLanguage();
 
   // ESC 키로 닫기 + 접근성
   useEscapeClose(true, onClose);
 
   // 항상 store 의 최신 테이블 상태를 사용 — 클릭 시점 스냅샷에 갇히지 않도록.
   // 같은 id 가 있으면 그걸, 없으면(삭제됨 등) 초기 prop 으로 fallback.
-  const table = tables.find((t) => t.id === initialTable.id) ?? initialTable;
+  const table = tables.find((tbl) => tbl.id === initialTable.id) ?? initialTable;
   const curStatus = normalizeStatus(table.status);
   const transitions = nextManualTransitions(curStatus);
 
@@ -440,43 +441,43 @@ function TableDetailModal({ table: initialTable, onClose }: { table: TableLite; 
   const elapsed = startMs ? Math.max(0, Math.floor((Date.now() - startMs) / 60000)) : null;
   const elapsedLabel = elapsed != null
     ? elapsed < 60
-      ? `${elapsed}분`
-      : `${Math.floor(elapsed / 60)}시간 ${elapsed % 60}분`
+      ? t("tdetail.elapsedMin", lang, { n: elapsed })
+      : t("tdetail.elapsedHourMin", lang, { h: Math.floor(elapsed / 60), m: elapsed % 60 })
     : "—";
 
   const handleEvict = async () => {
-    if (!confirm(`테이블 ${table.number}번 손님을 퇴장 처리할까요?\n미결제 주문은 자동으로 취소됩니다.`)) return;
+    if (!confirm(t("tdetail.evictConfirm", lang, { n: table.number }))) return;
     try {
       await evictTable(table.number, storeId);
       onClose();
     } catch (e: any) {
       console.warn("[evictTable]", e?.message);
-      showToast(`퇴장 처리 실패: ${e?.message ?? "잠시 후 다시 시도해 주세요."}`, "error");
+      showToast(t("tdetail.evictFail", lang, { msg: e?.message ?? "" }), "error");
     }
   };
 
   const handleApprove = async () => {
     const msg = hasPaymentRequest
-      ? `손님이 ₩ ${unpaidTotal.toLocaleString()} 결제를 요청했어요. 승인 + 영수증 출력할까요?`
-      : `₩ ${unpaidTotal.toLocaleString()} 결제 승인 + 영수증 출력할까요?`;
+      ? t("tdetail.approveReqMsg", lang, { amount: fmtKRW(unpaidTotal, lang) })
+      : t("tdetail.approveMsg", lang, { amount: fmtKRW(unpaidTotal, lang) });
     if (!confirm(msg)) return;
     try {
       await approvePayment(storeId, table.number);
       // 모달은 닫지 않음 — 사장님이 그 다음 '계산 완료' 누르도록 같은 화면에서
     } catch (e: any) {
       console.warn("[approvePayment]", e?.message);
-      showToast(`결제 승인 실패: ${e?.message ?? "잠시 후 다시 시도해 주세요."}`, "error");
+      showToast(t("tdetail.approveFail", lang, { msg: e?.message ?? "" }), "error");
     }
   };
 
   const handleComplete = async () => {
-    if (!confirm(`테이블 ${table.number}번을 비어있음으로 정리할까요?`)) return;
+    if (!confirm(t("tdetail.completeConfirm", lang, { n: table.number }))) return;
     try {
       await completeTable(storeId, table.number);
       onClose();
     } catch (e: any) {
       console.warn("[completeTable]", e?.message);
-      showToast(`계산 완료 처리 실패: ${e?.message ?? "잠시 후 다시 시도해 주세요."}`, "error");
+      showToast(t("tdetail.completeFail", lang, { msg: e?.message ?? "" }), "error");
     }
   };
 
@@ -485,7 +486,7 @@ function TableDetailModal({ table: initialTable, onClose }: { table: TableLite; 
       await printInterimReceipt(storeId, table.number);
     } catch (e: any) {
       console.warn("[interim receipt]", e?.message);
-      showToast(`중간 영수증 출력 실패: ${e?.message ?? "프린터 연결을 확인해 주세요."}`, "error");
+      showToast(t("tdetail.interimFail", lang, { msg: e?.message ?? "" }), "error");
     }
   };
 
@@ -499,7 +500,7 @@ function TableDetailModal({ table: initialTable, onClose }: { table: TableLite; 
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={`테이블 ${table.number} 상세`}
+        aria-label={t("tdetail.aria", lang, { n: table.number })}
         className="w-full sm:max-w-md bg-white sm:rounded-[18px] rounded-t-[18px] overflow-hidden shadow-[var(--shadow-lifted)] flex flex-col"
         style={{ maxHeight: "85vh" }}
       >
@@ -511,10 +512,10 @@ function TableDetailModal({ table: initialTable, onClose }: { table: TableLite; 
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-[16px] font-extrabold text-[var(--color-navy-900)]">
-                테이블 {table.number}
+                {t("tdetail.tableN", lang, { n: table.number })}
               </p>
               <p className="text-[12px] text-[var(--color-ink-500)] truncate">
-                {table.type === "room" ? "룸" : "일반"} · {table.seats}인석
+                {table.type === "room" ? t("odash.tableType.room", lang) : t("tdetail.normalType", lang)} · {t("tdetail.seatLabel", lang, { n: table.seats ?? 0 })}
               </p>
             </div>
             <span
@@ -545,13 +546,13 @@ function TableDetailModal({ table: initialTable, onClose }: { table: TableLite; 
                       ? "bg-[var(--color-navy-300)]"
                       : "bg-[var(--color-ink-100)]"
                   )}
-                  title={`${step}단계`}
+                  title={`${step}`}
                 />
               );
             })}
           </div>
           <p className="text-[10.5px] text-[var(--color-ink-500)] mt-1.5 text-center font-semibold">
-            {STATUS_STEP[curStatus]}/7 · {STATUS_LABEL[curStatus]}
+            {t("tdetail.stepProgress", lang, { cur: STATUS_STEP[curStatus], label: STATUS_LABEL[curStatus] })}
           </p>
         </div>
 
@@ -563,11 +564,10 @@ function TableDetailModal({ table: initialTable, onClose }: { table: TableLite; 
               <Receipt className="w-5 h-5 text-[var(--color-warn)] mt-0.5 shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="text-[13.5px] font-extrabold text-[var(--color-warn)]">
-                  결제 요청 ({requestedOrders.length}건)
+                  {t("tdetail.payReq.title", lang, { n: requestedOrders.length })}
                 </p>
-                <p className="text-[12.5px] text-[var(--color-ink-700)] mt-0.5 leading-relaxed">
-                  손님이 ₩ {unpaidTotal.toLocaleString()} 결제를 요청했어요.
-                  <br />아래 '결제 승인' 을 누르면 영수증이 출력됩니다.
+                <p className="text-[12.5px] text-[var(--color-ink-700)] mt-0.5 leading-relaxed whitespace-pre-line">
+                  {t("tdetail.payReq.desc", lang, { amount: fmtKRW(unpaidTotal, lang) })}
                 </p>
               </div>
             </div>
@@ -577,13 +577,13 @@ function TableDetailModal({ table: initialTable, onClose }: { table: TableLite; 
           {table.status === "occupied" ? (
             <>
               <div className="grid grid-cols-2 gap-2">
-                <DetailStat label="체류 시간" value={elapsedLabel} />
-                <DetailStat label="인원" value={table.partySize ? `${table.partySize}명` : "—"} />
+                <DetailStat label={t("tdetail.stat.elapsed", lang)} value={elapsedLabel} />
+                <DetailStat label={t("tdetail.stat.party", lang)} value={table.partySize ? t("tdetail.partyN", lang, { n: table.partySize }) : "—"} />
               </div>
               {/* 손님 명단 */}
               {occupants.length > 0 ? (
                 <div>
-                  <p className="text-[11.5px] font-bold text-[var(--color-ink-500)] uppercase tracking-wide mb-1.5">손님</p>
+                  <p className="text-[11.5px] font-bold text-[var(--color-ink-500)] uppercase tracking-wide mb-1.5">{t("tdetail.guestsLabel", lang)}</p>
                   <div className="space-y-1.5">
                     {occupants.map((u) => (
                       <div key={u.id} className="flex items-center gap-2 text-[13.5px]">
@@ -597,12 +597,12 @@ function TableDetailModal({ table: initialTable, onClose }: { table: TableLite; 
                   </div>
                 </div>
               ) : table.currentCustomerName ? (
-                <p className="text-[13.5px] font-bold text-[var(--color-navy-900)]">{table.currentCustomerName}님</p>
+                <p className="text-[13.5px] font-bold text-[var(--color-navy-900)]">{t("tdetail.guestNameOnly", lang, { name: table.currentCustomerName })}</p>
               ) : null}
             </>
           ) : (
             <p className="text-[13px] text-[var(--color-ink-500)] py-4 text-center">
-              {table.status === "dirty" ? "정리 후 비워주세요." : "현재 손님이 없습니다."}
+              {table.status === "dirty" ? t("tdetail.dirty", lang) : t("tdetail.empty", lang)}
             </p>
           )}
 
@@ -610,7 +610,7 @@ function TableDetailModal({ table: initialTable, onClose }: { table: TableLite; 
           {tableOrders.length > 0 && (
             <div>
               <p className="text-[11.5px] font-bold text-[var(--color-ink-500)] uppercase tracking-wide mb-1.5">
-                주문 ({tableOrders.length}건)
+                {t("tdetail.orders.title", lang, { n: tableOrders.length })}
               </p>
               <div className="space-y-2">
                 {tableOrders.map((o) => (
@@ -627,7 +627,7 @@ function TableDetailModal({ table: initialTable, onClose }: { table: TableLite; 
                             : "bg-[#fff1e0] text-[var(--color-warn)]"
                         )}
                       >
-                        {o.paymentStatus === "paid" ? "결제완료" : "미결제"}
+                        {o.paymentStatus === "paid" ? t("tdetail.payStatus.paid", lang) : t("tdetail.payStatus.unpaid", lang)}
                       </span>
                     </div>
                     <ul className="text-[13px] space-y-0.5">
@@ -635,7 +635,7 @@ function TableDetailModal({ table: initialTable, onClose }: { table: TableLite; 
                         <li key={i} className="flex justify-between text-[var(--color-navy-900)]">
                           <span className="truncate mr-2">{it.name} × {it.quantity}</span>
                           <span className="font-semibold tabular-nums">
-                            ₩{(it.price * it.quantity).toLocaleString()}
+                            {fmtKRW(it.price * it.quantity, lang)}
                           </span>
                         </li>
                       ))}
@@ -645,16 +645,16 @@ function TableDetailModal({ table: initialTable, onClose }: { table: TableLite; 
               </div>
               <div className="mt-3 flex justify-between items-baseline border-t border-[var(--color-line)] pt-3">
                 <span className="text-[12px] text-[var(--color-ink-500)]">
-                  미결제 {unpaidOrders.length}건 / 총 {tableOrders.length}건
+                  {t("tdetail.unpaidVsTotal", lang, { u: unpaidOrders.length, n: tableOrders.length })}
                 </span>
                 <div className="text-right">
-                  <p className="text-[11px] text-[var(--color-ink-500)]">합계</p>
+                  <p className="text-[11px] text-[var(--color-ink-500)]">{t("tdetail.totalLabel", lang)}</p>
                   <p className="text-[18px] font-extrabold text-[var(--color-navy-900)] tabular-nums">
-                    ₩ {total.toLocaleString()}
+                    {fmtKRW(total, lang)}
                   </p>
                   {unpaidTotal > 0 && unpaidTotal !== total && (
                     <p className="text-[11px] text-[var(--color-warn)] font-bold mt-0.5">
-                      미결제 ₩ {unpaidTotal.toLocaleString()}
+                      {t("tdetail.unpaidLine", lang, { amount: fmtKRW(unpaidTotal, lang) })}
                     </p>
                   )}
                 </div>
@@ -668,26 +668,26 @@ function TableDetailModal({ table: initialTable, onClose }: { table: TableLite; 
           {/* 0) 8단계 수동 전이 버튼 — 가능한 전이만 노출 */}
           {transitions.length > 0 && (
             <div className={cn("grid gap-2", transitions.length === 1 ? "grid-cols-1" : "grid-cols-2")}>
-              {transitions.map((t) => (
+              {transitions.map((tr) => (
                 <button
-                  key={t.to}
+                  key={tr.to}
                   onClick={async () => {
                     try {
-                      await updateTableStatus(storeId, table.number, t.to as TableStatus);
+                      await updateTableStatus(storeId, table.number, tr.to as TableStatus);
                     } catch (e: any) {
                       console.warn("[setStatus]", e?.message);
-                      showToast(`상태 변경 실패: ${e?.message ?? "잠시 후 다시 시도해 주세요."}`, "error");
+                      showToast(t("tdetail.statusFail", lang, { msg: e?.message ?? "" }), "error");
                     }
                   }}
                   className={cn(
                     "h-11 rounded-[12px] font-bold text-[13px] transition-all active:scale-[0.98]",
-                    t.tone === "primary" && "bg-[var(--color-navy-700)] text-white",
-                    t.tone === "mint" && "bg-[var(--color-mint-500)] text-white",
-                    t.tone === "warn" && "bg-[var(--color-warn)] text-white",
-                    t.tone === "outline" && "bg-white border-[1.5px] border-[var(--color-line)] text-[var(--color-navy-800)]"
+                    tr.tone === "primary" && "bg-[var(--color-navy-700)] text-white",
+                    tr.tone === "mint" && "bg-[var(--color-mint-500)] text-white",
+                    tr.tone === "warn" && "bg-[var(--color-warn)] text-white",
+                    tr.tone === "outline" && "bg-white border-[1.5px] border-[var(--color-line)] text-[var(--color-navy-800)]"
                   )}
                 >
-                  {t.label}
+                  {tr.label}
                 </button>
               ))}
             </div>
@@ -705,8 +705,8 @@ function TableDetailModal({ table: initialTable, onClose }: { table: TableLite; 
               )}
             >
               {hasPaymentRequest
-                ? `결제 승인 + 영수증 출력 (₩ ${unpaidTotal.toLocaleString()})`
-                : `결제 승인 (₩ ${unpaidTotal.toLocaleString()})`}
+                ? t("tdetail.approveBtnReq", lang, { amount: fmtKRW(unpaidTotal, lang) })
+                : t("tdetail.approveBtn", lang, { amount: fmtKRW(unpaidTotal, lang) })}
             </button>
           )}
 
@@ -716,7 +716,7 @@ function TableDetailModal({ table: initialTable, onClose }: { table: TableLite; 
               onClick={handleComplete}
               className="w-full h-12 rounded-[12px] bg-[var(--color-mint-500)] text-white font-extrabold text-[14px]"
             >
-              계산 완료 → 테이블 비우기
+              {t("tdetail.completeBtn", lang)}
             </button>
           )}
 
@@ -726,14 +726,14 @@ function TableDetailModal({ table: initialTable, onClose }: { table: TableLite; 
               onClick={onClose}
               className="flex-1 h-10 rounded-[12px] bg-[var(--color-ink-50)] text-[var(--color-ink-700)] font-bold text-[12.5px]"
             >
-              닫기
+              {t("tdetail.close", lang)}
             </button>
             {tableOrders.length > 0 && (
               <button
                 onClick={handleInterim}
                 className="flex-1 h-10 rounded-[12px] bg-white border border-[var(--color-line)] text-[var(--color-navy-700)] font-bold text-[12.5px]"
               >
-                중간 영수증
+                {t("tdetail.interim", lang)}
               </button>
             )}
             {table.status === "occupied" && unpaidOrders.length === 0 && (
@@ -741,7 +741,7 @@ function TableDetailModal({ table: initialTable, onClose }: { table: TableLite; 
                 onClick={handleEvict}
                 className="flex-1 h-10 rounded-[12px] bg-white border border-[var(--color-danger)]/40 text-[var(--color-danger)] font-bold text-[12.5px]"
               >
-                퇴장
+                {t("tdetail.evictBtn", lang)}
               </button>
             )}
           </div>

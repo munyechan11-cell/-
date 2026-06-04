@@ -29,13 +29,14 @@ import {
 import { printReceipt } from "../../lib/receipt";
 import { printReceiptViaUsb, getAuthorizedPrinters } from "../../lib/thermalPrinter";
 import { showToast } from "../../lib/toast";
+import { useLanguage, t, fmtKRW } from "../../lib/i18n";
 
-const STATUS_LABELS: Record<OrderStatus, string> = {
-  pending: "신규 접수",
-  accepted: "접수 완료",
-  cooking: "조리 중",
-  served: "서빙 완료",
-  cancelled: "취소됨",
+const STATUS_KEYS: Record<OrderStatus, string> = {
+  pending: "oorders.status.pending",
+  accepted: "oorders.status.accepted",
+  cooking: "oorders.status.cooking",
+  served: "oorders.status.served",
+  cancelled: "oorders.status.cancelled",
 };
 const STATUS_COLORS: Record<OrderStatus, string> = {
   pending: "bg-[var(--color-navy-100)] text-[var(--color-navy-700)]",
@@ -62,10 +63,10 @@ const STATUS_ICONS: Record<OrderStatus, React.ReactNode> = {
  *
  *  → 사장님은 신규 주문에서 끝까지 2번만 클릭하면 됨 (접수완료 → 서빙완료)
  */
-const ADVANCE_BUTTON: Record<OrderStatus, { label: string; to: OrderStatus } | null> = {
-  pending:   { label: "접수 완료", to: "cooking" },
-  accepted:  { label: "조리 시작", to: "cooking" },
-  cooking:   { label: "서빙 완료", to: "served" },
+const ADVANCE_BUTTON: Record<OrderStatus, { labelKey: string; to: OrderStatus } | null> = {
+  pending:   { labelKey: "oadvance.pending", to: "cooking" },
+  accepted:  { labelKey: "oadvance.accepted", to: "cooking" },
+  cooking:   { labelKey: "oadvance.cooking", to: "served" },
   served:    null,
   cancelled: null,
 };
@@ -94,6 +95,7 @@ export default function OwnerOrders() {
     completeTable,
   } = useStore();
   const storeId = effectiveStoreId;
+  const lang = useLanguage();
 
   const [soundOn, setSoundOn] = useState(() => localStorage.getItem(LS_SOUND) !== "0");
   const knownIdsRef = useRef<Set<string> | null>(null);
@@ -158,7 +160,7 @@ export default function OwnerOrders() {
     if (newOrders.length > 0 && soundOn) {
       const summary = newOrders
         .slice(0, 3)
-        .map((o) => `테이블 ${o.tableNumber} · ${o.items.length}개`)
+        .map((o) => t("oorders.newSummary", lang, { table: o.tableNumber, count: o.items.length }))
         .join(", ");
       notifyNewOrder(summary);
     }
@@ -173,7 +175,7 @@ export default function OwnerOrders() {
     if (next) {
       const perm = await requestNotificationPermission();
       if (perm !== "granted") {
-        showToast("브라우저 알림은 차단되어 있어요. 사이트 권한에서 허용해 주세요.", "info");
+        showToast(t("oorders.alertBlocked", lang), "info");
       }
       playChime();
     }
@@ -183,36 +185,36 @@ export default function OwnerOrders() {
     const payload = {
       storeName: (users.find((u) => u.id === storeId)?.restaurantName) ?? currentUser?.restaurantName ?? "결",
       order,
-      footer: "재인쇄 — Reprinted",
+      footer: t("oorders.reprintFooter", lang),
     };
     try {
       const printers = await getAuthorizedPrinters();
       if (printers.length > 0) {
         await printReceiptViaUsb(payload);
-        showToast("영수증을 재인쇄했습니다.", "success");
+        showToast(t("oorders.reprintDone", lang), "success");
         return;
       }
     } catch (e: any) {
       // USB 실패 — 원인을 구체적으로 안내 (장치 미연결/권한/통신)
       const msg = String(e?.message ?? "");
       const reason = msg.includes("permission") || msg.includes("권한")
-        ? "프린터 권한이 거부됐어요"
+        ? t("oorders.printErrPerm", lang)
         : msg.includes("disconnect") || msg.includes("연결")
-        ? "프린터 연결이 끊어졌어요"
-        : "USB 인쇄에 실패했어요";
-      showToast(`${reason}. 팝업 인쇄로 전환합니다.`, "info");
+        ? t("oorders.printErrDisc", lang)
+        : t("oorders.printErrUsb", lang);
+      showToast(t("oorders.printErrFallback", lang, { reason }), "info");
     }
     // 팝업 인쇄 — 팝업 차단 시 사용자에게 안내
     try {
       printReceipt(payload);
     } catch (e: any) {
-      showToast("팝업이 차단되어 인쇄할 수 없어요. 브라우저 팝업 차단을 해제해 주세요.", "error");
+      showToast(t("oorders.popupBlocked", lang), "error");
     }
   };
 
   return (
     <OwnerShell
-      title="주문·쿠폰 처리"
+      title={t("oorders.title", lang)}
       headerRight={
         <button
           onClick={toggleSound}
@@ -222,10 +224,10 @@ export default function OwnerOrders() {
               ? "bg-[var(--color-mint-100)] text-[var(--color-mint-700)]"
               : "bg-[var(--color-ink-50)] text-[var(--color-ink-500)]"
           )}
-          aria-label="새 주문 알림"
+          aria-label={t("oorders.newOrderAria", lang)}
         >
           {soundOn ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
-          <span className="hidden sm:inline">{soundOn ? "알림 켜짐" : "알림 꺼짐"}</span>
+          <span className="hidden sm:inline">{soundOn ? t("oorders.alertOn", lang) : t("oorders.alertOff", lang)}</span>
         </button>
       }
     >
@@ -234,29 +236,29 @@ export default function OwnerOrders() {
         <div className="mb-5">
           <h2 className="text-[14px] font-bold text-[var(--color-warn)] px-1 mb-2 flex items-center gap-1.5">
             <ReceiptIcon className="w-4 h-4" />
-            결제 요청 ({paymentRequests.length})
+            {t("oorders.paymentRequest.title", lang, { n: paymentRequests.length })}
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
             {paymentRequests.map((u) => (
               <Card key={`req-${u.table}`} padding="md" className="border-2 border-[var(--color-warn)] bg-[#fff8e6]">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-[11.5px] font-extrabold text-[var(--color-warn)] uppercase tracking-wide">
-                    💰 결제 요청
+                    {t("oorders.paymentRequest.chip", lang)}
                   </span>
-                  <span className="text-[11px] text-[var(--color-ink-700)] font-semibold">{u.count}건</span>
+                  <span className="text-[11px] text-[var(--color-ink-700)] font-semibold">{t("oorders.paymentRequest.count", lang, { n: u.count })}</span>
                 </div>
-                <p className="text-[15px] font-extrabold text-[var(--color-navy-900)]">테이블 {u.table}</p>
+                <p className="text-[15px] font-extrabold text-[var(--color-navy-900)]">{t("oorders.tableLabel", lang, { n: u.table })}</p>
                 <p className="text-[18px] font-extrabold text-[var(--color-navy-900)] tabular-nums mt-1 mb-2">
-                  ₩ {u.total.toLocaleString()}
+                  {fmtKRW(u.total, lang)}
                 </p>
                 <button
                   onClick={async () => {
-                    if (!confirm(`테이블 ${u.table}번 ₩ ${u.total.toLocaleString()} 결제 승인 + 영수증 출력?`)) return;
+                    if (!confirm(t("oorders.paymentRequest.confirm", lang, { table: u.table, amount: fmtKRW(u.total, lang) }))) return;
                     try { await approvePayment(storeId, u.table); } catch (e: any) { console.warn(e); }
                   }}
                   className="w-full h-10 rounded-[10px] bg-[var(--color-warn)] text-white font-bold text-[13px]"
                 >
-                  결제 승인 + 영수증 출력
+                  {t("oorders.paymentRequest.btn", lang)}
                 </button>
               </Card>
             ))}
@@ -269,18 +271,18 @@ export default function OwnerOrders() {
         <div className="mb-5">
           <h2 className="text-[14px] font-bold text-[var(--color-navy-900)] px-1 mb-2 flex items-center gap-1.5">
             <ReceiptIcon className="w-4 h-4" />
-            미결제 테이블 ({unpaidByTable.length})
+            {t("oorders.unpaid.title", lang, { n: unpaidByTable.length })}
           </h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
             {unpaidByTable.map((u) => (
               <Card key={u.table} padding="md" className="border-[#ffd9a8]">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-[12px] font-bold text-[var(--color-warn)] uppercase tracking-wide">미결제</span>
-                  <span className="text-[11px] text-[var(--color-ink-600)] font-semibold">{u.count}건</span>
+                  <span className="text-[12px] font-bold text-[var(--color-warn)] uppercase tracking-wide">{t("oorders.unpaid.label", lang)}</span>
+                  <span className="text-[11px] text-[var(--color-ink-600)] font-semibold">{t("oorders.paymentRequest.count", lang, { n: u.count })}</span>
                 </div>
-                <p className="text-[15px] font-extrabold text-[var(--color-navy-900)]">테이블 {u.table}</p>
+                <p className="text-[15px] font-extrabold text-[var(--color-navy-900)]">{t("oorders.tableLabel", lang, { n: u.table })}</p>
                 <p className="text-[16px] font-extrabold text-[var(--color-navy-900)] tabular-nums mt-1">
-                  ₩ {u.total.toLocaleString()}
+                  {fmtKRW(u.total, lang)}
                 </p>
               </Card>
             ))}
@@ -294,7 +296,7 @@ export default function OwnerOrders() {
           <section>
             <h2 className="text-[14px] font-bold text-[var(--color-navy-900)] px-1 mb-2 flex items-center gap-1.5">
               <Ticket className="w-4 h-4" />
-              쿠폰 사용 요청 ({pendingCoupons.length})
+              {t("oorders.pendingCoupons.title", lang, { n: pendingCoupons.length })}
             </h2>
             <div className="space-y-2">
               {pendingCoupons.map((c) => {
@@ -313,7 +315,7 @@ export default function OwnerOrders() {
                       </span>
                       <span className="text-[13px] text-[var(--color-ink-600)] font-semibold">
                         {customer?.name ?? "—"}
-                        {c.usedAtTable ? ` · 테이블 ${c.usedAtTable}` : ""}
+                        {c.usedAtTable ? ` · ${t("oorders.tableLabel", lang, { n: c.usedAtTable })}` : ""}
                       </span>
                     </div>
                     <p className="text-[14px] font-bold text-[var(--color-navy-900)] mb-3">{c.description}</p>
@@ -324,7 +326,7 @@ export default function OwnerOrders() {
                         onClick={() => rejectCouponUse(c.id)}
                         leftIcon={<XCircle className="w-4 h-4" />}
                       >
-                        반려
+                        {t("oorders.pendingCoupons.reject", lang)}
                       </Button>
                       <Button
                         size="md"
@@ -332,7 +334,7 @@ export default function OwnerOrders() {
                         onClick={() => approveCouponUse(c.id)}
                         leftIcon={<Check className="w-4 h-4" />}
                       >
-                        승인
+                        {t("oorders.pendingCoupons.approve", lang)}
                       </Button>
                     </div>
                   </Card>
@@ -346,7 +348,7 @@ export default function OwnerOrders() {
         <section>
           <h2 className="text-[14px] font-bold text-[var(--color-navy-900)] px-1 mb-2 flex items-center gap-1.5">
             <ChefHat className="w-4 h-4" />
-            진행 주문 ({activeOrders.length})
+            {t("oorders.active.title", lang, { n: activeOrders.length })}
           </h2>
           {activeOrders.length === 0 ? (
             <Card padding="lg" className="text-center">
@@ -354,15 +356,15 @@ export default function OwnerOrders() {
                 <ChefHat className="w-6 h-6 text-[var(--color-mint-700)]" />
               </div>
               <p className="text-[14px] text-[var(--color-navy-900)] font-bold">
-                현재 진행 중인 주문이 없습니다.
+                {t("oorders.active.empty", lang)}
               </p>
               {soundOn ? (
                 <p className="mt-2 text-[12px] text-[var(--color-mint-700)] inline-flex items-center gap-1 font-semibold">
-                  <Volume2 className="w-3 h-3" /> 새 주문이 들어오면 알려드릴게요
+                  <Volume2 className="w-3 h-3" /> {t("oorders.active.alertOn", lang)}
                 </p>
               ) : (
                 <p className="mt-2 text-[12px] text-[var(--color-ink-600)] inline-flex items-center gap-1">
-                  <BellOff className="w-3 h-3" /> 알림이 꺼져 있어요
+                  <BellOff className="w-3 h-3" /> {t("oorders.active.alertOff", lang)}
                 </p>
               )}
             </Card>
@@ -383,7 +385,7 @@ export default function OwnerOrders() {
                     setTimeout(() => advancingRef.current.delete(o.id), 800);
                   }}
                   onCancel={() => {
-                    if (confirm(`테이블 ${o.tableNumber}번 주문을 취소하시겠습니까?\n취소된 주문은 되돌릴 수 없습니다.`)) {
+                    if (confirm(t("oorders.cancelConfirm", lang, { n: o.tableNumber }))) {
                       updateOrderStatus(o.id, "cancelled");
                     }
                   }}
@@ -399,7 +401,7 @@ export default function OwnerOrders() {
             <div className="w-14 h-14 rounded-2xl bg-[var(--color-mint-100)] mx-auto inline-flex items-center justify-center mb-3">
               <Sparkles className="w-6 h-6 text-[var(--color-mint-700)]" />
             </div>
-            <p className="body-md font-semibold">모든 처리가 완료되었습니다.</p>
+            <p className="body-md font-semibold">{t("oorders.allDone", lang)}</p>
           </div>
         )}
       </div>
@@ -420,8 +422,10 @@ function OrderCard({
   onCancel: () => void;
   onReprint: () => void;
 }) {
+  const lang = useLanguage();
   const advance = ADVANCE_BUTTON[order.status];
   const isNew = order.status === "pending";
+  const locale = lang === "ko" ? "ko-KR" : lang === "zh" ? "zh-CN" : lang === "vi" ? "vi-VN" : "en-US";
   return (
     <Card
       padding="md"
@@ -432,25 +436,25 @@ function OrderCard({
       <div className="flex items-center gap-2 mb-2 flex-wrap">
         <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold", STATUS_COLORS[order.status])}>
           {STATUS_ICONS[order.status]}
-          {STATUS_LABELS[order.status]}
+          {t(STATUS_KEYS[order.status], lang)}
         </span>
         {order.paymentStatus === "paid" ? (
           <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-[var(--color-mint-100)] text-[var(--color-mint-700)]">
-            결제 완료
+            {t("oorders.payStatus.paid", lang)}
           </span>
         ) : (
           <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#fff1e0] text-[var(--color-warn)]">
-            미결제
+            {t("oorders.payStatus.unpaid", lang)}
           </span>
         )}
         <span className="text-[14px] text-[var(--color-navy-900)] font-bold">
-          테이블 {order.tableNumber}
+          {t("oorders.tableLabel", lang, { n: order.tableNumber })}
         </span>
         <span className="text-[12px] text-[var(--color-ink-600)] font-semibold truncate">
           · {customerName ?? "—"}
         </span>
         <span className="ml-auto text-[12px] text-[var(--color-ink-600)] tabular-nums">
-          {new Date(order.createdAt).toLocaleTimeString("ko-KR", {
+          {new Date(order.createdAt).toLocaleTimeString(locale, {
             hour: "2-digit",
             minute: "2-digit",
           })}
@@ -462,30 +466,30 @@ function OrderCard({
             <span className="break-keep">
               {it.name} <span className="text-[var(--color-ink-600)] font-medium">×{it.quantity}</span>
             </span>
-            <span className="tabular-nums">₩ {(it.price * it.quantity).toLocaleString()}</span>
+            <span className="tabular-nums">{fmtKRW(it.price * it.quantity, lang)}</span>
           </li>
         ))}
       </ul>
       <div className="border-t border-[var(--color-line)] mt-2.5 pt-2.5 flex justify-between text-[14px] font-bold">
-        <span className="text-[var(--color-ink-600)]">합계</span>
-        <span className="text-[var(--color-navy-900)] tabular-nums">₩ {order.totalAmount.toLocaleString()}</span>
+        <span className="text-[var(--color-ink-600)]">{t("oorders.sum", lang)}</span>
+        <span className="text-[var(--color-navy-900)] tabular-nums">{fmtKRW(order.totalAmount, lang)}</span>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-3">
         <Button size="md" variant="outline" onClick={onCancel} className="text-[var(--color-danger)] border-[var(--color-danger)]/30">
-          취소
+          {t("oorders.cancel", lang)}
         </Button>
         <Button
           size="md"
           variant="ghost"
           onClick={onReprint}
           leftIcon={<Printer className="w-4 h-4" />}
-          title="영수증 재인쇄"
+          title={t("oorders.reprintTooltip", lang)}
         >
-          재인쇄
+          {t("oorders.reprint", lang)}
         </Button>
         {advance ? (
           <Button size="md" className="col-span-2" onClick={onAdvance}>
-            {advance.label}
+            {t(advance.labelKey, lang)}
           </Button>
         ) : (
           <div className="hidden md:block col-span-2" />
