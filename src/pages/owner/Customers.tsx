@@ -12,6 +12,7 @@ import { useEscapeClose } from "../../lib/useEscapeClose";
 import { downloadCsv, todayStamp } from "../../lib/csv";
 import { formatPhoneNumber } from "../../lib/ids";
 import type { Tier, User } from "../../lib/types";
+import { useLanguage, t } from "../../lib/i18n";
 
 type Filter = "all" | "vip" | "new" | "slipping" | "cold";
 
@@ -30,6 +31,7 @@ export default function OwnerCustomers() {
     recordCommunication,
   } = useStore();
   const storeId = currentUser?.id ?? "";
+  const lang = useLanguage();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const [selected, setSelected] = useState<User | null>(null);
@@ -76,9 +78,9 @@ export default function OwnerCustomers() {
   };
 
   const sendBulkCoupon = () => {
-    const desc = prompt("발급할 쿠폰 설명을 입력하세요 (예: '재방문 감사 할인')");
+    const desc = prompt(t("ocust.bulkPrompt", lang));
     if (!desc) return;
-    bulkIssueCoupon(Array.from(selectedMode), storeId, "이벤트", desc);
+    bulkIssueCoupon(Array.from(selectedMode), storeId, t("ocust.bulkType", lang), desc);
     setSelectedMode(new Set());
   };
 
@@ -92,7 +94,7 @@ export default function OwnerCustomers() {
       : myCustomers;
 
     if (target.length === 0) {
-      showToast("내보낼 고객이 없습니다.", "info");
+      showToast(t("ocust.exportEmpty", lang), "info");
       return;
     }
 
@@ -106,30 +108,30 @@ export default function OwnerCustomers() {
       const pad = (n: number) => String(n).padStart(2, "0");
       return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
     };
-    const fmtGender = (g?: string) => (g === "male" ? "남" : g === "female" ? "여" : dash);
-    const fmtResidence = (v?: boolean) => (v === true ? "포항시" : v === false ? "다른 지역" : "미응답");
-    const fmtAuthType = (t?: string) =>
-      t === "google" ? "Google" : t === "kakao" ? "카카오" : t === "phone" ? "전화번호" : dash;
+    const fmtGender = (g?: string) => (g === "male" ? t("ocust.csv.male", lang) : g === "female" ? t("ocust.csv.female", lang) : dash);
+    const fmtResidence = (v?: boolean) => (v === true ? t("ocust.csv.pohang", lang) : v === false ? t("ocust.csv.otherRegion", lang) : t("ocust.csv.noResp", lang));
+    const fmtAuthType = (authType?: string) =>
+      authType === "google" ? "Google" : authType === "kakao" ? "Kakao" : authType === "phone" ? t("ocust.csv.phoneAuth", lang) : dash;
     const fmtMoney = (n: number) => n.toLocaleString("ko-KR");
-    const ynPrivacy = (iso?: string) => (iso ? "동의" : dash);
+    const ynPrivacy = (iso?: string) => (iso ? t("ocust.csv.agreed", lang) : dash);
 
     const headers = [
-      "이름",
-      "전화번호",
-      "등급",
-      "클러스터",
-      "방문 횟수",
-      "유니크 방문일",
-      "첫 방문일",
-      "마지막 방문일",
-      "누적 소비액(원)",
-      "성별",
-      "생년",
-      "생일",
-      "거주지",
-      "가입 경로",
-      "마케팅 동의",
-      "메모",
+      t("ocust.csv.name", lang),
+      t("ocust.csv.phone", lang),
+      t("ocust.csv.tier", lang),
+      t("ocust.csv.cluster", lang),
+      t("ocust.csv.visits", lang),
+      t("ocust.csv.uniqueDays", lang),
+      t("ocust.csv.firstVisit", lang),
+      t("ocust.csv.lastVisit", lang),
+      t("ocust.csv.spent", lang),
+      t("ocust.csv.gender", lang),
+      t("ocust.csv.birthYear", lang),
+      t("ocust.csv.birthday", lang),
+      t("ocust.csv.residence", lang),
+      t("ocust.csv.signupVia", lang),
+      t("ocust.csv.marketing", lang),
+      t("ocust.csv.memo", lang),
     ];
 
     const rows = target.map(({ user, visits, uniqueDays, cluster, tier }) => {
@@ -160,47 +162,49 @@ export default function OwnerCustomers() {
       ];
     });
 
-    const storeName = currentUser?.restaurantName ?? "매장";
+    const storeName = currentUser?.restaurantName ?? t("common.store", lang);
     const safeStore = storeName.replace(/[\\/:*?"<>|]/g, "_"); // 파일명 안전화
-    const scope = selectedMode.size > 0 ? `선택${target.length}명` : `전체${target.length}명`;
-    const filename = `결_고객명단_${safeStore}_${scope}_${todayStamp()}.csv`;
+    const scope = selectedMode.size > 0
+      ? t("ocust.scopeSel", lang, { n: target.length })
+      : t("ocust.scopeAll", lang, { n: target.length });
+    const filename = t("ocust.filename", lang, { store: safeStore, scope, date: todayStamp() });
 
     try {
       downloadCsv(filename, headers, rows);
-      showToast(`고객 ${target.length}명 엑셀 파일을 내려받았어요.`, "success");
+      showToast(t("ocust.exportOk", lang, { n: target.length }), "success");
     } catch (e: any) {
-      showToast(`엑셀 내보내기 실패: ${e?.message ?? "잠시 후 다시 시도해 주세요."}`, "error");
+      showToast(t("ocust.exportFail", lang, { msg: e?.message ?? "" }), "error");
     }
   };
 
   return (
     <OwnerShell
-      title={selectedMode.size > 0 ? `${selectedMode.size}명 선택` : "고객 관리"}
+      title={selectedMode.size > 0 ? t("ocust.selectedTitle", lang, { n: selectedMode.size }) : t("ocust.title", lang)}
       headerRight={
         selectedMode.size > 0 ? (
           <button
             onClick={() => setSelectedMode(new Set())}
             className="text-[13px] font-bold text-[var(--color-ink-600)] px-3 h-10 rounded-full hover:bg-[var(--color-navy-50)]"
           >
-            선택 해제
+            {t("ocust.clearSel", lang)}
           </button>
         ) : (
           <button
             onClick={exportToExcel}
             disabled={myCustomers.length === 0}
             className="inline-flex items-center gap-1.5 h-10 px-3.5 rounded-full bg-[var(--color-mint-100)] text-[var(--color-mint-700)] text-[12.5px] font-bold hover:bg-[var(--color-mint-50)] active:scale-[0.97] transition-all disabled:opacity-40"
-            aria-label="고객 명단 엑셀 내보내기"
-            title="현재 필터·검색에 잡힌 고객을 엑셀(CSV) 로 내려받습니다"
+            aria-label={t("ocust.excelAria", lang)}
+            title={t("ocust.excelTip", lang)}
           >
             <Download className="w-4 h-4" />
-            <span className="hidden sm:inline">엑셀</span>
+            <span className="hidden sm:inline">{t("ocust.excelShort", lang)}</span>
           </button>
         )
       }
     >
       <div>
         <Input
-          placeholder="이름·전화번호 검색"
+          placeholder={t("ocust.searchPh", lang)}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           leftSlot={<Search className="w-4 h-4" />}
@@ -209,11 +213,11 @@ export default function OwnerCustomers() {
         <div className="flex gap-2 mt-3 overflow-x-auto pb-1 -mx-1 px-1">
           {(
             [
-              ["all", "전체"],
-              ["vip", "VIP 레전드"],
-              ["new", "유망 신규"],
-              ["slipping", "이탈 위험"],
-              ["cold", "장기 휴면"],
+              ["all", t("ocust.cluster.all", lang)],
+              ["vip", t("ocust.cluster.vip", lang)],
+              ["new", t("ocust.cluster.new", lang)],
+              ["slipping", t("ocust.cluster.slipping", lang)],
+              ["cold", t("ocust.cluster.cold", lang)],
             ] as [Filter, string][]
           ).map(([id, label]) => (
             <button
@@ -233,7 +237,7 @@ export default function OwnerCustomers() {
         {selectedMode.size > 0 && (
           <div className="mt-3 grid grid-cols-3 gap-2">
             <Button variant="mint" size="md" onClick={sendBulkCoupon} leftIcon={<Ticket className="w-4 h-4" />}>
-              쿠폰
+              {t("ocust.bulk.coupon", lang)}
             </Button>
             <Button
               variant="outline"
@@ -241,7 +245,7 @@ export default function OwnerCustomers() {
               onClick={exportToExcel}
               leftIcon={<Download className="w-4 h-4" />}
             >
-              엑셀
+              {t("ocust.bulk.excel", lang)}
             </Button>
             <Button
               variant="outline"
@@ -249,7 +253,7 @@ export default function OwnerCustomers() {
               onClick={() => setSelectedMode(new Set())}
               leftIcon={<X className="w-4 h-4" />}
             >
-              해제
+              {t("ocust.bulk.clear", lang)}
             </Button>
           </div>
         )}
@@ -257,7 +261,7 @@ export default function OwnerCustomers() {
         <div className="mt-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2 pb-8">
           {myCustomers.length === 0 ? (
             <Card padding="lg" className="text-center body-md md:col-span-2 xl:col-span-3">
-              조건에 맞는 고객이 없습니다.
+              {t("ocust.empty", lang)}
             </Card>
           ) : (
             myCustomers.map(({ user, visits, cluster, tier }) => {
@@ -300,7 +304,7 @@ export default function OwnerCustomers() {
                       </span>
                     </div>
                     <p className="text-[13px] text-[var(--color-ink-600)] truncate">
-                      방문 {visits.length}회 · {cluster.label}
+                      {t("ocust.visitCount", lang, { n: visits.length, cluster: cluster.label })}
                     </p>
                   </div>
                   <button
@@ -310,7 +314,7 @@ export default function OwnerCustomers() {
                     }}
                     className="text-[12px] font-semibold text-[var(--color-ink-600)] px-2"
                   >
-                    선택
+                    {t("ocust.pickBtn", lang)}
                   </button>
                 </Card>
               );
@@ -329,7 +333,7 @@ export default function OwnerCustomers() {
           communications={communications.filter((c) => c.customerId === selected.id).slice(0, 5)}
           onIssue={(type, desc) => issueCoupon(selected.id, storeId, type, desc)}
           onMemo={(m) => updateUserMemo(selected.id, m)}
-          onSetTier={(t) => setCustomerTier(selected.id, storeId, t)}
+          onSetTier={(tier) => setCustomerTier(selected.id, storeId, tier)}
           onCommunicate={recordCommunication}
         />
       )}
@@ -346,7 +350,7 @@ interface DetailProps {
   communications: { id: string; type: string; content: string; date: string }[];
   onIssue: (type: string, desc: string) => void;
   onMemo: (m: string) => Promise<void> | void;
-  onSetTier: (t: Tier | "auto") => void;
+  onSetTier: (tier: Tier | "auto") => void;
   onCommunicate: (cid: string, sid: string, type: "coupon" | "message", content: string) => void;
 }
 
@@ -362,6 +366,7 @@ function CustomerDetail({
   onSetTier,
   onCommunicate,
 }: DetailProps) {
+  const lang = useLanguage();
   const [memo, setMemo] = useState(user.memo ?? "");
   // 다른 고객을 열거나 user.memo가 외부에서 갱신되면 textarea 동기화
   useEffect(() => {
@@ -373,19 +378,19 @@ function CustomerDetail({
   const insight = stats ? DEFAULT_INSIGHTS[stats.cluster.id as keyof typeof DEFAULT_INSIGHTS] : "";
 
   const sendMessage = async (channel: "kakao" | "sms") => {
-    const content = prompt("보낼 메시지를 입력하세요");
+    const content = prompt(t("ocust.msgPrompt", lang));
     if (!content) return;
     let res;
     if (channel === "kakao") {
-      res = await sendKakaoMessage(content, "결 매장", storeId);
+      res = await sendKakaoMessage(content, t("ocust.msgSrc", lang), storeId);
     } else {
       res = await sendPhysicalSms(user.phone, content, "device");
     }
     if (res.ok) {
       onCommunicate(user.id, storeId, "message", `[${channel}] ${content}`);
-      showToast("메시지를 전송했습니다.", "success");
+      showToast(t("ocust.msgOk", lang), "success");
     } else {
-      showToast(res.message ?? "전송 실패", "error");
+      showToast(res.message ?? t("ocust.msgFail", lang), "error");
     }
   };
 
@@ -418,29 +423,29 @@ function CustomerDetail({
           </Card>
         )}
 
-        <Section title="등급 수동 지정">
+        <Section title={t("ocust.section.tier", lang)}>
           <div className="flex flex-wrap gap-2">
-            {["auto", ...TIER_ORDER].map((t) => (
+            {(["auto", ...TIER_ORDER] as const).map((tierOpt) => (
               <button
-                key={t}
-                onClick={() => onSetTier(t as Tier | "auto")}
+                key={tierOpt}
+                onClick={() => onSetTier(tierOpt as Tier | "auto")}
                 className={`h-9 px-3 rounded-full text-[12px] font-bold border ${
-                  (stats?.overrideTier ?? "auto") === t
+                  (stats?.overrideTier ?? "auto") === tierOpt
                     ? "bg-[var(--color-navy-700)] text-white border-transparent"
                     : "bg-white text-[var(--color-ink-700)] border-[var(--color-line)]"
                 }`}
               >
-                {t === "auto" ? "자동" : t}
+                {tierOpt === "auto" ? t("ocust.tier.auto", lang) : tierOpt}
               </button>
             ))}
           </div>
         </Section>
 
-        <Section title="메모">
+        <Section title={t("ocust.section.memo", lang)}>
           <textarea
             value={memo}
             onChange={(e) => setMemo(e.target.value)}
-            placeholder="고객 특이사항"
+            placeholder={t("ocust.memoPh", lang)}
             className="input-field min-h-[80px] resize-none"
           />
           <Button
@@ -449,26 +454,26 @@ function CustomerDetail({
             disabled={memo === (user.memo ?? "")}
             onClick={async () => {
               await onMemo(memo);
-              showToast("메모를 저장했습니다.", "success");
+              showToast(t("ocust.memoSaved", lang), "success");
             }}
             leftIcon={<Save className="w-4 h-4" />}
           >
-            메모 저장
+            {t("ocust.memoSave", lang)}
           </Button>
         </Section>
 
-        <Section title="쿠폰">
+        <Section title={t("ocust.section.coupon", lang)}>
           <div className="grid grid-cols-2 gap-2 mb-2">
             <Button
               size="md"
               variant="mint"
               onClick={() => {
-                const desc = prompt("쿠폰 설명");
-                if (desc) onIssue("이벤트", desc);
+                const desc = prompt(t("ocust.couponPrompt", lang));
+                if (desc) onIssue(t("ocust.bulkType", lang), desc);
               }}
               leftIcon={<Ticket className="w-4 h-4" />}
             >
-              쿠폰 발급
+              {t("ocust.couponBtn", lang)}
             </Button>
             <Button
               size="md"
@@ -476,11 +481,11 @@ function CustomerDetail({
               onClick={() => sendMessage("kakao")}
               leftIcon={<MessageSquare className="w-4 h-4" />}
             >
-              메시지
+              {t("ocust.messageBtn", lang)}
             </Button>
           </div>
           {coupons.length === 0 ? (
-            <p className="text-[12px] text-[var(--color-ink-500)]">발급 쿠폰 없음.</p>
+            <p className="text-[12px] text-[var(--color-ink-500)]">{t("ocust.noCoupons", lang)}</p>
           ) : (
             <ul className="text-[12px] text-[var(--color-ink-700)] space-y-1">
               {coupons.slice(0, 5).map((c) => (
@@ -493,7 +498,7 @@ function CustomerDetail({
         </Section>
 
         {communications.length > 0 && (
-          <Section title="최근 통신">
+          <Section title={t("ocust.recentComm", lang)}>
             <ul className="text-[12px] text-[var(--color-ink-700)] space-y-1">
               {communications.map((c) => (
                 <li key={c.id}>· {c.content}</li>

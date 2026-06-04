@@ -9,6 +9,7 @@ import type { Menu } from "../../lib/types";
 import { showToast } from "../../lib/toast";
 import { useEscapeClose } from "../../lib/useEscapeClose";
 import { resizeImage } from "./PhotoVault";
+import { useLanguage, t, fmtKRW } from "../../lib/i18n";
 
 interface Draft {
   id?: string;
@@ -34,6 +35,7 @@ const emptyDraft: Draft = {
 export default function OwnerMenus() {
   const { effectiveStoreId, menus, addMenuItem, updateMenuItem, deleteMenuItem } = useStore();
   const storeId = effectiveStoreId;
+  const lang = useLanguage();
   const myMenus = useMemo(
     () => menus.filter((m) => m.storeId === storeId).sort((a, b) => a.category.localeCompare(b.category)),
     [menus, storeId]
@@ -54,7 +56,7 @@ export default function OwnerMenus() {
     e.target.value = "";
     if (!file || !draft) return;
     if (!file.type.startsWith("image/")) {
-      showToast("이미지 파일만 업로드할 수 있어요.", "error");
+      showToast(t("omenus.err.invalidImage", lang), "error");
       return;
     }
     setUploading(true);
@@ -62,7 +64,7 @@ export default function OwnerMenus() {
       const dataUrl = await resizeImage(file);
       setDraft({ ...draft, imageUrl: dataUrl });
     } catch {
-      showToast("이미지 처리에 실패했어요.", "error");
+      showToast(t("omenus.err.imageProc", lang), "error");
     } finally {
       setUploading(false);
     }
@@ -71,23 +73,23 @@ export default function OwnerMenus() {
   const save = async () => {
     if (!draft) return;
     if (!draft.name.trim() || !draft.price) {
-      showToast("이름과 가격은 필수입니다.", "error");
+      showToast(t("omenus.err.required", lang), "error");
       return;
     }
     const price = Number(draft.price);
     if (!Number.isFinite(price) || price < 0) {
-      showToast("가격을 다시 확인해 주세요.", "error");
+      showToast(t("omenus.err.price", lang), "error");
       return;
     }
     // 새 메뉴는 storeId 가 반드시 있어야 함 — 빈 매장 ID 로 잘못된 곳에 저장되는 사고 차단
     if (!draft.id && !storeId) {
-      showToast("매장 정보가 없어요. 다시 로그인해 주세요.", "error");
+      showToast(t("omenus.err.noStore", lang), "error");
       return;
     }
     const data = {
       name: draft.name.trim(),
       price,
-      category: draft.category.trim() || "기타",
+      category: draft.category.trim() || t("omenus.otherCategory", lang),
       description: draft.description.trim(),
       posProductCode: draft.posProductCode.trim() || undefined,
       isAvailable: draft.isAvailable,
@@ -96,34 +98,34 @@ export default function OwnerMenus() {
     try {
       if (draft.id) {
         await updateMenuItem(draft.id, data);
-        showToast("메뉴를 수정했습니다.", "success");
+        showToast(t("omenus.ok.updated", lang), "success");
       } else {
         await addMenuItem(storeId, data);
-        showToast("새 메뉴를 추가했어요.", "success");
+        showToast(t("omenus.ok.added", lang), "success");
       }
       setDraft(null);
     } catch (e: any) {
-      showToast(`저장 실패: ${e?.message ?? "잠시 후 다시 시도해 주세요."}`, "error");
+      showToast(t("omenus.err.saveFail", lang, { msg: e?.message ?? "" }), "error");
     }
   };
 
   return (
     <OwnerShell
-      title="메뉴 관리"
+      title={t("omenus.title", lang)}
       headerRight={
         <button
           onClick={() => setDraft({ ...emptyDraft })}
           className="h-10 px-4 rounded-full bg-[var(--color-navy-700)] text-white inline-flex items-center gap-1.5 text-[13px] font-bold shadow-[var(--shadow-navy)]"
         >
           <Plus className="w-4 h-4" />
-          새 메뉴
+          {t("omenus.newBtn", lang)}
         </button>
       }
     >
       <div>
         {myMenus.length === 0 && !draft && (
           <Card padding="lg" className="text-center body-md">
-            아직 등록된 메뉴가 없습니다. 우측 상단의 “새 메뉴”로 추가해 주세요.
+            {t("omenus.empty", lang)}
           </Card>
         )}
 
@@ -145,14 +147,14 @@ export default function OwnerMenus() {
                   <div className="flex-1 min-w-0">
                     <p className="text-[15px] font-bold text-[var(--color-navy-900)] break-keep">{m.name}</p>
                     <p className="text-[13px] text-[var(--color-ink-600)] line-clamp-2 break-keep">
-                      <span className="font-semibold text-[var(--color-navy-700)]">₩ {m.price.toLocaleString()}</span>
+                      <span className="font-semibold text-[var(--color-navy-700)]">{fmtKRW(m.price, lang)}</span>
                       {m.description ? ` · ${m.description}` : ""}
                     </p>
                   </div>
                   <button
                     onClick={() => updateMenuItem(m.id, { isAvailable: !m.isAvailable })}
                     className="p-1 text-[var(--color-navy-700)]"
-                    aria-label="판매 토글"
+                    aria-label={t("omenus.toggleAria", lang)}
                   >
                     {m.isAvailable === false ? (
                       <ToggleLeft className="w-6 h-6 text-[var(--color-ink-300)]" />
@@ -174,7 +176,7 @@ export default function OwnerMenus() {
                       })
                     }
                     className="w-9 h-9 rounded-full hover:bg-[var(--color-navy-50)] inline-flex items-center justify-center text-[var(--color-navy-700)]"
-                    aria-label="편집"
+                    aria-label={t("omenus.editAria", lang)}
                   >
                     <Pencil className="w-4 h-4" />
                   </button>
@@ -194,24 +196,24 @@ export default function OwnerMenus() {
           >
             <div className="w-12 h-1.5 rounded-full bg-[var(--color-ink-100)] mx-auto mb-5" />
             <h2 className="text-[18px] font-extrabold text-[var(--color-navy-900)] mb-4">
-              {draft.id ? "메뉴 수정" : "새 메뉴"}
+              {draft.id ? t("omenus.editTitle", lang) : t("omenus.newTitle", lang)}
             </h2>
             <div className="space-y-4">
               <div>
-                <p className="label-xs mb-2">사진 (선택)</p>
+                <p className="label-xs mb-2">{t("omenus.field.photo", lang)}</p>
                 <div className="flex items-center gap-3">
                   {draft.imageUrl ? (
                     <div className="relative">
                       <img
                         src={draft.imageUrl}
-                        alt="메뉴 사진"
+                        alt={t("omenus.photoAlt", lang)}
                         className="w-20 h-20 rounded-xl object-cover bg-[var(--color-ink-50)]"
                       />
                       <button
                         type="button"
                         onClick={() => setDraft({ ...draft, imageUrl: "" })}
                         className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-white border border-[var(--color-ink-200)] inline-flex items-center justify-center shadow-sm"
-                        aria-label="사진 제거"
+                        aria-label={t("omenus.photoRemove", lang)}
                       >
                         <X className="w-3.5 h-3.5 text-[var(--color-ink-700)]" />
                       </button>
@@ -227,7 +229,7 @@ export default function OwnerMenus() {
                     disabled={uploading}
                     className="h-10 px-4 rounded-full border border-[var(--color-ink-200)] text-[13px] font-semibold text-[var(--color-navy-700)] disabled:opacity-50"
                   >
-                    {uploading ? "처리 중…" : draft.imageUrl ? "사진 바꾸기" : "사진 선택"}
+                    {uploading ? t("omenus.photoProcessing", lang) : draft.imageUrl ? t("omenus.photoChange", lang) : t("omenus.photoPick", lang)}
                   </button>
                   <input
                     ref={fileRef}
@@ -239,30 +241,30 @@ export default function OwnerMenus() {
                 </div>
               </div>
               <Input
-                label="이름"
+                label={t("omenus.field.name", lang)}
                 value={draft.name}
                 onChange={(e) => setDraft({ ...draft, name: e.target.value })}
               />
               <div className="grid grid-cols-2 gap-3">
                 <Input
-                  label="가격"
+                  label={t("omenus.field.price", lang)}
                   inputMode="numeric"
                   value={draft.price}
                   onChange={(e) => setDraft({ ...draft, price: e.target.value.replace(/\D/g, "") })}
                 />
                 <Input
-                  label="카테고리"
+                  label={t("omenus.field.category", lang)}
                   value={draft.category}
                   onChange={(e) => setDraft({ ...draft, category: e.target.value })}
                 />
               </div>
               <Input
-                label="설명 (선택)"
+                label={t("omenus.field.desc", lang)}
                 value={draft.description}
                 onChange={(e) => setDraft({ ...draft, description: e.target.value })}
               />
               <Input
-                label="POS 상품코드 (선택)"
+                label={t("omenus.field.pos", lang)}
                 value={draft.posProductCode}
                 onChange={(e) => setDraft({ ...draft, posProductCode: e.target.value })}
               />
@@ -274,17 +276,17 @@ export default function OwnerMenus() {
                   className="text-[var(--color-danger)] border-[var(--color-danger)]/30"
                   leftIcon={<Trash2 className="w-4 h-4" />}
                   onClick={async () => {
-                    if (confirm("메뉴를 삭제하시겠습니까?")) {
+                    if (confirm(t("omenus.deleteConfirm", lang))) {
                       await deleteMenuItem(draft.id!);
                       setDraft(null);
                     }
                   }}
                 >
-                  삭제
+                  {t("omenus.delete", lang)}
                 </Button>
               )}
               <Button onClick={save} className={draft.id ? "" : "col-span-2"}>
-                저장
+                {t("omenus.save", lang)}
               </Button>
             </div>
           </div>
