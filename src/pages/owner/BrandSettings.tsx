@@ -675,21 +675,46 @@ function PushNotificationSection({
 
   useEffect(() => { setRegistered(deviceCount > 0); }, [deviceCount]);
 
+  const [lastErrorDetail, setLastErrorDetail] = useState<string>("");
+  const [lastErrorReason, setLastErrorReason] = useState<string>("");
+
   const enable = async () => {
     setBusy(true);
+    setLastErrorDetail("");
+    setLastErrorReason("");
     try {
       const r = await registerOwnerDevice(storeId);
       if (r.ok) {
         setRegistered(true);
         setPerm("granted");
         showToast("이 기기로 알림을 받을게요. 새 주문이 들어오면 바로 알려드려요.", "success");
-      } else if (r.reason === "unsupported") {
-        showToast("이 브라우저는 푸시 알림을 지원하지 않아요. Chrome/Edge 권장.", "info");
-      } else if (r.reason === "denied") {
-        showToast("알림 권한이 거부됐어요. 주소창 자물쇠 아이콘에서 권한을 허용해 주세요.", "error");
-        setPerm("denied");
-      } else {
-        showToast("알림 등록에 실패했어요. 잠시 후 다시 시도해 주세요.", "error");
+        return;
+      }
+      // 실패 — reason 별 친화 메시지 + 상세 에러 카드
+      setLastErrorReason(r.reason ?? "error");
+      setLastErrorDetail(r.detail ?? "");
+      switch (r.reason) {
+        case "unsupported":
+          showToast("이 브라우저는 푸시 알림을 지원하지 않아요. Chrome/Edge 권장.", "info");
+          break;
+        case "denied":
+          showToast("알림 권한이 거부됐어요. 주소창 자물쇠 → 알림 → 허용으로 변경.", "error");
+          setPerm("denied");
+          break;
+        case "no-vapid":
+          showToast("관리자 설정 누락: VAPID 키. 관리자에게 문의해 주세요.", "error");
+          break;
+        case "sw-register-failed":
+          showToast("서비스 워커 등록 실패. 한 번 새로고침 후 다시 시도해 주세요.", "error");
+          break;
+        case "no-auth":
+          showToast("로그인 상태가 끊겼어요. 한 번 새로고침 후 다시 시도.", "error");
+          break;
+        case "firestore-error":
+          showToast(`Firestore 권한 거부. 관리자에게 문의해 주세요. (${r.detail ?? ""})`.slice(0, 100), "error");
+          break;
+        default:
+          showToast(`알림 등록 실패: ${r.detail ?? "원인 불명"}`, "error");
       }
     } finally {
       setBusy(false);
@@ -753,6 +778,45 @@ function PushNotificationSection({
                   : "사장님 폰·태블릿·PC 어디서든 등록 가능. 한 번만 권한 허용하면 끝."}
               </p>
             </div>
+          </div>
+        )}
+
+        {/* 실패 진단 카드 — reason 별 해결법 */}
+        {lastErrorReason && !isOn && (
+          <div className="p-3.5 rounded-[14px] bg-[#fef2f2] border border-[var(--color-danger)]/40">
+            <p className="text-[12.5px] font-extrabold text-[var(--color-danger)] mb-1">
+              ❌ 알림 등록 실패 · {
+                {
+                  "no-vapid": "VAPID 키 누락",
+                  "sw-register-failed": "서비스 워커 등록 실패",
+                  "denied": "알림 권한 거부됨",
+                  "no-auth": "인증 끊김",
+                  "firestore-error": "데이터베이스 권한 거부",
+                  "unsupported": "브라우저 미지원",
+                  "error": "기타 오류",
+                }[lastErrorReason] || lastErrorReason
+              }
+            </p>
+            <p className="text-[11.5px] text-[var(--color-ink-700)] leading-relaxed font-medium">
+              {{
+                "no-vapid": "관리자가 Firebase Console 에서 웹 푸시 인증서를 발급한 뒤 Render 환경변수 VITE_FCM_VAPID_KEY 에 등록해야 합니다.",
+                "sw-register-failed": "브라우저를 강력 새로고침(Ctrl+Shift+R)하고 다시 시도해 주세요. 또는 시크릿 모드/확장 프로그램 충돌 가능.",
+                "denied": "주소창 왼쪽 🔒 자물쇠 아이콘 → 알림 → '허용' 으로 변경 후 다시 시도.",
+                "no-auth": "로그아웃 후 다시 로그인하거나 페이지를 새로고침해 주세요.",
+                "firestore-error": "Firestore 룰의 users 컬렉션 쓰기 권한을 확인해야 합니다.",
+                "unsupported": "Chrome/Edge/Firefox 데스크탑 또는 Android. iPhone 은 홈 화면 PWA(iOS 16.4+).",
+              }[lastErrorReason] || "잠시 후 다시 시도해 주세요."}
+            </p>
+            {lastErrorDetail && (
+              <details className="mt-2">
+                <summary className="text-[10.5px] text-[var(--color-ink-500)] cursor-pointer font-bold">
+                  상세 에러 (관리자용)
+                </summary>
+                <p className="mt-1 text-[10.5px] font-mono break-all text-[var(--color-ink-600)] bg-white p-2 rounded">
+                  {lastErrorDetail}
+                </p>
+              </details>
+            )}
           </div>
         )}
 

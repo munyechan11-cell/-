@@ -13,15 +13,19 @@
  *  - 그 외: 자동으로 비활성, isPushSupported() 가 false 반환
  */
 import { getMessaging, getToken, onMessage, isSupported, type Messaging } from "firebase/messaging";
-import { arrayUnion, arrayRemove, doc, setDoc, updateDoc } from "firebase/firestore";
-import { app, db } from "./firebase";
+import { arrayRemove, arrayUnion, doc, setDoc, updateDoc } from "firebase/firestore";
+import { app, db, ensureAnonymousAuth } from "./firebase";
 import { showToast } from "./toast";
 
-// 결-TEST 의 VAPID public key. Firebase Console → Project Settings → Cloud Messaging → Web Push certificates 에서 생성.
-// 환경변수가 있으면 그걸 우선 (운영 키 분리용)
-const VAPID_KEY =
-  (import.meta as any).env?.VITE_FCM_VAPID_KEY ||
-  "BLpRHpAOM86dlMOcdkPmS-bxkF96kQTbcCNDR7vsh-zYwO0mZ0pAv9FUcq8xMyJl-OFHQTLO2eaHJ5jVw9aJsHU"; // ⚠️ placeholder — 실제 키로 교체
+// Firebase Console → Project Settings → Cloud Messaging → Web Push certificates 에서 생성한 키.
+// 환경변수가 있으면 그걸 우선 (운영 키 분리 가능).
+const VAPID_KEY_ENV = ((import.meta as any).env?.VITE_FCM_VAPID_KEY as string | undefined)?.trim();
+// 빈 값·placeholder 감지 — 잘못된 키로 호출하지 않도록.
+const VAPID_KEY = VAPID_KEY_ENV || "";
+const isVapidConfigured = (): boolean => {
+  // VAPID public key 는 보통 'B' 로 시작하는 88자 base64url. 70자 이상이면 일단 시도.
+  return !!VAPID_KEY && VAPID_KEY.length >= 70;
+};
 
 let messagingInstance: Messaging | null = null;
 let supportedCache: boolean | null = null;
@@ -58,6 +62,17 @@ export async function getPermissionState(): Promise<PermissionState> {
   return Notification.permission as PermissionState;
 }
 
+/** 등록 실패 reason — UI 에서 친화적 메시지로 변환 */
+export type RegisterReason =
+  | "unsupported"
+  | "denied"
+  | "no-vapid"
+  | "sw-register-failed"
+  | "no-db"
+  | "no-auth"
+  | "firestore-error"
+  | "error";
+
 /**
  * 사장님 디바이스를 푸시 대상으로 등록.
  * - 권한이 default 면 요청 다이얼로그
@@ -66,30 +81,64 @@ export async function getPermissionState(): Promise<PermissionState> {
  */
 export async function registerOwnerDevice(userId: string): Promise<{
   ok: boolean;
-  reason?: "unsupported" | "denied" | "no-db" | "error";
+  reason?: RegisterReason;
+  detail?: string;
   token?: string;
 }> {
-  if (!userId) return { ok: false, reason: "error" };
+  if (!userId) return { ok: false, reason: "error", detail: "userId 없음" };
   if (!db) return { ok: false, reason: "no-db" };
+
+  // VAPID 키 검증 — placeholder 면 즉시 차단 (잘못된 키로 Firebase 호출 시 invalid 에러 + 토큰 발급 거부)
+  if (!isVapidConfigured()) {
+    return {
+      ok: false,
+      reason: "no-vapid",
+      detail: "VAPID 공개 키가 설정되지 않았어요. (VITE_FCM_VAPID_KEY)",
+    };
+  }
+
   const messaging = await getMessagingSafe();
   if (!messaging) return { ok: false, reason: "unsupported" };
 
-  // 권한 요청
+  // 익명 인증 보장 — Firestore 룰의 signedIn() 게이트 통과용
   try {
-    const perm = await Notification.requestPermission();
-    if (perm !== "granted") return { ok: false, reason: "denied" };
-  } catch {
-    return { ok: false, reason: "denied" };
+    await ensureAnonymousAuth();
+  } catch (e: any) {
+    return { ok: false, reason: "no-auth", detail: e?.message };
   }
 
-  // 서비스 워커 — Firebase 가 자동 등록하지만, 명시 등록이 더 안정적
+  // 권한 요청 (다이얼로그)
+  let perm: NotificationPermission;
+  try {
+    perm = await Notification.requestPermission();
+  } catch (e: any) {
+    return { ok: false, reason: "denied", detail: e?.message };
+  }
+  if (perm !== "granted") return { ok: false, reason: "denied" };
+
+  // 서비스 워커 등록 — Firebase 가 자동으로도 등록하지만 명시 등록이 더 안정적
   let swReg: ServiceWorkerRegistration | undefined;
   if ("serviceWorker" in navigator) {
     try {
-      swReg = await navigator.serviceWorker.register("/firebase-messaging-sw.js", { scope: "/firebase-cloud-messaging-push-scope" });
+      swReg = await navigator.serviceWorker.register("/firebase-messaging-sw.js", {
+        scope: "/firebase-cloud-messaging-push-scope",
+      });
+      // 활성화 대기 (최대 3초)
+      if (swReg.installing) {
+        await new Promise<void>((resolve) => {
+          const inst = swReg!.installing!;
+          const timer = setTimeout(() => resolve(), 3000);
+          inst.addEventListener("statechange", () => {
+            if (inst.state === "activated") { clearTimeout(timer); resolve(); }
+          });
+        });
+      }
     } catch (e: any) {
-      console.warn("[push] firebase SW register failed", e?.message);
+      console.error("[push] SW register failed", e);
+      return { ok: false, reason: "sw-register-failed", detail: e?.message };
     }
+  } else {
+    return { ok: false, reason: "sw-register-failed", detail: "Service Worker 미지원 브라우저" };
   }
 
   // 토큰 발급
@@ -100,10 +149,22 @@ export async function registerOwnerDevice(userId: string): Promise<{
       serviceWorkerRegistration: swReg,
     });
   } catch (e: any) {
-    console.error("[push] getToken failed", e?.code ?? e?.message);
-    return { ok: false, reason: "error" };
+    const code = e?.code ?? "";
+    const msg = e?.message ?? String(e);
+    console.error("[push] getToken failed", code, msg);
+    // Firebase 에러 코드별 분류
+    if (code.includes("messaging/permission-blocked") || code.includes("permission")) {
+      return { ok: false, reason: "denied", detail: msg };
+    }
+    if (code.includes("messaging/invalid-vapid-key") || msg.toLowerCase().includes("vapid")) {
+      return { ok: false, reason: "no-vapid", detail: msg };
+    }
+    if (code.includes("messaging/failed-service-worker-registration") || code.includes("service-worker")) {
+      return { ok: false, reason: "sw-register-failed", detail: msg };
+    }
+    return { ok: false, reason: "error", detail: `${code} ${msg}` };
   }
-  if (!token) return { ok: false, reason: "error" };
+  if (!token) return { ok: false, reason: "error", detail: "토큰 발급 결과가 비어있음" };
 
   // Firestore 등록 — fcmTokens 배열에 dedup 추가
   const entry = {
@@ -113,14 +174,13 @@ export async function registerOwnerDevice(userId: string): Promise<{
   };
   try {
     const ref = doc(db, "users", userId);
-    // 기존 같은 토큰 항목 제거 후 추가 (registeredAt 갱신 효과)
     await setDoc(ref, {}, { merge: true });
     await updateDoc(ref, {
       fcmTokens: arrayUnion(entry),
     });
   } catch (e: any) {
-    console.error("[push] firestore update failed", e?.message);
-    return { ok: false, reason: "error", token };
+    console.error("[push] firestore update failed", e?.code, e?.message);
+    return { ok: false, reason: "firestore-error", detail: e?.message, token };
   }
 
   return { ok: true, token };
@@ -130,16 +190,13 @@ export async function registerOwnerDevice(userId: string): Promise<{
 export async function unregisterOwnerDevice(userId: string): Promise<void> {
   if (!userId || !db) return;
   const messaging = await getMessagingSafe();
-  if (!messaging) return;
+  if (!messaging || !isVapidConfigured()) return;
   try {
     const token = await getToken(messaging, { vapidKey: VAPID_KEY }).catch(() => undefined);
     if (!token) return;
     const ref = doc(db, "users", userId);
-    // arrayRemove 는 정확히 같은 객체만 제거하므로 token 기준 fallback 처리
-    // 간단화: 토큰이 일치하는 모든 항목 제거
-    // (실패 시 sweep 은 서버 측 cron 으로 처리 — 베타엔 미구현)
     await updateDoc(ref, {
-      fcmTokens: arrayRemove({ token } as any),  // exact match 안 되면 무시
+      fcmTokens: arrayRemove({ token } as any),
     });
   } catch (e: any) {
     console.warn("[push] unregister failed", e?.message);
