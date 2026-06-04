@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { MapPin, Save, Receipt, KeyRound, Info, Printer, Plug, CheckCircle2, AlertCircle, Bell, BellOff, Smartphone, Clock, Languages } from "lucide-react";
-import { LANGS, useLanguage, setLanguage } from "../../lib/i18n";
+import { LANGS, useLanguage, setLanguage, t } from "../../lib/i18n";
 import { cn } from "../../lib/cn";
 import { OwnerShell } from "../../components/layout/OwnerShell";
 import { Card } from "../../components/ui/Card";
@@ -39,7 +39,7 @@ export default function BrandSettings() {
     getAuthorizedPrinters().then((devs) => {
       if (devs.length > 0) {
         const d = devs[0];
-        setPrinterInfo({ name: d.productName || d.manufacturerName || "USB 프린터" });
+        setPrinterInfo({ name: d.productName || d.manufacturerName || t("obs.usb.defaultName", lang) });
       }
     });
   }, []);
@@ -49,11 +49,11 @@ export default function BrandSettings() {
     try {
       const dev = await requestPrinter();
       if (dev) {
-        setPrinterInfo({ name: dev.productName || dev.manufacturerName || "USB 프린터" });
-        showToast("프린터가 연결되었습니다. 테스트 인쇄로 확인해 보세요.", "success");
+        setPrinterInfo({ name: dev.productName || dev.manufacturerName || t("obs.usb.defaultName", lang) });
+        showToast(t("obs.usb.connected.toast", lang), "success");
       }
     } catch (e: any) {
-      showToast(e?.message ?? "프린터 연결 실패", "error");
+      showToast(e?.message ?? t("obs.usb.connectFail", lang), "error");
     } finally {
       setPrinterBusy(false);
     }
@@ -63,9 +63,9 @@ export default function BrandSettings() {
     setPrinterBusy(true);
     try {
       await printTestPage();
-      showToast("테스트 인쇄를 전송했습니다.", "success");
+      showToast(t("obs.usb.testSent", lang), "success");
     } catch (e: any) {
-      showToast(e?.message ?? "테스트 인쇄 실패", "error");
+      showToast(e?.message ?? t("obs.usb.testFail", lang), "error");
     } finally {
       setPrinterBusy(false);
     }
@@ -116,7 +116,7 @@ export default function BrandSettings() {
       tierNames,
       tierRewards,
     } as any);
-    showToast("기본 설정을 저장했습니다.", "success");
+    showToast(t("obs.ok.basic", lang), "success");
   };
 
   const saveConfig = async () => {
@@ -141,35 +141,35 @@ export default function BrandSettings() {
     setStampMax(String(stamps));
     setInactiveDays(String(inactive));
     setRadius(String(r));
-    showToast("매장 운영 설정을 저장했습니다.", "success");
+    showToast(t("obs.ok.config", lang), "success");
   };
 
   const captureLocation = async () => {
     try {
       const pos = await getCurrentPosition();
       await updateStoreLocation(storeId, pos.coords.latitude, pos.coords.longitude);
-      showToast(`위치 저장됨 (${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)})`, "success");
+      showToast(t("obs.geo.savedToast", lang, { lat: pos.coords.latitude.toFixed(5), lng: pos.coords.longitude.toFixed(5) }), "success");
     } catch (e: any) {
-      showToast(`위치 가져오기 실패: ${e?.message ?? ""}`, "error");
+      showToast(t("obs.geo.fail", lang, { msg: e?.message ?? "" }), "error");
     }
   };
 
   return (
-    <OwnerShell title="브랜드 설정" width="narrow">
+    <OwnerShell title={t("obs.title", lang)} width="narrow">
       <div className="pb-12">
-        <Sec title="기본 정보">
-          <Input label="매장명" value={restaurantName} onChange={(e) => setRestaurantName(e.target.value)} />
+        <Sec title={t("obs.sec.basic", lang)}>
+          <Input label={t("obs.field.storeName", lang)} value={restaurantName} onChange={(e) => setRestaurantName(e.target.value)} />
         </Sec>
 
-        <Sec title="언어">
+        <Sec title={t("obs.sec.language", lang)}>
           <div className="flex items-start gap-3">
             <div className="w-10 h-10 rounded-xl bg-[var(--color-navy-50)] inline-flex items-center justify-center flex-shrink-0">
               <Languages className="w-5 h-5 text-[var(--color-navy-700)]" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[13px] font-bold text-[var(--color-navy-900)]">화면 언어</p>
+              <p className="text-[13px] font-bold text-[var(--color-navy-900)]">{t("obs.lang.title", lang)}</p>
               <p className="text-[12px] text-[var(--color-ink-500)] font-medium mt-0.5 break-keep">
-                원하는 언어를 선택하세요. 적용된 화면만 자동으로 바뀝니다. (전체 적용은 점진 확장 중)
+                {t("obs.lang.desc", lang)}
               </p>
               <div className="flex gap-2 mt-3 flex-wrap">
                 {LANGS.map((l) => (
@@ -191,10 +191,10 @@ export default function BrandSettings() {
           </div>
         </Sec>
 
-        <Sec title="POS 연동">
+        <Sec title={t("obs.sec.pos", lang)}>
           <div>
             <label className="block text-[13px] font-semibold text-[var(--color-navy-800)] mb-2">
-              사용 중인 POS
+              {t("obs.pos.using", lang)}
             </label>
             <div className="relative">
               <select
@@ -214,45 +214,44 @@ export default function BrandSettings() {
 
           {vendorInfo.needsApiKey ? (
             <Input
-              label={`${vendorInfo.keyLabel ?? "API 키"} (선택)`}
-              placeholder={vendorInfo.placeholder ?? "선택 입력"}
+              label={t("obs.pos.apiKeyOption", lang, { label: vendorInfo.keyLabel ?? t("obs.pos.apiLabel", lang) })}
+              placeholder={vendorInfo.placeholder ?? t("obs.pos.placeholderDefault", lang)}
               value={posApiKey}
               onChange={(e) => setPosApiKey(e.target.value)}
               leftSlot={<KeyRound className="w-4 h-4" />}
               hint={
                 posApiKey
-                  ? vendorInfo.hint ?? "주문이 자동으로 POS로 전달됩니다."
-                  : "비워두면 영수증 자동 인쇄로 동작합니다."
+                  ? vendorInfo.hint ?? t("obs.pos.hintAuto", lang)
+                  : t("obs.pos.hintNoKey", lang)
               }
             />
           ) : (
             <div className="flex items-start gap-2 p-3.5 rounded-[14px] bg-[var(--color-mint-50)] border border-[var(--color-mint-200)]">
               <Info className="w-4 h-4 text-[var(--color-mint-700)] mt-0.5 shrink-0" />
               <p className="text-[12px] text-[var(--color-mint-700)] font-semibold leading-relaxed">
-                {vendorInfo.hint ?? "POS를 사용하지 않습니다."}
+                {vendorInfo.hint ?? t("obs.pos.hintNone", lang)}
               </p>
             </div>
           )}
 
           <Input
-            label="레거시 푸드테크 코드 (선택)"
+            label={t("obs.pos.legacy", lang)}
             value={foodtech}
             onChange={(e) => setFoodtech(e.target.value)}
-            hint="기존 푸드테크 연동을 쓰는 경우만 입력. 위 POS 키가 우선합니다."
+            hint={t("obs.pos.legacyHint", lang)}
           />
         </Sec>
 
         {/* ===== USB 영수증 프린터 직결 ===== */}
-        <Sec title="영수증 프린터 (USB 직결)">
+        <Sec title={t("obs.sec.printerUsb", lang)}>
           {!isWebUsbSupported() ? (
             <div className="flex items-start gap-2 p-3.5 rounded-[14px] bg-[#fef2f2] border border-[var(--color-danger)]/30">
               <AlertCircle className="w-4 h-4 text-[var(--color-danger)] mt-0.5 shrink-0" />
               <p className="text-[12px] text-[var(--color-danger)] font-semibold leading-relaxed">
-                이 브라우저는 USB 직결 인쇄를 지원하지 않습니다.
+                {t("obs.usb.unsupported", lang)}
                 <br />
                 <span className="font-medium opacity-90">
-                  Chrome 또는 Edge에서 접속하시면 영수증 프린터에 직접 인쇄할 수 있어요.
-                  현재는 팝업 인쇄로 동작합니다.
+                  {t("obs.usb.unsupportedDesc", lang)}
                 </span>
               </p>
             </div>
@@ -265,7 +264,7 @@ export default function BrandSettings() {
                     {printerInfo.name}
                   </p>
                   <p className="text-[12px] text-[var(--color-mint-700)] font-medium opacity-90 mt-0.5">
-                    연결됨 · 새 주문마다 자동 인쇄됩니다.
+                    {t("obs.usb.connected", lang)}
                   </p>
                 </div>
               </div>
@@ -277,7 +276,7 @@ export default function BrandSettings() {
                   loading={printerBusy}
                   leftIcon={<Printer className="w-4 h-4" />}
                 >
-                  테스트 인쇄
+                  {t("obs.usb.testPrint", lang)}
                 </Button>
                 <Button
                   variant="outline"
@@ -286,7 +285,7 @@ export default function BrandSettings() {
                   loading={printerBusy}
                   leftIcon={<Plug className="w-4 h-4" />}
                 >
-                  다른 프린터 선택
+                  {t("obs.usb.pickOther", lang)}
                 </Button>
               </div>
             </div>
@@ -295,10 +294,10 @@ export default function BrandSettings() {
               <div className="flex items-start gap-2 p-3.5 rounded-[14px] bg-[var(--color-navy-50)] border border-[var(--color-navy-200)]">
                 <Info className="w-4 h-4 text-[var(--color-navy-700)] mt-0.5 shrink-0" />
                 <p className="text-[12px] text-[var(--color-navy-700)] font-semibold leading-relaxed">
-                  POS와 같은 USB 영수증 프린터(빅솔론·엡손 등)에 직접 인쇄할 수 있습니다.
+                  {t("obs.usb.intro", lang)}
                   <br />
                   <span className="font-medium opacity-90">
-                    한 번만 연결해 두면 새 주문이 들어올 때마다 자동으로 인쇄돼요. 팝업이 뜨지 않습니다.
+                    {t("obs.usb.persistent", lang)}
                   </span>
                 </p>
               </div>
@@ -308,7 +307,7 @@ export default function BrandSettings() {
                 loading={printerBusy}
                 leftIcon={<Plug className="w-4 h-4" />}
               >
-                USB 프린터 연결하기
+                {t("obs.usb.connect", lang)}
               </Button>
             </div>
           )}
@@ -347,31 +346,31 @@ export default function BrandSettings() {
           }}
         />
 
-        <Sec title="업종 · 보상">
+        <Sec title={t("obs.sec.industry", lang)}>
           <div className="grid grid-cols-4 gap-2">
             {(["cafe", "meat", "bakery", "general"] as Industry[]).map((i) => (
               <Pill key={i} active={industry === i} onClick={() => setIndustry(i)}>
-                {i === "cafe" ? "카페" : i === "meat" ? "정육" : i === "bakery" ? "베이커리" : "일반"}
+                {i === "cafe" ? t("obs.industry.cafe", lang) : i === "meat" ? t("obs.industry.meat", lang) : i === "bakery" ? t("obs.industry.bakery", lang) : t("obs.industry.general", lang)}
               </Pill>
             ))}
           </div>
           <div className="grid grid-cols-2 gap-2 mt-3">
             {(["point", "stamp"] as RewardType[]).map((r) => (
               <Pill key={r} active={rewardType === r} onClick={() => setRewardType(r)}>
-                {r === "point" ? "포인트 적립" : "스탬프"}
+                {r === "point" ? t("obs.reward.point", lang) : t("obs.reward.stamp", lang)}
               </Pill>
             ))}
           </div>
           {rewardType === "point" ? (
             <Input
-              label="적립율 (0~1)"
+              label={t("obs.field.pointRate", lang)}
               value={pointRate}
               onChange={(e) => setPointRate(e.target.value)}
-              hint="예: 0.05 → 매출의 5%"
+              hint={t("obs.field.pointRateHint", lang)}
             />
           ) : (
             <Input
-              label="스탬프 최대 개수"
+              label={t("obs.field.stampMax", lang)}
               value={stampMax}
               onChange={(e) => setStampMax(e.target.value.replace(/\D/g, ""))}
               inputMode="numeric"
@@ -379,22 +378,22 @@ export default function BrandSettings() {
           )}
         </Sec>
 
-        <Sec title="등급 커스텀 (이름·보상)">
+        <Sec title={t("obs.sec.tierCustom", lang)}>
           <div className="space-y-2">
-            {TIER_ORDER.map((t) => (
-              <Card key={t} padding="sm">
-                <p className="text-[12px] font-bold text-[var(--color-navy-700)] mb-2">{t}</p>
+            {TIER_ORDER.map((tier) => (
+              <Card key={tier} padding="sm">
+                <p className="text-[12px] font-bold text-[var(--color-navy-700)] mb-2">{tier}</p>
                 <div className="grid grid-cols-2 gap-2">
                   <input
-                    placeholder="별명"
-                    value={tierNames[t] ?? ""}
-                    onChange={(e) => setTierNames({ ...tierNames, [t]: e.target.value })}
+                    placeholder={t("obs.tier.aliasPh", lang)}
+                    value={tierNames[tier] ?? ""}
+                    onChange={(e) => setTierNames({ ...tierNames, [tier]: e.target.value })}
                     className="input-field text-[13px]"
                   />
                   <input
-                    placeholder="자동 보상 문구"
-                    value={tierRewards[t] ?? ""}
-                    onChange={(e) => setTierRewards({ ...tierRewards, [t]: e.target.value })}
+                    placeholder={t("obs.tier.rewardPh", lang)}
+                    value={tierRewards[tier] ?? ""}
+                    onChange={(e) => setTierRewards({ ...tierRewards, [tier]: e.target.value })}
                     className="input-field text-[13px]"
                   />
                 </div>
@@ -403,51 +402,51 @@ export default function BrandSettings() {
           </div>
         </Sec>
 
-        <Sec title="마케팅 자동화">
+        <Sec title={t("obs.sec.marketing", lang)}>
           <Input
-            label="휴면 기준 (일)"
+            label={t("obs.marketing.inactive", lang)}
             value={inactiveDays}
             onChange={(e) => setInactiveDays(e.target.value.replace(/\D/g, ""))}
             inputMode="numeric"
           />
-          <Toggle label="생일 자동 쿠폰 발급" value={birthdayCoupon} onChange={setBirthdayCoupon} />
+          <Toggle label={t("obs.marketing.birthday", lang)} value={birthdayCoupon} onChange={setBirthdayCoupon} />
         </Sec>
 
-        <Sec title="SMS · 알림">
-          <Input label="알리고 API Key" value={aligoKey} onChange={(e) => setAligoKey(e.target.value)} />
-          <Input label="알리고 USER ID" value={aligoUserId} onChange={(e) => setAligoUserId(e.target.value)} />
-          <Input label="발신번호" value={aligoSender} onChange={(e) => setAligoSender(e.target.value)} />
-          <Input label="SMS 게이트웨이 URL" value={smsGatewayUrl} onChange={(e) => setSmsGatewayUrl(e.target.value)} />
+        <Sec title={t("obs.sec.sms", lang)}>
+          <Input label={t("obs.sms.aligoKey", lang)} value={aligoKey} onChange={(e) => setAligoKey(e.target.value)} />
+          <Input label={t("obs.sms.aligoUserId", lang)} value={aligoUserId} onChange={(e) => setAligoUserId(e.target.value)} />
+          <Input label={t("obs.sms.sender", lang)} value={aligoSender} onChange={(e) => setAligoSender(e.target.value)} />
+          <Input label={t("obs.sms.gateway", lang)} value={smsGatewayUrl} onChange={(e) => setSmsGatewayUrl(e.target.value)} />
         </Sec>
 
-        <Sec title="결제">
-          <Input label="토스페이먼츠 Client Key" value={tossKey} onChange={(e) => setTossKey(e.target.value)} />
+        <Sec title={t("obs.sec.payment", lang)}>
+          <Input label={t("obs.payment.toss", lang)} value={tossKey} onChange={(e) => setTossKey(e.target.value)} />
         </Sec>
 
-        <Sec title="GPS 지오펜싱">
-          <Toggle label="매장 근처에서만 입장 허용" value={locationOnly} onChange={setLocationOnly} />
+        <Sec title={t("obs.sec.geo", lang)}>
+          <Toggle label={t("obs.geo.only", lang)} value={locationOnly} onChange={setLocationOnly} />
           <Input
-            label="허용 반경 (m)"
+            label={t("obs.geo.radius", lang)}
             value={radius}
             onChange={(e) => setRadius(e.target.value.replace(/\D/g, ""))}
             inputMode="numeric"
           />
           <Button variant="ghost" size="md" onClick={captureLocation} leftIcon={<MapPin className="w-4 h-4" />} block>
-            현재 위치를 매장으로 저장
+            {t("obs.geo.save", lang)}
           </Button>
           {currentUser.lat && currentUser.lng && (
             <p className="text-[12px] text-[var(--color-ink-600)] mt-1.5 tabular-nums">
-              저장됨: {currentUser.lat.toFixed(5)}, {currentUser.lng.toFixed(5)}
+              {t("obs.geo.saved", lang, { lat: currentUser.lat.toFixed(5), lng: currentUser.lng.toFixed(5) })}
             </p>
           )}
         </Sec>
 
         <div className="grid grid-cols-2 gap-3 mt-6 sticky bottom-4">
           <Button variant="ghost" size="lg" onClick={saveBasic} leftIcon={<Save className="w-4 h-4" />}>
-            기본 저장
+            {t("obs.saveBasic", lang)}
           </Button>
           <Button size="lg" onClick={saveConfig} leftIcon={<Save className="w-4 h-4" />}>
-            운영 설정 저장
+            {t("obs.saveConfig", lang)}
           </Button>
         </div>
       </div>
