@@ -25,6 +25,7 @@ import { useStore } from "../../store/store";
 import { cn } from "../../lib/cn";
 import { showToast } from "../../lib/toast";
 import { getStoreOpenStatus, summarizeStatus } from "../../lib/businessHours";
+import { useLanguage, t } from "../../lib/i18n";
 
 interface Props {
   children: React.ReactNode;
@@ -37,7 +38,8 @@ interface Props {
 
 type NavItem = {
   to: string;
-  label: string;
+  /** i18n 키 — t(labelKey) 로 화면에 표시 */
+  labelKey: string;
   icon: typeof LayoutDashboard;
   end?: boolean;
   /** staff에게도 보일지 */
@@ -47,26 +49,27 @@ type NavItem = {
 };
 
 const NAV: NavItem[] = [
-  { to: "/biz/owner", label: "대시보드", icon: LayoutDashboard, end: true },
-  { to: "/biz/owner/orders", label: "주문·쿠폰", icon: ChefHat, staff: true },
-  { to: "/biz/owner/tables", label: "테이블 편집", icon: LayoutGrid, staff: true },
-  { to: "/biz/owner/menus", label: "메뉴 관리", icon: UtensilsCrossed, staff: true },
-  { to: "/biz/owner/customers", label: "고객 관리", icon: Users },
-  { to: "/biz/owner/reservations", label: "예약", icon: Calendar, staff: true, staffFree: true },
-  { to: "/biz/owner/statistics", label: "통계", icon: BarChart3 },
-  { to: "/biz/owner/photos", label: "리뷰 저장소", icon: ImageIcon, staff: true },
-  { to: "/biz/owner/qr-print", label: "QR 인쇄", icon: QrCode, staff: true },
-  { to: "/biz/owner/staff", label: "직원 관리", icon: Briefcase },
-  { to: "/biz/owner/brand-settings", label: "브랜드 설정", icon: Settings },
-  { to: "/biz/owner/help", label: "도움말", icon: HelpCircle, staff: true, staffFree: true },
+  { to: "/biz/owner", labelKey: "ownerNav.dashboard", icon: LayoutDashboard, end: true },
+  { to: "/biz/owner/orders", labelKey: "ownerNav.orders", icon: ChefHat, staff: true },
+  { to: "/biz/owner/tables", labelKey: "ownerNav.tables", icon: LayoutGrid, staff: true },
+  { to: "/biz/owner/menus", labelKey: "ownerNav.menus", icon: UtensilsCrossed, staff: true },
+  { to: "/biz/owner/customers", labelKey: "ownerNav.customers", icon: Users },
+  { to: "/biz/owner/reservations", labelKey: "ownerNav.reservations", icon: Calendar, staff: true, staffFree: true },
+  { to: "/biz/owner/statistics", labelKey: "ownerNav.statistics", icon: BarChart3 },
+  { to: "/biz/owner/photos", labelKey: "ownerNav.reviews", icon: ImageIcon, staff: true },
+  { to: "/biz/owner/qr-print", labelKey: "ownerNav.qrPrint", icon: QrCode, staff: true },
+  { to: "/biz/owner/staff", labelKey: "ownerNav.staff", icon: Briefcase },
+  { to: "/biz/owner/brand-settings", labelKey: "ownerNav.brand", icon: Settings },
+  { to: "/biz/owner/help", labelKey: "ownerNav.help", icon: HelpCircle, staff: true, staffFree: true },
 ];
 
-const STAFF_DASHBOARD: NavItem = { to: "/biz/staff", label: "대시보드", icon: LayoutDashboard, end: true, staff: true, staffFree: true };
+const STAFF_DASHBOARD: NavItem = { to: "/biz/staff", labelKey: "ownerNav.dashboard", icon: LayoutDashboard, end: true, staff: true, staffFree: true };
 
 export function OwnerShell({ children, title, headerRight, width = "default" }: Props) {
   const { currentUser, users, logout, activeShift, clockIn, clockOut, updateBrandSettings } = useStore();
   const nav = useNavigate();
   const loc = useLocation();
+  const lang = useLanguage();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const isStaff = currentUser?.role === "staff";
@@ -77,10 +80,10 @@ export function OwnerShell({ children, title, headerRight, width = "default" }: 
     : NAV;
 
   const active = navItems.find((n) => (n.end ? loc.pathname === n.to : loc.pathname.startsWith(n.to)));
-  const heading = title ?? active?.label ?? "대시보드";
+  const heading = title ?? (active ? t(active.labelKey, lang) : t("ownerNav.dashboard", lang));
 
   const employerName = isStaff
-    ? users.find((u) => u.id === currentUser?.employerStoreId)?.restaurantName ?? "매장"
+    ? users.find((u) => u.id === currentUser?.employerStoreId)?.restaurantName ?? t("common.store", lang)
     : currentUser?.restaurantName ?? "결";
 
   // 영업 상태 — 사장님 화면 헤더에 실시간 표시. 1분마다 자동 재계산.
@@ -90,8 +93,8 @@ export function OwnerShell({ children, title, headerRight, width = "default" }: 
   const [openStatus, setOpenStatus] = useState(() => getStoreOpenStatus(storeOwner));
   useEffect(() => {
     setOpenStatus(getStoreOpenStatus(storeOwner));
-    const t = setInterval(() => setOpenStatus(getStoreOpenStatus(storeOwner)), 60_000);
-    return () => clearInterval(t);
+    const id = setInterval(() => setOpenStatus(getStoreOpenStatus(storeOwner)), 60_000);
+    return () => clearInterval(id);
   }, [storeOwner?.temporarilyClosed, storeOwner?.businessHours]);
   const ownerId = storeOwner?.id ?? "";
   const toggleTemporaryClose = async () => {
@@ -99,9 +102,9 @@ export function OwnerShell({ children, title, headerRight, width = "default" }: 
     const next = !storeOwner?.temporarilyClosed;
     try {
       await updateBrandSettings(ownerId, { temporarilyClosed: next });
-      showToast(next ? "임시 마감했어요. 손님 새 주문이 막힙니다." : "영업을 다시 시작했어요.", next ? "info" : "success");
+      showToast(next ? t("shell.tempClosed") : t("shell.tempOpened"), next ? "info" : "success");
     } catch (e: any) {
-      showToast(`상태 변경 실패: ${e?.message ?? ""}`, "error");
+      showToast(t("shell.toggleFail", undefined, { msg: e?.message ?? "" }), "error");
     }
   };
 
@@ -109,7 +112,7 @@ export function OwnerShell({ children, title, headerRight, width = "default" }: 
     if (!isStaff) return;
     if (!item.staffFree && !onDuty && !item.end) {
       e.preventDefault();
-      showToast("출근 후 이용할 수 있어요.", "info");
+      showToast(t("shell.needClockIn"), "info");
     }
   };
 
@@ -129,7 +132,7 @@ export function OwnerShell({ children, title, headerRight, width = "default" }: 
               {employerName}
             </p>
             <p className="text-[12px] text-[var(--color-ink-600)] font-semibold">
-              {isStaff ? `직원 · ${currentUser?.position || "근무자"}` : "사장님 콘솔"}
+              {isStaff ? t("shell.staffRole", lang, { position: currentUser?.position || t("shell.staffDefault", lang) }) : t("shell.ownerConsole", lang)}
             </p>
           </div>
         </Link>
@@ -154,7 +157,7 @@ export function OwnerShell({ children, title, headerRight, width = "default" }: 
                 }
               >
                 <n.icon className="w-[18px] h-[18px] shrink-0" />
-                <span className="flex-1">{n.label}</span>
+                <span className="flex-1">{t(n.labelKey, lang)}</span>
                 {locked && <Lock className="w-3.5 h-3.5" />}
               </NavLink>
             );
@@ -170,7 +173,7 @@ export function OwnerShell({ children, title, headerRight, width = "default" }: 
             className="flex items-center gap-3 h-11 w-full px-3.5 rounded-xl text-[14px] font-semibold text-[var(--color-ink-700)] hover:bg-[var(--color-navy-50)]"
           >
             <LogOut className="w-[18px] h-[18px]" />
-            로그아웃
+            {t("shell.logout", lang)}
           </button>
         </div>
       </aside>
@@ -188,10 +191,10 @@ export function OwnerShell({ children, title, headerRight, width = "default" }: 
                   {employerName}
                 </p>
                 <p className="text-[12px] text-[var(--color-ink-600)] font-semibold mt-0.5">
-                  {isStaff ? `직원 · ${currentUser?.position || "근무자"}` : "사장님 콘솔"}
+                  {isStaff ? t("shell.staffRole", lang, { position: currentUser?.position || t("shell.staffDefault", lang) }) : t("shell.ownerConsole", lang)}
                 </p>
               </div>
-              <button onClick={() => setDrawerOpen(false)} className="w-11 h-11 rounded-full hover:bg-[var(--color-navy-50)] inline-flex items-center justify-center shrink-0" aria-label="메뉴 닫기">
+              <button onClick={() => setDrawerOpen(false)} className="w-11 h-11 rounded-full hover:bg-[var(--color-navy-50)] inline-flex items-center justify-center shrink-0" aria-label={t("shell.menuClose", lang)}>
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -218,7 +221,7 @@ export function OwnerShell({ children, title, headerRight, width = "default" }: 
                     }
                   >
                     <n.icon className="w-5 h-5 shrink-0" />
-                    <span className="flex-1">{n.label}</span>
+                    <span className="flex-1">{t(n.labelKey, lang)}</span>
                     {locked && <Lock className="w-4 h-4" />}
                   </NavLink>
                 );
@@ -233,7 +236,7 @@ export function OwnerShell({ children, title, headerRight, width = "default" }: 
                 className="flex items-center gap-3 h-12 w-full px-3.5 rounded-xl text-[15px] font-semibold text-[var(--color-ink-700)] hover:bg-[var(--color-navy-50)]"
               >
                 <LogOut className="w-5 h-5" />
-                로그아웃
+                {t("shell.logout", lang)}
               </button>
             </div>
           </aside>
@@ -247,7 +250,7 @@ export function OwnerShell({ children, title, headerRight, width = "default" }: 
             <button
               onClick={() => setDrawerOpen(true)}
               className="lg:hidden w-11 h-11 rounded-full hover:bg-[var(--color-navy-50)] inline-flex items-center justify-center -ml-2"
-              aria-label="메뉴 열기"
+              aria-label={t("shell.menuOpen", lang)}
             >
               <MenuIcon className="w-5 h-5 text-[var(--color-navy-800)]" />
             </button>
@@ -259,7 +262,7 @@ export function OwnerShell({ children, title, headerRight, width = "default" }: 
               <button
                 onClick={isStaff ? undefined : toggleTemporaryClose}
                 disabled={isStaff}
-                title={isStaff ? summarizeStatus(openStatus) : "클릭하면 임시 마감 ON/OFF"}
+                title={isStaff ? summarizeStatus(openStatus) : t("shell.toggleTooltip", lang)}
                 className={cn(
                   "inline-flex items-center gap-1.5 h-9 px-2.5 sm:px-3 rounded-full text-[11.5px] sm:text-[12px] font-extrabold transition-colors",
                   openStatus.open
@@ -272,8 +275,8 @@ export function OwnerShell({ children, title, headerRight, width = "default" }: 
                   "w-1.5 h-1.5 rounded-full",
                   openStatus.open ? "bg-[var(--color-mint-500)] animate-pulse" : "bg-[var(--color-danger)]"
                 )} />
-                <span className="hidden sm:inline">{openStatus.open ? "영업 중" : "영업 마감"}</span>
-                <span className="sm:hidden">{openStatus.open ? "영업" : "마감"}</span>
+                <span className="hidden sm:inline">{openStatus.open ? t("shell.open", lang) : t("shell.closed", lang)}</span>
+                <span className="sm:hidden">{openStatus.open ? t("shell.openShort", lang) : t("shell.closedShort", lang)}</span>
               </button>
               {isStaff && (
                 <button
@@ -291,12 +294,12 @@ export function OwnerShell({ children, title, headerRight, width = "default" }: 
                   {onDuty ? (
                     <>
                       <Clock className="w-3.5 h-3.5" />
-                      <span className="hidden sm:inline">근무 중 · </span>퇴근
+                      <span className="hidden sm:inline">{t("shell.onDuty", lang)}</span>{t("shell.clockOut", lang)}
                     </>
                   ) : (
                     <>
                       <ClockInIcon className="w-3.5 h-3.5" />
-                      출근
+                      {t("shell.clockIn", lang)}
                     </>
                   )}
                 </button>
