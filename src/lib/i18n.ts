@@ -74,6 +74,43 @@ const DICT: Record<Lang, Dict> = {
     "nav.profile": "내 정보",
     "settings.language": "언어 설정",
     "settings.language.desc": "원하는 언어를 선택하세요. 적용된 화면만 변경됩니다.",
+
+    // 계산서 / Bill
+    "bill.title": "계산서",
+    "bill.customer": "{name} 님",
+    "bill.table": "테이블 {n}",
+    "bill.empty": "주문 내역이 없습니다.",
+    "bill.paid": "결제 완료",
+    "bill.unpaid": "미결제",
+    "bill.supply": "공급가액",
+    "bill.vat": "부가세 (10%)",
+    "bill.subtotal": "소계",
+    "bill.unpaidBreakdown": "미결제 세부",
+    "bill.total": "총 합계",
+    "bill.totalSupply": "전체 공급가액 {amount}",
+    "bill.totalVat": "전체 부가세 {amount}",
+    "bill.print": "인쇄",
+    "bill.pay": "결제하기",
+    "bill.payAmount": "결제하기 ({amount})",
+    "bill.payDisabled": "결제 완료",
+    "bill.needTable": "테이블 이용 중일 때만 결제할 수 있어요.",
+    "bill.close": "닫기",
+
+    // 리뷰 모달 / Review
+    "review.title": "오늘 식사는 어떠셨나요?",
+    "review.desc": "리뷰는 선택입니다. 매장 개선과 다른 손님께 큰 도움이 됩니다.",
+    "review.rating": "별점 (선택)",
+    "review.ratingValue": "{n}점",
+    "review.text": "한 줄 리뷰 (선택)",
+    "review.textPlaceholder": "맛, 분위기, 서비스 등 자유롭게 남겨주세요.",
+    "review.photo": "사진 (선택)",
+    "review.photoOne": "한 장만 첨부할 수 있어요.",
+    "review.photoPicked": "사진을 선택했어요.",
+    "review.photoBusy": "이미지 처리 중…",
+    "review.payAmount": "결제 요청 금액",
+    "review.skip": "건너뛰고 결제",
+    "review.submit": "리뷰 남기고 결제",
+    "review.removePhoto": "사진 제거",
   },
   en: {
     "nav.home": "Home",
@@ -82,11 +119,56 @@ const DICT: Record<Lang, Dict> = {
     "nav.profile": "Profile",
     "settings.language": "Language",
     "settings.language.desc": "Pick your language. Only translated screens will change.",
+
+    // Bill modal
+    "bill.title": "Check",
+    "bill.customer": "{name}",
+    "bill.table": "Table {n}",
+    "bill.empty": "No orders yet.",
+    "bill.paid": "Paid",
+    "bill.unpaid": "Unpaid",
+    "bill.supply": "Subtotal (net)",
+    "bill.vat": "VAT (10%)",
+    "bill.subtotal": "Order total",
+    "bill.unpaidBreakdown": "Unpaid breakdown",
+    "bill.total": "Grand total",
+    "bill.totalSupply": "Net total {amount}",
+    "bill.totalVat": "VAT total {amount}",
+    "bill.print": "Print",
+    "bill.pay": "Pay",
+    "bill.payAmount": "Pay ({amount})",
+    "bill.payDisabled": "Paid",
+    "bill.needTable": "You can only pay while seated at a table.",
+    "bill.close": "Close",
+
+    // Review modal
+    "review.title": "How was your meal?",
+    "review.desc": "Reviews are optional but help us and other guests a lot.",
+    "review.rating": "Rating (optional)",
+    "review.ratingValue": "{n} / 5",
+    "review.text": "Quick review (optional)",
+    "review.textPlaceholder": "Tell us about taste, vibe, service — anything.",
+    "review.photo": "Photo (optional)",
+    "review.photoOne": "You can attach one photo.",
+    "review.photoPicked": "Photo selected.",
+    "review.photoBusy": "Processing image…",
+    "review.payAmount": "Amount to pay",
+    "review.skip": "Skip & pay",
+    "review.submit": "Review & pay",
+    "review.removePhoto": "Remove photo",
   },
 };
 
-export function t(key: string, lang: Lang = currentLang): string {
-  return DICT[lang]?.[key] ?? DICT.ko[key] ?? key;
+export function t(
+  key: string,
+  lang: Lang = currentLang,
+  vars?: Record<string, string | number>
+): string {
+  const raw = DICT[lang]?.[key] ?? DICT.ko[key] ?? key;
+  if (!vars) return raw;
+  return raw.replace(/\{(\w+)\}/g, (_, k) =>
+    vars[k] !== undefined ? String(vars[k]) : `{${k}}`
+  );
 }
 
 // 초기 lang 속성 — html 태그에 반영

@@ -3,6 +3,7 @@ import { X, Printer, CreditCard } from "lucide-react";
 import { Button } from "./Button";
 import { useEscapeClose } from "../../lib/useEscapeClose";
 import type { Order } from "../../lib/types";
+import { useLanguage, t } from "../../lib/i18n";
 
 interface Props {
   storeName: string;
@@ -32,6 +33,7 @@ export function BillModal({
   canPay,
 }: Props) {
   useEscapeClose(true, onClose);
+  const lang = useLanguage();
 
   // 모달 열려있을 땐 body 스크롤 잠금
   useEffect(() => {
@@ -41,6 +43,12 @@ export function BillModal({
       document.body.style.overflow = prev;
     };
   }, []);
+
+  // 통화 포매팅 — 한국어는 ₩, 영어는 KRW 표기 (가격은 그대로 KRW 단위)
+  const fmtKRW = (n: number) =>
+    lang === "en"
+      ? `₩${n.toLocaleString("en-US")}`
+      : `₩ ${n.toLocaleString("ko-KR")}`;
 
   const totalAll = unpaidTotal + paidTotal;
   // 한국 음식점 표준 — 메뉴가는 부가세 포함가. 총액에서 역산:
@@ -62,7 +70,7 @@ export function BillModal({
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-line)]">
           <div>
-            <p className="label-xs">계산서</p>
+            <p className="label-xs">{t("bill.title", lang)}</p>
             <p className="text-[18px] font-extrabold text-[var(--color-navy-900)] tracking-tight">
               {storeName}
             </p>
@@ -70,7 +78,7 @@ export function BillModal({
           <button
             onClick={onClose}
             className="w-11 h-11 rounded-full hover:bg-[var(--color-navy-50)] inline-flex items-center justify-center"
-            aria-label="닫기"
+            aria-label={t("bill.close", lang)}
           >
             <X className="w-5 h-5" />
           </button>
@@ -78,10 +86,12 @@ export function BillModal({
 
         {/* Meta */}
         <div className="px-5 py-3 bg-[var(--color-bg)] border-b border-[var(--color-line)] flex items-center gap-3 text-[13px]">
-          <span className="font-semibold text-[var(--color-ink-700)]">{customerName} 님</span>
+          <span className="font-semibold text-[var(--color-ink-700)]">
+            {t("bill.customer", lang, { name: customerName })}
+          </span>
           {tableNumber && (
             <span className="px-2.5 py-1 rounded-full bg-[var(--color-mint-100)] text-[var(--color-mint-700)] font-bold text-[12px]">
-              테이블 {tableNumber}
+              {t("bill.table", lang, { n: tableNumber })}
             </span>
           )}
         </div>
@@ -90,7 +100,7 @@ export function BillModal({
         <div className="flex-1 overflow-y-auto px-5 py-3">
           {orders.length === 0 ? (
             <p className="text-center text-[14px] text-[var(--color-ink-500)] py-8">
-              주문 내역이 없습니다.
+              {t("bill.empty", lang)}
             </p>
           ) : (
             <div className="space-y-4">
@@ -98,18 +108,18 @@ export function BillModal({
                 <div key={o.id} className="border-b border-[var(--color-line-soft)] pb-3 last:border-0">
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-[12px] text-[var(--color-ink-600)] font-semibold tabular-nums">
-                      {new Date(o.createdAt).toLocaleTimeString("ko-KR", {
+                      {new Date(o.createdAt).toLocaleTimeString(lang === "en" ? "en-US" : "ko-KR", {
                         hour: "2-digit",
                         minute: "2-digit",
                       })}
                     </span>
                     {o.paymentStatus === "paid" ? (
                       <span className="text-[11px] font-bold text-[var(--color-mint-700)] bg-[var(--color-mint-100)] px-1.5 py-0.5 rounded">
-                        결제 완료
+                        {t("bill.paid", lang)}
                       </span>
                     ) : (
                       <span className="text-[11px] font-bold text-[var(--color-warn)] bg-[#fff1e0] px-1.5 py-0.5 rounded">
-                        미결제
+                        {t("bill.unpaid", lang)}
                       </span>
                     )}
                   </div>
@@ -121,24 +131,24 @@ export function BillModal({
                           <span className="text-[var(--color-ink-600)] font-normal">×{it.quantity}</span>
                         </span>
                         <span className="tabular-nums text-[var(--color-navy-900)] font-bold shrink-0">
-                          ₩ {(it.price * it.quantity).toLocaleString()}
+                          {fmtKRW(it.price * it.quantity)}
                         </span>
                       </li>
                     ))}
                   </ul>
                   <div className="mt-2 pt-2 border-t border-dashed border-[var(--color-line)] space-y-0.5 text-[12px]">
                     <div className="flex justify-between text-[var(--color-ink-500)]">
-                      <span>공급가액</span>
-                      <span className="tabular-nums">₩ {supplyOf(o.totalAmount).toLocaleString()}</span>
+                      <span>{t("bill.supply", lang)}</span>
+                      <span className="tabular-nums">{fmtKRW(supplyOf(o.totalAmount))}</span>
                     </div>
                     <div className="flex justify-between text-[var(--color-ink-500)]">
-                      <span>부가세 (10%)</span>
-                      <span className="tabular-nums">₩ {vatOf(o.totalAmount).toLocaleString()}</span>
+                      <span>{t("bill.vat", lang)}</span>
+                      <span className="tabular-nums">{fmtKRW(vatOf(o.totalAmount))}</span>
                     </div>
                     <div className="flex justify-between text-[13px] font-bold pt-0.5">
-                      <span className="text-[var(--color-ink-700)]">소계</span>
+                      <span className="text-[var(--color-ink-700)]">{t("bill.subtotal", lang)}</span>
                       <span className="text-[var(--color-navy-900)] tabular-nums">
-                        ₩ {o.totalAmount.toLocaleString()}
+                        {fmtKRW(o.totalAmount)}
                       </span>
                     </div>
                   </div>
@@ -153,41 +163,41 @@ export function BillModal({
           <div className="px-5 py-4 border-t border-[var(--color-line)] bg-white">
             {paidTotal > 0 && (
               <div className="flex justify-between text-[13px] mb-1.5">
-                <span className="text-[var(--color-mint-700)] font-bold">결제 완료</span>
+                <span className="text-[var(--color-mint-700)] font-bold">{t("bill.paid", lang)}</span>
                 <span className="tabular-nums text-[var(--color-mint-700)] font-bold">
-                  ₩ {paidTotal.toLocaleString()}
+                  {fmtKRW(paidTotal)}
                 </span>
               </div>
             )}
             <div className="flex justify-between text-[14px] mb-2">
-              <span className="text-[var(--color-warn)] font-bold">미결제</span>
+              <span className="text-[var(--color-warn)] font-bold">{t("bill.unpaid", lang)}</span>
               <span className="tabular-nums text-[var(--color-warn)] font-bold">
-                ₩ {unpaidTotal.toLocaleString()}
+                {fmtKRW(unpaidTotal)}
               </span>
             </div>
             {/* 세금 breakdown — 결제 시 정확한 세금 내역 안내 */}
             <div className="mt-2 pt-2 border-t border-dashed border-[var(--color-line)] space-y-1 text-[12.5px]">
               <p className="text-[10.5px] font-bold uppercase tracking-wider text-[var(--color-ink-400)] mb-0.5">
-                미결제 세부
+                {t("bill.unpaidBreakdown", lang)}
               </p>
               <div className="flex justify-between text-[var(--color-ink-600)]">
-                <span>공급가액</span>
-                <span className="tabular-nums">₩ {unpaidSupply.toLocaleString()}</span>
+                <span>{t("bill.supply", lang)}</span>
+                <span className="tabular-nums">{fmtKRW(unpaidSupply)}</span>
               </div>
               <div className="flex justify-between text-[var(--color-ink-600)]">
-                <span>부가세 (10%)</span>
-                <span className="tabular-nums">₩ {unpaidVat.toLocaleString()}</span>
+                <span>{t("bill.vat", lang)}</span>
+                <span className="tabular-nums">{fmtKRW(unpaidVat)}</span>
               </div>
             </div>
             <div className="flex justify-between text-[20px] font-extrabold pt-2 mt-2 border-t-2 border-[var(--color-navy-900)]">
-              <span className="text-[var(--color-navy-900)]">총 합계</span>
+              <span className="text-[var(--color-navy-900)]">{t("bill.total", lang)}</span>
               <span className="text-[var(--color-navy-900)] tabular-nums">
-                ₩ {totalAll.toLocaleString()}
+                {fmtKRW(totalAll)}
               </span>
             </div>
             <div className="flex justify-between text-[11px] text-[var(--color-ink-500)] mt-0.5">
-              <span>전체 공급가액 ₩ {totalSupply.toLocaleString()}</span>
-              <span>전체 부가세 ₩ {totalVat.toLocaleString()}</span>
+              <span>{t("bill.totalSupply", lang, { amount: fmtKRW(totalSupply) })}</span>
+              <span>{t("bill.totalVat", lang, { amount: fmtKRW(totalVat) })}</span>
             </div>
 
             <div className="grid grid-cols-2 gap-2 mt-4">
@@ -196,19 +206,21 @@ export function BillModal({
                 onClick={() => window.print()}
                 leftIcon={<Printer className="w-4 h-4" />}
               >
-                인쇄
+                {t("bill.print", lang)}
               </Button>
               <Button
                 disabled={!canPay || unpaidTotal === 0}
                 onClick={onPay}
                 leftIcon={<CreditCard className="w-4 h-4" />}
               >
-                {unpaidTotal > 0 ? `결제하기 (₩ ${unpaidTotal.toLocaleString()})` : "결제 완료"}
+                {unpaidTotal > 0
+                  ? t("bill.payAmount", lang, { amount: fmtKRW(unpaidTotal) })
+                  : t("bill.payDisabled", lang)}
               </Button>
             </div>
             {!canPay && unpaidTotal > 0 && (
               <p className="text-[12px] text-[var(--color-ink-600)] mt-2 text-center">
-                테이블 이용 중일 때만 결제할 수 있어요.
+                {t("bill.needTable", lang)}
               </p>
             )}
           </div>

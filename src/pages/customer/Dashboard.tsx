@@ -1109,6 +1109,9 @@ function ReviewModal({
   const [text, setText] = useState("");
   const [image, setImage] = useState<string>("");
   const [busy, setBusy] = useState(false);
+  const lang = useLanguage();
+  const fmtKRW = (n: number) =>
+    lang === "en" ? `₩${n.toLocaleString("en-US")}` : `₩ ${n.toLocaleString("ko-KR")}`;
 
   const onPickImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1145,15 +1148,15 @@ function ReviewModal({
       >
         <div className="w-12 h-1.5 rounded-full bg-[var(--color-ink-100)] mx-auto mb-5" />
         <h2 className="text-[18px] font-extrabold text-[var(--color-navy-900)] mb-1">
-          오늘 식사는 어떠셨나요?
+          {t("review.title", lang)}
         </h2>
         <p className="text-[12.5px] text-[var(--color-ink-500)] font-medium mb-5">
-          리뷰는 선택입니다. 매장 개선과 다른 손님께 큰 도움이 됩니다.
+          {t("review.desc", lang)}
         </p>
 
         {/* 별점 */}
         <div className="mb-4">
-          <p className="text-[12px] font-bold text-[var(--color-navy-800)] mb-2">별점 (선택)</p>
+          <p className="text-[12px] font-bold text-[var(--color-navy-800)] mb-2">{t("review.rating", lang)}</p>
           <div className="flex items-center gap-1">
             {[1, 2, 3, 4, 5].map((n) => (
               <button
@@ -1161,7 +1164,7 @@ function ReviewModal({
                 type="button"
                 onClick={() => setRating(rating === n ? 0 : n)}
                 className="w-11 h-11 inline-flex items-center justify-center"
-                aria-label={`${n}점`}
+                aria-label={t("review.ratingValue", lang, { n })}
               >
                 <Star
                   className={cn(
@@ -1175,7 +1178,7 @@ function ReviewModal({
             ))}
             {rating > 0 && (
               <span className="ml-2 text-[13px] font-bold text-[var(--color-navy-700)]">
-                {rating}점
+                {t("review.ratingValue", lang, { n: rating })}
               </span>
             )}
           </div>
@@ -1183,11 +1186,11 @@ function ReviewModal({
 
         {/* 글 */}
         <div className="mb-4">
-          <p className="text-[12px] font-bold text-[var(--color-navy-800)] mb-2">한 줄 리뷰 (선택)</p>
+          <p className="text-[12px] font-bold text-[var(--color-navy-800)] mb-2">{t("review.text", lang)}</p>
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value.slice(0, 300))}
-            placeholder="맛, 분위기, 서비스 등 자유롭게 남겨주세요."
+            placeholder={t("review.textPlaceholder", lang)}
             rows={3}
             className="w-full px-3 py-2.5 rounded-[12px] border-[1.5px] border-[var(--color-line)] text-[14px] focus:border-[var(--color-navy-700)] focus:outline-none resize-none"
           />
@@ -1196,7 +1199,7 @@ function ReviewModal({
 
         {/* 사진 */}
         <div className="mb-5">
-          <p className="text-[12px] font-bold text-[var(--color-navy-800)] mb-2">사진 (선택)</p>
+          <p className="text-[12px] font-bold text-[var(--color-navy-800)] mb-2">{t("review.photo", lang)}</p>
           <div className="flex items-center gap-3">
             {image ? (
               <div className="relative">
@@ -1205,7 +1208,7 @@ function ReviewModal({
                   type="button"
                   onClick={() => setImage("")}
                   className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-white border border-[var(--color-ink-200)] inline-flex items-center justify-center shadow-sm"
-                  aria-label="사진 제거"
+                  aria-label={t("review.removePhoto", lang)}
                 >
                   <XIcon className="w-3.5 h-3.5 text-[var(--color-ink-700)]" />
                 </button>
@@ -1223,7 +1226,11 @@ function ReviewModal({
               </label>
             )}
             <p className="text-[12px] text-[var(--color-ink-500)] font-medium flex-1">
-              {busy ? "이미지 처리 중…" : image ? "사진을 선택했어요." : "한 장만 첨부할 수 있어요."}
+              {busy
+                ? t("review.photoBusy", lang)
+                : image
+                ? t("review.photoPicked", lang)
+                : t("review.photoOne", lang)}
             </p>
           </div>
         </div>
@@ -1235,17 +1242,17 @@ function ReviewModal({
           return (
             <div className="rounded-[12px] bg-[var(--color-bg)] px-3 py-3 mb-4 space-y-1">
               <div className="flex items-center justify-between text-[11.5px] text-[var(--color-ink-500)]">
-                <span>공급가액</span>
-                <span className="tabular-nums">₩ {supply.toLocaleString()}</span>
+                <span>{t("bill.supply", lang)}</span>
+                <span className="tabular-nums">{fmtKRW(supply)}</span>
               </div>
               <div className="flex items-center justify-between text-[11.5px] text-[var(--color-ink-500)]">
-                <span>부가세 (10%)</span>
-                <span className="tabular-nums">₩ {vat.toLocaleString()}</span>
+                <span>{t("bill.vat", lang)}</span>
+                <span className="tabular-nums">{fmtKRW(vat)}</span>
               </div>
               <div className="flex items-center justify-between pt-1.5 border-t border-dashed border-[var(--color-line)]">
-                <span className="text-[12.5px] font-bold text-[var(--color-ink-700)]">결제 요청 금액</span>
+                <span className="text-[12.5px] font-bold text-[var(--color-ink-700)]">{t("review.payAmount", lang)}</span>
                 <span className="text-[16px] font-extrabold text-[var(--color-navy-900)] tabular-nums">
-                  ₩ {unpaidTotal.toLocaleString()}
+                  {fmtKRW(unpaidTotal)}
                 </span>
               </div>
             </div>
@@ -1254,10 +1261,10 @@ function ReviewModal({
 
         <div className="grid grid-cols-2 gap-2">
           <Button variant="ghost" size="md" onClick={() => onSubmit(undefined)}>
-            건너뛰고 결제
+            {t("review.skip", lang)}
           </Button>
           <Button size="md" onClick={submit} disabled={busy}>
-            리뷰 남기고 결제
+            {t("review.submit", lang)}
           </Button>
         </div>
       </div>
