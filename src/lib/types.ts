@@ -50,6 +50,12 @@ export interface User {
   posApiKey?: string;
   /** 영수증 인쇄 브릿지 사용 의도 (사장님 토글). PC 트레이 앱이 페어링되면 자동으로 큐 발행 */
   printBridgeEnabled?: boolean;
+  /** 매장 영업 시간 — 요일별 (다음 turn 에 풀 구현 예정). 미설정 시 항상 영업 중으로 간주 */
+  businessHours?: BusinessHours;
+  /** 임시 마감(긴급 휴무) — 사장님 헤더 토글로 즉시 ON/OFF */
+  temporarilyClosed?: boolean;
+  /** 임시 마감 사유 (선택) */
+  temporaryClosedReason?: string;
   /** FCM 디바이스 토큰 목록 — 사장님 폰/PC 여러 대 가능. 다중 발송용 */
   fcmTokens?: Array<{ token: string; platform?: string; registeredAt: string }>;
   /** 푸시 알림 종류별 ON/OFF — 사장님이 BrandSettings 에서 조정 */
@@ -128,6 +134,25 @@ export interface Coupon {
  *
  * 'dirty' 는 호환을 위한 alias → cleaning 으로 매핑.
  */
+/**
+ * 매장 영업 시간 — 요일별 + 휴게시간 + 휴무일.
+ * day 인덱스: 0=일, 1=월, ..., 6=토.
+ */
+export interface BusinessHours {
+  /** 요일별 영업 시간. 각 요일은 ranges 0개 = 휴무, 1개 이상 = 영업 (휴게시간 분리 시 ranges 가 2개) */
+  weekly?: Array<{
+    open?: string;  // "HH:MM" (예: "09:00")
+    close?: string; // "HH:MM" (예: "22:00")
+    closed?: boolean; // true 면 그 요일 휴무
+    breakStart?: string;
+    breakEnd?: string;
+  }>;
+  /** 특정 날짜 휴무 (YYYY-MM-DD 목록) — 명절·임시휴무 등 */
+  closedDates?: string[];
+  /** 24시 영업 여부 (true 면 weekly 무시) */
+  open24h?: boolean;
+}
+
 export type TableStatus =
   | "available"
   | "reserved"
