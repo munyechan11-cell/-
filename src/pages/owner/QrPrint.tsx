@@ -7,26 +7,28 @@ import { Button } from "../../components/ui/Button";
 import { useStore } from "../../store/store";
 import { showToast } from "../../lib/toast";
 import { cn } from "../../lib/cn";
+import { useLanguage, t } from "../../lib/i18n";
 
 type Template = "minimal" | "deluxe" | "wide";
 type PageSize = "a4" | "label" | "card";
 
-const TEMPLATE_META: Record<Template, { label: string; sub: string; icon: any }> = {
-  minimal: { label: "미니멀", sub: "기본·낮은 잉크",           icon: LayoutGrid },
-  deluxe:  { label: "디럭스",  sub: "사용 방법 포함 (추천)",   icon: Sparkles },
-  wide:    { label: "와이드",  sub: "테이블 번호 크게",         icon: Maximize2 },
+const TEMPLATE_META: Record<Template, { labelKey: string; subKey: string; icon: any }> = {
+  minimal: { labelKey: "oqr.tpl.minimal", subKey: "oqr.tpl.minimalSub", icon: LayoutGrid },
+  deluxe:  { labelKey: "oqr.tpl.deluxe",  subKey: "oqr.tpl.deluxeSub",  icon: Sparkles },
+  wide:    { labelKey: "oqr.tpl.wide",    subKey: "oqr.tpl.wideSub",    icon: Maximize2 },
 };
 
-const PAGE_META: Record<PageSize, { label: string; defaultCols: number; defaultSize: number }> = {
-  a4:    { label: "A4 (일반 종이)",      defaultCols: 3, defaultSize: 140 },
-  label: { label: "스티커 라벨 (24칸)",  defaultCols: 4, defaultSize: 90  },
-  card:  { label: "명함 종이 (10칸)",    defaultCols: 2, defaultSize: 120 },
+const PAGE_META: Record<PageSize, { labelKey: string; defaultCols: number; defaultSize: number }> = {
+  a4:    { labelKey: "oqr.paper.a4",    defaultCols: 3, defaultSize: 140 },
+  label: { labelKey: "oqr.paper.label", defaultCols: 4, defaultSize: 90  },
+  card:  { labelKey: "oqr.paper.card",  defaultCols: 2, defaultSize: 120 },
 };
 
 export default function QrPrint() {
   const { currentUser, effectiveStoreId, tables, users } = useStore();
   const storeId = effectiveStoreId;
   const owner = users.find((u) => u.id === storeId);
+  const lang = useLanguage();
   const storeName = owner?.restaurantName ?? currentUser?.restaurantName ?? "결";
   const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
 
@@ -55,9 +57,9 @@ export default function QrPrint() {
       await navigator.clipboard.writeText(url);
       setCopiedId(id);
       setTimeout(() => setCopiedId((c) => (c === id ? null : c)), 1500);
-      showToast("URL을 복사했어요.", "success");
+      showToast(t("oqr.copiedToast", lang), "success");
     } catch {
-      showToast("복사 실패 — URL을 길게 눌러 직접 복사해 주세요.", "error");
+      showToast(t("oqr.copyFailToast", lang), "error");
     }
   };
 
@@ -69,7 +71,7 @@ export default function QrPrint() {
 
   return (
     <OwnerShell
-      title="QR 인쇄"
+      title={t("oqr.title", lang)}
       width="full"
       headerRight={
         <button
@@ -77,7 +79,7 @@ export default function QrPrint() {
           className="h-10 px-4 rounded-full bg-[var(--color-navy-700)] text-white inline-flex items-center gap-1.5 text-[13px] font-bold shadow-[var(--shadow-navy)] no-print"
         >
           <Printer className="w-4 h-4" />
-          인쇄
+          {t("oqr.btn.print", lang)}
         </button>
       }
     >
@@ -86,31 +88,31 @@ export default function QrPrint() {
         <Card padding="md">
           <div className="flex items-center gap-2 mb-2">
             <LinkIcon className="w-4 h-4 text-[var(--color-navy-700)]" />
-            <h3 className="text-[13px] font-extrabold text-[var(--color-navy-900)]">QR이 가리키는 주소</h3>
+            <h3 className="text-[13px] font-extrabold text-[var(--color-navy-900)]">{t("oqr.diagTitle", lang)}</h3>
           </div>
           <p className="text-[12px] font-bold text-[var(--color-navy-800)] break-all bg-[var(--color-navy-50)] rounded-lg px-2.5 py-1.5">
-            {origin || "(주소 미설정)"}
+            {origin || t("oqr.urlMissing", lang)}
           </p>
           {isLocal && (
             <div className="mt-2 flex items-start gap-1.5 text-[11.5px] font-bold text-[var(--color-warn)]">
               <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-              <span>로컬 환경이에요. 인쇄 전 운영 도메인에서 열어주세요.</span>
+              <span>{t("oqr.localWarn", lang)}</span>
             </div>
           )}
         </Card>
 
         {/* 템플릿 선택 */}
         <Card padding="md">
-          <p className="text-[11.5px] font-extrabold text-[var(--color-ink-500)] uppercase tracking-wide mb-2">템플릿</p>
+          <p className="text-[11.5px] font-extrabold text-[var(--color-ink-500)] uppercase tracking-wide mb-2">{t("oqr.template", lang)}</p>
           <div className="grid grid-cols-3 gap-2">
-            {(["minimal", "deluxe", "wide"] as Template[]).map((t) => {
-              const meta = TEMPLATE_META[t];
+            {(["minimal", "deluxe", "wide"] as Template[]).map((tpl) => {
+              const meta = TEMPLATE_META[tpl];
               const Icon = meta.icon;
-              const active = template === t;
+              const active = template === tpl;
               return (
                 <button
-                  key={t}
-                  onClick={() => setTemplate(t)}
+                  key={tpl}
+                  onClick={() => setTemplate(tpl)}
                   className={cn(
                     "rounded-[12px] p-2.5 border-[1.5px] transition-all text-left flex flex-col items-start gap-1",
                     active
@@ -119,8 +121,8 @@ export default function QrPrint() {
                   )}
                 >
                   <Icon className={cn("w-4 h-4", active ? "text-[var(--color-navy-700)]" : "text-[var(--color-ink-500)]")} />
-                  <p className="text-[12.5px] font-extrabold text-[var(--color-navy-900)]">{meta.label}</p>
-                  <p className="text-[10px] text-[var(--color-ink-500)] font-semibold leading-tight">{meta.sub}</p>
+                  <p className="text-[12.5px] font-extrabold text-[var(--color-navy-900)]">{t(meta.labelKey, lang)}</p>
+                  <p className="text-[10px] text-[var(--color-ink-500)] font-semibold leading-tight">{t(meta.subKey, lang)}</p>
                 </button>
               );
             })}
@@ -129,7 +131,7 @@ export default function QrPrint() {
 
         {/* 종이 크기 */}
         <Card padding="md">
-          <p className="text-[11.5px] font-extrabold text-[var(--color-ink-500)] uppercase tracking-wide mb-2">종이</p>
+          <p className="text-[11.5px] font-extrabold text-[var(--color-ink-500)] uppercase tracking-wide mb-2">{t("oqr.paper", lang)}</p>
           <div className="grid grid-cols-3 gap-2 mb-3">
             {(["a4", "label", "card"] as PageSize[]).map((p) => {
               const active = pageSize === p;
@@ -144,7 +146,7 @@ export default function QrPrint() {
                       : "border-[var(--color-line)] bg-white text-[var(--color-ink-600)]"
                   )}
                 >
-                  {PAGE_META[p].label}
+                  {t(PAGE_META[p].labelKey, lang)}
                 </button>
               );
             })}
@@ -153,13 +155,13 @@ export default function QrPrint() {
           <div className="space-y-2">
             <div>
               <label className="text-[11.5px] font-semibold text-[var(--color-ink-600)]">
-                열 수: <span className="text-[var(--color-navy-800)] font-bold">{cols}</span>
+                {t("oqr.cols", lang)} <span className="text-[var(--color-navy-800)] font-bold">{cols}</span>
               </label>
               <input type="range" min={1} max={6} value={cols} onChange={(e) => setCols(Number(e.target.value))} className="w-full mt-1" />
             </div>
             <div>
               <label className="text-[11.5px] font-semibold text-[var(--color-ink-600)]">
-                QR 크기: <span className="text-[var(--color-navy-800)] font-bold">{size}px</span>
+                {t("oqr.qrSize", lang)} <span className="text-[var(--color-navy-800)] font-bold">{size}px</span>
               </label>
               <input type="range" min={60} max={220} step={10} value={size} onChange={(e) => setSize(Number(e.target.value))} className="w-full mt-1" />
             </div>
@@ -167,24 +169,24 @@ export default function QrPrint() {
 
           <div className="grid grid-cols-2 gap-2 mt-3">
             <div className="rounded-[10px] bg-[var(--color-navy-50)] px-2.5 py-2">
-              <p className="text-[10px] font-bold text-[var(--color-ink-500)] uppercase">테이블</p>
-              <p className="text-[16px] font-extrabold text-[var(--color-navy-900)] leading-tight">{myTables.length}개</p>
+              <p className="text-[10px] font-bold text-[var(--color-ink-500)] uppercase">{t("oqr.tableCount", lang)}</p>
+              <p className="text-[16px] font-extrabold text-[var(--color-navy-900)] leading-tight">{t("oqr.tableCountVal", lang, { n: myTables.length })}</p>
             </div>
             <div className="rounded-[10px] bg-[var(--color-mint-50)] px-2.5 py-2">
-              <p className="text-[10px] font-bold text-[var(--color-mint-700)] uppercase">예상 페이지</p>
+              <p className="text-[10px] font-bold text-[var(--color-mint-700)] uppercase">{t("oqr.estPages", lang)}</p>
               <p className="text-[16px] font-extrabold text-[var(--color-navy-900)] leading-tight">
-                약 {Math.max(1, Math.ceil(myTables.length / (cols * Math.max(1, Math.floor(8 / Math.max(1, cols))))))}장
+                {t("oqr.estPagesVal", lang, { n: Math.max(1, Math.ceil(myTables.length / (cols * Math.max(1, Math.floor(8 / Math.max(1, cols)))))) })}
               </p>
             </div>
           </div>
           <Button block className="mt-3" onClick={() => window.print()} leftIcon={<Printer className="w-4 h-4" />}>
-            인쇄하기
+            {t("oqr.btn.printNow", lang)}
           </Button>
         </Card>
 
         {myTables.length === 0 && (
           <Card padding="lg" className="text-center text-[14px] text-[var(--color-ink-500)]">
-            인쇄할 테이블이 없습니다.
+            {t("oqr.noTables", lang)}
           </Card>
         )}
       </div>
@@ -194,18 +196,18 @@ export default function QrPrint() {
         className="mt-5 grid gap-3 print:gap-2"
         style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
       >
-        {myTables.map((t) => {
-          const url = `${origin}/customer/store/${storeId}/table/${t.number}`;
+        {myTables.map((tbl) => {
+          const url = `${origin}/customer/store/${storeId}/table/${tbl.number}`;
           return (
             <QrCard
-              key={t.id}
+              key={tbl.id}
               template={template}
               storeName={storeName}
-              tableNumber={t.number}
+              tableNumber={tbl.number}
               url={url}
               size={size}
-              copyState={copiedId === t.id}
-              onCopy={() => copyUrl(url, t.id)}
+              copyState={copiedId === tbl.id}
+              onCopy={() => copyUrl(url, tbl.id)}
             />
           );
         })}
@@ -236,15 +238,16 @@ function QrCard({
   copyState: boolean;
   onCopy: () => void;
 }) {
+  const lang = useLanguage();
   const baseCls = "qr-card bg-white border border-[var(--color-line)] rounded-[14px] flex flex-col items-center text-center print:border-black print:border print:rounded-none";
 
   if (template === "minimal") {
     return (
       <div className={cn(baseCls, "p-3")}>
         <p className="text-[10.5px] font-bold text-[var(--color-ink-600)] uppercase tracking-wider break-keep">{storeName}</p>
-        <p className="text-[18px] font-extrabold text-[var(--color-navy-900)] mb-1.5 leading-tight">테이블 {tableNumber}</p>
+        <p className="text-[18px] font-extrabold text-[var(--color-navy-900)] mb-1.5 leading-tight">{t("oqr.card.tableN", lang, { n: tableNumber })}</p>
         <QRCodeSVG value={url} size={size} level="M" includeMargin={true} />
-        <p className="text-[10.5px] text-[var(--color-ink-600)] mt-1.5 font-semibold">QR을 찍어 입장</p>
+        <p className="text-[10.5px] text-[var(--color-ink-600)] mt-1.5 font-semibold">{t("oqr.card.scanTip", lang)}</p>
         <CopyButton onCopy={onCopy} copied={copyState} />
       </div>
     );
@@ -254,14 +257,14 @@ function QrCard({
     return (
       <div className={cn(baseCls, "p-3.5")}>
         <p className="text-[20px] sm:text-[24px] font-extrabold text-[var(--color-navy-900)] tracking-tighter leading-none">
-          테이블 {tableNumber}
+          {t("oqr.card.tableN", lang, { n: tableNumber })}
         </p>
         <p className="text-[10.5px] font-bold text-[var(--color-ink-600)] uppercase tracking-wider break-keep mt-1">{storeName}</p>
         <div className="my-2">
           <QRCodeSVG value={url} size={size} level="M" includeMargin={true} />
         </div>
         <div className="text-[10px] font-semibold text-[var(--color-ink-600)] leading-snug">
-          📱 QR을 찍어 메뉴 주문 · 단골 적립
+          {t("oqr.card.scanFull", lang)}
         </div>
         <CopyButton onCopy={onCopy} copied={copyState} />
       </div>
@@ -290,21 +293,21 @@ function QrCard({
       {/* 사용 방법 3단계 */}
       <div className="text-left w-full mt-1 space-y-0.5">
         {[
-          { n: 1, t: "QR 카메라로 찍기" },
-          { n: 2, t: "메뉴 선택 → 주문" },
-          { n: 3, t: "결제는 자리에서!" },
+          { n: 1, key: "oqr.deluxe.step1" },
+          { n: 2, key: "oqr.deluxe.step2" },
+          { n: 3, key: "oqr.deluxe.step3" },
         ].map((s) => (
           <div key={s.n} className="flex items-center gap-1.5">
             <span className="w-3.5 h-3.5 rounded-full bg-[var(--color-mint-500)] text-white inline-flex items-center justify-center font-extrabold text-[9px] shrink-0">
               {s.n}
             </span>
-            <p className="text-[10px] font-bold text-[var(--color-navy-900)] leading-tight">{s.t}</p>
+            <p className="text-[10px] font-bold text-[var(--color-navy-900)] leading-tight">{t(s.key, lang)}</p>
           </div>
         ))}
       </div>
 
       <p className="text-[8.5px] text-[var(--color-ink-400)] mt-2 font-semibold tracking-wide">
-        powered by 결(Gyeol)
+        {t("oqr.poweredBy", lang)}
       </p>
       <CopyButton onCopy={onCopy} copied={copyState} />
     </div>
@@ -312,6 +315,7 @@ function QrCard({
 }
 
 function CopyButton({ onCopy, copied }: { onCopy: () => void; copied: boolean }) {
+  const lang = useLanguage();
   return (
     <button
       onClick={onCopy}
@@ -319,11 +323,11 @@ function CopyButton({ onCopy, copied }: { onCopy: () => void; copied: boolean })
     >
       {copied ? (
         <>
-          <Check className="w-3 h-3" /> 복사됨
+          <Check className="w-3 h-3" /> {t("oqr.copied", lang)}
         </>
       ) : (
         <>
-          <Copy className="w-3 h-3" /> URL 복사
+          <Copy className="w-3 h-3" /> {t("oqr.copyUrl", lang)}
         </>
       )}
     </button>

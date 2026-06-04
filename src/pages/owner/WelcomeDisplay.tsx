@@ -1,31 +1,34 @@
 import { useEffect, useMemo, useState } from "react";
 import { useStore } from "../../store/store";
 import type { Reservation } from "../../lib/types";
+import { useLanguage, t, type Lang } from "../../lib/i18n";
 
 // 듀얼 모니터/큰 화면 송출용 — 별도 창(window.open)으로 열어 손님이 보는 화면.
 // 오늘의 확정 예약을 큰 글씨로 보여주고, 가장 임박한 예약을 hero로 강조한다.
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
-function fmtTimeLeft(target: Date, now: number): string {
+function fmtTimeLeft(target: Date, now: number, lang: Lang): string {
   const diff = target.getTime() - now;
-  if (diff <= 0) return "도착 시간";
+  if (diff <= 0) return t("owd.now", lang);
   const min = Math.floor(diff / 60000);
-  if (min < 60) return `${min}분 후`;
+  if (min < 60) return t("owd.minLater", lang, { n: min });
   const h = Math.floor(min / 60);
   const m = min % 60;
-  return m > 0 ? `${h}시간 ${m}분 후` : `${h}시간 후`;
+  return m > 0 ? t("owd.hourMinLater", lang, { h, m }) : t("owd.hourLater", lang, { h });
 }
 
 export default function WelcomeDisplay() {
   const { effectiveStoreId, reservations, users, currentUser } = useStore();
   const storeId = effectiveStoreId;
+  const lang = useLanguage();
+  const locale = lang === "ko" ? "ko-KR" : lang === "zh" ? "zh-CN" : lang === "vi" ? "vi-VN" : "en-US";
 
   const owner = useMemo(
     () => users.find((u) => u.id === storeId && u.role === "owner"),
     [users, storeId]
   );
-  const storeName = owner?.restaurantName ?? "환영합니다";
+  const storeName = owner?.restaurantName ?? t("owd.welcome.fallback", lang);
 
   // 시계 — 1초마다 갱신
   const [now, setNow] = useState(() => Date.now());
@@ -73,14 +76,14 @@ export default function WelcomeDisplay() {
         </div>
         <div className="text-right">
           <p className="text-[14px] opacity-50 font-bold">
-            {new Date(now).toLocaleDateString("ko-KR", {
+            {new Date(now).toLocaleDateString(locale, {
               month: "long",
               day: "numeric",
               weekday: "long",
             })}
           </p>
           <p className="text-[56px] font-extrabold tabular-nums tracking-tight leading-none mt-1">
-            {new Date(now).toLocaleTimeString("ko-KR", {
+            {new Date(now).toLocaleTimeString(locale, {
               hour: "2-digit",
               minute: "2-digit",
               hour12: false,
@@ -92,19 +95,19 @@ export default function WelcomeDisplay() {
       {!storeId || !currentUser ? (
         <div className="flex-1 flex items-center justify-center">
           <p className="text-[22px] opacity-60 text-center">
-            로그인된 매장이 없습니다.
+            {t("owd.noStore", lang)}
             <br />
-            본 창은 사장님 로그인 후 사용하세요.
+            {t("owd.noStoreDesc", lang)}
           </p>
         </div>
       ) : todayReservations.length === 0 ? (
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <p className="text-[28px] font-bold opacity-60 mb-3">
-              오늘 예약된 손님이 없습니다.
+              {t("owd.noToday", lang)}
             </p>
             <p className="text-[18px] opacity-40">
-              새로운 예약이 들어오면 자동으로 표시됩니다.
+              {t("owd.autoUpdate", lang)}
             </p>
           </div>
         </div>
@@ -115,19 +118,19 @@ export default function WelcomeDisplay() {
             <section className="bg-white text-[var(--color-navy-900)] rounded-[32px] px-12 py-10 shadow-2xl">
               <div className="flex items-baseline gap-4 mb-4">
                 <span className="text-[16px] font-extrabold uppercase tracking-[0.25em] text-[var(--color-mint-700)]">
-                  다음 예약
+                  {t("owd.hero.label", lang)}
                 </span>
                 <span className="text-[15px] font-bold text-[var(--color-ink-500)]">
-                  {fmtTimeLeft(new Date(`${hero.date}T${hero.time}`), now)}
+                  {fmtTimeLeft(new Date(`${hero.date}T${hero.time}`), now, lang)}
                 </span>
               </div>
               <div className="flex items-end justify-between gap-6 flex-wrap">
                 <div className="min-w-0">
                   <p className="text-[88px] leading-[0.95] font-extrabold tracking-tight break-keep">
-                    {hero.customerName} <span className="text-[44px] font-bold text-[var(--color-ink-500)]">고객님</span>
+                    {hero.customerName} {t("owd.hero.guestSuffix", lang) && <span className="text-[44px] font-bold text-[var(--color-ink-500)]">{t("owd.hero.guestSuffix", lang)}</span>}
                   </p>
                   <p className="text-[26px] font-bold text-[var(--color-ink-600)] mt-3">
-                    환영합니다 — 테이블 {hero.tableNumber}번으로 안내해 드립니다
+                    {t("owd.hero.guide", lang, { n: hero.tableNumber })}
                   </p>
                 </div>
                 <div className="text-right">
@@ -135,7 +138,7 @@ export default function WelcomeDisplay() {
                     {hero.time}
                   </p>
                   <p className="text-[24px] font-bold text-[var(--color-ink-500)] mt-2">
-                    {hero.partySize}명 · 테이블 {hero.tableNumber}
+                    {t("owd.hero.partyTable", lang, { n: hero.partySize, table: hero.tableNumber })}
                   </p>
                 </div>
               </div>
@@ -151,7 +154,7 @@ export default function WelcomeDisplay() {
           {rest.length > 0 && (
             <section className="min-h-0">
               <p className="text-[15px] font-bold uppercase tracking-[0.25em] opacity-50 mb-4">
-                오늘의 예약 ({todayReservations.length}건)
+                {t("owd.today.title", lang, { n: todayReservations.length })}
               </p>
               <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto">
                 {rest.map((r) => (
@@ -162,11 +165,11 @@ export default function WelcomeDisplay() {
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-[34px] font-extrabold tabular-nums">{r.time}</span>
                       <span className="text-[14px] font-bold opacity-60">
-                        테이블 {r.tableNumber}
+                        {t("owd.rest.tableLine", lang, { n: r.tableNumber })}
                       </span>
                     </div>
                     <p className="text-[22px] font-bold truncate">{r.customerName}</p>
-                    <p className="text-[14px] opacity-60 font-semibold">{r.partySize}명</p>
+                    <p className="text-[14px] opacity-60 font-semibold">{t("owd.rest.partyLine", lang, { n: r.partySize })}</p>
                   </div>
                 ))}
               </div>

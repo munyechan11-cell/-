@@ -20,6 +20,7 @@ import {
 import { OwnerShell } from "../../components/layout/OwnerShell";
 import { Card } from "../../components/ui/Card";
 import { cn } from "../../lib/cn";
+import { useLanguage, t } from "../../lib/i18n";
 
 interface GuideSection {
   id: string;
@@ -237,9 +238,10 @@ const GUIDE: GuideSection[] = [
 
 export default function OwnerHelp() {
   const [openId, setOpenId] = useState<string | null>("menu");
+  const lang = useLanguage();
 
   return (
-    <OwnerShell title="도움말">
+    <OwnerShell title={t("ohelp.title", lang)}>
       <div className="max-w-2xl mx-auto pb-12">
         {/* 인트로 */}
         <Card padding="lg" className="mb-5 bg-[var(--color-navy-50)] border-[var(--color-navy-200)]">
@@ -253,6 +255,11 @@ export default function OwnerHelp() {
                 결을 처음 쓰시는 사장님을 위한 안내문이에요. <br />
                 궁금한 항목을 펼쳐서 차근차근 따라하시면 됩니다.
               </p>
+              {lang !== "ko" && (
+                <p className="text-[11.5px] text-[var(--color-navy-600)] mt-2 font-semibold italic">
+                  {t("ohelp.langNote", lang)}
+                </p>
+              )}
             </div>
           </div>
         </Card>
