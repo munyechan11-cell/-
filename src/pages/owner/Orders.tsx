@@ -51,8 +51,27 @@ const STATUS_ICONS: Record<OrderStatus, React.ReactNode> = {
   served: <CheckCheck className="w-3 h-3" />,
   cancelled: <XCircle className="w-3 h-3" />,
 };
+/**
+ * 다음 단계 전이 + 사장님 버튼 라벨 단일 진실원.
+ *
+ * 정책(2026-06): 사장님 클릭 횟수 단축
+ *  - pending 신규접수  → '접수 완료'  → cooking (accepted 건너뛰고 한 번에 조리중)
+ *  - accepted 접수완료 → '조리 시작'  → cooking (외부에서 accepted 들어온 경우 호환)
+ *  - cooking 조리중    → '서빙 완료'  → served
+ *  - served / cancelled → 종결
+ *
+ *  → 사장님은 신규 주문에서 끝까지 2번만 클릭하면 됨 (접수완료 → 서빙완료)
+ */
+const ADVANCE_BUTTON: Record<OrderStatus, { label: string; to: OrderStatus } | null> = {
+  pending:   { label: "접수 완료", to: "cooking" },
+  accepted:  { label: "조리 시작", to: "cooking" },
+  cooking:   { label: "서빙 완료", to: "served" },
+  served:    null,
+  cancelled: null,
+};
+// 하위 호환 — 일부 코드가 NEXT_STATUS 참조하면 같은 매핑으로
 const NEXT_STATUS: Record<OrderStatus, OrderStatus | null> = {
-  pending: "accepted",
+  pending: "cooking",
   accepted: "cooking",
   cooking: "served",
   served: null,
@@ -355,13 +374,12 @@ export default function OwnerOrders() {
                   order={o}
                   customerName={users.find((u) => u.id === o.customerId)?.name}
                   onAdvance={() => {
-                    // 빠른 연타 시 같은 주문이 pending→accepted→cooking 으로 한꺼번에 전이되는 사고 차단.
-                    // 처리 중 플래그를 ref 로 두고, 800ms 내 같은 주문 재호출 무시.
+                    // 빠른 연타 차단 — 800ms 내 같은 주문 재호출 무시
                     if (advancingRef.current.has(o.id)) return;
-                    const nxt = NEXT_STATUS[o.status];
-                    if (!nxt) return;
+                    const next = ADVANCE_BUTTON[o.status];
+                    if (!next) return;
                     advancingRef.current.add(o.id);
-                    updateOrderStatus(o.id, nxt);
+                    updateOrderStatus(o.id, next.to);
                     setTimeout(() => advancingRef.current.delete(o.id), 800);
                   }}
                   onCancel={() => {
@@ -402,7 +420,7 @@ function OrderCard({
   onCancel: () => void;
   onReprint: () => void;
 }) {
-  const nxt = NEXT_STATUS[order.status];
+  const advance = ADVANCE_BUTTON[order.status];
   const isNew = order.status === "pending";
   return (
     <Card
@@ -465,9 +483,9 @@ function OrderCard({
         >
           재인쇄
         </Button>
-        {nxt ? (
+        {advance ? (
           <Button size="md" className="col-span-2" onClick={onAdvance}>
-            {STATUS_LABELS[nxt]}
+            {advance.label}
           </Button>
         ) : (
           <div className="hidden md:block col-span-2" />
