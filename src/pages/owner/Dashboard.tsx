@@ -28,18 +28,19 @@ import { STATUS_LABEL, STATUS_BADGE, STATUS_STEP, nextManualTransitions, normali
 import type { TableStatus } from "../../lib/types";
 import { useEscapeClose } from "../../lib/useEscapeClose";
 import { showToast } from "../../lib/toast";
+import { useLanguage, t, fmtKRW } from "../../lib/i18n";
 
 const QUICK_LINKS = [
-  { to: "/biz/owner/orders", icon: ChefHat, label: "주문·쿠폰", color: "mint" },
-  { to: "/biz/owner/tables", icon: LayoutGrid, label: "테이블 편집", color: "navy" },
-  { to: "/biz/owner/menus", icon: UtensilsCrossed, label: "메뉴 관리", color: "navy" },
-  { to: "/biz/owner/customers", icon: Users, label: "고객 관리", color: "mint" },
-  { to: "/biz/owner/statistics", icon: BarChart3, label: "통계", color: "sky" },
-  { to: "/biz/owner/reservations", icon: Calendar, label: "예약", color: "sky" },
-  { to: "/biz/owner/photos", icon: ImageIcon, label: "사진 보관소", color: "navy" },
-  { to: "/biz/owner/qr-print", icon: QrCode, label: "QR 인쇄", color: "mint" },
-  { to: "/biz/owner/staff", icon: Briefcase, label: "직원 관리", color: "sky" },
-  { to: "/biz/owner/brand-settings", icon: Settings, label: "브랜드 설정", color: "navy" },
+  { to: "/biz/owner/orders", icon: ChefHat, labelKey: "ownerNav.orders", color: "mint" },
+  { to: "/biz/owner/tables", icon: LayoutGrid, labelKey: "ownerNav.tables", color: "navy" },
+  { to: "/biz/owner/menus", icon: UtensilsCrossed, labelKey: "ownerNav.menus", color: "navy" },
+  { to: "/biz/owner/customers", icon: Users, labelKey: "ownerNav.customers", color: "mint" },
+  { to: "/biz/owner/statistics", icon: BarChart3, labelKey: "ownerNav.statistics", color: "sky" },
+  { to: "/biz/owner/reservations", icon: Calendar, labelKey: "ownerNav.reservations", color: "sky" },
+  { to: "/biz/owner/photos", icon: ImageIcon, labelKey: "ownerNav.reviews", color: "navy" },
+  { to: "/biz/owner/qr-print", icon: QrCode, labelKey: "ownerNav.qrPrint", color: "mint" },
+  { to: "/biz/owner/staff", icon: Briefcase, labelKey: "ownerNav.staff", color: "sky" },
+  { to: "/biz/owner/brand-settings", icon: Settings, labelKey: "ownerNav.brand", color: "navy" },
 ] as const;
 
 const COLOR_CLASSES: Record<string, string> = {
@@ -52,6 +53,7 @@ const TABLE_VIEW_KEY = "gyeol:dashboard-tables-view";
 
 export default function OwnerDashboard() {
   const { tables, orders, visits, currentUser } = useStore();
+  const lang = useLanguage();
 
   // 부모에서 한 곳에서만 view state 보유 → 토글/영역 항상 동기화
   const [tableView, setTableView] = useState<"list" | "layout">(() => {
@@ -105,7 +107,7 @@ export default function OwnerDashboard() {
   const needsBusinessHoursSetup = currentUser?.role === "owner" && !currentUser.businessHours && !currentUser.temporarilyClosed;
 
   return (
-    <OwnerShell title="대시보드">
+    <OwnerShell title={t("ownerNav.dashboard", lang)}>
       {/* 영업 시간 미설정 안내 — 신규 매장 첫 진입 시 */}
       {needsBusinessHoursSetup && (
         <Card padding="md" className="mb-4 border-[1.5px] border-[var(--color-warn)]/40 bg-[#fff8e6]">
@@ -113,16 +115,16 @@ export default function OwnerDashboard() {
             <span className="text-[20px] shrink-0">⏰</span>
             <div className="flex-1 min-w-0">
               <p className="text-[13px] font-extrabold text-[#b07b00]">
-                영업 시간을 등록해 주세요
+                {t("odash.bizHours.title", lang)}
               </p>
               <p className="text-[11.5px] text-[#8a5a00] font-semibold mt-0.5 leading-relaxed">
-                지금은 항상 영업 중으로 표시되고 있어요. 영업 시간을 등록하면 영업 외 시간 손님 주문이 자동으로 차단돼요.
+                {t("odash.bizHours.desc", lang)}
               </p>
               <Link
                 to="/biz/owner/brand-settings"
                 className="inline-flex items-center gap-1 mt-2 text-[12px] font-bold text-[var(--color-navy-700)] hover:underline"
               >
-                지금 등록하기 →
+                {t("odash.bizHours.cta", lang)}
               </Link>
             </div>
           </div>
@@ -134,23 +136,23 @@ export default function OwnerDashboard() {
         <Card className="lg:col-span-2 bg-[var(--color-navy-700)] border-transparent text-white p-6 lg:p-7 shadow-[var(--shadow-navy)] relative overflow-hidden">
           <div className="absolute -right-10 -top-10 w-44 h-44 rounded-full bg-[var(--color-mint-500)]/15" />
           <div className="flex items-center justify-between mb-2">
-            <p className="label-xs text-white/70">오늘 매출</p>
+            <p className="label-xs text-white/70">{t("odash.todayRevenue", lang)}</p>
             {revenueDelta !== null && (
               <DeltaPill value={revenueDelta} suffix="%" />
             )}
           </div>
           <p className="text-[38px] lg:text-[48px] font-extrabold tracking-tighter tabular-nums leading-none">
-            ₩ {todaysRevenue.toLocaleString()}
+            {fmtKRW(todaysRevenue, lang)}
           </p>
           {yesterdaysRevenue > 0 && (
             <p className="mt-1.5 text-[12px] opacity-70">
-              어제 같은 시간 ₩ {yesterdaysRevenue.toLocaleString()}
+              {t("odash.vsYesterday", lang, { amount: fmtKRW(yesterdaysRevenue, lang) })}
             </p>
           )}
           <div className="mt-5 pt-5 border-t border-white/15 grid grid-cols-3 gap-3 text-[13px]">
             <Inline
-              label="방문 손님"
-              value={`${todaysVisits.length}명`}
+              label={t("odash.stat.visitors", lang)}
+              value={`${todaysVisits.length}${t("odash.unit.people", lang)}`}
               delta={
                 yesterdaysVisits.length > 0
                   ? visitsDelta > 0
@@ -161,36 +163,36 @@ export default function OwnerDashboard() {
                   : undefined
               }
             />
-            <Inline label="진행 주문" value={`${activeOrders}건`} />
-            <Inline label="점유 테이블" value={`${occupied}/${tables.length}`} />
+            <Inline label={t("odash.stat.activeOrders", lang)} value={`${activeOrders}${t("odash.unit.orders", lang)}`} />
+            <Inline label={t("odash.stat.occupied", lang)} value={`${occupied}/${tables.length}`} />
           </div>
         </Card>
 
         <Card padding="lg" className="flex flex-col">
           <div className="flex items-center gap-2 text-[var(--color-mint-700)]">
             <TrendingUp className="w-4 h-4" />
-            <p className="label-xs text-[var(--color-mint-700)]">실시간 진행</p>
+            <p className="label-xs text-[var(--color-mint-700)]">{t("odash.realtime", lang)}</p>
           </div>
           <p className="mt-2 text-[34px] font-extrabold text-[var(--color-navy-900)] tracking-tighter">
             {activeOrders}
           </p>
-          <p className="body-sm text-[var(--color-ink-500)]">처리할 주문</p>
+          <p className="body-sm text-[var(--color-ink-500)]">{t("odash.pending.desc", lang)}</p>
           <Link to="/biz/owner/orders" className="mt-auto text-[13px] font-bold text-[var(--color-navy-700)] inline-flex items-center gap-1 pt-3">
-            관리하기 <ChevronRight className="w-4 h-4" />
+            {t("odash.pending.cta", lang)} <ChevronRight className="w-4 h-4" />
           </Link>
         </Card>
 
         <Card padding="lg" className="flex flex-col">
           <div className="flex items-center gap-2 text-[var(--color-warn)]">
             <Receipt className="w-4 h-4" />
-            <p className="label-xs text-[var(--color-warn)]">알림</p>
+            <p className="label-xs text-[var(--color-warn)]">{t("odash.alert", lang)}</p>
           </div>
           <p className="mt-2 text-[34px] font-extrabold text-[var(--color-navy-900)] tracking-tighter">
             {dirty}
           </p>
-          <p className="body-sm text-[var(--color-ink-500)]">정리 필요 테이블</p>
+          <p className="body-sm text-[var(--color-ink-500)]">{t("odash.dirty.desc", lang)}</p>
           <Link to="/biz/owner/tables" className="mt-auto text-[13px] font-bold text-[var(--color-navy-700)] inline-flex items-center gap-1 pt-3">
-            테이블로 <ChevronRight className="w-4 h-4" />
+            {t("odash.dirty.cta", lang)} <ChevronRight className="w-4 h-4" />
           </Link>
         </Card>
       </div>
@@ -199,23 +201,23 @@ export default function OwnerDashboard() {
       <div className="mt-6 lg:mt-8 grid grid-cols-1 lg:grid-cols-3 gap-5 lg:gap-6">
         <div className="lg:col-span-2">
           <div className="flex items-center justify-between mb-3 px-1 gap-2">
-            <h2 className="headline-sub">테이블 현황 ({tables.length})</h2>
+            <h2 className="headline-sub">{t("odash.tables.title", lang, { n: tables.length })}</h2>
             <div className="flex items-center gap-1.5">
               {/* 리스트 / 배치도 토글 — 부모 state로 동기화 */}
               <DashboardTableViewToggle view={tableView} onChange={changeTableView} />
               <Link to="/biz/owner/tables" className="text-[13px] font-bold text-[var(--color-navy-700)] hidden sm:inline">
-                편집 →
+                {t("odash.tables.edit", lang)}
               </Link>
             </div>
           </div>
           {tables.length === 0 ? (
             <EmptyState
               icon={<LayoutGrid className="w-6 h-6" />}
-              title="아직 테이블이 없어요"
-              description="테이블 편집에서 매장에 맞는 테이블을 추가해 주세요."
+              title={t("odash.tables.empty.title", lang)}
+              description={t("odash.tables.empty.desc", lang)}
               action={
                 <Link to="/biz/owner/tables" className="h-10 px-5 rounded-full bg-[var(--color-navy-700)] text-white text-[13px] font-bold inline-flex items-center">
-                  테이블 추가하기
+                  {t("odash.tables.empty.cta", lang)}
                 </Link>
               }
               tone="navy"
@@ -226,16 +228,16 @@ export default function OwnerDashboard() {
         </div>
 
         <div>
-          <h2 className="headline-sub mb-3 px-1">빠른 메뉴</h2>
+          <h2 className="headline-sub mb-3 px-1">{t("odash.quickMenu", lang)}</h2>
           <div className="grid grid-cols-2 lg:grid-cols-2 gap-3">
-            {QUICK_LINKS.map(({ to, icon: Icon, label, color }) => (
+            {QUICK_LINKS.map(({ to, icon: Icon, labelKey, color }) => (
               <Link key={to} to={to}>
                 <Card padding="md" interactive className="h-[124px] flex flex-col justify-between">
                   <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${COLOR_CLASSES[color]}`}>
                     <Icon className="w-5 h-5" />
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-[15px] font-extrabold text-[var(--color-navy-900)] tracking-tight">{label}</span>
+                    <span className="text-[15px] font-extrabold text-[var(--color-navy-900)] tracking-tight">{t(labelKey, lang)}</span>
                     <ChevronRight className="w-4 h-4 text-[var(--color-ink-300)]" />
                   </div>
                 </Card>
@@ -310,6 +312,7 @@ type TableLite = {
 function DashboardTableViewToggle({
   view, onChange,
 }: { view: "list" | "layout"; onChange: (v: "list" | "layout") => void }) {
+  const lang = useLanguage();
   return (
     <div className="inline-flex p-0.5 bg-[var(--color-navy-50)] rounded-full">
       <button
@@ -319,7 +322,7 @@ function DashboardTableViewToggle({
           view === "list" ? "bg-white text-[var(--color-navy-800)] shadow-[var(--shadow-press)]" : "text-[var(--color-ink-500)]"
         )}
       >
-        <List className="w-3 h-3" /> 리스트
+        <List className="w-3 h-3" /> {t("odash.view.list", lang)}
       </button>
       <button
         onClick={() => onChange("layout")}
@@ -328,13 +331,14 @@ function DashboardTableViewToggle({
           view === "layout" ? "bg-white text-[var(--color-navy-800)] shadow-[var(--shadow-press)]" : "text-[var(--color-ink-500)]"
         )}
       >
-        <Move className="w-3 h-3" /> 배치도
+        <Move className="w-3 h-3" /> {t("odash.view.layout", lang)}
       </button>
     </div>
   );
 }
 
 function DashboardTableArea({ tables, view }: { tables: TableLite[]; view: "list" | "layout" }) {
+  const lang = useLanguage();
   const [detailTable, setDetailTable] = useState<TableLite | null>(null);
   if (view === "layout") return <DashboardLayoutMini tables={tables} />;
   return (
@@ -351,35 +355,41 @@ function DashboardTableArea({ tables, view }: { tables: TableLite[]; view: "list
               (order[a.status ?? "available"] ?? 6) - (order[b.status ?? "available"] ?? 6) || a.number - b.number
             );
           })
-          .map((t) => (
+          .map((tbl) => (
             <Card
-              key={t.id}
+              key={tbl.id}
               padding="md"
               className={cn(
                 "flex items-center gap-3",
-                t.type !== "door" && "cursor-pointer hover:bg-[var(--color-navy-50)]/40 active:scale-[0.99] transition-all"
+                tbl.type !== "door" && "cursor-pointer hover:bg-[var(--color-navy-50)]/40 active:scale-[0.99] transition-all"
               )}
               onClick={() => {
-                if (t.type === "door") return;
-                setDetailTable(t);
+                if (tbl.type === "door") return;
+                setDetailTable(tbl);
               }}
             >
               <div className="w-11 h-11 rounded-xl bg-[var(--color-navy-50)] text-[var(--color-navy-800)] font-extrabold inline-flex items-center justify-center">
-                {t.number}
+                {tbl.number}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-[14px] font-bold text-[var(--color-navy-900)]">
-                  {t.type === "room" ? "룸" : t.type === "door" ? "출입구" : "테이블"} {t.number}
+                  {tbl.type === "room"
+                    ? t("odash.tableType.room", lang)
+                    : tbl.type === "door"
+                    ? t("odash.tableType.door", lang)
+                    : t("odash.tableType.table", lang)} {tbl.number}
                 </p>
-                {t.type !== "door" && (
+                {tbl.type !== "door" && (
                   <p className="body-sm truncate">
-                    {(t.status === "occupied" || t.status === "dining") && t.currentCustomerName
-                      ? `${t.currentCustomerName}님${t.partySize ? ` · ${t.partySize}명` : ""}`
-                      : `${t.seats}인`}
+                    {(tbl.status === "occupied" || tbl.status === "dining") && tbl.currentCustomerName
+                      ? (tbl.partySize
+                          ? t("odash.partySize", lang, { name: tbl.currentCustomerName, n: tbl.partySize })
+                          : t("odash.partyOnly", lang, { name: tbl.currentCustomerName }))
+                      : t("odash.seats", lang, { n: tbl.seats ?? 0 })}
                   </p>
                 )}
               </div>
-              <StatusBadge status={t.status ?? "available"} />
+              <StatusBadge status={tbl.status ?? "available"} />
             </Card>
           ))}
       </div>
@@ -752,8 +762,9 @@ function DetailStat({ label, value }: { label: string; value: string }) {
 
 // 미니 배치도 — 읽기 전용. 상태 색상 표시. 클릭 → 편집 페이지
 function DashboardLayoutMini({ tables }: { tables: TableLite[] }) {
-  const maxX = tables.reduce((m, t) => Math.max(m, (t.x ?? 0) + (t.width ?? 70)), 0);
-  const maxY = tables.reduce((m, t) => Math.max(m, (t.y ?? 0) + (t.height ?? 70)), 0);
+  const lang = useLanguage();
+  const maxX = tables.reduce((m, tbl) => Math.max(m, (tbl.x ?? 0) + (tbl.width ?? 70)), 0);
+  const maxY = tables.reduce((m, tbl) => Math.max(m, (tbl.y ?? 0) + (tbl.height ?? 70)), 0);
   const W = Math.max(600, maxX + 60);
   const H = Math.max(400, maxY + 60);
 
@@ -761,11 +772,11 @@ function DashboardLayoutMini({ tables }: { tables: TableLite[] }) {
     <Card padding="none" className="overflow-hidden">
       <div className="px-3 py-2 bg-[var(--color-navy-50)] border-b border-[var(--color-line)] flex items-center gap-2 text-[11.5px] font-semibold text-[var(--color-ink-700)]">
         <Move className="w-3.5 h-3.5" />
-        실시간 배치도 (탭하면 편집)
+        {t("odash.realtimeLayout", lang)}
         <div className="ml-auto flex items-center gap-2 text-[10.5px]">
-          <Dot color="bg-[var(--color-mint-500)]" /> 사용 중
-          <Dot color="bg-[var(--color-warn)]" /> 정리
-          <Dot color="bg-[var(--color-navy-300)]" /> 결제완료
+          <Dot color="bg-[var(--color-mint-500)]" /> {t("odash.dot.using", lang)}
+          <Dot color="bg-[var(--color-warn)]" /> {t("odash.dot.cleaning", lang)}
+          <Dot color="bg-[var(--color-navy-300)]" /> {t("odash.dot.paid", lang)}
         </div>
       </div>
       <Link to="/biz/owner/tables" className="block">
@@ -774,32 +785,36 @@ function DashboardLayoutMini({ tables }: { tables: TableLite[] }) {
             className="relative bg-[repeating-linear-gradient(0deg,transparent,transparent_39px,#eef2f8_39px,#eef2f8_40px),repeating-linear-gradient(90deg,transparent,transparent_39px,#eef2f8_39px,#eef2f8_40px)]"
             style={{ width: W, height: H }}
           >
-            {tables.map((t) => {
-              const w = t.width ?? (t.type === "room" ? 150 : 70);
-              const h = t.height ?? (t.type === "room" ? 80 : 70);
+            {tables.map((tbl) => {
+              const w = tbl.width ?? (tbl.type === "room" ? 150 : 70);
+              const h = tbl.height ?? (tbl.type === "room" ? 80 : 70);
               const color =
-                t.type === "door"
+                tbl.type === "door"
                   ? "bg-[#fff1e0] text-[var(--color-warn)] border-[var(--color-warn)]/40"
-                  : t.status === "occupied"
+                  : tbl.status === "occupied"
                   ? "bg-[var(--color-mint-100)] text-[var(--color-mint-700)] border-[var(--color-mint-400)]"
-                  : t.status === "dirty"
+                  : tbl.status === "dirty"
                   ? "bg-[#fff1e0] text-[var(--color-warn)] border-[var(--color-warn)]/40"
-                  : t.status === "paid"
+                  : tbl.status === "paid"
                   ? "bg-[var(--color-navy-100)] text-[var(--color-navy-700)] border-[var(--color-navy-300)]"
                   : "bg-white text-[var(--color-navy-800)] border-[var(--color-line)]";
-              const shape = t.shape === "circle" ? "rounded-full" : "rounded-[12px]";
+              const shape = tbl.shape === "circle" ? "rounded-full" : "rounded-[12px]";
+              const typeLabel =
+                tbl.type === "room" ? t("odash.tableType.room", lang)
+                : tbl.type === "door" ? t("odash.tableType.door", lang)
+                : t("odash.tableType.table", lang);
               return (
                 <div
-                  key={t.id}
+                  key={tbl.id}
                   className={cn("absolute border-2 flex flex-col items-center justify-center", color, shape)}
-                  style={{ left: t.x ?? 40, top: t.y ?? 40, width: w, height: h }}
-                  title={`${t.type === "room" ? "룸" : t.type === "door" ? "출입구" : "테이블"} ${t.number}`}
+                  style={{ left: tbl.x ?? 40, top: tbl.y ?? 40, width: w, height: h }}
+                  title={`${typeLabel} ${tbl.number}`}
                 >
                   <p className="text-[16px] font-extrabold leading-none">
-                    {t.type === "door" ? "출입" : t.number}
+                    {tbl.type === "door" ? t("odash.doorShort", lang) : tbl.number}
                   </p>
-                  {t.type !== "door" && (
-                    <p className="text-[10px] font-semibold opacity-80 mt-0.5">{t.seats}인</p>
+                  {tbl.type !== "door" && (
+                    <p className="text-[10px] font-semibold opacity-80 mt-0.5">{t("odash.seats", lang, { n: tbl.seats ?? 0 })}</p>
                   )}
                 </div>
               );
