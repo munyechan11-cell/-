@@ -1095,6 +1095,32 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         throw new Error(msg);
       }
 
+      // 항목 입력 검증 — 음수·0 가격, 음수·0 수량 차단 (조작·실수 방어)
+      if (!Array.isArray(items) || items.length === 0) {
+        showToast("주문 항목이 없어요.", "error");
+        throw new Error("empty items");
+      }
+      for (const it of items) {
+        if (typeof it.price !== "number" || !Number.isFinite(it.price) || it.price <= 0) {
+          showToast("주문 금액이 올바르지 않아요. 메뉴를 다시 선택해 주세요.", "error");
+          throw new Error("invalid price");
+        }
+        if (typeof it.quantity !== "number" || !Number.isFinite(it.quantity) || it.quantity <= 0 || it.quantity > 99) {
+          showToast("주문 수량이 올바르지 않아요. 1~99 사이로 설정해 주세요.", "error");
+          throw new Error("invalid quantity");
+        }
+      }
+
+      // 강제 퇴장 race 방어 — 사장님이 직전에 evictTable 했으면 손님은 그 테이블에 없음
+      const tableId = `${storeId}_${tableNumber}`;
+      const tableNow = tablesRef.current.find((t) => t.id === tableId);
+      const isCustomer = currentUser?.role === "customer";
+      if (isCustomer && tableNow && tableNow.currentCustomerId && tableNow.currentCustomerId !== customerId &&
+          !(tableNow.occupantIds ?? []).includes(customerId)) {
+        showToast("자리가 정리됐어요. QR을 다시 찍어 주세요.", "error");
+        throw new Error("table not occupied by this customer");
+      }
+
       const totalAmount = items.reduce((s, it) => s + it.price * it.quantity, 0);
       const order: Order = {
         id: generateId(),

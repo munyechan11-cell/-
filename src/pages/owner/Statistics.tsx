@@ -36,6 +36,14 @@ export default function OwnerStatistics() {
         visits,
         users,
       });
+      // 빈 데이터 가드 — AI 호출 비용 절약 + 사장님께 친화 메시지
+      if ((context.orderCount ?? 0) === 0 && (context.customerCount ?? 0) === 0) {
+        setInsightCache((c) => ({
+          ...c,
+          [key]: "아직 주문·방문 기록이 없어 분석할 수 없어요. 첫 손님이 다녀가신 뒤 다시 눌러주세요.",
+        }));
+        return;
+      }
       const answer = await askInsight({
         storeId,
         question: q.question,

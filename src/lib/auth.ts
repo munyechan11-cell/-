@@ -77,19 +77,21 @@ export async function consumeGoogleRedirect(): Promise<SocialResult | null> {
 const KAKAO_JS_KEY = "c80827032123a3e018388749472f759d";
 
 async function ensureKakaoReady(): Promise<any> {
-  // SDK 로딩 대기 (네트워크 지연 대응) — 최대 3초
-  const deadline = Date.now() + 3000;
+  // SDK 로딩 대기 — 약한 와이파이/3G 대응 위해 6초까지
+  const deadline = Date.now() + 6000;
   while (!(window as any).Kakao && Date.now() < deadline) {
     await new Promise((r) => setTimeout(r, 100));
   }
   const Kakao = (window as any).Kakao;
-  if (!Kakao) throw new Error("Kakao SDK를 불러오지 못했습니다. 네트워크를 확인해 주세요.");
-  // index.html 인라인 초기화가 SDK보다 먼저 실행돼 누락된 경우 복구
+  if (!Kakao) {
+    throw new Error("카카오 로그인을 불러오지 못했어요. 네트워크가 약한 경우 전화번호로 가입을 시도해 주세요.");
+  }
+  // index.html 인라인 초기화가 SDK 보다 먼저 실행돼 누락된 경우 복구
   if (!Kakao.isInitialized()) {
     try {
       Kakao.init(KAKAO_JS_KEY);
     } catch (e: any) {
-      throw new Error(`Kakao SDK 초기화 실패: ${e?.message ?? "알 수 없는 오류"}`);
+      throw new Error(`카카오 로그인 초기화 실패: ${e?.message ?? "알 수 없는 오류"}. 전화번호 가입을 시도해 주세요.`);
     }
   }
   return Kakao;

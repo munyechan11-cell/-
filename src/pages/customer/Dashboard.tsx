@@ -231,7 +231,11 @@ export default function CustomerDashboard() {
         })),
       });
     } catch (e: any) {
-      // store 에서 영업 외 throw 한 경우 toast 는 store 에서 표시됨
+      // store 에서 영업 외·강제 퇴장·금액 검증 실패 throw 한 경우 toast 는 store 에서 표시됨
+      // 강제 퇴장 케이스는 추가로 매장 홈으로 이동
+      if (String(e?.message ?? "").includes("table not occupied")) {
+        nav("/customer", { replace: true });
+      }
       return;
     }
     setCart({});

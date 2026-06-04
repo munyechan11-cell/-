@@ -51,7 +51,7 @@ const COLOR_CLASSES: Record<string, string> = {
 const TABLE_VIEW_KEY = "gyeol:dashboard-tables-view";
 
 export default function OwnerDashboard() {
-  const { tables, orders, visits } = useStore();
+  const { tables, orders, visits, currentUser } = useStore();
 
   // 부모에서 한 곳에서만 view state 보유 → 토글/영역 항상 동기화
   const [tableView, setTableView] = useState<"list" | "layout">(() => {
@@ -101,8 +101,34 @@ export default function OwnerDashboard() {
       : Math.round(((todaysRevenue - yesterdaysRevenue) / yesterdaysRevenue) * 100);
   const visitsDelta = todaysVisits.length - yesterdaysVisits.length;
 
+  // 영업 시간 미설정 매장 — 신규 사장님 첫 셋업 안내
+  const needsBusinessHoursSetup = currentUser?.role === "owner" && !currentUser.businessHours && !currentUser.temporarilyClosed;
+
   return (
     <OwnerShell title="대시보드">
+      {/* 영업 시간 미설정 안내 — 신규 매장 첫 진입 시 */}
+      {needsBusinessHoursSetup && (
+        <Card padding="md" className="mb-4 border-[1.5px] border-[var(--color-warn)]/40 bg-[#fff8e6]">
+          <div className="flex items-start gap-2.5">
+            <span className="text-[20px] shrink-0">⏰</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-[13px] font-extrabold text-[#b07b00]">
+                영업 시간을 등록해 주세요
+              </p>
+              <p className="text-[11.5px] text-[#8a5a00] font-semibold mt-0.5 leading-relaxed">
+                지금은 항상 영업 중으로 표시되고 있어요. 영업 시간을 등록하면 영업 외 시간 손님 주문이 자동으로 차단돼요.
+              </p>
+              <Link
+                to="/biz/owner/brand-settings"
+                className="inline-flex items-center gap-1 mt-2 text-[12px] font-bold text-[var(--color-navy-700)] hover:underline"
+              >
+                지금 등록하기 →
+              </Link>
+            </div>
+          </div>
+        </Card>
+      )}
+
       {/* Top stats — desktop은 4열, 모바일은 매출 카드 + 작은 stats */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
         <Card className="lg:col-span-2 bg-[var(--color-navy-700)] border-transparent text-white p-6 lg:p-7 shadow-[var(--shadow-navy)] relative overflow-hidden">
