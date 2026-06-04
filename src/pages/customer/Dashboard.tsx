@@ -27,6 +27,7 @@ import { useStore } from "../../store/store";
 import { getEffectiveTier, getNextTier, TIER_BADGE } from "../../lib/tier";
 import { cn } from "../../lib/cn";
 import { showToast } from "../../lib/toast";
+import type { Order } from "../../lib/types";
 
 type Tab = "home" | "menu" | "coupons" | "profile";
 
@@ -138,8 +139,8 @@ export default function CustomerDashboard() {
     for (const m of storeMenus) (map[m.category] ??= []).push(m);
     return map;
   }, [storeMenus]);
-  // 현재 매장에서 본인의 모든 주문 (취소 제외)
-  const mySessionOrders = useMemo(
+  // 본 매장 본인의 모든 주문 (취소 제외)
+  const allMyOrders = useMemo(
     () =>
       orders
         .filter(
@@ -151,12 +152,49 @@ export default function CustomerDashboard() {
         .sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
     [orders, currentUser?.id, storeId]
   );
+
+  /**
+   * 세션 분리 — 손님이 한 매장에 여러 번 방문 시 '이번 방문' / '지난 방문' 명확 구분.
+   *
+   * 기준: myTable.sessionStartTime 이 있으면 그 시각 이후 주문만 '현재 세션'.
+   *       없으면 미결제(unpaid/requested) 가 있는 시점부터 현재 세션으로 폴백.
+   *       그 외 결제 완료된 과거 주문은 '지난 방문 영수증'.
+   */
+  const sessionStartIso = myTable?.sessionStartTime ?? null;
+  const mySessionOrders = useMemo(() => {
+    if (sessionStartIso) {
+      return allMyOrders.filter((o) => o.createdAt >= sessionStartIso);
+    }
+    // 점유 정보 없으면 — 미결제 주문만 현재 세션으로
+    const hasUnpaid = allMyOrders.some((o) => o.paymentStatus !== "paid");
+    if (!hasUnpaid) return [];
+    // 가장 오래된 미결제 이후 모든 주문
+    const oldest = allMyOrders.find((o) => o.paymentStatus !== "paid");
+    return oldest ? allMyOrders.filter((o) => o.createdAt >= oldest.createdAt) : [];
+  }, [allMyOrders, sessionStartIso]);
+
+  /** 지난 방문 = 현재 세션에 포함 안 된 결제 완료 주문 — 날짜별 그룹 */
+  const pastVisits = useMemo(() => {
+    const sessionIds = new Set(mySessionOrders.map((o) => o.id));
+    const past = allMyOrders.filter((o) => !sessionIds.has(o.id) && o.paymentStatus === "paid");
+    // 날짜(YYYY-MM-DD) 별로 그룹 + 같은 날 합산
+    const map = new Map<string, { date: string; orders: typeof past; total: number; itemsCount: number }>();
+    past.forEach((o) => {
+      const d = o.createdAt.slice(0, 10);
+      const g = map.get(d) ?? { date: d, orders: [], total: 0, itemsCount: 0 };
+      g.orders.push(o);
+      g.total += o.totalAmount;
+      g.itemsCount += o.items.reduce((s, it) => s + it.quantity, 0);
+      map.set(d, g);
+    });
+    // 최신순
+    return Array.from(map.values()).sort((a, b) => b.date.localeCompare(a.date));
+  }, [allMyOrders, mySessionOrders]);
+
   const myActiveOrder = useMemo(
-    () =>
-      mySessionOrders.find((o) => o.status !== "served"),
+    () => mySessionOrders.find((o) => o.status !== "served"),
     [mySessionOrders]
   );
-  // 미결제 주문 합계
   const unpaidOrders = useMemo(
     () => mySessionOrders.filter((o) => o.paymentStatus !== "paid"),
     [mySessionOrders]
@@ -404,6 +442,9 @@ export default function CustomerDashboard() {
             </Card>
           )}
 
+          {/* 지난 방문 영수증 — 같은 매장 재방문 시 명확히 분리 */}
+          {pastVisits.length > 0 && <PastVisitsCard visits={pastVisits} storeName={owner?.restaurantName ?? "매장"} />}
+
           {/* Recent visits */}
           <div>
             <h2 className="text-[14px] font-bold text-[var(--color-navy-900)] mb-2 px-1">최근 방문</h2>
@@ -595,6 +636,118 @@ export default function CustomerDashboard() {
         />
       )}
     </MobileShell>
+  );
+}
+
+// ============================================================
+// 지난 방문 영수증 — 같은 매장 재방문 시 과거 결제 완료된 주문을 명확히 분리
+// ============================================================
+type PastVisitGroup = {
+  date: string;          // YYYY-MM-DD
+  orders: Order[];
+  total: number;
+  itemsCount: number;
+};
+function PastVisitsCard({ visits, storeName }: { visits: PastVisitGroup[]; storeName: string }) {
+  const [expandedDate, setExpandedDate] = useState<string | null>(null);
+
+  const formatDate = (iso: string) => {
+    const d = new Date(iso);
+    const today = new Date();
+    const yest = new Date(today.getTime() - 86_400_000);
+    const isToday = iso === today.toISOString().slice(0, 10);
+    const isYest = iso === yest.toISOString().slice(0, 10);
+    if (isToday) return "오늘";
+    if (isYest) return "어제";
+    return d.toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" });
+  };
+
+  const top = visits.slice(0, 5); // 최근 5회만 카드에 노출
+  const allTotal = visits.reduce((s, v) => s + v.total, 0);
+
+  return (
+    <Card padding="md" className="border-[var(--color-line)]">
+      <div className="flex items-center gap-2 mb-3">
+        <div className="w-9 h-9 rounded-xl bg-[var(--color-navy-50)] text-[var(--color-navy-700)] inline-flex items-center justify-center">
+          <ReceiptIcon className="w-4 h-4" />
+        </div>
+        <div className="flex-1">
+          <p className="text-[13px] font-extrabold text-[var(--color-navy-900)]">
+            {storeName}에서의 지난 방문
+          </p>
+          <p className="text-[11.5px] text-[var(--color-ink-500)] font-medium">
+            총 {visits.length}회 · ₩ {allTotal.toLocaleString()} 사용
+          </p>
+        </div>
+      </div>
+
+      <div className="divide-y divide-[var(--color-line)]">
+        {top.map((v) => {
+          const open = expandedDate === v.date;
+          return (
+            <div key={v.date} className="py-2.5 first:pt-0 last:pb-0">
+              <button
+                onClick={() => setExpandedDate(open ? null : v.date)}
+                className="w-full flex items-center gap-3 text-left active:opacity-70"
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13.5px] font-bold text-[var(--color-navy-900)]">{formatDate(v.date)}</p>
+                  <p className="text-[11.5px] text-[var(--color-ink-500)] font-medium">
+                    {v.orders.length}건 · {v.itemsCount}개 메뉴
+                  </p>
+                </div>
+                <span className="text-[14px] font-extrabold text-[var(--color-navy-900)] tabular-nums">
+                  ₩ {v.total.toLocaleString()}
+                </span>
+                <span className={cn(
+                  "text-[10px] font-bold text-[var(--color-ink-500)] transition-transform",
+                  open && "rotate-90"
+                )}>
+                  ▸
+                </span>
+              </button>
+
+              {open && (
+                <div className="mt-2 pl-2 border-l-2 border-[var(--color-navy-200)] space-y-2">
+                  {v.orders.map((o) => (
+                    <div key={o.id} className="text-[12.5px]">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[10.5px] font-bold text-[var(--color-ink-500)] uppercase">
+                          {new Date(o.createdAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                        <span className="text-[11px] font-bold text-[var(--color-mint-700)]">결제 완료</span>
+                      </div>
+                      <ul className="space-y-0.5">
+                        {o.items.map((it, i) => (
+                          <li key={i} className="flex justify-between text-[var(--color-navy-900)]">
+                            <span className="truncate mr-2">{it.name} × {it.quantity}</span>
+                            <span className="font-semibold tabular-nums text-[var(--color-ink-600)]">
+                              ₩ {(it.price * it.quantity).toLocaleString()}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                      <div className="flex justify-between mt-1 pt-1 border-t border-dashed border-[var(--color-line)]">
+                        <span className="text-[11px] font-bold text-[var(--color-ink-500)]">소계</span>
+                        <span className="text-[12px] font-extrabold text-[var(--color-navy-900)] tabular-nums">
+                          ₩ {o.totalAmount.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {visits.length > top.length && (
+        <p className="text-[11px] text-[var(--color-ink-500)] text-center mt-2 font-semibold">
+          이전 방문 {visits.length - top.length}회 더 있음
+        </p>
+      )}
+    </Card>
   );
 }
 
