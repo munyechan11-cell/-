@@ -13,6 +13,7 @@ import type { SocialResult } from "../../lib/auth";
 import { cn } from "../../lib/cn";
 import { TERMS, type TermKey, type TermDoc } from "../../lib/terms";
 import { TermsModal } from "../../components/ui/TermsModal";
+import { useLanguage, t } from "../../lib/i18n";
 
 type Step = 1 | 2 | 3;
 type Mode = "login" | "signup";
@@ -23,6 +24,7 @@ export default function CustomerLogin() {
   const [params] = useSearchParams();
   const tableNum = params.get("table");
   const { login, users } = useStore();
+  const lang = useLanguage();
 
   const [mode, setMode] = useState<Mode>("login");
   const [step, setStep] = useState<Step>(1);
@@ -96,7 +98,7 @@ export default function CustomerLogin() {
   useEffect(() => {
     consumeGoogleRedirect()
       .then((res) => { if (res) return applySocialResult(res); })
-      .catch((e) => showToast(`소셜 연동 실패: ${e?.message ?? ""}`, "error"));
+      .catch((e) => showToast(t("login.err.socialFail", undefined, { msg: e?.message ?? "" }), "error"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -108,7 +110,7 @@ export default function CustomerLogin() {
     } catch (e: any) {
       // 리다이렉트 시작은 에러 아님 — 페이지가 곧 이동함
       if (e?.message === "REDIRECT_IN_PROGRESS") return;
-      showToast(`소셜 연동 실패: ${e?.message ?? "알 수 없는 오류"}`, "error");
+      showToast(t("login.err.socialFail", undefined, { msg: e?.message ?? "" }), "error");
     } finally {
       setLoading(false);
     }
@@ -118,7 +120,7 @@ export default function CustomerLogin() {
   const submitLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (phone.replace(/\D/g, "").length < 10) {
-      showToast("전화번호를 정확히 입력해 주세요.", "error");
+      showToast(t("login.err.phone"), "error");
       return;
     }
     const cleanPhone = digitsOnly(phone);
@@ -130,7 +132,7 @@ export default function CustomerLogin() {
     );
     if (!existing) {
       showToast(
-        "일치하는 계정이 없어요. '회원가입' 탭으로 가입해 주세요.",
+        t("login.err.notFound"),
         "error"
       );
       return;
@@ -146,7 +148,7 @@ export default function CustomerLogin() {
       });
       onAfterLogin();
     } catch (e: any) {
-      showToast(`로그인 실패: ${e?.message ?? ""}`, "error");
+      showToast(t("login.err.loginFail", undefined, { msg: e?.message ?? "" }), "error");
     } finally {
       setLoading(false);
     }
@@ -156,7 +158,7 @@ export default function CustomerLogin() {
   const submitStep1 = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || phone.replace(/\D/g, "").length < 10) {
-      showToast("이름과 전화번호를 정확히 입력해 주세요.", "error");
+      showToast(t("login.err.nameAndPhone"), "error");
       return;
     }
     // 회원가입 모드라도 기존 계정 발견되면 즉시 로그인 처리 (재가입 방지)
@@ -182,13 +184,13 @@ export default function CustomerLogin() {
         });
         showToast(
           social
-            ? `이미 가입된 회원입니다. ${social.provider === "google" ? "Google" : "카카오"} 계정을 연결했어요.`
-            : "이미 가입된 회원입니다. 로그인 처리됐어요.",
+            ? t("login.info.alreadyJoinedLinked", undefined, { provider: social.provider === "google" ? "Google" : "Kakao" })
+            : t("login.info.alreadyJoined"),
           "info"
         );
         onAfterLogin();
       } catch (e: any) {
-        showToast(`로그인 실패: ${e?.message ?? ""}`, "error");
+        showToast(t("login.err.loginFail", undefined, { msg: e?.message ?? "" }), "error");
       } finally {
         setLoading(false);
       }
@@ -201,7 +203,7 @@ export default function CustomerLogin() {
 
   const submitStep2 = () => {
     if (!gender) {
-      showToast("성별을 선택해 주세요.", "error");
+      showToast(t("login.err.gender"), "error");
       return;
     }
     const y = Number(birthYear);
@@ -209,21 +211,21 @@ export default function CustomerLogin() {
     const d = Number(birthDay);
     const thisYear = new Date().getFullYear();
     if (!y || y < 1900 || y > thisYear) {
-      showToast(`생년(예: 1990)을 정확히 입력해 주세요.`, "error");
+      showToast(t("login.err.birthYear"), "error");
       return;
     }
     if (!m || m < 1 || m > 12) {
-      showToast("월은 1~12 사이여야 합니다.", "error");
+      showToast(t("login.err.birthMonth"), "error");
       return;
     }
     // 해당 월의 마지막 일 계산
     const lastDay = new Date(y, m, 0).getDate();
     if (!d || d < 1 || d > lastDay) {
-      showToast(`일은 1~${lastDay} 사이여야 합니다.`, "error");
+      showToast(t("login.err.birthDay", undefined, { max: lastDay }), "error");
       return;
     }
     if (isPohangResident === null) {
-      showToast("거주 지역을 선택해 주세요.", "error");
+      showToast(t("login.err.region"), "error");
       return;
     }
     setStep(3);
@@ -231,7 +233,7 @@ export default function CustomerLogin() {
 
   const submitStep3 = async () => {
     if (!agreePrivacy || !agreeService) {
-      showToast("필수 약관에 동의해 주세요.", "error");
+      showToast(t("login.err.requiredTerms"), "error");
       return;
     }
     setLoading(true);
@@ -255,7 +257,7 @@ export default function CustomerLogin() {
       });
       onAfterLogin();
     } catch (e: any) {
-      showToast(`가입 실패: ${e?.message ?? ""}`, "error");
+      showToast(t("login.err.signupFail", undefined, { msg: e?.message ?? "" }), "error");
     } finally {
       setLoading(false);
     }
@@ -273,13 +275,13 @@ export default function CustomerLogin() {
       <TopBar
         title={
           mode === "login"
-            ? "고객 로그인"
+            ? t("login.title.login", lang)
             : step === 1
-            ? "회원가입"
-            : // 소셜 가입은 2단계(전번 → 약관) 라 step 3 을 2/2 로, 일반은 3단계
+            ? t("login.title.signup", lang)
+            : // 소셜 가입은 2단계, 일반은 3단계
               social
-              ? `회원가입 2/2`
-              : `회원가입 ${step - 1}/2`
+              ? t("login.title.signupStep", lang, { cur: 2, total: 2 })
+              : t("login.title.signupStep", lang, { cur: step - 1, total: 2 })
         }
         back
       />
@@ -293,12 +295,12 @@ export default function CustomerLogin() {
             <div className="min-w-0 flex-1">
               <p className="text-[13px] font-extrabold text-[var(--color-navy-900)] truncate flex items-center gap-1">
                 <StoreIcon className="w-3 h-3 text-[var(--color-ink-500)] shrink-0" />
-                <span className="truncate">{qrStore?.restaurantName ?? "매장"}</span>
+                <span className="truncate">{qrStore?.restaurantName ?? t("common.store", lang)}</span>
                 <span className="text-[var(--color-ink-400)] mx-0.5">·</span>
-                <span className="text-[var(--color-mint-700)] whitespace-nowrap">테이블 {tableNum}번</span>
+                <span className="text-[var(--color-mint-700)] whitespace-nowrap">{t("login.qrTable", lang, { n: tableNum ?? "" })}</span>
               </p>
               <p className="text-[11px] text-[var(--color-ink-500)] font-medium leading-tight">
-                로그인하면 바로 자리에 연결돼요
+                {t("login.qrAutoConnect", lang)}
               </p>
             </div>
           </div>
@@ -322,7 +324,7 @@ export default function CustomerLogin() {
                     : "text-[var(--color-ink-500)]"
                 )}
               >
-                {m === "login" ? "로그인" : "회원가입"}
+                {m === "login" ? t("login.mode.login", lang) : t("login.mode.signup", lang)}
               </button>
             ))}
           </div>
@@ -334,14 +336,14 @@ export default function CustomerLogin() {
         {/* ===== 로그인 모드 ===== */}
         {mode === "login" && (
           <>
-            <h1 className="headline-section mt-6 mb-1">다시 만나서 반가워요</h1>
+            <h1 className="headline-section mt-6 mb-1">{t("login.welcomeBack", lang)}</h1>
             <p className="body-md text-[var(--color-ink-500)]">
-              가입하셨던 전화번호로 로그인하세요.
+              {t("login.welcomeBackDesc", lang)}
             </p>
             <form onSubmit={submitLogin} className="mt-7 space-y-4">
               <Input
-                label="전화번호"
-                placeholder="010-0000-0000"
+                label={t("login.phone", lang)}
+                placeholder={t("login.phonePlaceholder", lang)}
                 value={phone}
                 onChange={(e) => setPhone(formatPhoneNumber(e.target.value))}
                 inputMode="numeric"
@@ -349,18 +351,18 @@ export default function CustomerLogin() {
                 leftSlot={<Phone className="w-4 h-4" />}
               />
               <Button block type="submit" loading={loading} disabled={!phone}>
-                로그인
+                {t("login.btn.login", lang)}
               </Button>
             </form>
 
             <div className="my-7 flex items-center gap-3 text-[13px] text-[var(--color-ink-500)] font-semibold">
               <div className="flex-1 h-px bg-[var(--color-line)]" />
-              또는 소셜로
+              {t("login.orSocial", lang)}
               <div className="flex-1 h-px bg-[var(--color-line)]" />
             </div>
             <div className="space-y-3">
               <Button variant="outline" block onClick={() => handleSocial("google")} loading={loading}>
-                Google로 로그인
+                {t("login.btn.googleLogin", lang)}
               </Button>
               <button
                 onClick={() => handleSocial("kakao")}
@@ -368,17 +370,17 @@ export default function CustomerLogin() {
                 className="w-full h-14 rounded-[14px] bg-[#FEE500] text-[#191919] font-bold inline-flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-40"
               >
                 <MessageCircle className="w-5 h-5" />
-                카카오로 로그인
+                {t("login.btn.kakaoLogin", lang)}
               </button>
             </div>
 
             <p className="mt-6 text-center text-[12px] text-[var(--color-ink-500)]">
-              아직 회원이 아니신가요?{" "}
+              {t("login.notMember", lang)}{" "}
               <button
                 onClick={() => setMode("signup")}
                 className="font-bold text-[var(--color-navy-700)] underline"
               >
-                회원가입
+                {t("login.signupLink", lang)}
               </button>
             </p>
           </>
@@ -388,33 +390,33 @@ export default function CustomerLogin() {
         {mode === "signup" && step === 1 && (
           <>
             <h1 className="headline-section mt-6 mb-1">
-              {social ? `${social.provider === "google" ? "Google" : "카카오"} 가입` : "반갑습니다"}
+              {social
+                ? social.provider === "google" ? t("login.signupGoogle", lang) : t("login.signupKakao", lang)
+                : t("login.signupHi", lang)}
             </h1>
             <p className="body-md text-[var(--color-ink-500)]">
-              {social
-                ? "마지막으로 전화번호만 확인해 주세요."
-                : "전화번호로 단골 혜택을 시작해 보세요."}
+              {social ? t("login.signupSocialDesc", lang) : t("login.signupPhoneDesc", lang)}
             </p>
             <form onSubmit={submitStep1} className="mt-7 space-y-4">
               <Input
-                label="이름"
-                placeholder="홍길동"
+                label={t("login.name", lang)}
+                placeholder={t("login.namePlaceholder", lang)}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 autoComplete="name"
               />
               <Input
-                label="전화번호"
-                placeholder="010-0000-0000"
+                label={t("login.phone", lang)}
+                placeholder={t("login.phonePlaceholder", lang)}
                 value={phone}
                 onChange={(e) => setPhone(formatPhoneNumber(e.target.value))}
                 inputMode="numeric"
                 autoComplete="tel"
                 leftSlot={<Phone className="w-4 h-4" />}
-                hint="기존 회원이면 자동으로 로그인됩니다."
+                hint={t("login.phoneHint", lang)}
               />
               <Button block type="submit" disabled={!phone || !name} loading={loading}>
-                다음
+                {t("login.btn.next", lang)}
               </Button>
             </form>
 
@@ -422,12 +424,12 @@ export default function CustomerLogin() {
               <>
                 <div className="my-7 flex items-center gap-3 text-[12px] text-[var(--color-ink-300)] font-semibold">
                   <div className="flex-1 h-px bg-[var(--color-line)]" />
-                  또는 소셜로
+                  {t("login.orSocial", lang)}
                   <div className="flex-1 h-px bg-[var(--color-line)]" />
                 </div>
                 <div className="space-y-3">
                   <Button variant="outline" block onClick={() => handleSocial("google")} loading={loading}>
-                    Google로 계속하기
+                    {t("login.btn.googleContinue", lang)}
                   </Button>
                   <button
                     onClick={() => handleSocial("kakao")}
@@ -435,7 +437,7 @@ export default function CustomerLogin() {
                     className="w-full h-14 rounded-[14px] bg-[#FEE500] text-[#191919] font-bold inline-flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-40"
                   >
                     <MessageCircle className="w-5 h-5" />
-                    카카오로 계속하기
+                    {t("login.btn.kakaoContinue", lang)}
                   </button>
                 </div>
               </>
@@ -445,25 +447,25 @@ export default function CustomerLogin() {
 
         {mode === "signup" && step === 2 && (
           <>
-            <h2 className="headline-section mt-6 mb-1">기본 정보</h2>
+            <h2 className="headline-section mt-6 mb-1">{t("login.basicInfo", lang)}</h2>
             <p className="body-md text-[var(--color-ink-500)]">
-              맞춤 혜택을 위해 사용됩니다.
+              {t("login.basicInfoDesc", lang)}
             </p>
 
             <div className="mt-7">
-              <p className="text-[13px] font-semibold text-[var(--color-navy-800)] mb-2">성별</p>
+              <p className="text-[13px] font-semibold text-[var(--color-navy-800)] mb-2">{t("login.gender", lang)}</p>
               <div className="grid grid-cols-2 gap-3">
                 <GenderChip active={gender === "male"} onClick={() => setGender("male")}>
-                  <Mars className="w-4 h-4" /> 남성
+                  <Mars className="w-4 h-4" /> {t("login.male", lang)}
                 </GenderChip>
                 <GenderChip active={gender === "female"} onClick={() => setGender("female")}>
-                  <Venus className="w-4 h-4" /> 여성
+                  <Venus className="w-4 h-4" /> {t("login.female", lang)}
                 </GenderChip>
               </div>
             </div>
 
             <div className="mt-6">
-              <p className="text-[13px] font-semibold text-[var(--color-navy-800)] mb-2">생년월일</p>
+              <p className="text-[13px] font-semibold text-[var(--color-navy-800)] mb-2">{t("login.birthday", lang)}</p>
               <div className="grid grid-cols-3 gap-2">
                 <Input placeholder="YYYY" inputMode="numeric" maxLength={4} value={birthYear}
                   onChange={(e) => setBirthYear(e.target.value.replace(/\D/g, ""))} />
@@ -475,28 +477,29 @@ export default function CustomerLogin() {
             </div>
 
             <div className="mt-6">
-              <p className="text-[13px] font-semibold text-[var(--color-navy-800)] mb-1">거주 지역</p>
-              <p className="text-[11.5px] text-[var(--color-ink-500)] mb-2">지역 단골 혜택 통계에만 사용됩니다.</p>
+              <p className="text-[13px] font-semibold text-[var(--color-navy-800)] mb-1">{t("login.region", lang)}</p>
+              <p className="text-[11.5px] text-[var(--color-ink-500)] mb-2">{t("login.regionDesc", lang)}</p>
               <div className="grid grid-cols-2 gap-3">
                 <ResidenceChip active={isPohangResident === true} onClick={() => setIsPohangResident(true)}>
-                  <MapPin className="w-4 h-4" /> 포항시 거주
+                  <MapPin className="w-4 h-4" /> {t("login.regionLocal", lang)}
                 </ResidenceChip>
                 <ResidenceChip active={isPohangResident === false} onClick={() => setIsPohangResident(false)}>
-                  <MapPin className="w-4 h-4" /> 다른 지역
+                  <MapPin className="w-4 h-4" /> {t("login.regionOther", lang)}
                 </ResidenceChip>
               </div>
             </div>
 
-            <Button block className="mt-8" onClick={submitStep2}>다음</Button>
+            <Button block className="mt-8" onClick={submitStep2}>{t("login.btn.next", lang)}</Button>
           </>
         )}
 
         {mode === "signup" && step === 3 && (
           <>
-            <h2 className="headline-section mt-6 mb-1">약관 동의</h2>
-            <p className="body-md text-[var(--color-ink-500)]">
-              아래 내용을 확인하고 동의해 주세요. <strong>'보기'</strong> 를 누르면 전체 내용을 볼 수 있어요.
-            </p>
+            <h2 className="headline-section mt-6 mb-1">{t("login.terms", lang)}</h2>
+            <p
+              className="body-md text-[var(--color-ink-500)]"
+              dangerouslySetInnerHTML={{ __html: t("login.termsDesc", lang) }}
+            />
 
             <div className="mt-7 space-y-3">
               <Agree
@@ -509,7 +512,7 @@ export default function CustomerLogin() {
                 }}
                 bold
               >
-                전체 동의
+                {t("login.agreeAll", lang)}
               </Agree>
               <div className="h-px bg-[var(--color-line)]" />
 
@@ -534,7 +537,7 @@ export default function CustomerLogin() {
             </div>
 
             <Button block className="mt-8" onClick={submitStep3} loading={loading}>
-              가입 완료
+              {t("login.btn.finish", lang)}
             </Button>
           </>
         )}
@@ -631,6 +634,7 @@ function AgreeRow({
   onToggle: () => void;
   onView: () => void;
 }) {
+  const lang = useLanguage();
   return (
     <div className="rounded-[12px] border border-[var(--color-line)] bg-white p-3">
       <div className="flex items-center gap-3">
@@ -640,7 +644,7 @@ function AgreeRow({
             "w-6 h-6 rounded-md border-[1.5px] flex items-center justify-center transition-colors shrink-0",
             checked ? "bg-[var(--color-navy-700)] border-[var(--color-navy-700)]" : "border-[var(--color-ink-300)] bg-white"
           )}
-          aria-label={`${term.title} 동의`}
+          aria-label={`${term.title}`}
           aria-checked={checked}
           role="checkbox"
         >
@@ -653,7 +657,7 @@ function AgreeRow({
               ? "bg-[#fef2f2] text-[var(--color-danger)]"
               : "bg-[var(--color-ink-50)] text-[var(--color-ink-600)]"
           )}>
-            {term.required ? "필수" : "선택"}
+            {term.required ? t("login.required", lang) : t("login.optional", lang)}
           </span>
           <span className="text-[14px] font-bold text-[var(--color-navy-900)]">{term.title}</span>
         </button>
@@ -661,7 +665,7 @@ function AgreeRow({
           onClick={onView}
           className="text-[11.5px] font-bold text-[var(--color-navy-700)] hover:underline px-2 py-1 rounded shrink-0"
         >
-          보기
+          {t("login.view", lang)}
         </button>
       </div>
       {/* '왜 필요한가요' 한 줄 설명 */}
