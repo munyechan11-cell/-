@@ -11,6 +11,8 @@ import { useStore } from "../../store/store";
 import { signInWithGoogle, signInWithKakao, consumeGoogleRedirect } from "../../lib/auth";
 import type { SocialResult } from "../../lib/auth";
 import { cn } from "../../lib/cn";
+import { TERMS, type TermKey, type TermDoc } from "../../lib/terms";
+import { TermsModal } from "../../components/ui/TermsModal";
 
 type Step = 1 | 2 | 3;
 type Mode = "login" | "signup";
@@ -38,6 +40,7 @@ export default function CustomerLogin() {
   const [agreePrivacy, setAgreePrivacy] = useState(false);
   const [agreeService, setAgreeService] = useState(false);
   const [agreeMarketing, setAgreeMarketing] = useState(false);
+  const [viewingTerm, setViewingTerm] = useState<TermDoc | null>(null);
   const [loading, setLoading] = useState(false);
 
   const onAfterLogin = () => {
@@ -492,7 +495,7 @@ export default function CustomerLogin() {
           <>
             <h2 className="headline-section mt-6 mb-1">약관 동의</h2>
             <p className="body-md text-[var(--color-ink-500)]">
-              아래 내용을 확인하고 동의해 주세요.
+              아래 내용을 확인하고 동의해 주세요. <strong>'보기'</strong> 를 누르면 전체 내용을 볼 수 있어요.
             </p>
 
             <div className="mt-7 space-y-3">
@@ -509,21 +512,36 @@ export default function CustomerLogin() {
                 전체 동의
               </Agree>
               <div className="h-px bg-[var(--color-line)]" />
-              <Agree checked={agreePrivacy} onClick={() => setAgreePrivacy((v) => !v)}>
-                <span className="text-[var(--color-danger)] mr-1">[필수]</span> 개인정보 처리방침
-              </Agree>
-              <Agree checked={agreeService} onClick={() => setAgreeService((v) => !v)}>
-                <span className="text-[var(--color-danger)] mr-1">[필수]</span> 서비스 이용약관
-              </Agree>
-              <Agree checked={agreeMarketing} onClick={() => setAgreeMarketing((v) => !v)}>
-                <span className="text-[var(--color-ink-500)] mr-1">[선택]</span> 마케팅 정보 수신
-              </Agree>
+
+              <AgreeRow
+                term={TERMS.privacy}
+                checked={agreePrivacy}
+                onToggle={() => setAgreePrivacy((v) => !v)}
+                onView={() => setViewingTerm(TERMS.privacy)}
+              />
+              <AgreeRow
+                term={TERMS.service}
+                checked={agreeService}
+                onToggle={() => setAgreeService((v) => !v)}
+                onView={() => setViewingTerm(TERMS.service)}
+              />
+              <AgreeRow
+                term={TERMS.marketing}
+                checked={agreeMarketing}
+                onToggle={() => setAgreeMarketing((v) => !v)}
+                onView={() => setViewingTerm(TERMS.marketing)}
+              />
             </div>
 
             <Button block className="mt-8" onClick={submitStep3} loading={loading}>
               가입 완료
             </Button>
           </>
+        )}
+
+        {/* 약관 보기 모달 */}
+        {viewingTerm && (
+          <TermsModal term={viewingTerm} onClose={() => setViewingTerm(null)} />
         )}
       </div>
     </MobileShell>
@@ -596,6 +614,61 @@ function ResidenceChip({
     >
       {children}
     </button>
+  );
+}
+
+// ============================================================
+// AgreeRow — 약관 한 줄 (체크박스 + 필수/선택 라벨 + '왜?' 설명 + '보기' 버튼)
+// ============================================================
+function AgreeRow({
+  term,
+  checked,
+  onToggle,
+  onView,
+}: {
+  term: TermDoc;
+  checked: boolean;
+  onToggle: () => void;
+  onView: () => void;
+}) {
+  return (
+    <div className="rounded-[12px] border border-[var(--color-line)] bg-white p-3">
+      <div className="flex items-center gap-3">
+        <button
+          onClick={onToggle}
+          className={cn(
+            "w-6 h-6 rounded-md border-[1.5px] flex items-center justify-center transition-colors shrink-0",
+            checked ? "bg-[var(--color-navy-700)] border-[var(--color-navy-700)]" : "border-[var(--color-ink-300)] bg-white"
+          )}
+          aria-label={`${term.title} 동의`}
+          aria-checked={checked}
+          role="checkbox"
+        >
+          {checked && <Check className="w-4 h-4 text-white" />}
+        </button>
+        <button onClick={onToggle} className="flex-1 min-w-0 text-left">
+          <span className={cn(
+            "text-[11px] font-extrabold mr-1.5 px-1.5 py-0.5 rounded",
+            term.required
+              ? "bg-[#fef2f2] text-[var(--color-danger)]"
+              : "bg-[var(--color-ink-50)] text-[var(--color-ink-600)]"
+          )}>
+            {term.required ? "필수" : "선택"}
+          </span>
+          <span className="text-[14px] font-bold text-[var(--color-navy-900)]">{term.title}</span>
+        </button>
+        <button
+          onClick={onView}
+          className="text-[11.5px] font-bold text-[var(--color-navy-700)] hover:underline px-2 py-1 rounded shrink-0"
+        >
+          보기
+        </button>
+      </div>
+      {/* '왜 필요한가요' 한 줄 설명 */}
+      <p className="text-[11.5px] text-[var(--color-ink-600)] mt-1.5 ml-9 leading-relaxed">
+        {term.why}
+      </p>
+    </div>
   );
 }
 
