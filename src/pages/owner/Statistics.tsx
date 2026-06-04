@@ -1,16 +1,60 @@
 import { useMemo, useState } from "react";
-import { TrendingUp, Users, ShoppingBag } from "lucide-react";
+import { TrendingUp, Users, ShoppingBag, Sparkles, RefreshCw } from "lucide-react";
 import { OwnerShell } from "../../components/layout/OwnerShell";
 import { Card } from "../../components/ui/Card";
 import { useStore } from "../../store/store";
 import { getEffectiveTier, TIER_ORDER, TIER_BADGE } from "../../lib/tier";
+import { QUESTIONS, buildContext, askInsight, type InsightKey } from "../../lib/aiInsight";
+import { cn } from "../../lib/cn";
+import { showToast } from "../../lib/toast";
 
 type Range = "day" | "week" | "month";
 
 export default function OwnerStatistics() {
-  const { currentUser, visits, orders, tierOverrides } = useStore();
+  const { currentUser, visits, orders, tierOverrides, users } = useStore();
   const storeId = currentUser?.id ?? "";
   const [range, setRange] = useState<Range>("week");
+
+  // AI 인사이트 상태 — 질문별 답변 캐시
+  const [activeInsight, setActiveInsight] = useState<InsightKey | null>(null);
+  const [insightLoading, setInsightLoading] = useState(false);
+  const [insightCache, setInsightCache] = useState<Record<string, string>>({});
+  const [insightError, setInsightError] = useState<string>("");
+
+  const askAi = async (key: InsightKey, force = false) => {
+    const q = QUESTIONS.find((x) => x.key === key);
+    if (!q) return;
+    setActiveInsight(key);
+    setInsightError("");
+    if (!force && insightCache[key]) return; // 이미 답변 있음
+    setInsightLoading(true);
+    try {
+      const context = buildContext({
+        storeId,
+        storeName: currentUser?.restaurantName,
+        orders,
+        visits,
+        users,
+      });
+      const answer = await askInsight({
+        storeId,
+        question: q.question,
+        context,
+      });
+      setInsightCache((c) => ({ ...c, [key]: answer }));
+    } catch (e: any) {
+      const msg = String(e?.message ?? "");
+      if (msg.includes("AI_NOT_CONFIGURED")) {
+        setInsightError("AI 서비스가 아직 설정되지 않았어요. 잠시 후 다시 시도해 주세요.");
+      } else if (msg.includes("429") || msg.includes("분당")) {
+        setInsightError("질문이 너무 잦아요. 1분 후 다시 시도해 주세요.");
+      } else {
+        setInsightError(`분석 실패: ${msg.slice(0, 80) || "잠시 후 다시 시도해 주세요."}`);
+      }
+    } finally {
+      setInsightLoading(false);
+    }
+  };
 
   const stats = useMemo(() => {
     const now = Date.now();
@@ -114,6 +158,116 @@ export default function OwnerStatistics() {
             <Stat label="객단가" value={`₩ ${stats.avg.toLocaleString()}`} />
           </div>
         </Card>
+
+        {/* ===== AI 매장 분석 — 탭형 질문 ===== */}
+        <div className="mt-6">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[var(--color-mint-500)] to-[var(--color-navy-700)] text-white inline-flex items-center justify-center">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <div className="flex-1">
+              <h2 className="text-[15.5px] font-extrabold text-[var(--color-navy-900)]">
+                AI 매장 분석
+              </h2>
+              <p className="text-[11.5px] text-[var(--color-ink-500)] font-medium">
+                궁금한 질문을 누르면 AI 가 분석해드려요
+              </p>
+            </div>
+          </div>
+
+          {/* 질문 탭 — 가로 스크롤 */}
+          <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1">
+            {QUESTIONS.map((q) => {
+              const isActive = activeInsight === q.key;
+              const hasAnswer = !!insightCache[q.key];
+              return (
+                <button
+                  key={q.key}
+                  onClick={() => askAi(q.key)}
+                  className={cn(
+                    "shrink-0 rounded-[14px] px-3.5 py-2.5 text-left border-[1.5px] transition-all min-w-[140px]",
+                    isActive
+                      ? "bg-[var(--color-navy-700)] text-white border-[var(--color-navy-700)] shadow-[var(--shadow-press)]"
+                      : "bg-white border-[var(--color-line)] hover:border-[var(--color-navy-300)] hover:bg-[var(--color-navy-50)]/40"
+                  )}
+                >
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <span className="text-[16px]">{q.emoji}</span>
+                    <span className={cn(
+                      "text-[12.5px] font-extrabold truncate",
+                      isActive ? "text-white" : "text-[var(--color-navy-900)]"
+                    )}>
+                      {q.title}
+                    </span>
+                    {hasAnswer && !isActive && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-mint-500)] ml-auto shrink-0" />
+                    )}
+                  </div>
+                  <p className={cn(
+                    "text-[10.5px] font-medium leading-tight",
+                    isActive ? "text-white/80" : "text-[var(--color-ink-500)]"
+                  )}>
+                    {q.shortHint}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* 답변 카드 */}
+          {activeInsight && (
+            <Card padding="md" className="mt-3 border-[1.5px] border-[var(--color-mint-200)] bg-gradient-to-br from-[var(--color-mint-50)]/40 to-white">
+              {(() => {
+                const q = QUESTIONS.find((x) => x.key === activeInsight);
+                if (!q) return null;
+                return (
+                  <>
+                    <div className="flex items-center gap-2 mb-2 pb-2 border-b border-[var(--color-mint-200)]">
+                      <span className="text-[18px]">{q.emoji}</span>
+                      <p className="text-[13px] font-extrabold text-[var(--color-navy-900)] flex-1">
+                        {q.title}
+                      </p>
+                      <button
+                        onClick={() => askAi(activeInsight, true)}
+                        disabled={insightLoading}
+                        className="inline-flex items-center gap-1 text-[11px] font-bold text-[var(--color-navy-700)] hover:bg-[var(--color-navy-50)] px-2 py-1 rounded-md disabled:opacity-40"
+                        title="다시 분석"
+                      >
+                        <RefreshCw className={cn("w-3 h-3", insightLoading && "animate-spin")} />
+                        다시 분석
+                      </button>
+                    </div>
+
+                    {insightLoading ? (
+                      <div className="py-6 text-center">
+                        <div className="inline-flex items-center gap-2 text-[12.5px] text-[var(--color-ink-500)] font-semibold">
+                          <span className="w-2 h-2 bg-[var(--color-mint-500)] rounded-full animate-pulse" />
+                          AI 가 매장 데이터를 분석하고 있어요…
+                        </div>
+                      </div>
+                    ) : insightError ? (
+                      <p className="py-4 text-[12.5px] text-[var(--color-danger)] font-semibold">
+                        {insightError}
+                      </p>
+                    ) : insightCache[activeInsight] ? (
+                      <p className="text-[13.5px] text-[var(--color-navy-900)] leading-relaxed whitespace-pre-wrap font-medium">
+                        {insightCache[activeInsight]}
+                      </p>
+                    ) : (
+                      <p className="py-4 text-[12.5px] text-[var(--color-ink-500)] text-center">
+                        질문을 다시 눌러서 분석을 시작하세요.
+                      </p>
+                    )}
+
+                    <p className="text-[10px] text-[var(--color-ink-400)] mt-3 pt-2 border-t border-[var(--color-mint-200)] font-medium">
+                      💡 AI 답변은 매장 데이터를 바탕으로 만든 참고용 의견이에요. 최종 판단은 사장님이 직접 해주세요.
+                    </p>
+                  </>
+                );
+              })()}
+            </Card>
+          )}
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 lg:gap-6 mt-6">
           <div>

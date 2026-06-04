@@ -653,6 +653,154 @@ app.post('/api/ai/floor-plan', async (req, res) => {
   }
 });
 
+// ============================================================
+// AI BUSINESS INSIGHT — 매장 데이터 자연어 분석
+// ============================================================
+// 사장님이 통계 페이지에서 미리 정의된 질문을 클릭 → 매장 요약 데이터 +
+// 질문을 AI 에 전달 → 자연어 분석 답변 반환.
+// 데이터 자체는 클라이언트가 요약해서 보냄 (Firebase Admin 으로 다시 읽지 않음 — 비용 절감).
+
+interface InsightIn {
+  storeId: string;
+  question: string;          // 사장님이 본 질문 문장
+  context: {
+    storeName?: string;
+    period?: string;         // '이번 달' / '지난 7일' 등
+    revenue?: number;
+    orderCount?: number;
+    customerCount?: number;
+    topMenus?: Array<{ name: string; count: number; revenue: number }>;
+    topCustomers?: Array<{ name?: string; visits: number; lastVisit?: string; totalSpent?: number }>;
+    churnedCustomers?: Array<{ name?: string; lastVisit?: string; visits?: number }>;
+    hourlyDistribution?: Record<string, number>;
+    weekdayDistribution?: Record<string, number>;
+    prevPeriodRevenue?: number;
+  };
+}
+
+// AI 인사이트 IP rate limit — 분당 10회 (도면 분석보다 가벼움)
+const aiInsightBuckets = new Map<string, { count: number; resetAt: number }>();
+const checkInsightRate = (ip: string): boolean => {
+  const now = Date.now();
+  const b = aiInsightBuckets.get(ip);
+  if (!b || now > b.resetAt) {
+    aiInsightBuckets.set(ip, { count: 1, resetAt: now + 60_000 });
+    return true;
+  }
+  if (b.count >= 10) return false;
+  b.count += 1;
+  return true;
+};
+
+app.post('/api/ai/insight', async (req, res) => {
+  // Rate limit
+  const ip = String(req.ip || 'unknown').split(',')[0].trim();
+  if (!checkInsightRate(ip)) {
+    return res.status(429).json({ error: '잠시 후 다시 시도해 주세요. (분당 10회 제한)' });
+  }
+
+  const input = req.body as InsightIn;
+  if (!input?.question || !input?.context) {
+    return res.status(400).json({ error: 'question, context required' });
+  }
+
+  const geminiKey = process.env.GEMINI_API_KEY;
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  const openaiKey = process.env.OPENAI_API_KEY;
+  if (!geminiKey && !anthropicKey && !openaiKey) {
+    return res.status(503).json({ error: 'AI_NOT_CONFIGURED' });
+  }
+
+  const systemPrompt = `
+당신은 한국 식당 사장님의 매장 분석 비서입니다.
+아래 매장 데이터와 사장님 질문을 보고 친절하고 실용적인 조언을 한국어로 답하세요.
+
+## 답변 규칙
+1. 4-60대 사장님도 쉽게 이해할 수 있는 평이한 한국어 사용. 전문 용어 X.
+2. 숫자는 한국식 천 단위 콤마 (예: ₩1,234,000).
+3. 답변 길이: 200~400자. 너무 길지 않게.
+4. 구조: 핵심 결론 한 줄 → 근거 2-3개 → 다음 액션 제안 1개.
+5. 손님 이름은 그대로 사용 (예: '홍길동 손님').
+6. 데이터가 부족하면 솔직히 '아직 데이터가 부족해요' 라고 말하기.
+7. 친근한 어조 ('~네요', '~을 추천드려요').
+8. 절대 마크다운 헤더(#) 사용 금지. 일반 줄바꿈만.
+9. 이모지는 답변 시작에 1개만 (예: 📈 / ⭐ / 💔).
+`.trim();
+
+  const userMsg = `매장명: ${input.context.storeName ?? '매장'}
+기간: ${input.context.period ?? '최근'}
+
+사장님 질문: "${input.question}"
+
+매장 데이터:
+${JSON.stringify(input.context, null, 2)}
+
+위 데이터로 사장님 질문에 답해주세요.`;
+
+  try {
+    if (geminiKey) {
+      const apiRes = await fetchWithTimeout(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: systemPrompt }] },
+            contents: [{ role: 'user', parts: [{ text: userMsg }] }],
+            generationConfig: { temperature: 0.4, maxOutputTokens: 800 },
+          }),
+        },
+        20000
+      );
+      if (!apiRes.ok) throw new Error(`Gemini ${apiRes.status}: ${(await apiRes.text()).slice(0, 200)}`);
+      const data: any = await apiRes.json();
+      const answer = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? '';
+      return res.json({ answer });
+    }
+    if (anthropicKey) {
+      const apiRes = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-api-key': anthropicKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 800,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: userMsg }],
+        }),
+      }, 20000);
+      if (!apiRes.ok) throw new Error(`Anthropic ${apiRes.status}: ${(await apiRes.text()).slice(0, 200)}`);
+      const data: any = await apiRes.json();
+      const answer = data?.content?.[0]?.text?.trim() ?? '';
+      return res.json({ answer });
+    }
+    // OpenAI fallback
+    const apiRes = await fetchWithTimeout('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${openaiKey}` },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        temperature: 0.4,
+        max_tokens: 800,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userMsg },
+        ],
+      }),
+    }, 20000);
+    if (!apiRes.ok) throw new Error(`OpenAI ${apiRes.status}: ${(await apiRes.text()).slice(0, 200)}`);
+    const data: any = await apiRes.json();
+    const answer = data?.choices?.[0]?.message?.content?.trim() ?? '';
+    return res.json({ answer });
+  } catch (e: any) {
+    console.error('[AI insight]', e?.message ?? e);
+    res.status(500).json({ error: e?.message ?? 'AI 분석 실패' });
+  }
+});
+
 function extractJson(text: string): { tables: any[]; structures: any[] } {
   // 모델이 ```json ... ``` 블록으로 감쌀 경우 대비
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
