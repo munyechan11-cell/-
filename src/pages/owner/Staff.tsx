@@ -5,17 +5,19 @@ import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
 import { useStore } from "../../store/store";
 import { formatPhoneNumber } from "../../lib/ids";
+import { useLanguage, t, type Lang } from "../../lib/i18n";
 
-function fmtDuration(ms: number) {
+function fmtDuration(ms: number, lang: Lang) {
   const total = Math.max(0, Math.floor(ms / 1000));
   const h = Math.floor(total / 3600);
   const m = Math.floor((total % 3600) / 60);
-  return `${h}시간 ${m}분`;
+  return t("ostaff.hourMin", lang, { h, m });
 }
 
-function fmtDate(iso: string) {
+function fmtDate(iso: string, lang: Lang) {
   const d = new Date(iso);
-  return `${d.getMonth() + 1}/${d.getDate()} ${d.toLocaleTimeString("ko-KR", {
+  const locale = lang === "ko" ? "ko-KR" : lang === "zh" ? "zh-CN" : lang === "vi" ? "vi-VN" : "en-US";
+  return `${d.getMonth() + 1}/${d.getDate()} ${d.toLocaleTimeString(locale, {
     hour: "2-digit",
     minute: "2-digit",
   })}`;
@@ -23,6 +25,8 @@ function fmtDate(iso: string) {
 
 export default function OwnerStaff() {
   const { currentUser, users, shifts, approveStaff, rejectStaff, removeStaffMembership } = useStore();
+  const lang = useLanguage();
+  const locale = lang === "ko" ? "ko-KR" : lang === "zh" ? "zh-CN" : lang === "vi" ? "vi-VN" : "en-US";
   const [openShiftsFor, setOpenShiftsFor] = useState<string | null>(null);
 
   const storeId = currentUser?.id ?? "";
@@ -56,16 +60,16 @@ export default function OwnerStaff() {
   }, [shifts, storeId]);
 
   return (
-    <OwnerShell title="직원 관리">
+    <OwnerShell title={t("ostaff.title", lang)}>
       {/* 대기 요청 */}
       <section className="mb-7">
         <h2 className="headline-sub mb-3 px-1 flex items-center gap-2">
           <UserPlus className="w-4 h-4" />
-          승인 대기 ({pending.length})
+          {t("ostaff.pending.title", lang, { n: pending.length })}
         </h2>
         {pending.length === 0 ? (
           <Card padding="lg" className="text-center body-sm">
-            대기 중인 가입 요청이 없습니다.
+            {t("ostaff.pending.empty", lang)}
           </Card>
         ) : (
           <div className="space-y-2">
@@ -78,13 +82,13 @@ export default function OwnerStaff() {
                   <p className="body-sm">{formatPhoneNumber(s.phone)}</p>
                   {s.joinRequestedAt && (
                     <p className="text-[12px] text-[var(--color-ink-600)] font-semibold mt-0.5">
-                      요청 {fmtDate(s.joinRequestedAt)}
+                      {t("ostaff.requestedAt", lang, { when: fmtDate(s.joinRequestedAt, lang) })}
                     </p>
                   )}
                 </div>
                 <div className="flex gap-2 ml-auto">
                   <Button size="sm" leftIcon={<Check className="w-4 h-4" />} onClick={() => approveStaff(s.id)}>
-                    승인
+                    {t("ostaff.approve", lang)}
                   </Button>
                   <Button
                     size="sm"
@@ -92,7 +96,7 @@ export default function OwnerStaff() {
                     leftIcon={<X className="w-4 h-4" />}
                     onClick={() => rejectStaff(s.id)}
                   >
-                    거절
+                    {t("ostaff.reject", lang)}
                   </Button>
                 </div>
               </Card>
@@ -105,11 +109,11 @@ export default function OwnerStaff() {
       <section>
         <h2 className="headline-sub mb-3 px-1 flex items-center gap-2">
           <UserCheck className="w-4 h-4" />
-          소속 직원 ({approved.length})
+          {t("ostaff.active.title", lang, { n: approved.length })}
         </h2>
         {approved.length === 0 ? (
           <Card padding="lg" className="text-center body-sm">
-            아직 소속된 직원이 없습니다.
+            {t("ostaff.active.empty", lang)}
           </Card>
         ) : (
           <div className="space-y-2">
@@ -128,7 +132,7 @@ export default function OwnerStaff() {
                         {s.name}
                         {st.onDuty && (
                           <span className="chip text-[11px] bg-[var(--color-mint-100)] text-[var(--color-mint-700)] px-2 py-0.5">
-                            근무 중
+                            {t("ostaff.onDuty", lang)}
                           </span>
                         )}
                       </p>
@@ -137,10 +141,10 @@ export default function OwnerStaff() {
                         {s.position ? ` · ${s.position}` : ""}
                       </p>
                       <p className="text-[12px] text-[var(--color-ink-600)] font-semibold mt-1 flex items-center gap-3 flex-wrap">
-                        <span><Clock className="inline w-3 h-3 mr-1" />오늘 {fmtDuration(st.todayMs)}</span>
-                        <span>주간 {fmtDuration(st.weekMs)}</span>
+                        <span><Clock className="inline w-3 h-3 mr-1" />{t("ostaff.today", lang, { dur: fmtDuration(st.todayMs, lang) })}</span>
+                        <span>{t("ostaff.thisWeek", lang, { dur: fmtDuration(st.weekMs, lang) })}</span>
                         {st.activeSince && (
-                          <span>출근 {new Date(st.activeSince).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}</span>
+                          <span>{t("ostaff.clockedInAt", lang, { time: new Date(st.activeSince).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" }) })}</span>
                         )}
                       </p>
                     </div>
@@ -151,17 +155,17 @@ export default function OwnerStaff() {
                         rightIcon={open ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                         onClick={() => setOpenShiftsFor(open ? null : s.id)}
                       >
-                        근무기록
+                        {t("ostaff.shifts", lang)}
                       </Button>
                       <Button
                         size="sm"
                         variant="outline"
                         leftIcon={<UserMinus className="w-4 h-4" />}
                         onClick={() => {
-                          if (confirm(`${s.name}님을 매장에서 해제할까요?`)) removeStaffMembership(s.id);
+                          if (confirm(t("ostaff.removeConfirm", lang, { name: s.name }))) removeStaffMembership(s.id);
                         }}
                       >
-                        해제
+                        {t("ostaff.remove", lang)}
                       </Button>
                     </div>
                   </div>
@@ -170,7 +174,7 @@ export default function OwnerStaff() {
                     <div className="mt-3 pt-3 border-t border-[var(--color-line-soft)] space-y-1">
                       {myShifts.length === 0 ? (
                         <p className="body-sm text-center text-[var(--color-ink-500)] py-2">
-                          기록이 없습니다.
+                          {t("ostaff.noRecord", lang)}
                         </p>
                       ) : (
                         myShifts.map((sh) => {
@@ -181,9 +185,9 @@ export default function OwnerStaff() {
                               key={sh.id}
                               className="flex items-center justify-between text-[12px] text-[var(--color-ink-700)] font-semibold py-1"
                             >
-                              <span>{fmtDate(sh.clockInAt)} → {sh.clockOutAt ? fmtDate(sh.clockOutAt) : "근무 중"}</span>
+                              <span>{fmtDate(sh.clockInAt, lang)} → {sh.clockOutAt ? fmtDate(sh.clockOutAt, lang) : t("ostaff.workingNow", lang)}</span>
                               <span className="tabular-nums text-[var(--color-navy-700)]">
-                                {fmtDuration(outT - inT)}
+                                {fmtDuration(outT - inT, lang)}
                               </span>
                             </div>
                           );

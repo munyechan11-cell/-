@@ -7,12 +7,14 @@ import { getEffectiveTier, TIER_ORDER, TIER_BADGE } from "../../lib/tier";
 import { QUESTIONS, buildContext, askInsight, type InsightKey } from "../../lib/aiInsight";
 import { cn } from "../../lib/cn";
 import { showToast } from "../../lib/toast";
+import { useLanguage, t, fmtKRW } from "../../lib/i18n";
 
 type Range = "day" | "week" | "month";
 
 export default function OwnerStatistics() {
   const { currentUser, visits, orders, tierOverrides, users } = useStore();
   const storeId = currentUser?.id ?? "";
+  const lang = useLanguage();
   const [range, setRange] = useState<Range>("week");
 
   // AI 인사이트 상태 — 질문별 답변 캐시
@@ -40,7 +42,7 @@ export default function OwnerStatistics() {
       if ((context.orderCount ?? 0) === 0 && (context.customerCount ?? 0) === 0) {
         setInsightCache((c) => ({
           ...c,
-          [key]: "아직 주문·방문 기록이 없어 분석할 수 없어요. 첫 손님이 다녀가신 뒤 다시 눌러주세요.",
+          [key]: t("ostat.ai.emptyData", lang),
         }));
         return;
       }
@@ -53,11 +55,11 @@ export default function OwnerStatistics() {
     } catch (e: any) {
       const msg = String(e?.message ?? "");
       if (msg.includes("AI_NOT_CONFIGURED")) {
-        setInsightError("AI 서비스가 아직 설정되지 않았어요. 잠시 후 다시 시도해 주세요.");
+        setInsightError(t("ostat.ai.notConfigured", lang));
       } else if (msg.includes("429") || msg.includes("분당")) {
-        setInsightError("질문이 너무 잦아요. 1분 후 다시 시도해 주세요.");
+        setInsightError(t("ostat.ai.rateLimit", lang));
       } else {
-        setInsightError(`분석 실패: ${msg.slice(0, 80) || "잠시 후 다시 시도해 주세요."}`);
+        setInsightError(t("ostat.ai.failed", lang, { msg: msg.slice(0, 80) || "" }));
       }
     } finally {
       setInsightLoading(false);
@@ -141,7 +143,7 @@ export default function OwnerStatistics() {
   const totalTierUsers = Object.values(tierDist).reduce((a, b) => a + b, 0) || 1;
 
   return (
-    <OwnerShell title="통계">
+    <OwnerShell title={t("ostat.title", lang)}>
       <div className="max-w-[1100px] mx-auto">
         <div className="grid grid-cols-3 gap-1 p-1 bg-[var(--color-navy-50)] rounded-[14px] max-w-md">
           {(["day", "week", "month"] as Range[]).map((r) => (
@@ -152,18 +154,18 @@ export default function OwnerStatistics() {
                 range === r ? "bg-white text-[var(--color-navy-800)]" : "text-[var(--color-ink-500)]"
               }`}
             >
-              {r === "day" ? "오늘" : r === "week" ? "이번 주" : "한 달"}
+              {r === "day" ? t("ostat.range.day", lang) : r === "week" ? t("ostat.range.week", lang) : t("ostat.range.month", lang)}
             </button>
           ))}
         </div>
 
         <Card className="mt-4 bg-[var(--color-navy-700)] border-transparent text-white p-6 lg:p-8 shadow-[var(--shadow-navy)]">
-          <p className="label-xs text-white/70">기간 총 매출</p>
-          <p className="mt-2 text-[36px] lg:text-[48px] font-extrabold tracking-tighter tabular-nums">₩ {stats.revenue.toLocaleString()}</p>
+          <p className="label-xs text-white/70">{t("ostat.totalRev", lang)}</p>
+          <p className="mt-2 text-[36px] lg:text-[48px] font-extrabold tracking-tighter tabular-nums">{fmtKRW(stats.revenue, lang)}</p>
           <div className="grid grid-cols-3 mt-5 pt-5 border-t border-white/15 text-[13px]">
-            <Stat label="방문" value={`${stats.periodVisits.length}건`} />
-            <Stat label="순방문자" value={`${stats.uniqueCustomers}명`} />
-            <Stat label="객단가" value={`₩ ${stats.avg.toLocaleString()}`} />
+            <Stat label={t("ostat.stat.visits", lang)} value={`${stats.periodVisits.length}${t("ostat.unit.count", lang)}`} />
+            <Stat label={t("ostat.stat.unique", lang)} value={`${stats.uniqueCustomers}${t("ostat.unit.people", lang)}`} />
+            <Stat label={t("ostat.stat.avg", lang)} value={fmtKRW(stats.avg, lang)} />
           </div>
         </Card>
 
@@ -175,10 +177,10 @@ export default function OwnerStatistics() {
             </div>
             <div className="flex-1">
               <h2 className="text-[15.5px] font-extrabold text-[var(--color-navy-900)]">
-                AI 매장 분석
+                {t("ostat.ai.title", lang)}
               </h2>
               <p className="text-[11.5px] text-[var(--color-ink-500)] font-medium">
-                궁금한 질문을 누르면 AI 가 분석해드려요
+                {t("ostat.ai.subtitle", lang)}
               </p>
             </div>
           </div>
@@ -239,10 +241,10 @@ export default function OwnerStatistics() {
                         onClick={() => askAi(activeInsight, true)}
                         disabled={insightLoading}
                         className="inline-flex items-center gap-1 text-[11px] font-bold text-[var(--color-navy-700)] hover:bg-[var(--color-navy-50)] px-2 py-1 rounded-md disabled:opacity-40"
-                        title="다시 분석"
+                        title={t("ostat.ai.reanalyze", lang)}
                       >
                         <RefreshCw className={cn("w-3 h-3", insightLoading && "animate-spin")} />
-                        다시 분석
+                        {t("ostat.ai.reanalyze", lang)}
                       </button>
                     </div>
 
@@ -250,7 +252,7 @@ export default function OwnerStatistics() {
                       <div className="py-6 text-center">
                         <div className="inline-flex items-center gap-2 text-[12.5px] text-[var(--color-ink-500)] font-semibold">
                           <span className="w-2 h-2 bg-[var(--color-mint-500)] rounded-full animate-pulse" />
-                          AI 가 매장 데이터를 분석하고 있어요…
+                          {t("ostat.ai.loading", lang)}
                         </div>
                       </div>
                     ) : insightError ? (
@@ -263,12 +265,12 @@ export default function OwnerStatistics() {
                       </p>
                     ) : (
                       <p className="py-4 text-[12.5px] text-[var(--color-ink-500)] text-center">
-                        질문을 다시 눌러서 분석을 시작하세요.
+                        {t("ostat.ai.tapToStart", lang)}
                       </p>
                     )}
 
                     <p className="text-[10px] text-[var(--color-ink-400)] mt-3 pt-2 border-t border-[var(--color-mint-200)] font-medium">
-                      💡 AI 답변은 매장 데이터를 바탕으로 만든 참고용 의견이에요. 최종 판단은 사장님이 직접 해주세요.
+                      {t("ostat.ai.disclaimer", lang)}
                     </p>
                   </>
                 );
@@ -279,7 +281,7 @@ export default function OwnerStatistics() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 lg:gap-6 mt-6">
           <div>
-        <SectionTitle icon={<TrendingUp className="w-4 h-4" />}>시간대별 방문</SectionTitle>
+        <SectionTitle icon={<TrendingUp className="w-4 h-4" />}>{t("ostat.hourly.title", lang)}</SectionTitle>
         <Card padding="md">
           <div className="flex gap-[3px] h-32 items-end">
             {Array.from({ length: 24 }).map((_, h) => {
@@ -290,27 +292,35 @@ export default function OwnerStatistics() {
                   <div
                     className="w-full rounded-t bg-[var(--color-navy-700)]/80 transition-all"
                     style={{ height: `${Math.max(pct, 2)}%` }}
-                    title={`${h}시 ${v}건`}
+                    title={t("ostat.hourly.tip", lang, { h, n: v })}
                   />
                 </div>
               );
             })}
           </div>
           <div className="flex justify-between text-[11px] text-[var(--color-ink-600)] font-semibold mt-1.5 tabular-nums">
-            <span>0시</span>
-            <span>6시</span>
-            <span>12시</span>
-            <span>18시</span>
-            <span>23시</span>
+            <span>{t("ostat.hour0", lang)}</span>
+            <span>{t("ostat.hour6", lang)}</span>
+            <span>{t("ostat.hour12", lang)}</span>
+            <span>{t("ostat.hour18", lang)}</span>
+            <span>{t("ostat.hour23", lang)}</span>
           </div>
         </Card>
 
         </div>
           <div>
-        <SectionTitle icon={<Users className="w-4 h-4" />}>요일별 방문</SectionTitle>
+        <SectionTitle icon={<Users className="w-4 h-4" />}>{t("ostat.weekly.title", lang)}</SectionTitle>
         <Card padding="md">
           <div className="grid grid-cols-7 gap-2">
-            {["일", "월", "화", "수", "목", "금", "토"].map((d, i) => {
+            {[
+              t("ostat.weekday.sun", lang),
+              t("ostat.weekday.mon", lang),
+              t("ostat.weekday.tue", lang),
+              t("ostat.weekday.wed", lang),
+              t("ostat.weekday.thu", lang),
+              t("ostat.weekday.fri", lang),
+              t("ostat.weekday.sat", lang),
+            ].map((d, i) => {
               const v = stats.weekday[i];
               const pct = (v / maxWeek) * 100;
               return (
@@ -331,10 +341,10 @@ export default function OwnerStatistics() {
 
         </div>
           <div>
-        <SectionTitle icon={<ShoppingBag className="w-4 h-4" />}>메뉴 판매 TOP 5</SectionTitle>
+        <SectionTitle icon={<ShoppingBag className="w-4 h-4" />}>{t("ostat.menu.title", lang)}</SectionTitle>
         {stats.topMenus.length === 0 ? (
           <Card padding="lg" className="text-center text-[14px] text-[var(--color-ink-500)]">
-            기간 내 주문이 없습니다.
+            {t("ostat.menu.empty", lang)}
           </Card>
         ) : (
           <div className="space-y-2">
@@ -346,7 +356,7 @@ export default function OwnerStatistics() {
                 <div className="flex-1">
                   <p className="text-[14px] font-bold text-[var(--color-navy-900)]">{m.name}</p>
                   <p className="text-[12px] text-[var(--color-ink-500)]">
-                    {m.count}개 · ₩ {m.revenue.toLocaleString()}
+                    {t("ostat.menu.line", lang, { n: m.count, amount: fmtKRW(m.revenue, lang) })}
                   </p>
                 </div>
               </Card>
@@ -356,7 +366,7 @@ export default function OwnerStatistics() {
 
         </div>
           <div>
-        <SectionTitle>등급 분포</SectionTitle>
+        <SectionTitle>{t("ostat.tier.title", lang)}</SectionTitle>
         <Card padding="md">
           <div className="flex h-4 rounded-full overflow-hidden bg-[var(--color-ink-50)]">
             {TIER_ORDER.map((t) => {
