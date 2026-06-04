@@ -18,6 +18,7 @@ import {
   LogOut as ClockOutIcon,
   Clock,
   Lock,
+  HelpCircle,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useStore } from "../../store/store";
@@ -57,6 +58,7 @@ const NAV: NavItem[] = [
   { to: "/biz/owner/qr-print", label: "QR 인쇄", icon: QrCode, staff: true },
   { to: "/biz/owner/staff", label: "직원 관리", icon: Briefcase },
   { to: "/biz/owner/brand-settings", label: "브랜드 설정", icon: Settings },
+  { to: "/biz/owner/help", label: "도움말", icon: HelpCircle, staff: true, staffFree: true },
 ];
 
 const STAFF_DASHBOARD: NavItem = { to: "/biz/staff", label: "대시보드", icon: LayoutDashboard, end: true, staff: true, staffFree: true };

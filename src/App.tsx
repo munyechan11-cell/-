@@ -29,6 +29,7 @@ const OwnerTables = lazy(() => import("./pages/owner/Tables"));
 const OwnerMenus = lazy(() => import("./pages/owner/Menus"));
 const OwnerOrders = lazy(() => import("./pages/owner/Orders"));
 const OwnerStaff = lazy(() => import("./pages/owner/Staff"));
+const OwnerHelp = lazy(() => import("./pages/owner/Help"));
 
 const StaffStoreSearch = lazy(() => import("./pages/staff/StoreSearch"));
 const StaffPending = lazy(() => import("./pages/staff/Pending"));
@@ -267,6 +268,15 @@ export default function App() {
             element={
               <PrivateRoute role="owner">
                 <OwnerStaff />
+              </PrivateRoute>
+            }
+          />
+          {/* 도움말 — 사장님 + 직원 모두 접근 가능 (출근 안 해도 OK) */}
+          <Route
+            path="/biz/owner/help"
+            element={
+              <PrivateRoute role={["owner", "staff"]}>
+                <OwnerHelp />
               </PrivateRoute>
             }
           />
