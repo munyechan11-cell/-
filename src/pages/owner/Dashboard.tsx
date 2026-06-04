@@ -365,9 +365,13 @@ function DashboardTableArea({ tables, view }: { tables: TableLite[]; view: "list
 // ============================================================
 // 테이블 상세 모달 — 누가, 얼마나 있었는지, 인원, 주문, 합계, 퇴장 처리
 // ============================================================
-function TableDetailModal({ table, onClose }: { table: TableLite; onClose: () => void }) {
-  const { users, orders, evictTable, approvePayment, completeTable, printInterimReceipt, updateTableStatus, currentUser } = useStore();
+function TableDetailModal({ table: initialTable, onClose }: { table: TableLite; onClose: () => void }) {
+  const { users, orders, tables, evictTable, approvePayment, completeTable, printInterimReceipt, updateTableStatus, currentUser } = useStore();
   const storeId = currentUser?.id ?? "";
+
+  // 항상 store 의 최신 테이블 상태를 사용 — 클릭 시점 스냅샷에 갇히지 않도록.
+  // 같은 id 가 있으면 그걸, 없으면(삭제됨 등) 초기 prop 으로 fallback.
+  const table = tables.find((t) => t.id === initialTable.id) ?? initialTable;
   const curStatus = normalizeStatus(table.status);
   const transitions = nextManualTransitions(curStatus);
 
