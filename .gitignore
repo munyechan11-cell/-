@@ -6,3 +6,10 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Claude Code 로컬 설정 — PC 마다 다르고 토큰·경로 포함 가능, git 추적 X
+.claude/settings.local.json
+.claude/.local/
+
+# PDF 변환 임시 폴더
+dist-guide/
