@@ -318,7 +318,7 @@ export default function BrandSettings() {
           owner={currentUser}
           onSave={async (patch) => {
             await updateBrandSettings(storeId, patch);
-            showToast("영업 시간이 저장됐어요.", "success");
+            showToast(t("obs.ok.hours", lang), "success");
           }}
         />
 
@@ -330,7 +330,7 @@ export default function BrandSettings() {
           device={currentUser.printBridgeDevice}
           onToggle={async (v) => {
             await updateBrandSettings(storeId, { printBridgeEnabled: v });
-            showToast(v ? "영수증 자동 인쇄가 켜졌어요." : "자동 인쇄를 껐어요.", "success");
+            showToast(v ? t("obs.ok.bridgeOn", lang) : t("obs.ok.bridgeOff", lang), "success");
           }}
         />
 
@@ -532,6 +532,8 @@ function PrintBridgeSection({
   device?: { name?: string; pairedAt: string };
   onToggle: (v: boolean) => Promise<void>;
 }) {
+  const lang = useLanguage();
+  const locale = lang === "ko" ? "ko-KR" : lang === "zh" ? "zh-CN" : lang === "vi" ? "vi-VN" : "en-US";
   const [busy, setBusy] = useState(false);
   const [code, setCode] = useState<string | null>(null);
   const [expiresAt, setExpiresAt] = useState<number | null>(null);
@@ -559,9 +561,9 @@ function PrintBridgeSection({
       const { code, expiresAt } = await issuePairingCode(storeId, ownerName);
       setCode(code);
       setExpiresAt(new Date(expiresAt).getTime());
-      showToast("페어링 코드가 발급됐어요. PC 에이전트에 입력하세요.", "success");
+      showToast(t("obsBridge.toast.issued", lang), "success");
     } catch (e: any) {
-      showToast(`코드 발급 실패: ${e?.message ?? ""}`, "error");
+      showToast(t("obsBridge.toast.issueFail", lang, { msg: e?.message ?? "" }), "error");
     } finally {
       setBusy(false);
     }
@@ -571,9 +573,9 @@ function PrintBridgeSection({
     if (!code) return;
     try {
       await navigator.clipboard.writeText(code);
-      showToast("코드를 복사했어요.", "info");
+      showToast(t("obsBridge.toast.copied", lang), "info");
     } catch {
-      showToast("복사에 실패했어요. 직접 입력해 주세요.", "error");
+      showToast(t("obsBridge.toast.copyFail", lang), "error");
     }
   };
 
@@ -584,17 +586,16 @@ function PrintBridgeSection({
   };
 
   return (
-    <Sec title="영수증 자동 인쇄 (브릿지)">
+    <Sec title={t("obsBridge.title", lang)}>
       <div className="space-y-3">
         {/* 토글 */}
         <div className="p-3.5 rounded-[14px] border border-[var(--color-line)] bg-white">
           <div className="flex items-start gap-3">
             <Printer className="w-5 h-5 text-[var(--color-navy-700)] mt-0.5 shrink-0" />
             <div className="flex-1 min-w-0">
-              <p className="text-[14px] font-bold text-[var(--color-navy-900)]">자동 인쇄 사용</p>
+              <p className="text-[14px] font-bold text-[var(--color-navy-900)]">{t("obsBridge.useAuto", lang)}</p>
               <p className="text-[12px] text-[var(--color-ink-600)] leading-relaxed mt-0.5">
-                매장 PC에 결 인쇄 브릿지를 설치하면, 새 주문이 들어올 때마다
-                <br />그 PC의 영수증 프린터에서 자동으로 출력됩니다.
+                {t("obsBridge.useAutoDesc", lang)}
               </p>
             </div>
             <ToggleSwitch value={enabled} onChange={onToggle} />
@@ -608,10 +609,10 @@ function PrintBridgeSection({
               <CheckCircle2 className="w-4 h-4 text-[var(--color-mint-700)] mt-0.5 shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="text-[13px] font-bold text-[var(--color-mint-700)]">
-                  연결됨{device.name ? ` · ${device.name}` : ""}
+                  {t("obsBridge.connected", lang, { suffix: device.name ? ` · ${device.name}` : "" })}
                 </p>
                 <p className="text-[11.5px] text-[var(--color-mint-700)] font-medium opacity-90 mt-0.5">
-                  {new Date(device.pairedAt).toLocaleString("ko-KR")} 페어링
+                  {t("obsBridge.pairedAt", lang, { when: new Date(device.pairedAt).toLocaleString(locale) })}
                 </p>
               </div>
             </div>
@@ -622,10 +623,10 @@ function PrintBridgeSection({
               <Info className="w-4 h-4 text-[var(--color-navy-700)] mt-0.5 shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="text-[12px] text-[var(--color-navy-700)] font-semibold leading-relaxed">
-                  아직 페어링된 PC가 없어요.
+                  {t("obsBridge.noneTitle", lang)}
                   <br />
                   <span className="font-medium opacity-90">
-                    PC에 결 인쇄 브릿지 프로그램을 깐 뒤, 아래 코드를 입력하면 연결됩니다.
+                    {t("obsBridge.noneDesc", lang)}
                   </span>
                 </p>
               </div>
@@ -637,17 +638,17 @@ function PrintBridgeSection({
         {code ? (
           <div className="p-4 rounded-[14px] bg-white border-2 border-[var(--color-navy-700)]">
             <p className="text-[11px] font-bold text-[var(--color-ink-500)] uppercase tracking-wider text-center">
-              페어링 코드 · {mmss(remaining)} 남음
+              {t("obsBridge.codeLabel", lang, { time: mmss(remaining) })}
             </p>
             <button
               onClick={copyCode}
               className="w-full mt-2 text-[34px] font-extrabold text-[var(--color-navy-900)] tabular-nums tracking-[0.25em] text-center active:scale-[0.97] transition-transform"
-              aria-label="코드 복사"
+              aria-label={t("obsBridge.codeCopy", lang)}
             >
               {code}
             </button>
             <p className="text-[11.5px] text-[var(--color-ink-500)] text-center mt-2">
-              PC 트레이의 결 아이콘 → "매장 연결" → 코드 입력
+              {t("obsBridge.codeHint", lang)}
             </p>
           </div>
         ) : (
@@ -658,7 +659,7 @@ function PrintBridgeSection({
             loading={busy}
             leftIcon={<KeyRound className="w-4 h-4" />}
           >
-            {device ? "다시 페어링하기" : "페어링 코드 발급"}
+            {device ? t("obsBridge.btn.repair", lang) : t("obsBridge.btn.issue", lang)}
           </Button>
         )}
 
@@ -669,17 +670,17 @@ function PrintBridgeSection({
           rel="noreferrer noopener"
           className="block w-full text-center h-12 leading-[48px] rounded-[14px] bg-[var(--color-navy-700)] text-white text-[13px] font-bold hover:bg-[var(--color-navy-800)] active:scale-[0.98] transition-all"
         >
-          📥 결 인쇄 브릿지 프로그램 다운로드
+          {t("obsBridge.download", lang)}
         </a>
 
         {/* 다운로드 가이드 */}
         <div className="text-[11.5px] text-[var(--color-ink-500)] leading-relaxed border-t border-[var(--color-line)] pt-3">
-          <p className="font-bold text-[var(--color-ink-700)] mb-1">설치 가이드</p>
+          <p className="font-bold text-[var(--color-ink-700)] mb-1">{t("obsBridge.guide.title", lang)}</p>
           <ol className="list-decimal pl-4 space-y-0.5">
-            <li>매장 PC에서 "결 인쇄 브릿지" 프로그램 다운로드 (준비 중)</li>
-            <li>설치 → 우하단 트레이에 🟢 아이콘 생김</li>
-            <li>여기서 코드 발급 → 트레이 아이콘 → "매장 연결" → 코드 입력</li>
-            <li>프린터 선택 → 테스트 인쇄 → 끝!</li>
+            <li>{t("obsBridge.guide.step1", lang)}</li>
+            <li>{t("obsBridge.guide.step2", lang)}</li>
+            <li>{t("obsBridge.guide.step3", lang)}</li>
+            <li>{t("obsBridge.guide.step4", lang)}</li>
           </ol>
         </div>
       </div>
@@ -701,6 +702,7 @@ function PushNotificationSection({
   deviceCount: number;
   onPrefChange: (patch: NonNullable<typeof prefs>) => Promise<void>;
 }) {
+  const lang = useLanguage();
   const [supported, setSupported] = useState<boolean | null>(null);
   const [perm, setPerm] = useState<PermissionState>("default");
   const [busy, setBusy] = useState(false);
@@ -732,7 +734,7 @@ function PushNotificationSection({
       if (r.ok) {
         setRegistered(true);
         setPerm("granted");
-        showToast("이 기기로 알림을 받을게요. 새 주문이 들어오면 바로 알려드려요.", "success");
+        showToast(t("obsPush.toast.on", lang), "success");
         return;
       }
       // 실패 — reason 별 친화 메시지 + 상세 에러 카드
@@ -740,26 +742,26 @@ function PushNotificationSection({
       setLastErrorDetail(r.detail ?? "");
       switch (r.reason) {
         case "unsupported":
-          showToast("이 브라우저는 푸시 알림을 지원하지 않아요. Chrome/Edge 권장.", "info");
+          showToast(t("obsPush.toast.unsupported", lang), "info");
           break;
         case "denied":
-          showToast("알림 권한이 거부됐어요. 주소창 자물쇠 → 알림 → 허용으로 변경.", "error");
+          showToast(t("obsPush.toast.denied", lang), "error");
           setPerm("denied");
           break;
         case "no-vapid":
-          showToast("관리자 설정 누락: VAPID 키. 관리자에게 문의해 주세요.", "error");
+          showToast(t("obsPush.toast.noVapid", lang), "error");
           break;
         case "sw-register-failed":
-          showToast("서비스 워커 등록 실패. 한 번 새로고침 후 다시 시도해 주세요.", "error");
+          showToast(t("obsPush.toast.swFail", lang), "error");
           break;
         case "no-auth":
-          showToast("로그인 상태가 끊겼어요. 한 번 새로고침 후 다시 시도.", "error");
+          showToast(t("obsPush.toast.noAuth", lang), "error");
           break;
         case "firestore-error":
-          showToast(`Firestore 권한 거부. 관리자에게 문의해 주세요. (${r.detail ?? ""})`.slice(0, 100), "error");
+          showToast(t("obsPush.toast.firestore", lang, { detail: r.detail ?? "" }).slice(0, 100), "error");
           break;
         default:
-          showToast(`알림 등록 실패: ${r.detail ?? "원인 불명"}`, "error");
+          showToast(t("obsPush.toast.fail", lang, { detail: r.detail ?? t("obsPush.toast.reasonUnknown", lang) }), "error");
       }
     } finally {
       setBusy(false);
@@ -771,7 +773,7 @@ function PushNotificationSection({
     try {
       await unregisterOwnerDevice(storeId);
       setRegistered(false);
-      showToast("이 기기에서 알림을 껐어요.", "info");
+      showToast(t("obsPush.toast.off", lang), "info");
     } finally {
       setBusy(false);
     }
@@ -780,18 +782,17 @@ function PushNotificationSection({
   const isOn = perm === "granted" && registered;
 
   return (
-    <Sec title="푸시 알림 (사장님 폰)">
+    <Sec title={t("obsPush.title", lang)}>
       <div className="space-y-3">
         {/* 상태 카드 */}
         {supported === false ? (
           <div className="flex items-start gap-2 p-3.5 rounded-[14px] bg-[#fef2f2] border border-[var(--color-danger)]/30">
             <AlertCircle className="w-4 h-4 text-[var(--color-danger)] mt-0.5 shrink-0" />
             <p className="text-[12px] text-[var(--color-danger)] font-semibold leading-relaxed">
-              이 브라우저는 푸시 알림을 지원하지 않아요.
+              {t("obsPush.unsupported", lang)}
               <br />
               <span className="font-medium opacity-90">
-                Chrome / Edge / Firefox 데스크탑 또는 Android 에서 시도해 주세요.
-                iPhone 은 홈 화면에 추가된 PWA(설치형)에서만 작동합니다 (iOS 16.4+).
+                {t("obsPush.unsupportedDesc", lang)}
               </span>
             </p>
           </div>
@@ -799,7 +800,7 @@ function PushNotificationSection({
           <div className="flex items-start gap-2 p-3.5 rounded-[14px] bg-[#fff8e6] border border-[#f0b400]/40">
             <AlertCircle className="w-4 h-4 text-[#b07b00] mt-0.5 shrink-0" />
             <p className="text-[12px] text-[#b07b00] font-semibold leading-relaxed">
-              알림 권한이 차단되어 있어요. 주소창의 🔒 자물쇠 아이콘 → 알림 → '허용' 으로 바꾼 뒤 다시 시도해 주세요.
+              {t("obsPush.denied", lang)}
             </p>
           </div>
         ) : (
@@ -815,12 +816,10 @@ function PushNotificationSection({
             )}
             <div className="flex-1 min-w-0">
               <p className={`text-[13px] font-bold ${isOn ? "text-[var(--color-mint-700)]" : "text-[var(--color-navy-700)]"}`}>
-                {isOn ? `이 기기 알림 켜짐 · 총 ${deviceCount}대 등록` : "알림 받을 기기를 등록하세요"}
+                {isOn ? t("obsPush.onTitle", lang, { n: deviceCount }) : t("obsPush.offTitle", lang)}
               </p>
               <p className={`text-[11.5px] font-medium opacity-90 mt-0.5 ${isOn ? "text-[var(--color-mint-700)]" : "text-[var(--color-navy-700)]"}`}>
-                {isOn
-                  ? "매장 화면을 안 봐도 새 주문·결제 요청을 폰으로 받을 수 있어요."
-                  : "사장님 폰·태블릿·PC 어디서든 등록 가능. 한 번만 권한 허용하면 끝."}
+                {isOn ? t("obsPush.onDesc", lang) : t("obsPush.offDesc", lang)}
               </p>
             </div>
           </div>
@@ -830,32 +829,32 @@ function PushNotificationSection({
         {lastErrorReason && !isOn && (
           <div className="p-3.5 rounded-[14px] bg-[#fef2f2] border border-[var(--color-danger)]/40">
             <p className="text-[12.5px] font-extrabold text-[var(--color-danger)] mb-1">
-              ❌ 알림 등록 실패 · {
-                {
-                  "no-vapid": "VAPID 키 누락",
-                  "sw-register-failed": "서비스 워커 등록 실패",
-                  "denied": "알림 권한 거부됨",
-                  "no-auth": "인증 끊김",
-                  "firestore-error": "데이터베이스 권한 거부",
-                  "unsupported": "브라우저 미지원",
-                  "error": "기타 오류",
-                }[lastErrorReason] || lastErrorReason
-              }
+              {t("obsPush.failTitle", lang, { reason:
+                ({
+                  "no-vapid": t("obsPush.reason.noVapid", lang),
+                  "sw-register-failed": t("obsPush.reason.swFail", lang),
+                  "denied": t("obsPush.reason.denied", lang),
+                  "no-auth": t("obsPush.reason.noAuth", lang),
+                  "firestore-error": t("obsPush.reason.firestore", lang),
+                  "unsupported": t("obsPush.reason.unsupported", lang),
+                  "error": t("obsPush.reason.error", lang),
+                } as Record<string, string>)[lastErrorReason] || lastErrorReason
+              })}
             </p>
             <p className="text-[11.5px] text-[var(--color-ink-700)] leading-relaxed font-medium">
-              {{
-                "no-vapid": "관리자가 Firebase Console 에서 웹 푸시 인증서를 발급한 뒤 Render 환경변수 VITE_FCM_VAPID_KEY 에 등록해야 합니다.",
-                "sw-register-failed": "브라우저를 강력 새로고침(Ctrl+Shift+R)하고 다시 시도해 주세요. 또는 시크릿 모드/확장 프로그램 충돌 가능.",
-                "denied": "주소창 왼쪽 🔒 자물쇠 아이콘 → 알림 → '허용' 으로 변경 후 다시 시도.",
-                "no-auth": "로그아웃 후 다시 로그인하거나 페이지를 새로고침해 주세요.",
-                "firestore-error": "Firestore 룰의 users 컬렉션 쓰기 권한을 확인해야 합니다.",
-                "unsupported": "Chrome/Edge/Firefox 데스크탑 또는 Android. iPhone 은 홈 화면 PWA(iOS 16.4+).",
-              }[lastErrorReason] || "잠시 후 다시 시도해 주세요."}
+              {({
+                "no-vapid": t("obsPush.help.noVapid", lang),
+                "sw-register-failed": t("obsPush.help.swFail", lang),
+                "denied": t("obsPush.help.denied", lang),
+                "no-auth": t("obsPush.help.noAuth", lang),
+                "firestore-error": t("obsPush.help.firestore", lang),
+                "unsupported": t("obsPush.help.unsupported", lang),
+              } as Record<string, string>)[lastErrorReason] || t("obsPush.help.fallback", lang)}
             </p>
             {lastErrorDetail && (
               <details className="mt-2">
                 <summary className="text-[10.5px] text-[var(--color-ink-500)] cursor-pointer font-bold">
-                  상세 에러 (관리자용)
+                  {t("obsPush.detailLabel", lang)}
                 </summary>
                 <p className="mt-1 text-[10.5px] font-mono break-all text-[var(--color-ink-600)] bg-white p-2 rounded">
                   {lastErrorDetail}
@@ -874,7 +873,7 @@ function PushNotificationSection({
             variant={isOn ? "outline" : "primary"}
             leftIcon={isOn ? <BellOff className="w-4 h-4" /> : <Bell className="w-4 h-4" />}
           >
-            {isOn ? "이 기기에서 알림 끄기" : "이 기기로 알림 받기"}
+            {isOn ? t("obsPush.btn.off", lang) : t("obsPush.btn.on", lang)}
           </Button>
         )}
 
@@ -883,29 +882,29 @@ function PushNotificationSection({
           <div className="rounded-[14px] border border-[var(--color-line)] divide-y divide-[var(--color-line)] bg-white">
             <PrefRow
               icon="🔔"
-              label="새 주문 도착"
-              hint="손님이 메뉴 주문할 때마다"
+              label={t("obsPush.pref.newOrder", lang)}
+              hint={t("obsPush.pref.newOrderHint", lang)}
               value={prefs?.newOrder !== false}
               onChange={(v) => onPrefChange({ newOrder: v })}
             />
             <PrefRow
               icon="💳"
-              label="결제 요청"
-              hint="손님이 '결제하기' 를 눌렀을 때"
+              label={t("obsPush.pref.payment", lang)}
+              hint={t("obsPush.pref.paymentHint", lang)}
               value={prefs?.paymentRequest !== false}
               onChange={(v) => onPrefChange({ paymentRequest: v })}
             />
             <PrefRow
               icon="🎟"
-              label="쿠폰 사용 요청"
-              hint="손님이 쿠폰 사용을 요청했을 때"
+              label={t("obsPush.pref.coupon", lang)}
+              hint={t("obsPush.pref.couponHint", lang)}
               value={prefs?.couponRequest !== false}
               onChange={(v) => onPrefChange({ couponRequest: v })}
             />
             <PrefRow
               icon="👤"
-              label="새 직원 가입 요청"
-              hint="새 직원이 가입 신청했을 때"
+              label={t("obsPush.pref.staff", lang)}
+              hint={t("obsPush.pref.staffHint", lang)}
               value={prefs?.staffJoin !== false}
               onChange={(v) => onPrefChange({ staffJoin: v })}
             />
@@ -916,10 +915,9 @@ function PushNotificationSection({
         <div className="text-[11px] text-[var(--color-ink-500)] leading-relaxed border-t border-[var(--color-line)] pt-3 flex items-start gap-2">
           <Smartphone className="w-3.5 h-3.5 mt-0.5 shrink-0" />
           <div>
-            <p className="font-bold text-[var(--color-ink-700)] mb-1">여러 기기에서 받기</p>
+            <p className="font-bold text-[var(--color-ink-700)] mb-1">{t("obsPush.multi.title", lang)}</p>
             <p>
-              사장님 폰·태블릿·PC 각각에서 '이 기기로 알림 받기' 를 한 번씩 누르면
-              모든 기기에 동시에 푸시가 갑니다.
+              {t("obsPush.multi.desc", lang)}
             </p>
           </div>
         </div>
@@ -953,6 +951,7 @@ function BusinessHoursSection({
   owner: { businessHours?: BusinessHours; temporarilyClosed?: boolean; temporaryClosedReason?: string } | null;
   onSave: (patch: { businessHours?: BusinessHours; temporarilyClosed?: boolean; temporaryClosedReason?: string }) => Promise<void>;
 }) {
+  const lang = useLanguage();
   const init = useMemo(() => owner?.businessHours ?? defaultBusinessHours(), [owner?.businessHours]);
   const [bh, setBh] = useState<BusinessHours>(init);
   const [tempClosed, setTempClosed] = useState(!!owner?.temporarilyClosed);
@@ -982,7 +981,7 @@ function BusinessHoursSection({
   };
 
   return (
-    <Sec title="영업 시간">
+    <Sec title={t("obsBh.title", lang)}>
       <div className="space-y-3">
         {/* 현재 상태 카드 */}
         <div className={cn(
@@ -993,7 +992,7 @@ function BusinessHoursSection({
         )}>
           <span className={cn("w-2 h-2 rounded-full", status.open ? "bg-[var(--color-mint-500)] animate-pulse" : "bg-[var(--color-danger)]")} />
           <p className={cn("text-[13px] font-extrabold", status.open ? "text-[var(--color-mint-700)]" : "text-[var(--color-danger)]")}>
-            현재: {summarizeStatus(status)}
+            {t("obsBh.current", lang, { status: summarizeStatus(status) })}
           </p>
         </div>
 
@@ -1001,8 +1000,8 @@ function BusinessHoursSection({
         <div className="p-3 rounded-[12px] border border-[var(--color-line)] flex items-center gap-3">
           <Clock className="w-4 h-4 text-[var(--color-navy-700)]" />
           <div className="flex-1">
-            <p className="text-[13px] font-bold text-[var(--color-navy-900)]">24시간 영업</p>
-            <p className="text-[11px] text-[var(--color-ink-500)]">켜면 요일별 시간 무시</p>
+            <p className="text-[13px] font-bold text-[var(--color-navy-900)]">{t("obsBh.h24.title", lang)}</p>
+            <p className="text-[11px] text-[var(--color-ink-500)]">{t("obsBh.h24.desc", lang)}</p>
           </div>
           <ToggleSwitch value={!!bh.open24h} onChange={(v) => setBh({ ...bh, open24h: v })} />
         </div>
@@ -1016,7 +1015,7 @@ function BusinessHoursSection({
                 <div key={idx} className="px-3 py-2.5 flex items-center gap-2 flex-wrap">
                   <span className="w-8 text-[12.5px] font-extrabold text-[var(--color-navy-900)]">{label}</span>
                   {w.closed ? (
-                    <span className="text-[12px] font-bold text-[var(--color-danger)] flex-1">휴무</span>
+                    <span className="text-[12px] font-bold text-[var(--color-danger)] flex-1">{t("obsBh.day.closed", lang)}</span>
                   ) : (
                     <>
                       <input
@@ -1034,14 +1033,14 @@ function BusinessHoursSection({
                       />
                       {w.breakStart || w.breakEnd ? (
                         <span className="text-[10.5px] text-[var(--color-warn)] font-bold">
-                          쉬는: {w.breakStart ?? "??"} ~ {w.breakEnd ?? "??"}
+                          {t("obsBh.day.breakLine", lang, { start: w.breakStart ?? "??", end: w.breakEnd ?? "??" })}
                         </span>
                       ) : (
                         <button
                           onClick={() => updateWeekly(idx, { breakStart: "15:00", breakEnd: "17:00" })}
                           className="text-[10.5px] font-bold text-[var(--color-navy-700)] hover:underline"
                         >
-                          + 쉬는시간
+                          {t("obsBh.day.addBreak", lang)}
                         </button>
                       )}
                     </>
@@ -1053,7 +1052,7 @@ function BusinessHoursSection({
                       w.closed ? "bg-[var(--color-mint-100)] text-[var(--color-mint-700)]" : "bg-[#fef2f2] text-[var(--color-danger)]"
                     )}
                   >
-                    {w.closed ? "영업으로" : "휴무로"}
+                    {w.closed ? t("obsBh.day.toOpen", lang) : t("obsBh.day.toClosed", lang)}
                   </button>
                 </div>
               );
@@ -1063,7 +1062,7 @@ function BusinessHoursSection({
 
         {/* 임시 휴무일 (날짜) */}
         <div className="rounded-[12px] border border-[var(--color-line)] p-3">
-          <p className="text-[12.5px] font-bold text-[var(--color-navy-900)] mb-2">특정 날짜 휴무 (명절·공휴일 등)</p>
+          <p className="text-[12.5px] font-bold text-[var(--color-navy-900)] mb-2">{t("obsBh.closedDates.title", lang)}</p>
           <div className="flex items-center gap-2 mb-2">
             <input
               type="date"
@@ -1076,7 +1075,7 @@ function BusinessHoursSection({
               disabled={!closedDate}
               className="h-9 px-3 rounded-md bg-[var(--color-navy-700)] text-white text-[12px] font-bold disabled:opacity-40"
             >
-              추가
+              {t("obsBh.closedDates.add", lang)}
             </button>
           </div>
           {(bh.closedDates ?? []).length > 0 && (
@@ -1096,8 +1095,8 @@ function BusinessHoursSection({
           <div className="flex items-center gap-3 mb-2">
             <AlertCircle className="w-4 h-4 text-[var(--color-warn)]" />
             <div className="flex-1">
-              <p className="text-[12.5px] font-bold text-[#b07b00]">긴급 임시 마감</p>
-              <p className="text-[10.5px] text-[#b07b00]/80">영업 시간 무시하고 즉시 마감</p>
+              <p className="text-[12.5px] font-bold text-[#b07b00]">{t("obsBh.emergency.title", lang)}</p>
+              <p className="text-[10.5px] text-[#b07b00]/80">{t("obsBh.emergency.desc", lang)}</p>
             </div>
             <ToggleSwitch value={tempClosed} onChange={async (v) => {
               setTempClosed(v);
@@ -1107,7 +1106,7 @@ function BusinessHoursSection({
           {tempClosed && (
             <input
               type="text"
-              placeholder="사유 (예: 재료 소진, 사장님 부재)"
+              placeholder={t("obsBh.emergency.reasonPh", lang)}
               value={tempReason}
               onChange={(e) => setTempReason(e.target.value)}
               onBlur={() => onSave({ temporarilyClosed: true, temporaryClosedReason: tempReason })}
@@ -1117,7 +1116,7 @@ function BusinessHoursSection({
         </div>
 
         <Button block onClick={() => onSave({ businessHours: bh })} leftIcon={<Save className="w-4 h-4" />}>
-          영업 시간 저장
+          {t("obsBh.save", lang)}
         </Button>
       </div>
     </Sec>
