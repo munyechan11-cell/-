@@ -1,4 +1,5 @@
 import type { Tier, Visit } from "./types";
+import { t, getLanguage, type Lang } from "./i18n";
 
 export const TIER_ORDER: Tier[] = ["일반", "브론즈", "실버", "골드", "다이아", "VIP"];
 
@@ -69,21 +70,53 @@ export interface Cluster {
   tone: string;
 }
 
-export function getRFMCluster(rfm: RFM): Cluster {
-  const { r, f, m } = rfm;
-  if (r >= 4 && f >= 4) return { id: "vip", label: "VIP 레전드", tone: "text-[#a16207] bg-[#fff8d6]" };
-  if (f >= 4 && m >= 4) return { id: "whale", label: "잠재 큰손", tone: "text-[var(--color-navy-700)] bg-[var(--color-navy-100)]" };
-  if (r >= 4 && f < 3) return { id: "new", label: "유망 신규", tone: "text-[#1a5fa8] bg-[#e6f0fb]" };
-  if (r < 3 && f >= 4) return { id: "slipping", label: "이탈 위험 충성", tone: "text-[#9f1239] bg-[#fef2f2]" };
-  if (r < 2) return { id: "cold", label: "장기 휴면", tone: "text-[var(--color-ink-500)] bg-[var(--color-ink-50)]" };
-  return { id: "regular", label: "일반 고객", tone: "text-[var(--color-ink-700)] bg-[var(--color-ink-50)]" };
+const CLUSTER_TONE: Record<ClusterId, string> = {
+  vip: "text-[#a16207] bg-[#fff8d6]",
+  whale: "text-[var(--color-navy-700)] bg-[var(--color-navy-100)]",
+  new: "text-[#1a5fa8] bg-[#e6f0fb]",
+  slipping: "text-[#9f1239] bg-[#fef2f2]",
+  cold: "text-[var(--color-ink-500)] bg-[var(--color-ink-50)]",
+  regular: "text-[var(--color-ink-700)] bg-[var(--color-ink-50)]",
+};
+
+const CLUSTER_LABEL_KEY: Record<ClusterId, string> = {
+  vip: "cluster.vip",
+  whale: "cluster.whale",
+  new: "cluster.new",
+  slipping: "cluster.slipping",
+  cold: "cluster.cold",
+  regular: "cluster.regular",
+};
+
+function clusterOf(id: ClusterId, lang?: Lang): Cluster {
+  return { id, label: t(CLUSTER_LABEL_KEY[id], lang ?? getLanguage()), tone: CLUSTER_TONE[id] };
 }
 
-export const DEFAULT_INSIGHTS: Record<ClusterId, string> = {
-  vip: "VIP 전용 시그니처 메뉴를 슬쩍 권해 보세요.",
-  whale: "객단가가 높습니다. 프리미엄 옵션을 추천해 보세요.",
-  new: "두 번째 방문 유도 쿠폰을 발급해 보세요.",
-  slipping: "재방문 인사 메시지를 보내 보세요.",
-  cold: "휴면 복귀 쿠폰으로 다시 모셔보세요.",
-  regular: "다음 방문에 사용 가능한 작은 혜택을 제안해 보세요.",
+export function getRFMCluster(rfm: RFM, lang?: Lang): Cluster {
+  const { r, f, m } = rfm;
+  if (r >= 4 && f >= 4) return clusterOf("vip", lang);
+  if (f >= 4 && m >= 4) return clusterOf("whale", lang);
+  if (r >= 4 && f < 3) return clusterOf("new", lang);
+  if (r < 3 && f >= 4) return clusterOf("slipping", lang);
+  if (r < 2) return clusterOf("cold", lang);
+  return clusterOf("regular", lang);
+}
+
+const INSIGHT_KEY: Record<ClusterId, string> = {
+  vip: "insight.vip",
+  whale: "insight.whale",
+  new: "insight.new",
+  slipping: "insight.slipping",
+  cold: "insight.cold",
+  regular: "insight.regular",
 };
+
+/** Legacy: 호출 시점의 currentLang 으로 동적 lookup. */
+export const DEFAULT_INSIGHTS: Record<ClusterId, string> = new Proxy({} as Record<ClusterId, string>, {
+  get(_target, prop: string) {
+    if (prop in INSIGHT_KEY) {
+      return t(INSIGHT_KEY[prop as ClusterId], getLanguage());
+    }
+    return undefined;
+  },
+}) as Record<ClusterId, string>;

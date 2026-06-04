@@ -14,11 +14,21 @@
  *     · 단, breakStart~breakEnd 사이면 break (closed 로 취급)
  */
 import type { BusinessHours, User } from "./types";
+import { t, getLanguage, type Lang } from "./i18n";
 
 export type StoreOpenStatus =
-  | { open: true; until?: string }      // 영업 중 (until 은 다음 마감 시각 HH:MM)
-  | { open: false; reason: string; from?: string }; // 영업 외 (reason = 안내 문구)
+  | { open: true; until?: string }
+  | {
+      open: false;
+      /** 이미 i18n 처리된 사용자용 문구 (deprecated 호환). 새 호출자는 reasonKey 사용. */
+      reason: string;
+      /** i18n 키 — 호출자가 t(reasonKey, lang, reasonVars) 로 직접 처리할 수 있게 함. */
+      reasonKey?: string;
+      reasonVars?: Record<string, string | number>;
+      from?: string;
+    };
 
+const DAY_KEYS = ["bh.day.sun", "bh.day.mon", "bh.day.tue", "bh.day.wed", "bh.day.thu", "bh.day.fri", "bh.day.sat"] as const;
 const dayLabel = ["일", "월", "화", "수", "목", "금", "토"] as const;
 
 function toMin(hhmm?: string): number | null {
@@ -44,9 +54,11 @@ export function getStoreOpenStatus(
 
   // 1) 긴급 임시 마감 — 최우선
   if (owner.temporarilyClosed) {
+    const customReason = owner.temporaryClosedReason;
     return {
       open: false,
-      reason: owner.temporaryClosedReason || "지금 잠시 영업을 쉬어요.",
+      reason: customReason || t("bh.emergencyDefault", getLanguage()),
+      reasonKey: customReason ? undefined : "bh.emergencyDefault",
     };
   }
 
@@ -57,14 +69,21 @@ export function getStoreOpenStatus(
   // 2) 임시 휴무일 (날짜 매칭)
   const today = todayStr(now);
   if (bh.closedDates?.includes(today)) {
-    return { open: false, reason: "오늘은 휴무일이에요." };
+    return { open: false, reason: t("bh.todayHoliday", getLanguage()), reasonKey: "bh.todayHoliday" };
   }
 
   // 3) 요일별 영업 시간
   const day = now.getDay(); // 0=일
   const w = bh.weekly?.[day];
   if (!w || w.closed) {
-    return { open: false, reason: `${dayLabel[day]}요일은 휴무일이에요.` };
+    const L = getLanguage();
+    const dayName = t(DAY_KEYS[day], L);
+    return {
+      open: false,
+      reason: t("bh.weekdayHoliday", L, { day: dayName }),
+      reasonKey: "bh.weekdayHoliday",
+      reasonVars: { day: dayName },
+    };
   }
   const openM = toMin(w.open);
   const closeM = toMin(w.close);
@@ -83,10 +102,17 @@ export function getStoreOpenStatus(
   }
 
   if (!isInWindow) {
+    const L = getLanguage();
     if (cur < openM && closeM > openM) {
-      return { open: false, reason: `오늘 영업 시작: ${w.open}`, from: w.open };
+      return {
+        open: false,
+        reason: t("bh.opensAt", L, { time: w.open ?? "" }),
+        reasonKey: "bh.opensAt",
+        reasonVars: { time: w.open ?? "" },
+        from: w.open,
+      };
     }
-    return { open: false, reason: "영업 시간이 아니에요." };
+    return { open: false, reason: t("bh.notOpen", L), reasonKey: "bh.notOpen" };
   }
 
   // 4) 휴게시간 — 자정 넘는 케이스도 처리 (예: 영업 21:00~02:00, 휴게 23:00~00:30)
@@ -101,16 +127,28 @@ export function getStoreOpenStatus(
       inBreak = cur >= breakStart && cur < breakEnd;
     }
     if (inBreak) {
-      return { open: false, reason: `브레이크 타임 (${w.breakStart} ~ ${w.breakEnd})`, from: w.breakEnd };
+      const L = getLanguage();
+      return {
+        open: false,
+        reason: t("bh.breakTime", L, { start: w.breakStart ?? "", end: w.breakEnd ?? "" }),
+        reasonKey: "bh.breakTime",
+        reasonVars: { start: w.breakStart ?? "", end: w.breakEnd ?? "" },
+        from: w.breakEnd,
+      };
     }
   }
 
   return { open: true, until: w.close };
 }
 
-/** UI 표시용 — 요약 한 줄 */
-export function summarizeStatus(s: StoreOpenStatus): string {
-  if (s.open === true) return s.until ? `영업 중 · ~ ${s.until}` : "영업 중";
+/** UI 표시용 — 요약 한 줄. lang 인자 없으면 currentLang fallback. */
+export function summarizeStatus(s: StoreOpenStatus, lang?: Lang): string {
+  const L = lang ?? getLanguage();
+  if (s.open === true) {
+    return s.until ? t("bh.openLine", L, { until: s.until }) : t("bh.openShort", L);
+  }
+  // reasonKey 가 있으면 lang 에 맞게 다시 lookup (호출자가 다른 lang 으로 부른 경우 정확히 반영)
+  if (s.reasonKey) return t(s.reasonKey, L, s.reasonVars);
   return s.reason;
 }
 

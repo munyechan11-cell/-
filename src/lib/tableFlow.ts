@@ -5,6 +5,7 @@
  * 여기서 라벨·색·다음 액션을 가져와 일관되게 보여준다.
  */
 import type { TableStatus } from "./types";
+import { t, getLanguage, type Lang } from "./i18n";
 
 /** 화면 표시용 정규화 — 'dirty' 같은 legacy 값을 'cleaning' 으로 맵핑 */
 export function normalizeStatus(s?: TableStatus | string | null): TableStatus {
@@ -17,16 +18,32 @@ export function normalizeStatus(s?: TableStatus | string | null): TableStatus {
   return "available";
 }
 
-export const STATUS_LABEL: Record<TableStatus, string> = {
-  available: "비어있음",
-  reserved: "예약됨",
-  setup: "세팅완료",
-  occupied: "손님입장",
-  dining: "식사중",
-  paid: "결제완료",
-  cleaning: "청소·정리중",
-  dirty: "청소·정리중",
+/** i18n 키 매핑 — 호출자는 t(STATUS_LABEL_KEY[s], lang) 또는 getStatusLabel(s, lang) 사용 */
+export const STATUS_LABEL_KEY: Record<TableStatus, string> = {
+  available: "tflow.available",
+  reserved: "tflow.reserved",
+  setup: "tflow.setup",
+  occupied: "tflow.occupied",
+  dining: "tflow.dining",
+  paid: "tflow.paid",
+  cleaning: "tflow.cleaning",
+  dirty: "tflow.dirty",
 };
+
+/** lang 기반 라벨 헬퍼 — 라이브러리 호출자가 lang 없을 때 currentLang fallback */
+export function getStatusLabel(s: TableStatus, lang?: Lang): string {
+  return t(STATUS_LABEL_KEY[s], lang ?? getLanguage());
+}
+
+/** Legacy: 호출 시점의 currentLang 으로 동적 lookup. 컴포넌트는 useLanguage() 로 리렌더 보장 권장. */
+export const STATUS_LABEL = new Proxy({} as Record<TableStatus, string>, {
+  get(_target, prop: string) {
+    if (prop in STATUS_LABEL_KEY) {
+      return t(STATUS_LABEL_KEY[prop as TableStatus], getLanguage());
+    }
+    return undefined;
+  },
+}) as Record<TableStatus, string>;
 
 /** 카드 / 모달 헤더용 색상 클래스 (tailwind class) */
 export const STATUS_BADGE: Record<TableStatus, { bg: string; text: string; dot: string }> = {
@@ -78,22 +95,23 @@ export interface ManualTransition {
   tone: "primary" | "mint" | "warn" | "outline";
 }
 
-export function nextManualTransitions(current: TableStatus): ManualTransition[] {
+export function nextManualTransitions(current: TableStatus, lang?: Lang): ManualTransition[] {
+  const L = lang ?? getLanguage();
   switch (normalizeStatus(current)) {
     case "available":
       return [
-        { label: "예약 표시", to: "reserved", tone: "outline" },
-        { label: "세팅 완료", to: "setup", tone: "primary" },
+        { label: t("tflow.trans.reserve", L), to: "reserved", tone: "outline" },
+        { label: t("tflow.trans.setupDone", L), to: "setup", tone: "primary" },
       ];
     case "reserved":
       return [
-        { label: "세팅 완료", to: "setup", tone: "primary" },
-        { label: "예약 취소", to: "available", tone: "outline" },
+        { label: t("tflow.trans.setupDone", L), to: "setup", tone: "primary" },
+        { label: t("tflow.trans.cancelReserve", L), to: "available", tone: "outline" },
       ];
     case "setup":
       return [
-        { label: "예약 표시", to: "reserved", tone: "outline" },
-        { label: "비어있음으로 되돌리기", to: "available", tone: "outline" },
+        { label: t("tflow.trans.reserve", L), to: "reserved", tone: "outline" },
+        { label: t("tflow.trans.backToAvailable", L), to: "available", tone: "outline" },
       ];
     // occupied / dining / paid 는 자동 전이만. 수동 옵션은 모달 별도 액션
     case "occupied":
@@ -101,12 +119,12 @@ export function nextManualTransitions(current: TableStatus): ManualTransition[] 
       return [];  // 결제 승인·퇴장 처리는 별도 액션 영역에서
     case "paid":
       return [
-        { label: "정리 시작", to: "cleaning", tone: "warn" },
+        { label: t("tflow.trans.startCleaning", L), to: "cleaning", tone: "warn" },
       ];
     case "cleaning":
     case "dirty":
       return [
-        { label: "청소 완료 → 비어있음", to: "available", tone: "mint" },
+        { label: t("tflow.trans.cleaningDone", L), to: "available", tone: "mint" },
       ];
     default:
       return [];
