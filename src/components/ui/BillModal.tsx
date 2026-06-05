@@ -102,10 +102,10 @@ export function BillModal({
                 <div key={o.id} className="border-b border-[var(--color-line-soft)] pb-3 last:border-0">
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-[12px] text-[var(--color-ink-600)] font-semibold tabular-nums">
-                      {new Date(o.createdAt).toLocaleTimeString(lang === "en" ? "en-US" : "ko-KR", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
+                      {new Date(o.createdAt).toLocaleTimeString(
+                        lang === "en" ? "en-US" : lang === "vi" ? "vi-VN" : lang === "zh" ? "zh-CN" : "ko-KR",
+                        { hour: "2-digit", minute: "2-digit" }
+                      )}
                     </span>
                     {o.paymentStatus === "paid" ? (
                       <span className="text-[11px] font-bold text-[var(--color-mint-700)] bg-[var(--color-mint-100)] px-1.5 py-0.5 rounded">

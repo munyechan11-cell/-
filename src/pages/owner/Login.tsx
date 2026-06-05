@@ -21,11 +21,13 @@ import { cn } from "../../lib/cn";
 import { POS_VENDORS, getVendor, type PosVendor } from "../../lib/posVendors";
 import { signInWithGoogle, signInWithKakao, consumeGoogleRedirect } from "../../lib/auth";
 import type { SocialResult } from "../../lib/auth";
+import { useLanguage, t } from "../../lib/i18n";
 
 type Mode = "login" | "signup";
 
 export default function OwnerLogin() {
   const nav = useNavigate();
+  const lang = useLanguage();
   const { login, users } = useStore();
   const [mode, setMode] = useState<Mode>("login");
   const [phone, setPhone] = useState("");
@@ -40,11 +42,11 @@ export default function OwnerLogin() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (phone.replace(/\D/g, "").length < 10 || !name.trim()) {
-      showToast("이름과 전화번호를 정확히 입력해 주세요.", "error");
+      showToast(t("ownerLogin.toast.fillNamePhone", lang), "error");
       return;
     }
     if (mode === "signup" && !restaurantName.trim()) {
-      showToast("매장명을 입력해 주세요.", "error");
+      showToast(t("ownerLogin.toast.fillRestaurant", lang), "error");
       return;
     }
     // 소셜 pending이 있으면 소셜 ID를 함께 연결 (탭 토글 등으로 일반 submit이 타도 안전)
@@ -89,8 +91,8 @@ export default function OwnerLogin() {
     } catch (e: any) {
       showToast(
         mode === "login"
-          ? "일치하는 사장님 계정이 없어요. '신규 등록' 탭으로 가입해 주세요."
-          : `가입 실패: ${e?.message ?? ""}`,
+          ? t("ownerLogin.toast.noAccount", lang)
+          : t("ownerLogin.toast.signupFailed", lang, { msg: e?.message ?? "" }),
         "error"
       );
     } finally {
@@ -123,7 +125,7 @@ export default function OwnerLogin() {
     }
 
     if (mode === "login") {
-      showToast("기존 사장님 계정이 없어요. 매장명/POS 정보를 입력하고 등록하세요.", "info");
+      showToast(t("ownerLogin.toast.noExisting", lang), "info");
     }
     setMode("signup");
     if (res.name) setName(res.name);
@@ -131,14 +133,14 @@ export default function OwnerLogin() {
       "gyeol:pending-owner-social",
       JSON.stringify({ id: res.id, provider: res.provider, avatarUrl: res.avatarUrl, ts: Date.now() })
     );
-    showToast("매장명과 POS 정보를 입력하고 가입을 완료하세요.", "info");
+    showToast(t("ownerLogin.toast.completeSignup", lang), "info");
   };
 
   // 인앱 브라우저 Google redirect 결과 회수
   useEffect(() => {
     consumeGoogleRedirect()
       .then((res) => { if (res) return applySocialResult(res); })
-      .catch((e) => showToast(`소셜 로그인 실패: ${e?.message ?? ""}`, "error"));
+      .catch((e) => showToast(t("ownerLogin.toast.socialFailed", lang, { msg: e?.message ?? "" }), "error"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -149,7 +151,7 @@ export default function OwnerLogin() {
       await applySocialResult(res);
     } catch (e: any) {
       if (e?.message === "REDIRECT_IN_PROGRESS") return;
-      showToast(`소셜 로그인 실패: ${e?.message ?? ""}`, "error");
+      showToast(t("ownerLogin.toast.socialFailed", lang, { msg: e?.message ?? "" }), "error");
     } finally {
       setLoading(false);
     }
@@ -161,7 +163,7 @@ export default function OwnerLogin() {
     if (!stash) return;
     const social = JSON.parse(stash) as { id: string; provider: "google" | "kakao"; avatarUrl?: string };
     if (!restaurantName.trim() || !name.trim()) {
-      showToast("성함과 매장명을 입력해 주세요.", "error");
+      showToast(t("ownerLogin.toast.fillNameRestaurant", lang), "error");
       return;
     }
     setLoading(true);
@@ -181,7 +183,7 @@ export default function OwnerLogin() {
       sessionStorage.removeItem("gyeol:pending-owner-social");
       nav("/biz/owner", { replace: true });
     } catch (e: any) {
-      showToast(`가입 실패: ${e?.message ?? ""}`, "error");
+      showToast(t("ownerLogin.toast.signupFailed", lang, { msg: e?.message ?? "" }), "error");
     } finally {
       setLoading(false);
     }
@@ -191,15 +193,15 @@ export default function OwnerLogin() {
 
   return (
     <MobileShell>
-      <TopBar title="사장님 콘솔" back />
+      <TopBar title={t("ownerLogin.topbar", lang)} back />
       <div className="px-6 pt-4 pb-16">
         {/* 사장님/직원 구분 안내 */}
         <div className="grid grid-cols-2 gap-2 mb-5">
           <div className="rounded-[14px] border-2 border-[var(--color-navy-700)] bg-[var(--color-navy-50)] p-3 flex items-center gap-2">
             <Crown className="w-4 h-4 text-[var(--color-navy-700)]" />
             <div>
-              <p className="text-[11px] font-bold text-[var(--color-navy-700)] uppercase tracking-wide">현재 화면</p>
-              <p className="text-[14px] font-extrabold text-[var(--color-navy-900)]">사장님</p>
+              <p className="text-[11px] font-bold text-[var(--color-navy-700)] uppercase tracking-wide">{t("ownerLogin.chip.currentScreen", lang)}</p>
+              <p className="text-[14px] font-extrabold text-[var(--color-navy-900)]">{t("ownerLogin.chip.owner", lang)}</p>
             </div>
           </div>
           <Link
@@ -208,17 +210,17 @@ export default function OwnerLogin() {
           >
             <Briefcase className="w-4 h-4 text-[var(--color-ink-500)]" />
             <div>
-              <p className="text-[11px] font-bold text-[var(--color-ink-600)] uppercase tracking-wide">직원이세요?</p>
-              <p className="text-[14px] font-extrabold text-[var(--color-ink-700)]">직원 가입 →</p>
+              <p className="text-[11px] font-bold text-[var(--color-ink-600)] uppercase tracking-wide">{t("ownerLogin.chip.areYouStaff", lang)}</p>
+              <p className="text-[14px] font-extrabold text-[var(--color-ink-700)]">{t("ownerLogin.chip.staffJoin", lang)}</p>
             </div>
           </Link>
         </div>
 
         <h1 className="headline-section mb-1">
-          {mode === "login" ? "사장님 로그인" : hasSocialPending ? "사장님 가입 (소셜)" : "신규 가맹 등록"}
+          {mode === "login" ? t("ownerLogin.h1.login", lang) : hasSocialPending ? t("ownerLogin.h1.signupSocial", lang) : t("ownerLogin.h1.signupNew", lang)}
         </h1>
         <p className="body-md text-[var(--color-ink-500)]">
-          매장을 단단하게 관리하는 결의 시작.
+          {t("ownerLogin.subtitle", lang)}
         </p>
 
         <div className="mt-6 grid grid-cols-2 p-1 bg-[var(--color-navy-50)] rounded-[14px]">
@@ -233,7 +235,7 @@ export default function OwnerLogin() {
                   : "text-[var(--color-ink-500)]"
               )}
             >
-              {m === "login" ? "로그인" : "신규 등록"}
+              {m === "login" ? t("ownerLogin.tab.login", lang) : t("ownerLogin.tab.signup", lang)}
             </button>
           ))}
         </div>
@@ -250,13 +252,13 @@ export default function OwnerLogin() {
           className="mt-7 space-y-4"
         >
           <Input
-            label="성함"
-            placeholder="대표자 성함"
+            label={t("ownerLogin.field.name", lang)}
+            placeholder={t("ownerLogin.field.namePh", lang)}
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
           <Input
-            label={hasSocialPending && mode === "signup" ? "전화번호 (선택)" : "전화번호"}
+            label={hasSocialPending && mode === "signup" ? t("ownerLogin.field.phoneOpt", lang) : t("ownerLogin.field.phone", lang)}
             placeholder="010-0000-0000"
             value={phone}
             onChange={(e) => setPhone(formatPhoneNumber(e.target.value))}
@@ -266,8 +268,8 @@ export default function OwnerLogin() {
           {mode === "signup" && (
             <>
               <Input
-                label="매장명"
-                placeholder="예) 결 카페"
+                label={t("ownerLogin.field.restaurant", lang)}
+                placeholder={t("ownerLogin.field.restaurantPh", lang)}
                 value={restaurantName}
                 onChange={(e) => setRestaurantName(e.target.value)}
                 leftSlot={<StoreIcon className="w-4 h-4" />}
@@ -275,7 +277,7 @@ export default function OwnerLogin() {
 
               <div>
                 <label className="block text-[13px] font-semibold text-[var(--color-navy-800)] mb-2">
-                  사용 중인 POS
+                  {t("ownerLogin.field.pos", lang)}
                 </label>
                 <div className="relative">
                   <select
@@ -295,25 +297,25 @@ export default function OwnerLogin() {
 
               {vendorInfo.needsApiKey ? (
                 <Input
-                  label={`${vendorInfo.keyLabel ?? "API 키"} (선택)`}
-                  placeholder={vendorInfo.placeholder ?? "선택 입력"}
+                  label={t("ownerLogin.field.apiKeyLabel", lang, { label: vendorInfo.keyLabel ?? t("ownerLogin.field.apiKeyDefault", lang) })}
+                  placeholder={vendorInfo.placeholder ?? t("ownerLogin.field.apiKeyPh", lang)}
                   value={posApiKey}
                   onChange={(e) => setPosApiKey(e.target.value)}
                   leftSlot={<KeyRound className="w-4 h-4" />}
                   hint={
                     posApiKey
-                      ? vendorInfo.hint ?? "주문이 자동으로 POS로 전달됩니다."
-                      : "비워두면 영수증 자동 인쇄로 동작합니다."
+                      ? vendorInfo.hint ?? t("ownerLogin.field.apiKeyHintWith", lang)
+                      : t("ownerLogin.field.apiKeyHintEmpty", lang)
                   }
                 />
               ) : (
                 <div className="flex items-start gap-2 p-3.5 rounded-[14px] bg-[var(--color-mint-50)] border border-[var(--color-mint-200)]">
                   <Info className="w-4 h-4 text-[var(--color-mint-700)] mt-0.5 shrink-0" />
                   <p className="text-[12px] text-[var(--color-mint-700)] font-semibold leading-relaxed">
-                    {vendorInfo.hint ?? "POS를 사용하지 않습니다."}
+                    {vendorInfo.hint ?? t("ownerLogin.field.noPosHint", lang)}
                     <br />
                     <span className="font-medium opacity-90">
-                      주문이 접수될 때마다 영수증 인쇄 창이 자동으로 열립니다.
+                      {t("ownerLogin.field.autoPrintNote", lang)}
                     </span>
                   </p>
                 </div>
@@ -327,7 +329,7 @@ export default function OwnerLogin() {
             loading={loading}
             disabled={!name || (mode === "signup" && !restaurantName) || (!hasSocialPending && !phone)}
           >
-            {mode === "login" ? "로그인" : "가맹 등록하기"}
+            {mode === "login" ? t("ownerLogin.btn.login", lang) : t("ownerLogin.btn.signup", lang)}
           </Button>
         </form>
 
@@ -335,12 +337,12 @@ export default function OwnerLogin() {
           <>
             <div className="my-7 flex items-center gap-3 text-[12px] text-[var(--color-ink-300)] font-semibold">
               <div className="flex-1 h-px bg-[var(--color-line)]" />
-              또는 소셜로
+              {t("ownerLogin.orSocial", lang)}
               <div className="flex-1 h-px bg-[var(--color-line)]" />
             </div>
             <div className="space-y-3">
               <Button variant="outline" block onClick={() => handleSocial("google")} loading={loading}>
-                Google로 계속하기
+                {t("ownerLogin.btn.google", lang)}
               </Button>
               <button
                 onClick={() => handleSocial("kakao")}
@@ -348,7 +350,7 @@ export default function OwnerLogin() {
                 className="w-full h-14 rounded-[14px] bg-[#FEE500] text-[#191919] font-bold inline-flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-40"
               >
                 <MessageCircle className="w-5 h-5" />
-                카카오로 계속하기
+                {t("ownerLogin.btn.kakao", lang)}
               </button>
             </div>
           </>
@@ -356,7 +358,7 @@ export default function OwnerLogin() {
 
         {mode === "signup" && !hasSocialPending && (
           <p className="mt-4 text-[12px] text-[var(--color-ink-500)] text-center">
-            가입 시 매장당 기본 테이블 15개가 자동으로 생성됩니다.
+            {t("ownerLogin.signupNote", lang)}
           </p>
         )}
       </div>
