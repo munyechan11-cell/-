@@ -274,6 +274,11 @@ export interface Photo {
   rating?: number;
   /** 리뷰 본문 (선택). */
   reviewText?: string;
+  /** 사장님 답글 — 손님 리뷰에 대한 응답. 한 리뷰당 1개만. */
+  ownerReply?: {
+    text: string;
+    repliedAt: string;
+  };
   /** 외부 채널 자동 업로드 상태 — 추후 블로그/구글 리뷰 연동 대비. */
   syncedTo?: {
     google?: { id?: string; syncedAt: string };
