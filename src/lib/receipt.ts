@@ -1,4 +1,12 @@
 import type { Order } from "./types";
+import { t, getLanguage } from "./i18n";
+
+const LOCALE_MAP: Record<string, string> = {
+  ko: "ko-KR",
+  en: "en-US",
+  vi: "vi-VN",
+  zh: "zh-CN",
+};
 
 interface PrintReceiptInput {
   storeName: string;
@@ -17,7 +25,7 @@ export function printReceipt({ storeName, order, footer }: PrintReceiptInput) {
     window.dispatchEvent(
       new CustomEvent("gyeol:toast", {
         detail: {
-          message: "팝업 차단으로 영수증을 인쇄하지 못했어요. 브라우저 설정에서 팝업을 허용해 주세요.",
+          message: t("receipt.popupBlocked"),
           type: "error",
         },
       })
@@ -25,6 +33,8 @@ export function printReceipt({ storeName, order, footer }: PrintReceiptInput) {
     return;
   }
 
+  const lang = getLanguage();
+  const locale = LOCALE_MAP[lang] ?? "en-US";
   const created = new Date(order.createdAt);
   const rows = order.items
     .map(
@@ -42,10 +52,10 @@ export function printReceipt({ storeName, order, footer }: PrintReceiptInput) {
   const totalQty = order.items.reduce((s, it) => s + it.quantity, 0);
 
   win.document.write(`<!doctype html>
-<html lang="ko">
+<html lang="${lang}">
 <head>
 <meta charset="utf-8" />
-<title>영수증 - ${escape(storeName)}</title>
+<title>${escape(t("receipt.title"))} - ${escape(storeName)}</title>
 <style>
   @page { size: 80mm auto; margin: 4mm; }
   html, body { margin: 0; padding: 0; }
@@ -105,40 +115,39 @@ export function printReceipt({ storeName, order, footer }: PrintReceiptInput) {
 </head>
 <body>
   <div class="center">
-    <span class="badge">QR 주문 접수</span>
+    <span class="badge">${escape(t("receipt.qrBadge"))}</span>
     <div class="store">${escape(storeName)}</div>
     <div class="meta">
-      ${created.toLocaleString("ko-KR")}<br/>
-      주문번호 #${order.id.slice(-6).toUpperCase()}
+      ${created.toLocaleString(locale)}<br/>
+      ${escape(t("receipt.orderNo"))} #${order.id.slice(-6).toUpperCase()}
     </div>
   </div>
 
-  <div class="table-banner">테이블 ${order.tableNumber}</div>
+  <div class="table-banner">${escape(t("receipt.table"))} ${order.tableNumber}</div>
 
   <table>
     <thead>
-      <tr><th>품목</th><th class="qty">수량</th><th class="price">금액</th></tr>
+      <tr><th>${escape(t("receipt.col.item"))}</th><th class="qty">${escape(t("receipt.col.qty"))}</th><th class="price">${escape(t("receipt.col.amount"))}</th></tr>
     </thead>
     <tbody>${rows}</tbody>
   </table>
 
   <div class="summary">
-    <span>총 ${order.items.length}종 · ${totalQty}개</span>
-    <span>현장 결제 필요</span>
+    <span>${escape(t("receipt.summary.items", undefined, { kinds: order.items.length, qty: totalQty }))}</span>
+    <span>${escape(t("receipt.summary.payOnsite"))}</span>
   </div>
 
   <div class="total">
-    <span>합계</span>
+    <span>${escape(t("receipt.total"))}</span>
     <span>₩ ${order.totalAmount.toLocaleString()}</span>
   </div>
 
   <div class="pos-note">
-    이 주문은 결(Gyeol)에서 접수된 QR 주문입니다.<br/>
-    매장 POS에 동일하게 입력해 주세요.
+    ${t("receipt.qrNote")}
   </div>
 
   <div class="footer">
-    ${footer ?? "감사합니다."}
+    ${footer ?? escape(t("receipt.thanks"))}
     <div class="barcode">${order.id}</div>
   </div>
 

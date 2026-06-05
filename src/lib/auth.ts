@@ -1,5 +1,6 @@
 import { signInWithPopup, signInWithRedirect, signOut, getRedirectResult } from "firebase/auth";
 import { auth, googleProvider } from "./firebase";
+import { t } from "./i18n";
 
 // iOS Safari·인앱 브라우저는 third-party 쿠키 차단으로 팝업 OAuth가 자주 실패
 // → 자동 감지 후 redirect 방식으로 fallback
@@ -19,7 +20,7 @@ export interface SocialResult {
 }
 
 export async function signInWithGoogle(): Promise<SocialResult> {
-  if (!auth) throw new Error("Firebase Auth가 설정되지 않았습니다.");
+  if (!auth) throw new Error(t("auth.firebaseNotConfigured"));
   // 인앱 브라우저 감지 시 미리 redirect로 — 팝업이 차단되거나 화면 밖에서 열려 사용자가 인지 못 하는 사고 방지
   if (shouldUseRedirect()) {
     sessionStorage.setItem("gyeol:pending-google-redirect", "1");
@@ -40,13 +41,13 @@ export async function signInWithGoogle(): Promise<SocialResult> {
     const code = String(e?.code ?? "");
     // 팝업 차단 시 친화 메시지
     if (code === "auth/popup-blocked") {
-      throw new Error("팝업이 차단됐어요. 브라우저 주소창의 팝업 차단 아이콘을 풀고 다시 시도해 주세요.");
+      throw new Error(t("auth.google.popupBlocked"));
     }
     if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
-      throw new Error("Google 로그인이 취소되었습니다.");
+      throw new Error(t("auth.google.cancelled"));
     }
     if (code === "auth/network-request-failed") {
-      throw new Error("네트워크가 불안정해요. 잠시 후 다시 시도해 주세요.");
+      throw new Error(t("auth.networkUnstable"));
     }
     throw e;
   }
@@ -84,14 +85,14 @@ async function ensureKakaoReady(): Promise<any> {
   }
   const Kakao = (window as any).Kakao;
   if (!Kakao) {
-    throw new Error("카카오 로그인을 불러오지 못했어요. 네트워크가 약한 경우 전화번호로 가입을 시도해 주세요.");
+    throw new Error(t("auth.kakao.loadFail"));
   }
   // index.html 인라인 초기화가 SDK 보다 먼저 실행돼 누락된 경우 복구
   if (!Kakao.isInitialized()) {
     try {
       Kakao.init(KAKAO_JS_KEY);
     } catch (e: any) {
-      throw new Error(`카카오 로그인 초기화 실패: ${e?.message ?? "알 수 없는 오류"}. 전화번호 가입을 시도해 주세요.`);
+      throw new Error(t("auth.kakao.initFail", undefined, { msg: e?.message ?? t("auth.kakao.unknown") }));
     }
   }
   return Kakao;
@@ -135,7 +136,7 @@ function callKakaoApi<T>(
 export async function signInWithKakao(): Promise<SocialResult> {
   const Kakao = await ensureKakaoReady();
   if (!Kakao.Auth?.login || !Kakao.API?.request) {
-    throw new Error("Kakao SDK가 손상되었어요. 페이지를 새로고침해 주세요.");
+    throw new Error(t("auth.kakao.sdkBroken"));
   }
 
   await callKakaoApi<void>(
@@ -147,14 +148,14 @@ export async function signInWithKakao(): Promise<SocialResult> {
       throughTalk: false,
     },
     60000,
-    "카카오 인증 응답이 없어요. 팝업 차단 여부를 확인해 주세요."
+    t("auth.kakao.noResponse")
   );
 
   const userInfo = await callKakaoApi<any>(
     Kakao.API.request.bind(Kakao.API),
     { url: "/v2/user/me" },
     10000,
-    "카카오 사용자 정보 조회 시간이 초과됐어요."
+    t("auth.kakao.userInfoTimeout")
   );
 
   const account = userInfo.kakao_account ?? {};
@@ -185,10 +186,10 @@ export async function signOutAll() {
 export function calculateAgeGroup(birthYear: number): string {
   const now = new Date().getFullYear();
   const age = now - birthYear;
-  if (age < 20) return "10대";
-  if (age < 30) return "20대";
-  if (age < 40) return "30대";
-  if (age < 50) return "40대";
-  if (age < 60) return "50대";
-  return "60대 이상";
+  if (age < 20) return t("auth.ageGroup.teens");
+  if (age < 30) return t("auth.ageGroup.20s");
+  if (age < 40) return t("auth.ageGroup.30s");
+  if (age < 50) return t("auth.ageGroup.40s");
+  if (age < 60) return t("auth.ageGroup.50s");
+  return t("auth.ageGroup.60plus");
 }

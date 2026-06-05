@@ -1,3 +1,5 @@
+import { t } from "./i18n";
+
 export type SmsMode = "aligo" | "gateway" | "device";
 
 export interface AligoCreds {
@@ -13,7 +15,7 @@ export async function sendPhysicalSms(
   options: { aligo?: AligoCreds; gatewayUrl?: string } = {}
 ): Promise<{ ok: boolean; message?: string }> {
   const cleanPhone = phone.replace(/\D/g, "");
-  if (!cleanPhone) return { ok: false, message: "유효한 전화번호가 아닙니다." };
+  if (!cleanPhone) return { ok: false, message: t("messaging.invalidPhone") };
 
   if (mode === "aligo" && options.aligo) {
     try {
@@ -54,7 +56,7 @@ export async function sendPhysicalSms(
     window.location.href = `sms:${cleanPhone}${sep}body=${encodeURIComponent(content)}`;
     return { ok: true };
   }
-  return { ok: false, message: "PC에서는 기기 SMS를 사용할 수 없습니다." };
+  return { ok: false, message: t("messaging.pcNoSms") };
 }
 
 export async function sendKakaoMessage(
@@ -64,7 +66,7 @@ export async function sendKakaoMessage(
 ): Promise<{ ok: boolean; message?: string }> {
   const Kakao = (window as any).Kakao;
   if (!Kakao?.isInitialized?.()) {
-    return { ok: false, message: "Kakao SDK가 초기화되지 않았습니다." };
+    return { ok: false, message: t("messaging.kakaoNotInit") };
   }
   try {
     Kakao.Share.sendDefault({
@@ -80,7 +82,7 @@ export async function sendKakaoMessage(
       },
       buttons: [
         {
-          title: "매장 방문하기",
+          title: t("messaging.visitTitle"),
           link: {
             mobileWebUrl: `${window.location.origin}/customer/store/${storeId}`,
             webUrl: `${window.location.origin}/customer/store/${storeId}`,
