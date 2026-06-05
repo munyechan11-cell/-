@@ -34,8 +34,31 @@ function saveQueue(q: QueueOp[]) {
  * Firestore는 undefined 값을 거부합니다.
  * 객체에서 undefined를 재귀적으로 제거합니다 (null은 유지).
  */
+/**
+ * Firestore FieldValue 인스턴스인지 검사.
+ * increment() / deleteField() / arrayUnion() / arrayRemove() / serverTimestamp()
+ * 같은 sentinel 들은 plain object 처럼 보이지만 SDK 가 인스턴스 identity 로
+ * 인식하므로 절대 분해되면 안 됨. constructor.name 또는 내부 _methodName
+ * 필드로 식별 (Firestore SDK 가 두 가지 모두 노출).
+ */
+function isFieldValue(v: unknown): boolean {
+  if (!v || typeof v !== "object") return false;
+  const obj = v as any;
+  // Firebase v9+ FieldValue 는 _methodName 필드를 가짐
+  if (typeof obj._methodName === "string") return true;
+  // 또는 prototype constructor.name 으로 식별 (minify 후에도 안전한 fallback 으로
+  // _methodName 이 우선)
+  const ctor = obj.constructor?.name;
+  return ctor === "FieldValueImpl" || ctor === "NumericIncrementFieldValueImpl" ||
+    ctor === "DeleteFieldValueImpl" || ctor === "ArrayUnionFieldValueImpl" ||
+    ctor === "ArrayRemoveFieldValueImpl" || ctor === "ServerTimestampFieldValueImpl";
+}
+
 function stripUndefined<T>(input: T): T {
   if (input === null || input === undefined) return input;
+  // FieldValue sentinel 은 절대 분해하지 말고 그대로 통과시킨다.
+  // (이걸 분해하면 atomic increment / deleteField 가 그냥 plain object 저장으로 바뀜)
+  if (isFieldValue(input)) return input;
   if (Array.isArray(input)) {
     return input
       .map((v) => stripUndefined(v))
