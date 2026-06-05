@@ -44,8 +44,8 @@ export function printReceipt({ storeName, order, footer }: PrintReceiptInput) {
           ${escape(it.name)}
           ${it.menuId ? `<span class="code">[${escape(it.menuId.slice(-6).toUpperCase())}]</span>` : ""}
         </td>
-        <td class="qty">${it.quantity}</td>
-        <td class="price">${(it.price * it.quantity).toLocaleString()}</td>
+        <td class="qty">${escape(String(Number(it.quantity) || 0))}</td>
+        <td class="price">${escape((Number(it.price) * Number(it.quantity) || 0).toLocaleString())}</td>
       </tr>`
     )
     .join("");
@@ -118,12 +118,12 @@ export function printReceipt({ storeName, order, footer }: PrintReceiptInput) {
     <span class="badge">${escape(t("receipt.qrBadge"))}</span>
     <div class="store">${escape(storeName)}</div>
     <div class="meta">
-      ${created.toLocaleString(locale)}<br/>
-      ${escape(t("receipt.orderNo"))} #${order.id.slice(-6).toUpperCase()}
+      ${escape(created.toLocaleString(locale))}<br/>
+      ${escape(t("receipt.orderNo"))} #${escape(String(order.id).slice(-6).toUpperCase())}
     </div>
   </div>
 
-  <div class="table-banner">${escape(t("receipt.table"))} ${order.tableNumber}</div>
+  <div class="table-banner">${escape(t("receipt.table"))} ${escape(String(order.tableNumber ?? ""))}</div>
 
   <table>
     <thead>
@@ -139,16 +139,16 @@ export function printReceipt({ storeName, order, footer }: PrintReceiptInput) {
 
   <div class="total">
     <span>${escape(t("receipt.total"))}</span>
-    <span>₩ ${order.totalAmount.toLocaleString()}</span>
+    <span>₩ ${escape(Number(order.totalAmount ?? 0).toLocaleString())}</span>
   </div>
 
   <div class="pos-note">
-    ${t("receipt.qrNote")}
+    ${escape(t("receipt.qrNote")).replace(/&lt;br\/?&gt;/g, "<br/>")}
   </div>
 
   <div class="footer">
-    ${footer ?? escape(t("receipt.thanks"))}
-    <div class="barcode">${order.id}</div>
+    ${footer ? escape(footer) : escape(t("receipt.thanks"))}
+    <div class="barcode">${escape(String(order.id))}</div>
   </div>
 
   <script>

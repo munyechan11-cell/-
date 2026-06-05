@@ -7,6 +7,7 @@ import {
 } from "firebase/firestore";
 import { db } from "./firebase";
 import type { CollectionName } from "./firebase";
+import { t } from "./i18n";
 import { showToast } from "./toast";
 
 const OFFLINE_QUEUE_KEY = "gyeol:offline_queue";
@@ -69,15 +70,15 @@ export async function updateFirestoreDoc(
     const code = e?.code as string | undefined;
     if (code === "unavailable" || code === "deadline-exceeded") {
       saveQueue([...loadQueue(), { coll, id, data, isDelete }]);
-      showToast("네트워크가 불안정해요. 잠시 후 자동 재전송됩니다.", "info");
+      showToast(t("fs.networkUnstable"), "info");
       return;
     }
     if (code === "permission-denied") {
-      showToast("권한이 없습니다.", "error");
+      showToast(t("fs.permissionDenied"), "error");
     } else if (code === "not-found") {
-      showToast("대상 데이터를 찾을 수 없어요.", "error");
+      showToast(t("fs.notFound"), "error");
     } else {
-      showToast("저장 중 오류가 발생했어요.", "error");
+      showToast(t("fs.saveError"), "error");
     }
     throw e;
   }

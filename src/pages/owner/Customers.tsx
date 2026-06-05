@@ -112,7 +112,9 @@ export default function OwnerCustomers() {
     const fmtResidence = (v?: boolean) => (v === true ? t("ocust.csv.pohang", lang) : v === false ? t("ocust.csv.otherRegion", lang) : t("ocust.csv.noResp", lang));
     const fmtAuthType = (authType?: string) =>
       authType === "google" ? "Google" : authType === "kakao" ? "Kakao" : authType === "phone" ? t("ocust.csv.phoneAuth", lang) : dash;
-    const fmtMoney = (n: number) => n.toLocaleString("ko-KR");
+    const moneyLocale =
+      lang === "en" ? "en-US" : lang === "vi" ? "vi-VN" : lang === "zh" ? "zh-CN" : "ko-KR";
+    const fmtMoney = (n: number) => n.toLocaleString(moneyLocale);
     const ynPrivacy = (iso?: string) => (iso ? t("ocust.csv.agreed", lang) : dash);
 
     const headers = [

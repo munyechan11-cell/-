@@ -178,6 +178,7 @@ function Inner({
   primary?: { label: string; onClick: () => void; busy?: boolean };
   secondary?: { label: string; onClick: () => void };
 }) {
+  const lang = useLanguage();
   return (
     <div className="flex items-start gap-3">
       <div className="w-11 h-11 rounded-xl bg-[var(--color-navy-700)] text-white inline-flex items-center justify-center shrink-0">
@@ -210,7 +211,7 @@ function Inner({
       </div>
       <button
         onClick={onClose}
-        aria-label="close"
+        aria-label={t("common.close", lang)}
         className="w-8 h-8 rounded-full hover:bg-[var(--color-bg)] inline-flex items-center justify-center shrink-0"
       >
         <X className="w-4 h-4 text-[var(--color-ink-500)]" />

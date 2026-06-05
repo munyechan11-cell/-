@@ -11,6 +11,14 @@
  */
 
 import type { Order } from "./types";
+import { t, getLanguage } from "./i18n";
+
+const LOCALE_MAP: Record<string, string> = {
+  ko: "ko-KR",
+  en: "en-US",
+  vi: "vi-VN",
+  zh: "zh-CN",
+};
 
 declare global {
   interface Navigator {
@@ -140,6 +148,10 @@ function renderReceiptCanvas({ storeName, order, footer }: ReceiptInput): HTMLCa
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d")!;
 
+  // 사장님이 설정한 언어로 라벨/날짜를 렌더 — 4언어 지원.
+  const lang = getLanguage();
+  const locale = LOCALE_MAP[lang] ?? "en-US";
+
   // 1차로 height 추정 후 렌더
   const created = new Date(order.createdAt);
   const lineHeight = 28;
@@ -161,12 +173,12 @@ function renderReceiptCanvas({ storeName, order, footer }: ReceiptInput): HTMLCa
   addLine(() => {
     ctx.font = "16px 'Malgun Gothic', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText(created.toLocaleString("ko-KR"), width / 2, 0);
+    ctx.fillText(created.toLocaleString(locale), width / 2, 0);
   });
   addLine(() => {
     ctx.font = "16px 'Malgun Gothic', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText(`주문번호 #${order.id.slice(-6).toUpperCase()}`, width / 2, 0);
+    ctx.fillText(`${t("receipt.orderNo", lang)} #${order.id.slice(-6).toUpperCase()}`, width / 2, 0);
   });
 
   // separator
@@ -188,7 +200,7 @@ function renderReceiptCanvas({ storeName, order, footer }: ReceiptInput): HTMLCa
     ctx.fillStyle = "white";
     ctx.font = "bold 32px 'Malgun Gothic', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText(`테이블 ${order.tableNumber}`, width / 2, 8);
+    ctx.fillText(`${t("receipt.table", lang)} ${order.tableNumber}`, width / 2, 8);
     ctx.fillStyle = "black";
   });
 
@@ -197,11 +209,11 @@ function renderReceiptCanvas({ storeName, order, footer }: ReceiptInput): HTMLCa
     ctx.font = "bold 13px 'Malgun Gothic', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif";
     ctx.fillStyle = "black";
     ctx.textAlign = "left";
-    ctx.fillText("품목", 0, 0);
+    ctx.fillText(t("receipt.col.item", lang), 0, 0);
     ctx.textAlign = "center";
-    ctx.fillText("수량", width / 2 + 60, 0);
+    ctx.fillText(t("receipt.col.qty", lang), width / 2 + 60, 0);
     ctx.textAlign = "right";
-    ctx.fillText("금액", width, 0);
+    ctx.fillText(t("receipt.col.amount", lang), width, 0);
   });
   addLine(() => {
     ctx.strokeStyle = "black";
@@ -241,13 +253,17 @@ function renderReceiptCanvas({ storeName, order, footer }: ReceiptInput): HTMLCa
     ctx.font = "13px 'Malgun Gothic', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif";
     ctx.textAlign = "left";
     ctx.fillStyle = "#555";
-    ctx.fillText(`총 ${order.items.length}종 · ${totalQty}개`, 0, 0);
+    ctx.fillText(
+      t("receipt.summary.items", lang, { kinds: order.items.length, qty: totalQty }),
+      0,
+      0
+    );
     ctx.fillStyle = "black";
   });
   addLine(() => {
     ctx.font = "bold 22px 'Malgun Gothic', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif";
     ctx.textAlign = "left";
-    ctx.fillText("합계", 0, 0);
+    ctx.fillText(t("receipt.total", lang), 0, 0);
     ctx.textAlign = "right";
     ctx.fillText(`₩ ${order.totalAmount.toLocaleString()}`, width, 0);
   });

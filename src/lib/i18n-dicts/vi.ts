@@ -1382,6 +1382,10 @@ const dict: Record<string, string> = {
   "inv.cost.week": "Chi phí tuần này",
   "inv.cost.byMenu": "Chi phí theo món",
   "inv.cost.empty": "Chưa có chi phí. Khi món có công thức được bán, sẽ tự tính.",
+  "fs.networkUnstable": "Mạng không ổn định. Sẽ tự thử lại.",
+  "fs.permissionDenied": "Không có quyền.",
+  "fs.notFound": "Không tìm thấy dữ liệu.",
+  "fs.saveError": "Đã có lỗi khi lưu.",
 };
 
 export default dict;

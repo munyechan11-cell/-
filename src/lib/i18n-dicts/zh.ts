@@ -1382,6 +1382,10 @@ const dict: Record<string, string> = {
   "inv.cost.week": "本周累计成本",
   "inv.cost.byMenu": "按菜累计成本",
   "inv.cost.empty": "尚无消耗成本。当带配方的菜售出后会自动汇总。",
+  "fs.networkUnstable": "网络不稳定,稍后会自动重试。",
+  "fs.permissionDenied": "无权限。",
+  "fs.notFound": "未找到数据。",
+  "fs.saveError": "保存时出错。",
 };
 
 export default dict;

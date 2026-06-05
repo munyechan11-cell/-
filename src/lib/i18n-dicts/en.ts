@@ -1382,6 +1382,10 @@ const dict: Record<string, string> = {
   "inv.cost.week": "This week's cost",
   "inv.cost.byMenu": "Cost by menu",
   "inv.cost.empty": "No consumed cost yet. Once menus with recipes are sold, totals appear here.",
+  "fs.networkUnstable": "Network unstable. Will retry automatically.",
+  "fs.permissionDenied": "Permission denied.",
+  "fs.notFound": "The requested data was not found.",
+  "fs.saveError": "Something went wrong while saving.",
 };
 
 export default dict;
