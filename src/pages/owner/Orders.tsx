@@ -144,13 +144,17 @@ export default function OwnerOrders() {
   );
 
   // 새 주문 도착 알림
+  // 매장 전환 시 다른 매장의 기존 주문들이 한꺼번에 "신규" 로 잡혀 사운드가
+  // 폭주하던 버그 방지: storeId 가 바뀌면 기준선만 리셋하고 알림은 보내지 않음.
+  const lastStoreIdRef = useRef<string | null>(null);
   useEffect(() => {
     const allMine = orders.filter((o) => o.storeId === storeId);
     const currentIds = new Set(allMine.map((o) => o.id));
 
-    if (knownIdsRef.current === null) {
-      // 첫 마운트: 기준선만 저장하고 알림은 안 울림
+    if (knownIdsRef.current === null || lastStoreIdRef.current !== storeId) {
+      // 첫 마운트 또는 매장 전환: 기준선만 저장하고 알림은 안 울림
       knownIdsRef.current = currentIds;
+      lastStoreIdRef.current = storeId;
       return;
     }
 
@@ -166,7 +170,7 @@ export default function OwnerOrders() {
     }
 
     knownIdsRef.current = currentIds;
-  }, [orders, storeId, soundOn]);
+  }, [orders, storeId, soundOn, lang]);
 
   const toggleSound = async () => {
     const next = !soundOn;

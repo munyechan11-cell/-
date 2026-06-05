@@ -413,13 +413,22 @@ export default function OwnerTables() {
     }
   }, [view]);
 
-  // 선택 동기화 (store 업데이트 반영)
+  // 선택 동기화 (store 업데이트 반영) — 같은 내용이면 setSelected 생략해
+  // 매 스냅샷마다 selected identity 가 바뀌어 하위 리렌더 폭주하던 문제 차단.
   useEffect(() => {
-    if (selected) {
-      const fresh = tables.find((t) => t.id === selected.id);
-      if (fresh) setSelected(fresh);
-      else setSelected(null);
+    if (!selected) return;
+    const fresh = tables.find((t) => t.id === selected.id);
+    if (!fresh) {
+      setSelected(null);
+      return;
     }
+    // 얕은 비교로 변경 없으면 skip
+    if (fresh === selected) return;
+    let same = true;
+    for (const k of Object.keys(fresh) as (keyof typeof fresh)[]) {
+      if ((fresh as any)[k] !== (selected as any)[k]) { same = false; break; }
+    }
+    if (!same) setSelected(fresh);
   }, [tables, selected?.id]);
 
   // 모바일: 테이블 선택 시 상세 카드로 자동 스크롤 (데스크탑 sticky는 그대로)

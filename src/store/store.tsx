@@ -1345,80 +1345,83 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         return 0;
       }
       approvingPaymentRef.current.add(lockKey);
-      // 1.5초 안전 락 — 빠른 연타도 차단, 실제 처리는 그 안에 끝남
-      setTimeout(() => approvingPaymentRef.current.delete(lockKey), 1500);
-
-      const ordersNow = ordersRef.current;
-      const tablesNow = tablesRef.current;
-      const targets = ordersNow.filter(
-        (o) =>
-          o.storeId === storeId &&
-          o.tableNumber === tableNumber &&
-          o.status !== "cancelled" &&
-          o.paymentStatus !== "paid"
-      );
-      if (targets.length === 0) {
-        showToast(t("store.pay.noRequest"), "info");
-        return 0;
-      }
-      const total = targets.reduce((s, o) => s + o.totalAmount, 0);
-
-      // 1) Firestore 일괄 업데이트: 주문 paid + 테이블 status: paid
-      if (db) {
-        const batch = writeBatch(db);
-        targets.forEach((o) => {
-          batch.set(doc(db!, "orders", o.id), { paymentStatus: "paid" }, { merge: true });
-        });
-        const tableId = `${storeId}_${tableNumber}`;
-        if (tablesNow.some((t) => t.id === tableId)) {
-          batch.set(doc(db, "tables", tableId), { status: "paid" }, { merge: true });
-        }
-        await batch.commit();
-      } else {
-        for (const o of targets) {
-          await updateFirestoreDoc("orders", o.id, { paymentStatus: "paid" });
-        }
-      }
-
-      // 2) 총 영수증 1장 — 모든 주문 항목 합쳐서
-      const owner = users.find((u) => u.id === storeId && u.role === "owner");
-      const aggregated: Order = {
-        id: `RECEIPT_${storeId}_${tableNumber}_${Date.now()}`,
-        storeId,
-        tableNumber,
-        customerId: targets[0].customerId,
-        items: targets.flatMap((o) => o.items),
-        totalAmount: total,
-        status: "served",
-        paymentStatus: "paid",
-        createdAt: new Date().toISOString(),
-      };
-      const payload = {
-        storeName: owner?.restaurantName ?? "결",
-        order: aggregated,
-        footer: `테이블 ${tableNumber} · ${targets.length}건 합산 영수증`,
-      };
-
-      // 브릿지 큐 우선 (매장 PC 에이전트가 처리)
-      if (owner?.printBridgeEnabled) {
-        void enqueuePrintJob({
-          storeId, type: "receipt", payload, expectedUid: storeId,
-        });
-      }
-      // USB → 팝업 폴백 (사장님 화면에서 호출되는 경우만)
+      // 락은 try/finally 로 해제 — 기존 setTimeout(1500ms) 는 USB 프린터/네트워크가
+      // 더 느릴 때 두 번째 클릭이 통과해 영수증 2장 출력되던 버그가 있었음.
       try {
-        const printers = await getAuthorizedPrinters();
-        if (printers.length > 0) {
-          await printReceiptViaUsb(payload);
-        } else {
-          printReceipt(payload);
+        const ordersNow = ordersRef.current;
+        const tablesNow = tablesRef.current;
+        const targets = ordersNow.filter(
+          (o) =>
+            o.storeId === storeId &&
+            o.tableNumber === tableNumber &&
+            o.status !== "cancelled" &&
+            o.paymentStatus !== "paid"
+        );
+        if (targets.length === 0) {
+          showToast(t("store.pay.noRequest"), "info");
+          return 0;
         }
-      } catch (e: any) {
-        try { printReceipt(payload); } catch { /* 팝업도 차단됨 — 브릿지 큐에 맡김 */ }
-      }
+        const total = targets.reduce((s, o) => s + o.totalAmount, 0);
 
-      showToast(t("store.pay.approved", undefined, { amount: `₩ ${total.toLocaleString()}` }), "success");
-      return total;
+        // 1) Firestore 일괄 업데이트: 주문 paid + 테이블 status: paid
+        if (db) {
+          const batch = writeBatch(db);
+          targets.forEach((o) => {
+            batch.set(doc(db!, "orders", o.id), { paymentStatus: "paid" }, { merge: true });
+          });
+          const tableId = `${storeId}_${tableNumber}`;
+          if (tablesNow.some((t) => t.id === tableId)) {
+            batch.set(doc(db, "tables", tableId), { status: "paid" }, { merge: true });
+          }
+          await batch.commit();
+        } else {
+          for (const o of targets) {
+            await updateFirestoreDoc("orders", o.id, { paymentStatus: "paid" });
+          }
+        }
+
+        // 2) 총 영수증 1장 — 모든 주문 항목 합쳐서
+        const owner = users.find((u) => u.id === storeId && u.role === "owner");
+        const aggregated: Order = {
+          id: `RECEIPT_${storeId}_${tableNumber}_${Date.now()}`,
+          storeId,
+          tableNumber,
+          customerId: targets[0].customerId,
+          items: targets.flatMap((o) => o.items),
+          totalAmount: total,
+          status: "served",
+          paymentStatus: "paid",
+          createdAt: new Date().toISOString(),
+        };
+        const payload = {
+          storeName: owner?.restaurantName ?? "결",
+          order: aggregated,
+          footer: `테이블 ${tableNumber} · ${targets.length}건 합산 영수증`,
+        };
+
+        // 브릿지 큐 우선 (매장 PC 에이전트가 처리)
+        if (owner?.printBridgeEnabled) {
+          void enqueuePrintJob({
+            storeId, type: "receipt", payload, expectedUid: storeId,
+          });
+        }
+        // USB → 팝업 폴백 (사장님 화면에서 호출되는 경우만)
+        try {
+          const printers = await getAuthorizedPrinters();
+          if (printers.length > 0) {
+            await printReceiptViaUsb(payload);
+          } else {
+            printReceipt(payload);
+          }
+        } catch (e: any) {
+          try { printReceipt(payload); } catch { /* 팝업도 차단됨 — 브릿지 큐에 맡김 */ }
+        }
+
+        showToast(t("store.pay.approved", undefined, { amount: `₩ ${total.toLocaleString()}` }), "success");
+        return total;
+      } finally {
+        approvingPaymentRef.current.delete(lockKey);
+      }
     },
     [users]
   );

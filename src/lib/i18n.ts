@@ -63,12 +63,13 @@ export function getLanguage(): Lang {
   return currentLang;
 }
 
-// 동기화 — useSyncExternalStore 로 컴포넌트에서 안전하게 구독
+// 동기화 — useSyncExternalStore 로 컴포넌트에서 안전하게 구독.
+// getServerSnapshot 도 currentLang 으로 통일 (SSR 도입 시 hydration mismatch 차단).
 export function useLanguage(): Lang {
   return useSyncExternalStore(
     subscribe,
     () => currentLang,
-    () => DEFAULT_LANG
+    () => currentLang
   );
 }
 
@@ -1548,7 +1549,12 @@ async function loadDict(lang: Lang): Promise<Dict> {
 
 // 부팅 시 저장된 언어가 ko 가 아니면 백그라운드로 즉시 로드
 if (typeof window !== "undefined" && currentLang !== "ko") {
-  loadDict(currentLang).then(() => listeners.forEach((cb) => cb()));
+  loadDict(currentLang)
+    .then(() => listeners.forEach((cb) => cb()))
+    .catch((e) => {
+      // 네트워크 끊김 — 폴백 ko 사전으로 계속 동작
+      console.warn("[i18n] dict load failed", e?.message);
+    });
 }
 
 // setLanguage 가 호이스팅 forward declaration 으로 호출하는 실제 구현

@@ -88,7 +88,9 @@ export function PushOnboarding() {
     return () => {
       cancelled = true;
     };
-  }, [currentUser]);
+    // currentUser 전체 객체 변경 시마다 재실행하면 불필요한 비동기 폭주 — id/role 만으로 충분
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.id, currentUser?.role, currentUser?.employerStoreId]);
 
   const dismiss = (declined: boolean) => {
     saveState({ declined, ts: Date.now() });
