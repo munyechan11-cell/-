@@ -1173,6 +1173,7 @@ const dict: Record<string, string> = {
   "store.pay.alreadyApproving": "付款核准处理中,请稍后再试。",
   "store.pay.noRequest": "没有要核准的付款请求。",
   "store.pay.approved": "已核准 {amount} 付款 — 已打印小票",
+  "store.pay.printFailed": "{amount} 付款已核准但小票打印失败。请用桌台“中间小票”重新打印。",
   "store.table.empty": "{n} 号桌已腾空。",
   "store.receipt.noOrder": "没有可打印的订单。",
   "store.receipt.interim": "已打印中间小票。",

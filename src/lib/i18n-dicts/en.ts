@@ -1173,6 +1173,7 @@ const dict: Record<string, string> = {
   "store.pay.alreadyApproving": "Payment approval already in progress. Check again shortly.",
   "store.pay.noRequest": "No payment request to approve.",
   "store.pay.approved": "{amount} payment approved — receipt printed",
+  "store.pay.printFailed": "{amount} payment approved but receipt print failed. Tap 'Interim receipt' on the table to reprint.",
   "store.table.empty": "Table {n} is empty.",
   "store.receipt.noOrder": "No orders to print.",
   "store.receipt.interim": "Interim check printed.",

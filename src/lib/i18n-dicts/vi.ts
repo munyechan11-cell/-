@@ -1173,6 +1173,7 @@ const dict: Record<string, string> = {
   "store.pay.alreadyApproving": "Duyệt đang xử lý. Vui lòng kiểm tra lại sau.",
   "store.pay.noRequest": "Không có yêu cầu thanh toán.",
   "store.pay.approved": "Đã duyệt {amount} — in hoá đơn",
+  "store.pay.printFailed": "Đã duyệt {amount} nhưng in hoá đơn thất bại. Bấm 'Hoá đơn tạm' để in lại.",
   "store.table.empty": "Bàn {n} đã trống.",
   "store.receipt.noOrder": "Không có đơn để in.",
   "store.receipt.interim": "Đã in hoá đơn tạm.",

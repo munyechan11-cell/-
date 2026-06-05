@@ -1310,6 +1310,7 @@ const ko: Dict = {
   "store.pay.alreadyApproving": "이미 처리 중인 결제 승인이에요. 잠시 후 다시 확인해 주세요.",
   "store.pay.noRequest": "승인할 결제 요청이 없어요.",
   "store.pay.approved": "{amount} 결제 승인 — 영수증 출력",
+  "store.pay.printFailed": "{amount} 결제는 승인했지만 영수증 인쇄에 실패했어요. 테이블에서 '중간 영수증'으로 재인쇄해 주세요.",
   "store.table.empty": "테이블 {n}번이 비었어요.",
   "store.receipt.noOrder": "출력할 주문이 없어요.",
   "store.receipt.interim": "중간 계산서를 출력했어요.",

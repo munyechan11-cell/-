@@ -166,10 +166,12 @@ export async function registerOwnerDevice(userId: string): Promise<{
   }
   if (!token) return { ok: false, reason: "error", detail: "토큰 발급 결과가 비어있음" };
 
-  // Firestore 등록 — fcmTokens 배열에 dedup 추가
-  // 신규 사장님 케이스: users/{userId} 문서에 fcmTokens 필드가 없을 수 있음.
-  // arrayUnion 은 undefined 필드에 대해 자동으로 새 배열을 만들지만,
-  // 명시적 초기화로 동작을 결정적으로 보장.
+  // Firestore 등록 — fcmTokens 배열에 dedup 추가.
+  // 기존 버그: entry 에 registeredAt(매번 다른 ISO) 가 포함되어 arrayUnion
+  // equality 매칭이 실패 → 같은 token 이라도 매번 새 entry 가 누적되어
+  // doc 이 비대해지고 stale token 으로 FCM 호출 폭주.
+  // 해결: 현재 entry 들을 getDoc 으로 읽어 같은 token 의 옛 entry 들은
+  // 모두 arrayRemove 한 뒤 새 entry 를 arrayUnion. 동일 token 1건만 유지.
   const entry = {
     token,
     platform: navigator.platform || "web",
@@ -177,11 +179,22 @@ export async function registerOwnerDevice(userId: string): Promise<{
   };
   try {
     const ref = doc(db, "users", userId);
-    // 1) 문서 존재 + fcmTokens 필드 초기화 보장
-    //    이미 배열이 있으면 그대로 두고, 없으면 빈 배열로 초기화.
-    //    getDoc 으로 검사하면 룰 거부 시 실패하므로 setDoc 만으로 처리.
-    //    arrayUnion 이 undefined 필드도 안전하게 처리하지만, 명시 초기화로
-    //    클라이언트 캐시 / 오프라인 큐 상황에서도 결정적으로 작동하게 함.
+    let stale: Array<unknown> = [];
+    try {
+      const snap = await getDoc(ref);
+      const existing = (snap.data()?.fcmTokens as Array<{ token?: string }>) ?? [];
+      stale = existing.filter((e) => e?.token === token);
+    } catch {
+      // 권한/없음 — 빈 배열로 진행
+    }
+    if (stale.length > 0) {
+      // arrayRemove 는 한 번에 여러 인자 받음
+      await setDoc(
+        ref,
+        { fcmTokens: arrayRemove(...(stale as any[])) },
+        { merge: true }
+      );
+    }
     await setDoc(
       ref,
       { fcmTokens: arrayUnion(entry) },

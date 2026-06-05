@@ -923,21 +923,33 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const unpaid = ordersRef.current.filter(
         (o) => o.storeId === storeId && o.tableNumber === tableNumber && o.paymentStatus !== "paid"
       );
-      for (const o of unpaid) {
-        try {
-          await updateFirestoreDoc("orders", o.id, { status: "cancelled" });
-        } catch (e) {
-          console.warn("[evictTable] cancel order skip", o.id, e);
+      // 미결제 주문 cancel — batch 로 묶어 all-or-nothing 보장.
+      // 기존엔 개별 try/catch 로 부분 실패해도 진행 → 유령 pending 주문이
+      // 매출 집계/재고 카운트에 영구히 남던 무결성 버그.
+      if (db && unpaid.length > 0) {
+        const batch = writeBatch(db);
+        for (const o of unpaid) {
+          batch.set(doc(db, "orders", o.id), { status: "cancelled" }, { merge: true });
         }
+        batch.set(doc(db, "tables", tableId), {
+          currentCustomerId: null,
+          occupantIds: [],
+          currentCustomerName: null,
+          partySize: null,
+          sessionStartTime: null,
+          status: "dirty",
+        }, { merge: true });
+        await batch.commit();
+      } else {
+        await updateFirestoreDoc("tables", tableId, {
+          currentCustomerId: null,
+          occupantIds: [],
+          currentCustomerName: null,
+          partySize: null,
+          sessionStartTime: null,
+          status: "dirty",
+        });
       }
-      await updateFirestoreDoc("tables", tableId, {
-        currentCustomerId: null,
-        occupantIds: [],
-        currentCustomerName: null,
-        partySize: null,
-        sessionStartTime: null,
-        status: "dirty",
-      });
       showToast(t("store.tableEvicted", undefined, { n: tableNumber }), "success");
     },
     []
@@ -1415,24 +1427,43 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         };
 
         // 브릿지 큐 우선 (매장 PC 에이전트가 처리)
+        let printedSomewhere = false;
         if (owner?.printBridgeEnabled) {
-          void enqueuePrintJob({
-            storeId, type: "receipt", payload, expectedUid: storeId,
-          });
+          try {
+            await enqueuePrintJob({
+              storeId, type: "receipt", payload, expectedUid: storeId,
+            });
+            printedSomewhere = true;
+          } catch (e) {
+            console.warn("[approvePayment] bridge enqueue failed", e);
+          }
         }
         // USB → 팝업 폴백 (사장님 화면에서 호출되는 경우만)
         try {
           const printers = await getAuthorizedPrinters();
           if (printers.length > 0) {
             await printReceiptViaUsb(payload);
+            printedSomewhere = true;
           } else {
             printReceipt(payload);
+            printedSomewhere = true;
           }
         } catch (e: any) {
-          try { printReceipt(payload); } catch { /* 팝업도 차단됨 — 브릿지 큐에 맡김 */ }
+          try {
+            printReceipt(payload);
+            printedSomewhere = true;
+          } catch {
+            // 팝업도 차단됨 — 브릿지 큐도 실패했다면 출력 0장
+          }
         }
 
-        showToast(t("store.pay.approved", undefined, { amount: `₩ ${total.toLocaleString()}` }), "success");
+        // 영수증 인쇄 실패 시 사장님에게 명시. 결제는 완료된 상태이므로
+        // success 가 아닌 warning(info) 으로 — 다시 인쇄 안내.
+        if (printedSomewhere) {
+          showToast(t("store.pay.approved", undefined, { amount: `₩ ${total.toLocaleString()}` }), "success");
+        } else {
+          showToast(t("store.pay.printFailed", undefined, { amount: `₩ ${total.toLocaleString()}` }), "info");
+        }
         return total;
       } finally {
         approvingPaymentRef.current.delete(lockKey);
