@@ -1,4 +1,8 @@
-export function PageLoader({ label = "정성을 담아 연결 중" }: { label?: string }) {
+import { useLanguage, t } from "../../lib/i18n";
+
+export function PageLoader({ label }: { label?: string }) {
+  const lang = useLanguage();
+  const text = label ?? t("loader.connecting", lang);
   return (
     <div className="min-h-screen bg-[var(--color-bg)] flex flex-col items-center justify-center px-6">
       <div className="relative w-20 h-20 mb-8">
@@ -8,7 +12,7 @@ export function PageLoader({ label = "정성을 담아 연결 중" }: { label?: 
           결
         </div>
       </div>
-      <p className="text-[14px] font-semibold text-[var(--color-ink-500)] tracking-tight">{label}</p>
+      <p className="text-[14px] font-semibold text-[var(--color-ink-500)] tracking-tight">{text}</p>
     </div>
   );
 }
