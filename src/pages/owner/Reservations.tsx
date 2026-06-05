@@ -9,6 +9,7 @@ import { formatPhoneNumber, digitsOnly } from "../../lib/ids";
 import type { Reservation, ReservationStatus, User } from "../../lib/types";
 import { showToast } from "../../lib/toast";
 import { useEscapeClose } from "../../lib/useEscapeClose";
+import { useModalChrome } from "../../lib/useModalChrome";
 import { cn } from "../../lib/cn";
 import { useLanguage, t } from "../../lib/i18n";
 import { sendKakaoMessage, sendPhysicalSms } from "../../lib/messaging";
@@ -197,7 +198,20 @@ export default function OwnerReservations() {
   // 캘린더에서 날짜 클릭 시 그 날만 보여주는 모드
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
-  useEscapeClose(!!draft, () => setDraft(null));
+  // 작성 중 내용이 있으면 ESC/백드롭 닫기 전 confirm — 입력 손실 방지
+  const closeDraft = () => {
+    if (!draft) return;
+    const hasContent = !!(
+      draft.customerName.trim() ||
+      draft.customerPhone.trim() ||
+      draft.memo.trim() ||
+      draft.customerId
+    );
+    if (hasContent && !confirm(t("ores.discardConfirm", lang))) return;
+    setDraft(null);
+  };
+  useEscapeClose(!!draft, closeDraft);
+  useModalChrome(!!draft);
 
   const list = useMemo(() => {
     const all = reservations.filter((r) => r.storeId === storeId);
@@ -486,7 +500,7 @@ export default function OwnerReservations() {
       </div>
 
       {draft && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-end" onClick={() => setDraft(null)}>
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-end" onClick={closeDraft}>
           <div
             onClick={(e) => e.stopPropagation()}
             className="w-full max-w-[480px] mx-auto bg-white rounded-t-[28px] p-6 pb-[max(env(safe-area-inset-bottom),24px)] max-h-[88vh] overflow-y-auto"

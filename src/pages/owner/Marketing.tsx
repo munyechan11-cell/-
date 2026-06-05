@@ -20,6 +20,7 @@ import { useStore } from "../../store/store";
 import type { User } from "../../lib/types";
 import { getCustomerTier, TIER_ORDER, TIER_BADGE } from "../../lib/tier";
 import { useLanguage, t } from "../../lib/i18n";
+import { useModalChrome } from "../../lib/useModalChrome";
 
 interface Candidate {
   user: User;
@@ -395,6 +396,8 @@ function BulkCouponModal({
   onConfirm: (type: string, desc: string) => Promise<void> | void;
 }) {
   const lang = useLanguage();
+  // busy 중엔 onClose 가 차단되므로 useModalChrome 의 ESC 도 안전.
+  useModalChrome(true, onClose);
   // 종류 기본값: 버킷별로 다르게
   const defaultType = bucket === "birthday" ? "birthday" : bucket === "tier" ? "welcome" : "winback";
   const defaultDesc =

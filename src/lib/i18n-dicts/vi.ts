@@ -1287,6 +1287,7 @@ const dict: Record<string, string> = {
   "resMsg.toast.noPhone": "Không có số điện thoại — không gửi được.",
   "resMsg.toast.batchDone": "Đã gửi {n} lời nhắc.",
   "resMsg.toast.batchFailed": "{n} đơn gửi thất bại. Hãy gửi từng đơn.",
+  "ores.discardConfirm": "Có nội dung chưa lưu. Đóng?",
   "resMsg.toast.noTomorrow": "Không có đơn đặt ngày mai.",
   "ores.view.list": "Danh sách",
   "ores.view.calendar": "Lịch",

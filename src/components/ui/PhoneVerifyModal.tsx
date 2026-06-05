@@ -19,6 +19,7 @@
  *   - 모달 esc/배경 닫기 — signup 모드에선 차단, grandfather 모드에선 허용 안 함(강제)
  */
 import { useEffect, useId, useRef, useState } from "react";
+import { useModalChrome } from "../../lib/useModalChrome";
 import { Phone, ShieldCheck, X } from "lucide-react";
 import { Button } from "./Button";
 import { Input } from "./Input";
@@ -82,12 +83,8 @@ export function PhoneVerifyModal({
     return () => clearRecaptcha();
   }, []);
 
-  // 모달 열려있는 동안 body 스크롤 잠금
-  useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = prev; };
-  }, []);
+  // body 스크롤 잠금 + (allowClose 일 때만) ESC 닫기 — stack-safe
+  useModalChrome(true, allowClose ? onClose : undefined);
 
   const send = async () => {
     if (sending) return;

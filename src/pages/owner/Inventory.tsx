@@ -29,6 +29,7 @@ import { increment } from "firebase/firestore";
 import { useStore } from "../../store/store";
 import { showToast } from "../../lib/toast";
 import { useLanguage, t, fmtKRW } from "../../lib/i18n";
+import { useModalChrome } from "../../lib/useModalChrome";
 import type { Ingredient, Menu } from "../../lib/types";
 
 type Tab = "list" | "recipe" | "cost";
@@ -422,6 +423,7 @@ function RecipeModal({
   onSave: (recipe: { ingredientId: string; quantity: number }[]) => Promise<void> | void;
 }) {
   const lang = useLanguage();
+  useModalChrome(true, onClose);
   const [draft, setDraft] = useState<{ ingredientId: string; quantity: number }[]>(
     menu.recipe ? [...menu.recipe] : []
   );
@@ -594,6 +596,7 @@ function EditModal({
   onClose: () => void;
 }) {
   const lang = useLanguage();
+  useModalChrome(true, onClose);
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-end" onClick={onClose}>
       <div
@@ -679,6 +682,7 @@ function RestockModal({
   onClose: () => void;
 }) {
   const lang = useLanguage();
+  useModalChrome(true, onClose);
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-end" onClick={onClose}>
       <div

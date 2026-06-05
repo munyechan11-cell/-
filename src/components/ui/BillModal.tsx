@@ -1,7 +1,6 @@
-import { useEffect } from "react";
 import { X, Printer, CreditCard } from "lucide-react";
 import { Button } from "./Button";
-import { useEscapeClose } from "../../lib/useEscapeClose";
+import { useModalChrome } from "../../lib/useModalChrome";
 import type { Order } from "../../lib/types";
 import { useLanguage, t, fmtKRW } from "../../lib/i18n";
 
@@ -32,17 +31,9 @@ export function BillModal({
   onPay,
   canPay,
 }: Props) {
-  useEscapeClose(true, onClose);
   const lang = useLanguage();
-
-  // 모달 열려있을 땐 body 스크롤 잠금
-  useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, []);
+  // ESC 닫기 + body 스크롤 잠금 (stack-safe) 통합
+  useModalChrome(true, onClose);
 
   const totalAll = unpaidTotal + paidTotal;
   // 한국 음식점 표준 — 메뉴가는 부가세 포함가. 총액에서 역산:

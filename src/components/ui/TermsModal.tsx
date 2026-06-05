@@ -5,24 +5,15 @@
  * 마크다운을 단순 텍스트 렌더로 표시 (라이브러리 없이) — # ## · | --- 만 처리.
  */
 import { X } from "lucide-react";
-import { useEffect, type ReactElement } from "react";
+import { type ReactElement } from "react";
 import type { TermDoc } from "../../lib/terms";
 import { useLanguage, t } from "../../lib/i18n";
+import { useModalChrome } from "../../lib/useModalChrome";
 
 export function TermsModal({ term, onClose }: { term: TermDoc; onClose: () => void }) {
   const lang = useLanguage();
-  // ESC 키 닫기
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", onKey);
-    // 배경 스크롤 잠금
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prev;
-    };
-  }, [onClose]);
+  // ESC 닫기 + body scroll lock (stack-safe)
+  useModalChrome(true, onClose);
 
   return (
     <div
