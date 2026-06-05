@@ -7,8 +7,10 @@
 import { X } from "lucide-react";
 import { useEffect, type ReactElement } from "react";
 import type { TermDoc } from "../../lib/terms";
+import { useLanguage, t } from "../../lib/i18n";
 
 export function TermsModal({ term, onClose }: { term: TermDoc; onClose: () => void }) {
+  const lang = useLanguage();
   // ESC 키 닫기
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -40,7 +42,7 @@ export function TermsModal({ term, onClose }: { term: TermDoc; onClose: () => vo
         <div className="px-5 py-4 border-b border-[var(--color-line)] flex items-center gap-3 shrink-0">
           <div className="flex-1 min-w-0">
             <p className="text-[11px] font-bold text-[var(--color-ink-500)] uppercase tracking-wide">
-              {term.required ? "필수 약관" : "선택 약관"}
+              {term.required ? t("tmodal.required", lang) : t("tmodal.optional", lang)}
             </p>
             <h2 className="text-[16px] font-extrabold text-[var(--color-navy-900)] truncate">
               {term.title}
@@ -49,7 +51,7 @@ export function TermsModal({ term, onClose }: { term: TermDoc; onClose: () => vo
           <button
             onClick={onClose}
             className="w-9 h-9 rounded-full hover:bg-[var(--color-ink-50)] inline-flex items-center justify-center"
-            aria-label="닫기"
+            aria-label={t("tmodal.close", lang)}
           >
             <X className="w-5 h-5 text-[var(--color-ink-600)]" />
           </button>
@@ -58,7 +60,7 @@ export function TermsModal({ term, onClose }: { term: TermDoc; onClose: () => vo
         {/* 왜 필요한지 강조 */}
         <div className="px-5 py-3 bg-[var(--color-mint-50)] border-b border-[var(--color-mint-200)] shrink-0">
           <p className="text-[11.5px] font-extrabold text-[var(--color-mint-700)] mb-0.5 uppercase tracking-wide">
-            왜 필요한가요?
+            {t("tmodal.whyTitle", lang)}
           </p>
           <p className="text-[13px] text-[var(--color-mint-700)] font-semibold leading-relaxed">
             {term.why}
@@ -79,7 +81,7 @@ export function TermsModal({ term, onClose }: { term: TermDoc; onClose: () => vo
             onClick={onClose}
             className="h-9 px-4 rounded-full bg-[var(--color-navy-700)] text-white text-[12.5px] font-bold"
           >
-            확인했어요
+            {t("tmodal.confirm", lang)}
           </button>
         </div>
       </div>

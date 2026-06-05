@@ -8,9 +8,11 @@ import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { useStore } from "../store/store";
 import { showToast } from "../lib/toast";
+import { useLanguage, t } from "../lib/i18n";
 
 export default function Master() {
   const { isMaster, loginMaster, logoutMaster, users, deleteUser, setMasterPassword } = useStore();
+  const lang = useLanguage();
   const [pw, setPw] = useState("");
   const [tab, setTab] = useState<"owners" | "staff" | "customers" | "settings">("owners");
   const [newPw, setNewPw] = useState("");
@@ -29,12 +31,12 @@ export default function Master() {
   }, [users, search]);
 
   const handleDelete = async (id: string, role: Role, label: string) => {
-    if (!confirm(`'${label}' 을(를) 삭제하시겠습니까?\n관련 데이터가 모두 정리되며 되돌릴 수 없습니다.`)) return;
+    if (!confirm(t("master.deleteConfirm", lang, { label }))) return;
     setDeletingId(id);
     try {
       await deleteUser(id, role);
     } catch (e: any) {
-      showToast(`삭제 실패: ${e?.message ?? ""}`, "error");
+      showToast(t("master.deleteFail", lang, { msg: e?.message ?? "" }), "error");
     } finally {
       setDeletingId(null);
     }
@@ -43,14 +45,14 @@ export default function Master() {
   if (!isMaster) {
     return (
       <MobileShell>
-        <TopBar title="시스템 관리자" back />
+        <TopBar title={t("master.title", lang)} back />
         <div className="px-6 pt-12 text-center">
           <div className="inline-flex w-16 h-16 rounded-2xl bg-[var(--color-navy-700)] items-center justify-center mb-6 shadow-[var(--shadow-navy)]">
             <Shield className="w-8 h-8 text-white" />
           </div>
-          <h1 className="headline-section mb-1">마스터 인증</h1>
+          <h1 className="headline-section mb-1">{t("master.authTitle", lang)}</h1>
           <p className="body-md text-[var(--color-ink-500)] mb-8">
-            관리자 비밀번호를 입력하세요.
+            {t("master.authDesc", lang)}
           </p>
           <form
             onSubmit={(e) => {
@@ -61,14 +63,14 @@ export default function Master() {
           >
             <Input
               type="password"
-              label="비밀번호"
-              placeholder="••••"
+              label={t("master.field.password", lang)}
+              placeholder={t("master.field.passwordPh", lang)}
               value={pw}
               onChange={(e) => setPw(e.target.value)}
               leftSlot={<Lock className="w-4 h-4" />}
             />
             <Button block type="submit" disabled={!pw}>
-              로그인
+              {t("master.btn.login", lang)}
             </Button>
           </form>
         </div>
@@ -83,7 +85,7 @@ export default function Master() {
   return (
     <MobileShell>
       <TopBar
-        title="시스템 관리자"
+        title={t("master.title", lang)}
         back
         right={
           <button
@@ -96,32 +98,32 @@ export default function Master() {
       />
       <div className="px-5 pt-2">
         <div className="grid grid-cols-4 gap-2 mb-4">
-          <StatCard icon={<Store className="w-4 h-4" />} label="가맹점" value={owners.length} />
-          <StatCard icon={<Briefcase className="w-4 h-4" />} label="직원" value={staff.length} />
-          <StatCard icon={<Users className="w-4 h-4" />} label="고객" value={customers.length} />
-          <StatCard label="삭제" value={users.filter((u) => u.status === "deleted").length} />
+          <StatCard icon={<Store className="w-4 h-4" />} label={t("master.stat.owners", lang)} value={owners.length} />
+          <StatCard icon={<Briefcase className="w-4 h-4" />} label={t("master.stat.staff", lang)} value={staff.length} />
+          <StatCard icon={<Users className="w-4 h-4" />} label={t("master.stat.customers", lang)} value={customers.length} />
+          <StatCard label={t("master.stat.deleted", lang)} value={users.filter((u) => u.status === "deleted").length} />
         </div>
 
         <div className="grid grid-cols-4 p-1 bg-white border border-[var(--color-line)] rounded-[14px] mb-4">
-          {(["owners", "staff", "customers", "settings"] as const).map((t) => (
+          {(["owners", "staff", "customers", "settings"] as const).map((tabKey) => (
             <button
-              key={t}
-              onClick={() => setTab(t)}
+              key={tabKey}
+              onClick={() => setTab(tabKey)}
               className={
                 "h-11 rounded-[10px] text-[13px] font-bold transition-all " +
-                (tab === t
+                (tab === tabKey
                   ? "bg-[var(--color-navy-700)] text-white"
                   : "text-[var(--color-ink-500)]")
               }
             >
-              {t === "owners" ? "가맹점" : t === "staff" ? "직원" : t === "customers" ? "고객" : "설정"}
+              {tabKey === "owners" ? t("master.tab.owners", lang) : tabKey === "staff" ? t("master.tab.staff", lang) : tabKey === "customers" ? t("master.tab.customers", lang) : t("master.tab.settings", lang)}
             </button>
           ))}
         </div>
 
         {(tab === "owners" || tab === "customers" || tab === "staff") && (
           <Input
-            placeholder="이름·전화번호·매장명 검색"
+            placeholder={t("master.searchPh", lang)}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             leftSlot={<Search className="w-4 h-4" />}
@@ -131,7 +133,7 @@ export default function Master() {
 
         {tab === "owners" && (
           <div className="space-y-2">
-            {owners.length === 0 && <EmptyText>{search ? "검색 결과가 없습니다." : "등록된 가맹점이 없습니다."}</EmptyText>}
+            {owners.length === 0 && <EmptyText>{search ? t("master.empty.searchOwners", lang) : t("master.empty.owners", lang)}</EmptyText>}
             {owners.map((u) => (
               <UserRow
                 key={u.id}
@@ -147,22 +149,22 @@ export default function Master() {
 
         {tab === "staff" && (
           <div className="space-y-2">
-            {staff.length === 0 && <EmptyText>{search ? "검색 결과가 없습니다." : "등록된 직원이 없습니다."}</EmptyText>}
+            {staff.length === 0 && <EmptyText>{search ? t("master.empty.searchOwners", lang) : t("master.empty.staff", lang)}</EmptyText>}
             {staff.map((u) => {
               const emp = u.employerStoreId ? users.find((x) => x.id === u.employerStoreId) : null;
               const statusKr =
                 u.employerStatus === "approved"
-                  ? "승인"
+                  ? t("master.staff.status.approved", lang)
                   : u.employerStatus === "pending"
-                  ? "대기"
+                  ? t("master.staff.status.pending", lang)
                   : u.employerStatus === "rejected"
-                  ? "거절"
-                  : "—";
+                  ? t("master.staff.status.rejected", lang)
+                  : t("master.staff.status.none", lang);
               return (
                 <UserRow
                   key={u.id}
                   title={`${u.name}${u.position ? ` · ${u.position}` : ""}`}
-                  subtitle={`${u.phone || "—"} · ${emp?.restaurantName ?? "(미소속)"} · ${statusKr}`}
+                  subtitle={`${u.phone || "—"} · ${emp?.restaurantName ?? t("master.staff.notMember", lang)} · ${statusKr}`}
                   deleted={u.status === "deleted"}
                   deleting={deletingId === u.id}
                   onDelete={() => handleDelete(u.id, "staff", u.name)}
@@ -174,7 +176,7 @@ export default function Master() {
 
         {tab === "customers" && (
           <div className="space-y-2">
-            {customers.length === 0 && <EmptyText>{search ? "검색 결과가 없습니다." : "등록된 고객이 없습니다."}</EmptyText>}
+            {customers.length === 0 && <EmptyText>{search ? t("master.empty.searchOwners", lang) : t("master.empty.customers", lang)}</EmptyText>}
             {customers.map((u) => (
               <UserRow
                 key={u.id}
@@ -191,14 +193,14 @@ export default function Master() {
         {tab === "settings" && (
           <Card padding="lg">
             <h3 className="text-[15px] font-extrabold text-[var(--color-navy-900)] mb-1">
-              마스터 비밀번호 변경
+              {t("master.settings.pwTitle", lang)}
             </h3>
             <p className="text-[13px] text-[var(--color-ink-500)] mb-4">
-              새 비밀번호는 즉시 적용됩니다.
+              {t("master.settings.pwDesc", lang)}
             </p>
             <Input
               type="password"
-              placeholder="새 비밀번호"
+              placeholder={t("master.settings.pwNewPh", lang)}
               value={newPw}
               onChange={(e) => setNewPw(e.target.value)}
             />
@@ -211,7 +213,7 @@ export default function Master() {
                 setNewPw("");
               }}
             >
-              비밀번호 저장
+              {t("master.settings.pwSave", lang)}
             </Button>
           </Card>
         )}
@@ -270,7 +272,7 @@ function UserRow({
         onClick={onDelete}
         disabled={deleting}
         className="w-9 h-9 rounded-full inline-flex items-center justify-center hover:bg-[var(--color-danger)]/10 text-[var(--color-danger)] disabled:opacity-50"
-        aria-label="삭제"
+        aria-label="Delete"
       >
         {deleting ? (
           <span className="w-3.5 h-3.5 border-2 border-[var(--color-danger)] border-t-transparent rounded-full animate-spin" />

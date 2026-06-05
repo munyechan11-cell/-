@@ -22,6 +22,7 @@ import { updateFirestoreDoc, flushOfflineQueue } from "../lib/firestore";
 import { calculateAgeGroup } from "../lib/auth";
 import { generateId, digitsOnly } from "../lib/ids";
 import { showToast } from "../lib/toast";
+import { t } from "../lib/i18n";
 import { getCustomerTier } from "../lib/tier";
 import { relayOrderToPos } from "../lib/pos";
 import { printReceipt } from "../lib/receipt";
@@ -542,7 +543,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         await updateFirestoreDoc("users", match.id, patch);
         const final = { ...match, ...patch } as User;
         setCurrentUser(final);
-        showToast(`${final.name}님 환영합니다!`, "success");
+        showToast(t("store.welcome", undefined, { name: final.name }), "success");
         return final;
       }
 
@@ -600,7 +601,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
 
       setCurrentUser(user);
-      showToast(`${name}님 환영합니다!`, "success");
+      showToast(t("store.welcome", undefined, { name }), "success");
       return user;
     },
     [users, setCurrentUser]
@@ -608,7 +609,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(() => {
     setCurrentUser(null);
-    showToast("로그아웃 되었습니다.", "info");
+    showToast(t("store.loggedOut"), "info");
   }, [setCurrentUser]);
 
   const deleteAccount = useCallback(async () => {
@@ -627,7 +628,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const setMasterPassword = useCallback(async (pw: string) => {
     await updateFirestoreDoc("appState", "settings", { masterPassword: pw });
     setMasterPasswordState(pw);
-    showToast("마스터 비밀번호가 변경되었습니다.", "success");
+    showToast(t("store.master.pwChanged"), "success");
   }, []);
 
   const loginMaster = useCallback(
@@ -635,10 +636,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       if (pw === masterPassword) {
         setIsMaster(true);
         localStorage.setItem(LS_MASTER, "1");
-        showToast("마스터 로그인 성공", "success");
+        showToast(t("store.master.loginOk"), "success");
         return true;
       }
-      showToast("비밀번호가 일치하지 않습니다.", "error");
+      showToast(t("store.master.pwWrong"), "error");
       return false;
     },
     [masterPassword]
@@ -652,7 +653,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const deleteUser = useCallback(
     async (userId: string, role: Role) => {
       if (!db) {
-        showToast("오프라인 상태에서는 삭제할 수 없습니다.", "error");
+        showToast(t("store.master.offlineDelete"), "error");
         return;
       }
       const batch = writeBatch(db);
@@ -689,7 +690,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
       batch.delete(doc(db, "users", userId));
       await batch.commit();
-      showToast("계정과 관련 데이터를 삭제했습니다.", "success");
+      showToast(t("store.master.deleted"), "success");
     },
     []
   );
@@ -829,7 +830,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         });
       }
 
-      if (!alreadyToday) showToast("방문이 기록되었습니다.", "success");
+      if (!alreadyToday) showToast(t("store.visitRecorded"), "success");
     },
     [setCurrentUser]
   );
@@ -908,7 +909,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         sessionStartTime: null,
         status: "dirty",
       });
-      showToast(`테이블 ${tableNumber}번 손님을 퇴장 처리했어요.`, "success");
+      showToast(t("store.tableEvicted", undefined, { n: tableNumber }), "success");
     },
     []
   );
@@ -926,7 +927,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         issuedAt: new Date().toISOString(),
       };
       await updateFirestoreDoc("coupons", c.id, c);
-      showToast("쿠폰이 발급되었습니다.", "success");
+      showToast(t("store.coupon.issued"), "success");
     },
     []
   );
@@ -948,7 +949,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         tag: "gyeol-coupon",
       });
     }
-    showToast("사용 요청을 보냈습니다. 사장님 확인을 기다려 주세요.", "info");
+    showToast(t("store.coupon.requested"), "info");
   }, []);
 
   const cancelCouponRequest = useCallback(async (couponId: string) => {
@@ -956,7 +957,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       status: "available",
       usedAtTable: null,
     });
-    showToast("사용 요청을 취소했습니다.", "info");
+    showToast(t("store.coupon.requestCancelled"), "info");
   }, []);
 
   const approveCouponUse = useCallback(async (couponId: string) => {
@@ -964,7 +965,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       status: "used",
       usedAt: new Date().toISOString(),
     });
-    showToast("쿠폰 사용을 승인했습니다.", "success");
+    showToast(t("store.coupon.approved"), "success");
   }, []);
 
   const rejectCouponUse = useCallback(async (couponId: string) => {
@@ -972,7 +973,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       status: "available",
       usedAtTable: null,
     });
-    showToast("쿠폰 사용을 반려했습니다.", "info");
+    showToast(t("store.coupon.rejected"), "info");
   }, []);
 
   // ============ TABLES ============
@@ -1035,7 +1036,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       batch.set(doc(db, "tables", t.id), t);
     }
     await batch.commit();
-    showToast("테이블을 초기화했습니다.", "success");
+    showToast(t("store.tables.reset"), "success");
   }, [tables]);
 
   // ============ SECTIONS ============
@@ -1062,7 +1063,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const addMenuItem = useCallback(async (storeId: string, data: Omit<Menu, "id" | "storeId">) => {
     const id = generateId();
     await updateFirestoreDoc("menus", id, { id, storeId, ...data });
-    showToast("메뉴를 추가했습니다.", "success");
+    showToast(t("store.menu.added"), "success");
   }, []);
 
   const updateMenuItem = useCallback(async (id: string, data: Partial<Menu>) => {
@@ -1091,22 +1092,22 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const status = getStoreOpenStatus(ownerForCheck);
       if (status.open === false) {
         const msg = status.reason;
-        showToast(`주문할 수 없어요: ${msg}`, "error");
+        showToast(t("store.order.cannot", undefined, { msg }), "error");
         throw new Error(msg);
       }
 
       // 항목 입력 검증 — 음수·0 가격, 음수·0 수량 차단 (조작·실수 방어)
       if (!Array.isArray(items) || items.length === 0) {
-        showToast("주문 항목이 없어요.", "error");
+        showToast(t("store.order.empty"), "error");
         throw new Error("empty items");
       }
       for (const it of items) {
         if (typeof it.price !== "number" || !Number.isFinite(it.price) || it.price <= 0) {
-          showToast("주문 금액이 올바르지 않아요. 메뉴를 다시 선택해 주세요.", "error");
+          showToast(t("store.order.invalidAmount"), "error");
           throw new Error("invalid price");
         }
         if (typeof it.quantity !== "number" || !Number.isFinite(it.quantity) || it.quantity <= 0 || it.quantity > 99) {
-          showToast("주문 수량이 올바르지 않아요. 1~99 사이로 설정해 주세요.", "error");
+          showToast(t("store.order.invalidQty"), "error");
           throw new Error("invalid quantity");
         }
       }
@@ -1117,7 +1118,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const isCustomer = currentUser?.role === "customer";
       if (isCustomer && tableNow && tableNow.currentCustomerId && tableNow.currentCustomerId !== customerId &&
           !(tableNow.occupantIds ?? []).includes(customerId)) {
-        showToast("자리가 정리됐어요. QR을 다시 찍어 주세요.", "error");
+        showToast(t("store.order.tableCleared"), "error");
         throw new Error("table not occupied by this customer");
       }
 
@@ -1179,7 +1180,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       // 영수증 인쇄(①②③④) 는 모두 결제 승인 시점(approvePayment) 으로 이동.
       // 손님이 중간에 영수증을 원하면 BillModal 의 '계산서 보기' 로 확인 가능.
 
-      showToast("주문이 접수되었습니다.", "success");
+      showToast(t("store.order.placed"), "success");
       return order;
     },
     [users, menus]
@@ -1204,7 +1205,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           o.paymentStatus !== "paid"
       );
       if (unpaid.length === 0) {
-        showToast("결제할 미결제 주문이 없습니다.", "info");
+        showToast(t("store.pay.noUnpaid"), "info");
         return 0;
       }
       const total = unpaid.reduce((s, o) => s + o.totalAmount, 0);
@@ -1231,7 +1232,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         tag: `gyeol-pay-T${tableNumber}`,
       });
 
-      showToast(`결제 요청을 보냈어요. 매장에서 확인 후 결제해 주세요. (₩ ${total.toLocaleString()})`, "info");
+      showToast(t("store.pay.requested", undefined, { amount: `₩ ${total.toLocaleString()}` }), "info");
       return total;
     },
     []
@@ -1252,7 +1253,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     async (storeId: string, tableNumber: number): Promise<number> => {
       const lockKey = `${storeId}_${tableNumber}`;
       if (approvingPaymentRef.current.has(lockKey)) {
-        showToast("이미 처리 중인 결제 승인이에요. 잠시 후 다시 확인해 주세요.", "info");
+        showToast(t("store.pay.alreadyApproving"), "info");
         return 0;
       }
       approvingPaymentRef.current.add(lockKey);
@@ -1269,7 +1270,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           o.paymentStatus !== "paid"
       );
       if (targets.length === 0) {
-        showToast("승인할 결제 요청이 없어요.", "info");
+        showToast(t("store.pay.noRequest"), "info");
         return 0;
       }
       const total = targets.reduce((s, o) => s + o.totalAmount, 0);
@@ -1328,7 +1329,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         try { printReceipt(payload); } catch { /* 팝업도 차단됨 — 브릿지 큐에 맡김 */ }
       }
 
-      showToast(`₩ ${total.toLocaleString()} 결제 승인 — 영수증 출력`, "success");
+      showToast(t("store.pay.approved", undefined, { amount: `₩ ${total.toLocaleString()}` }), "success");
       return total;
     },
     [users]
@@ -1349,7 +1350,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       partySize: null,
       sessionStartTime: null,
     });
-    showToast(`테이블 ${tableNumber}번이 비었어요.`, "success");
+    showToast(t("store.table.empty", undefined, { n: tableNumber }), "success");
   }, []);
 
   /** 선택 인쇄 — 사장님 또는 손님이 원할 때 즉시 영수증(합산 미리보기) 출력 */
@@ -1363,7 +1364,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           o.status !== "cancelled"
       );
       if (open.length === 0) {
-        showToast("출력할 주문이 없어요.", "info");
+        showToast(t("store.receipt.noOrder"), "info");
         return;
       }
       const owner = users.find((u) => u.id === storeId && u.role === "owner");
@@ -1393,7 +1394,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       } catch {
         try { printReceipt(payload); } catch { /* ignore */ }
       }
-      showToast("중간 계산서를 출력했어요.", "info");
+      showToast(t("store.receipt.interim"), "info");
     },
     [users]
   );
@@ -1455,7 +1456,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         });
       }
       await batch.commit();
-      showToast(`${customerIds.length}명에게 쿠폰을 발급했습니다.`, "success");
+      showToast(t("store.bulkCoupon", undefined, { n: customerIds.length }), "success");
     },
     []
   );
@@ -1550,7 +1551,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         console.warn("[addReservation] status→reserved skip", e?.message);
       }
 
-      showToast("예약이 등록되었어요. 테이블이 '예약됨' 으로 표시됩니다.", "success");
+      showToast(t("store.reservation.added"), "success");
     },
     []
   );
@@ -1629,7 +1630,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         focusUrl: "/biz/owner/staff",
         tag: "gyeol-staff",
       });
-      showToast("가입 요청을 보냈습니다. 사장님 승인을 기다려주세요.", "success");
+      showToast(t("store.staff.joinRequested"), "success");
     },
     [setCurrentUser]
   );
@@ -1649,19 +1650,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       employerStatus: undefined,
       joinRequestedAt: undefined,
     });
-    showToast("가입 요청을 취소했습니다.", "info");
+    showToast(t("store.staff.joinCancelled"), "info");
   }, [setCurrentUser]);
 
   const approveStaff = useCallback(async (staffId: string) => {
     await updateFirestoreDoc("users", staffId, { employerStatus: "approved" });
-    showToast("직원을 승인했습니다.", "success");
+    showToast(t("store.staff.approved"), "success");
   }, []);
 
   const rejectStaff = useCallback(async (staffId: string) => {
     await updateFirestoreDoc("users", staffId, {
       employerStatus: "rejected",
     });
-    showToast("가입 요청을 거절했습니다.", "info");
+    showToast(t("store.staff.rejected"), "info");
   }, []);
 
   const removeStaffMembership = useCallback(async (staffId: string) => {
@@ -1670,19 +1671,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       employerStatus: null,
       position: null,
     });
-    showToast("직원 소속을 해제했습니다.", "info");
+    showToast(t("store.staff.removed"), "info");
   }, []);
 
   const clockIn = useCallback(async () => {
     const cu = currentUserRef.current;
     if (!cu || cu.role !== "staff" || !cu.employerStoreId || cu.employerStatus !== "approved") {
-      showToast("출근할 수 없는 상태입니다.", "error");
+      showToast(t("store.staff.cannotClockIn"), "error");
       return;
     }
     // 이미 진행 중인 근무가 있으면 무시
     const open = shifts.find((s) => s.staffId === cu.id && !s.clockOutAt);
     if (open) {
-      showToast("이미 출근 중입니다.", "info");
+      showToast(t("store.staff.alreadyOn"), "info");
       return;
     }
     const id = generateId();
@@ -1694,7 +1695,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       clockOutAt: null,
     };
     await updateFirestoreDoc("shifts", id, s);
-    showToast("출근 완료. 오늘도 화이팅!", "success");
+    showToast(t("store.staff.clockInOk"), "success");
   }, [shifts]);
 
   const clockOut = useCallback(async () => {
@@ -1702,13 +1703,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     if (!cu || cu.role !== "staff") return;
     const open = shifts.find((s) => s.staffId === cu.id && !s.clockOutAt);
     if (!open) {
-      showToast("진행 중인 근무가 없습니다.", "info");
+      showToast(t("store.staff.noShift"), "info");
       return;
     }
     await updateFirestoreDoc("shifts", open.id, {
       clockOutAt: new Date().toISOString(),
     });
-    showToast("퇴근 완료. 수고하셨습니다!", "success");
+    showToast(t("store.staff.clockOutOk"), "success");
   }, [shifts]);
 
   // 현재 사용자 기준 진행 중 근무
