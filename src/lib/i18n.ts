@@ -1425,6 +1425,7 @@ const ko: Dict = {
   "resMsg.toast.batchDone": "{n}건 리마인더를 보냈어요.",
   "resMsg.toast.batchFailed": "{n}건은 전송 실패. 카드별로 직접 보내주세요.",
   "ores.discardConfirm": "작성 중인 내용이 있어요. 닫을까요?",
+  "home.cart.soldOut": "장바구니의 일부 메뉴가 품절되어 제외되었어요.",
   "resMsg.toast.noTomorrow": "내일 예약된 손님이 없어요.",
   "ores.view.list": "리스트",
   "ores.view.calendar": "캘린더",

@@ -1288,6 +1288,7 @@ const dict: Record<string, string> = {
   "resMsg.toast.batchDone": "Sent {n} reminders.",
   "resMsg.toast.batchFailed": "{n} failed. Please send those individually.",
   "ores.discardConfirm": "You have unsaved input. Discard?",
+  "home.cart.soldOut": "Some items in your cart are sold out and have been removed.",
   "resMsg.toast.noTomorrow": "No reservations for tomorrow.",
   "ores.view.list": "List",
   "ores.view.calendar": "Calendar",

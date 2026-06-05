@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   Ticket,
@@ -214,10 +214,33 @@ export default function CustomerDashboard() {
   const cartItems = Object.entries(cart)
     .map(([id, qty]) => {
       const m = storeMenus.find((x) => x.id === id);
-      return m ? { menu: m, qty } : null;
+      // 메뉴가 사라졌거나(삭제) isAvailable=false 면 카트에서 제외
+      if (!m || m.isAvailable === false) return null;
+      return { menu: m, qty };
     })
     .filter(Boolean) as { menu: (typeof storeMenus)[number]; qty: number }[];
   const cartTotal = cartItems.reduce((s, c) => s + c.menu.price * c.qty, 0);
+
+  // 사장님이 메뉴를 품절/삭제한 항목이 있으면 알림 후 cart 정리.
+  // useRef 로 1회만 알림 — 매 렌더 토스트 폭주 방지.
+  const removedCartIdsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const cartIds = Object.keys(cart);
+    const aliveIds = new Set(cartItems.map((c) => c.menu.id));
+    const removed = cartIds.filter((id) => !aliveIds.has(id) && !removedCartIdsRef.current.has(id));
+    if (removed.length > 0) {
+      removed.forEach((id) => removedCartIdsRef.current.add(id));
+      showToast(t("home.cart.soldOut", lang), "info");
+      // cart 에서도 제거 — 다음 submitOrder 시 0건이 되지 않게
+      setCart((c) => {
+        const next = { ...c };
+        for (const id of removed) delete next[id];
+        return next;
+      });
+    }
+  // cartItems 는 매 렌더 새 array — id 의 set 만 비교
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [Object.keys(cart).join(","), cartItems.map((c) => c.menu.id).join(",")]);
 
   const submitOrder = async () => {
     if (!currentUser || !myTable || cartItems.length === 0) return;

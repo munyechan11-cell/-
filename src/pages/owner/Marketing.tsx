@@ -163,8 +163,18 @@ export default function OwnerMarketing() {
                 type="number"
                 min={7}
                 max={365}
+                inputMode="numeric"
                 value={slippingDays}
-                onChange={(e) => setSlippingDays(Math.max(7, Math.min(365, Number(e.target.value) || 30)))}
+                onChange={(e) => {
+                  // 빈 문자열은 그대로 두지 못함(state 가 number) — blur 시 보정.
+                  const v = Number(e.target.value);
+                  if (e.target.value === "") return; // 입력 도중엔 즉시 30 으로 점프 안 함
+                  if (Number.isFinite(v)) setSlippingDays(Math.max(1, Math.min(365, v)));
+                }}
+                onBlur={(e) => {
+                  const v = Number(e.target.value);
+                  if (!Number.isFinite(v) || v < 7) setSlippingDays(30);
+                }}
                 className="w-16 h-9 px-2 rounded-[10px] border border-[var(--color-line)] text-[13px] font-bold tabular-nums text-center"
               />
             </div>

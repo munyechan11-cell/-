@@ -174,15 +174,19 @@ export default function OwnerOrders() {
 
   const toggleSound = async () => {
     const next = !soundOn;
-    setSoundOn(next);
-    localStorage.setItem(LS_SOUND, next ? "1" : "0");
     if (next) {
+      // 권한 먼저 확인 — 거부되면 ON 으로 토글하지 않고 안내만.
+      // 기존엔 권한 거부 상태에서도 토글이 ON 으로 보여 사장님이 "켰는데
+      // 알림 안 와요" 라고 오해하던 사고.
       const perm = await requestNotificationPermission();
       if (perm !== "granted") {
         showToast(t("oorders.alertBlocked", lang), "info");
+        return; // 토글 유지
       }
       playChime();
     }
+    setSoundOn(next);
+    localStorage.setItem(LS_SOUND, next ? "1" : "0");
   };
 
   const reprintReceipt = async (order: Order) => {
