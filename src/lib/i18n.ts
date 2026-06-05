@@ -1390,6 +1390,15 @@ const ko: Dict = {
   "loader.connecting": "정성을 담아 연결 중",
   "topbar.back": "뒤로",
   "langPill.change": "언어 변경",
+  "pushOnboard.title": "주문·결제 알림 받기",
+  "pushOnboard.desc": "매장 화면을 안 봐도 새 주문과 결제 요청을 폰으로 바로 받아볼 수 있어요. 사장님 매장 한정으로만 사용하고, 언제든 설정에서 끌 수 있어요.",
+  "pushOnboard.allow": "알림 받기",
+  "pushOnboard.later": "나중에",
+  "pushOnboard.iosTitle": "iPhone에서 알림 받기",
+  "pushOnboard.iosDesc": "Safari에서 공유 → '홈 화면에 추가'로 결을 설치해 주세요. 설치 후 다시 들어오시면 알림이 켜집니다.",
+  "pushOnboard.toast.granted": "알림이 켜졌어요. 새 주문이 오면 폰에 표시됩니다.",
+  "pushOnboard.toast.denied": "알림이 차단되어 있어요. 주소창 자물쇠 → 알림 → 허용에서 변경할 수 있어요.",
+  "pushOnboard.toast.unsupported": "이 브라우저는 알림을 지원하지 않아요.",
 };
 
 const en: Dict = {
@@ -2656,6 +2665,15 @@ const en: Dict = {
   "loader.connecting": "Connecting with care",
   "topbar.back": "Back",
   "langPill.change": "Change language",
+  "pushOnboard.title": "Get order & payment alerts",
+  "pushOnboard.desc": "Receive new orders and payment requests on your phone, even when you're away from the screen. Used only for your store, and can be turned off in Settings anytime.",
+  "pushOnboard.allow": "Enable alerts",
+  "pushOnboard.later": "Later",
+  "pushOnboard.iosTitle": "Enable alerts on iPhone",
+  "pushOnboard.iosDesc": "In Safari, tap Share → 'Add to Home Screen' to install Gyeol. After installing, reopen the app to enable alerts.",
+  "pushOnboard.toast.granted": "Alerts enabled. New orders will appear on your phone.",
+  "pushOnboard.toast.denied": "Alerts are blocked. Open the address-bar lock → Notifications → Allow to change.",
+  "pushOnboard.toast.unsupported": "This browser doesn't support notifications.",
 };
 
 const vi: Dict = {
@@ -3922,6 +3940,15 @@ const vi: Dict = {
   "loader.connecting": "Đang kết nối tận tâm",
   "topbar.back": "Quay lại",
   "langPill.change": "Đổi ngôn ngữ",
+  "pushOnboard.title": "Nhận thông báo đơn & thanh toán",
+  "pushOnboard.desc": "Nhận đơn mới và yêu cầu thanh toán ngay trên điện thoại, kể cả khi không nhìn màn hình quán. Chỉ dùng cho quán của bạn, có thể tắt bất kỳ lúc nào trong Cài đặt.",
+  "pushOnboard.allow": "Bật thông báo",
+  "pushOnboard.later": "Để sau",
+  "pushOnboard.iosTitle": "Bật thông báo trên iPhone",
+  "pushOnboard.iosDesc": "Trong Safari, chạm Chia sẻ → 'Thêm vào Màn hình Chính' để cài Gyeol. Sau khi cài, mở lại để bật thông báo.",
+  "pushOnboard.toast.granted": "Đã bật thông báo. Đơn mới sẽ hiện trên điện thoại.",
+  "pushOnboard.toast.denied": "Thông báo đang bị chặn. Mở khóa trên thanh địa chỉ → Thông báo → Cho phép.",
+  "pushOnboard.toast.unsupported": "Trình duyệt này không hỗ trợ thông báo.",
 };
 
 const zh: Dict = {
@@ -5188,6 +5215,15 @@ const zh: Dict = {
   "loader.connecting": "用心连接中",
   "topbar.back": "返回",
   "langPill.change": "切换语言",
+  "pushOnboard.title": "接收订单与支付提醒",
+  "pushOnboard.desc": "即使不看店内屏幕,也能在手机上立即收到新订单和支付请求。仅用于您的门店,随时可在设置中关闭。",
+  "pushOnboard.allow": "开启提醒",
+  "pushOnboard.later": "稍后",
+  "pushOnboard.iosTitle": "在 iPhone 上开启提醒",
+  "pushOnboard.iosDesc": "在 Safari 中点分享 → “添加到主屏幕”安装结。安装后重新打开即可开启提醒。",
+  "pushOnboard.toast.granted": "已开启提醒。新订单会在手机上显示。",
+  "pushOnboard.toast.denied": "提醒被拦截。请点地址栏锁形图标 → 通知 → 允许。",
+  "pushOnboard.toast.unsupported": "当前浏览器不支持通知。",
 };
 
 const DICT: Record<Lang, Dict> = { ko, en, vi, zh };

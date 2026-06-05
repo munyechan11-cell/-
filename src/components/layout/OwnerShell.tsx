@@ -26,6 +26,7 @@ import { cn } from "../../lib/cn";
 import { showToast } from "../../lib/toast";
 import { getStoreOpenStatus, summarizeStatus } from "../../lib/businessHours";
 import { useLanguage, t } from "../../lib/i18n";
+import { PushOnboarding } from "../ui/PushOnboarding";
 
 interface Props {
   children: React.ReactNode;
@@ -121,6 +122,7 @@ export function OwnerShell({ children, title, headerRight, width = "default" }: 
 
   return (
     <div className="min-h-screen bg-[var(--color-bg)]">
+      <PushOnboarding />
       {/* ===== Desktop sidebar ===== */}
       <aside className="hidden lg:flex fixed inset-y-0 left-0 w-[260px] flex-col bg-white border-r border-[var(--color-line)] z-30">
         <Link to={isStaff ? "/biz/staff" : "/biz/owner"} className="flex items-center gap-2.5 px-6 h-[72px] border-b border-[var(--color-line-soft)]">
