@@ -14,6 +14,7 @@ import { cn } from "../../lib/cn";
 import { TERMS, type TermKey, type TermDoc } from "../../lib/terms";
 import { TermsModal } from "../../components/ui/TermsModal";
 import { useLanguage, t } from "../../lib/i18n";
+import { LanguagePill } from "../../components/ui/LanguagePill";
 
 type Step = 1 | 2 | 3;
 type Mode = "login" | "signup";
@@ -284,6 +285,7 @@ export default function CustomerLogin() {
               : t("login.title.signupStep", lang, { cur: step - 1, total: 2 })
         }
         back
+        right={<LanguagePill />}
       />
       <div className="px-6 pt-2">
         {/* QR 다이렉트 진입 시 매장/테이블 컨텍스트 배너 — 모바일에서 키보드 띄워도 안 가리도록 컴팩트 */}

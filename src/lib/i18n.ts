@@ -1388,6 +1388,8 @@ const ko: Dict = {
   "ownerLogin.btn.kakao": "카카오로 계속하기",
   "ownerLogin.signupNote": "가입 시 매장당 기본 테이블 15개가 자동으로 생성됩니다.",
   "loader.connecting": "정성을 담아 연결 중",
+  "topbar.back": "뒤로",
+  "langPill.change": "언어 변경",
 };
 
 const en: Dict = {
@@ -2652,6 +2654,8 @@ const en: Dict = {
   "ownerLogin.btn.kakao": "Continue with Kakao",
   "ownerLogin.signupNote": "15 default tables are created automatically for each new store.",
   "loader.connecting": "Connecting with care",
+  "topbar.back": "Back",
+  "langPill.change": "Change language",
 };
 
 const vi: Dict = {
@@ -3916,6 +3920,8 @@ const vi: Dict = {
   "ownerLogin.btn.kakao": "Tiếp tục bằng Kakao",
   "ownerLogin.signupNote": "Mỗi quán mới được tạo sẵn 15 bàn mặc định.",
   "loader.connecting": "Đang kết nối tận tâm",
+  "topbar.back": "Quay lại",
+  "langPill.change": "Đổi ngôn ngữ",
 };
 
 const zh: Dict = {
@@ -5180,6 +5186,8 @@ const zh: Dict = {
   "ownerLogin.btn.kakao": "使用 Kakao 登录",
   "ownerLogin.signupNote": "每家新店铺自动生成 15 张默认桌台。",
   "loader.connecting": "用心连接中",
+  "topbar.back": "返回",
+  "langPill.change": "切换语言",
 };
 
 const DICT: Record<Lang, Dict> = { ko, en, vi, zh };

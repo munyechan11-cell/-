@@ -12,6 +12,7 @@ import { signInWithGoogle, signInWithKakao, consumeGoogleRedirect } from "../../
 import type { SocialResult } from "../../lib/auth";
 import { cn } from "../../lib/cn";
 import { useLanguage, t } from "../../lib/i18n";
+import { LanguagePill } from "../../components/ui/LanguagePill";
 
 type Mode = "login" | "signup";
 
@@ -171,7 +172,7 @@ export default function StaffLogin() {
 
   return (
     <MobileShell>
-      <TopBar title={t("slogin.title.login", lang)} back />
+      <TopBar title={t("slogin.title.login", lang)} back right={<LanguagePill />} />
       <div className="px-6 pt-4 pb-16">
         {/* 사장님/직원 구분 */}
         <div className="grid grid-cols-2 gap-2 mb-5">

@@ -1,6 +1,7 @@
 import { ChevronLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "../../lib/cn";
+import { useLanguage, t } from "../../lib/i18n";
 
 interface Props {
   title?: string;
@@ -11,6 +12,7 @@ interface Props {
 
 export function TopBar({ title, back, right, transparent }: Props) {
   const nav = useNavigate();
+  const lang = useLanguage();
   const handleBack = () => {
     if (typeof back === "function") back();
     else nav(-1);
@@ -28,7 +30,7 @@ export function TopBar({ title, back, right, transparent }: Props) {
       {back ? (
         <button
           onClick={handleBack}
-          aria-label="뒤로"
+          aria-label={t("topbar.back", lang)}
           className="w-11 h-11 rounded-full flex items-center justify-center hover:bg-[var(--color-navy-50)] transition-colors"
         >
           <ChevronLeft className="w-5 h-5 text-[var(--color-navy-800)]" />
