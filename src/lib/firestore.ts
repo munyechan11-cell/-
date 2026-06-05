@@ -92,10 +92,15 @@ export async function batchWrite(
   await batch.commit();
 }
 
+// 동시 flush 차단 — 'online' 이벤트 + 코드의 다른 트리거가 겹쳐 두 번 돌면
+// 같은 op 가 두 번 write 되거나(setDoc merge 라 대부분 멱등이지만), deleteDoc 이
+// not-found 로 throw → 큐에 다시 들어가 재시도 무한 루프 가능. 락으로 1회만 진행.
+let flushing = false;
 export function flushOfflineQueue() {
-  if (!db) return;
+  if (!db || flushing) return;
   const q = loadQueue();
   if (q.length === 0) return;
+  flushing = true;
   saveQueue([]);
   (async () => {
     for (const op of q) {
@@ -105,7 +110,9 @@ export function flushOfflineQueue() {
         saveQueue([...loadQueue(), op]);
       }
     }
-  })();
+  })().finally(() => {
+    flushing = false;
+  });
 }
 
 // online 리스너 1회 등록 보장 — HMR / 동적 import 반복 시 중복 방지

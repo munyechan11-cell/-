@@ -13,7 +13,7 @@
  *  - 그 외: 자동으로 비활성, isPushSupported() 가 false 반환
  */
 import { getMessaging, getToken, onMessage, isSupported, type Messaging } from "firebase/messaging";
-import { arrayRemove, arrayUnion, doc, setDoc, updateDoc } from "firebase/firestore";
+import { arrayRemove, arrayUnion, doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 import { app, db, ensureAnonymousAuth } from "./firebase";
 import { showToast } from "./toast";
 
@@ -195,7 +195,14 @@ export async function registerOwnerDevice(userId: string): Promise<{
   return { ok: true, token };
 }
 
-/** 현재 디바이스 토큰을 사용자 문서에서 제거 — 호출 시 토큰 발급은 시도하지 않음. */
+/**
+ * 현재 디바이스 토큰을 사용자 문서에서 제거 — 호출 시 토큰 발급은 시도하지 않음.
+ *
+ * 주의: 등록 시 `{token, platform, registeredAt}` 객체로 저장되었기 때문에
+ * `arrayRemove({token})` 만으로는 매칭이 안 된다 (Firestore arrayRemove 는
+ * 완전 일치만 제거). 따라서 users 문서를 한 번 읽어 그 token 을 가진 entry
+ * 전체를 매칭해서 제거한다.
+ */
 export async function unregisterOwnerDevice(userId: string): Promise<void> {
   if (!userId || !db) return;
   const messaging = await getMessagingSafe();
@@ -204,8 +211,12 @@ export async function unregisterOwnerDevice(userId: string): Promise<void> {
     const token = await getToken(messaging, { vapidKey: VAPID_KEY }).catch(() => undefined);
     if (!token) return;
     const ref = doc(db, "users", userId);
+    const snap = await getDoc(ref);
+    const tokens: Array<{ token: string }> = (snap.data()?.fcmTokens as any) ?? [];
+    const target = tokens.find((e) => e?.token === token);
+    if (!target) return;
     await updateDoc(ref, {
-      fcmTokens: arrayRemove({ token } as any),
+      fcmTokens: arrayRemove(target as any),
     });
   } catch (e: any) {
     console.warn("[push] unregister failed", e?.message);

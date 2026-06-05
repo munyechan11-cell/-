@@ -25,6 +25,7 @@ import { OwnerShell } from "../../components/layout/OwnerShell";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
+import { increment } from "firebase/firestore";
 import { useStore } from "../../store/store";
 import { showToast } from "../../lib/toast";
 import { useLanguage, t, fmtKRW } from "../../lib/i18n";
@@ -140,29 +141,44 @@ export default function OwnerInventory() {
 
   const removeIngredient = async (ing: Ingredient) => {
     if (!confirm(t("inv.deleteConfirm", lang, { name: ing.name }))) return;
-    // 메뉴 레시피에서도 제거 — 정합성 유지
+    // 메뉴 레시피에서도 제거 — 정합성 유지.
+    // 부분 실패 방지: 메뉴 업데이트가 모두 성공해야 deleteIngredient 진행.
+    // (writeBatch 가 가장 안전하지만 cross-collection + 클라이언트 SDK 한계로
+    //  여기서는 메뉴 업데이트 → 성공 시 ingredient 삭제 순서로 처리.)
     const affected = myMenus.filter((m) => m.recipe?.some((r) => r.ingredientId === ing.id));
-    await Promise.all(
-      affected.map((m) =>
-        updateMenuItem(m.id, {
-          recipe: m.recipe!.filter((r) => r.ingredientId !== ing.id),
-        })
-      )
-    );
-    await deleteIngredient(ing.id);
-    showToast(t("inv.deleted", lang), "info");
+    try {
+      await Promise.all(
+        affected.map((m) =>
+          updateMenuItem(m.id, {
+            recipe: m.recipe!.filter((r) => r.ingredientId !== ing.id),
+          })
+        )
+      );
+      await deleteIngredient(ing.id);
+      showToast(t("inv.deleted", lang), "info");
+    } catch (e: any) {
+      // 부분 실패 — 사용자에게 알려 재시도 유도
+      showToast(t("ores.err.saveFail", lang, { msg: e?.message ?? "" }), "error");
+    }
   };
 
+  const [restockBusy, setRestockBusy] = useState(false);
   const confirmRestock = async () => {
-    if (!restockTarget) return;
+    if (!restockTarget || restockBusy) return;
     const add = Number(restockAmount);
     if (!add || add <= 0) return;
-    await updateIngredient(restockTarget.id, {
-      stock: Number((restockTarget.stock + add).toFixed(4)),
-    });
-    showToast(t("inv.btn.restockOk", lang, { n: add, unit: restockTarget.unit }), "success");
-    setRestockTarget(null);
-    setRestockAmount("");
+    setRestockBusy(true);
+    try {
+      // increment() — 다른 직원·자동 차감과 동시에 일어나도 합산 보장
+      await updateIngredient(restockTarget.id, {
+        stock: increment(add) as any,
+      });
+      showToast(t("inv.btn.restockOk", lang, { n: add, unit: restockTarget.unit }), "success");
+      setRestockTarget(null);
+      setRestockAmount("");
+    } finally {
+      setRestockBusy(false);
+    }
   };
 
   return (

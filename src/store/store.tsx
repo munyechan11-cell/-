@@ -1121,11 +1121,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
    * 주문 항목 기반으로 원재료 재고를 일괄 차감/복원.
    * direction: -1 = 차감(판매), +1 = 복원(주문 취소).
    * menus.recipe 의 quantityPerServing × orderItem.quantity 만큼 ingredient.stock 변동.
+   *
+   * 동시성 안전: Firestore increment() 서버측 atomic 연산 사용.
+   * read-modify-write 가 아니라 서버에서 직접 +/- 가 적용되므로
+   * 두 테이블 동시 주문이 같은 원재료를 차감해도 손실 없음.
+   * 음수 클램프(stock 이 0 미만으로 안 가게)는 서버 sentinel 로 불가능 →
+   * 추후 Cloud Function 트리거 또는 룰에서 검증. 클라이언트 표시 시 Math.max(0, ...) 폴백.
    */
   const adjustStockForOrder = useCallback(
     async (items: OrderItem[], direction: -1 | 1) => {
       const menusList = menusRef.current;
-      const ingList = ingredientsRef.current;
       // 같은 원재료가 여러 메뉴에 걸쳐 나오면 누적
       const deltaMap = new Map<string, number>();
       for (const it of items) {
@@ -1136,17 +1141,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           deltaMap.set(r.ingredientId, cur + r.quantity * it.quantity * direction);
         }
       }
-      // Firestore 업데이트 — 동시 발생할 수 있어 병렬
+      // Firestore atomic increment 로 일괄 갱신 — race 안전
       const updates: Promise<void>[] = [];
       for (const [ingId, delta] of deltaMap) {
-        const ing = ingList.find((x) => x.id === ingId);
-        if (!ing) continue;
-        const next = Math.max(0, Number((ing.stock + delta).toFixed(4)));
+        if (delta === 0) continue;
         updates.push(
           updateFirestoreDoc("ingredients", ingId, {
-            stock: next,
+            stock: increment(delta),
             updatedAt: new Date().toISOString(),
-          })
+          } as any)
         );
       }
       await Promise.all(updates);
