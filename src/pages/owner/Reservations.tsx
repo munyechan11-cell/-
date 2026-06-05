@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Plus, Trash2, Phone, UserPlus, User as UserIcon, Search, X, Minus, Monitor, MessageCircle, MessageSquare, Bell } from "lucide-react";
+import { Plus, Trash2, Phone, UserPlus, User as UserIcon, Search, X, Minus, Monitor, MessageCircle, MessageSquare, Bell, ChevronLeft, ChevronRight, CalendarDays, List as ListIcon } from "lucide-react";
 import { OwnerShell } from "../../components/layout/OwnerShell";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
@@ -154,11 +154,25 @@ export default function OwnerReservations() {
     return Array.from(seen.values());
   }, [reservations, storeId]);
   const [filter, setFilter] = useState<"upcoming" | "all">("upcoming");
+  const [view, setView] = useState<"list" | "calendar">("list");
+  // 캘린더가 보고 있는 달의 첫째 날(1일). null 이면 오늘 기준.
+  const [calMonth, setCalMonth] = useState<Date>(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1);
+  });
+  // 캘린더에서 날짜 클릭 시 그 날만 보여주는 모드
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   useEscapeClose(!!draft, () => setDraft(null));
 
   const list = useMemo(() => {
     const all = reservations.filter((r) => r.storeId === storeId);
+    // 캘린더에서 특정 날짜를 선택했으면 그 날만
+    if (selectedDate) {
+      return all
+        .filter((r) => r.date === selectedDate)
+        .sort((a, b) => a.time.localeCompare(b.time));
+    }
     if (filter === "upcoming") {
       const today = todayStr();
       return all
@@ -166,7 +180,21 @@ export default function OwnerReservations() {
         .sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`));
     }
     return all.sort((a, b) => `${b.date} ${b.time}`.localeCompare(`${a.date} ${a.time}`));
-  }, [reservations, storeId, filter]);
+  }, [reservations, storeId, filter, selectedDate]);
+
+  // 달력 셀별 예약 묶음 — 한 번만 계산해 캘린더 렌더에 재사용
+  const reservationsByDate = useMemo(() => {
+    const map = new Map<string, Reservation[]>();
+    for (const r of reservations) {
+      if (r.storeId !== storeId) continue;
+      const arr = map.get(r.date) ?? [];
+      arr.push(r);
+      map.set(r.date, arr);
+    }
+    // 시간순 정렬
+    for (const arr of map.values()) arr.sort((a, b) => a.time.localeCompare(b.time));
+    return map;
+  }, [reservations, storeId]);
 
   const grouped = useMemo(() => {
     const map: Record<string, Reservation[]> = {};
@@ -271,19 +299,69 @@ export default function OwnerReservations() {
       }
     >
       <div className="max-w-[900px] mx-auto">
-        <div className="grid grid-cols-2 gap-1 p-1 bg-[var(--color-navy-50)] rounded-[14px] max-w-xs">
-          {(["upcoming", "all"] as const).map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`h-10 rounded-[10px] text-[12px] font-bold ${
-                filter === f ? "bg-white text-[var(--color-navy-800)]" : "text-[var(--color-ink-500)]"
-              }`}
-            >
-              {f === "upcoming" ? t("ores.filter.upcoming", lang) : t("ores.filter.all", lang)}
-            </button>
-          ))}
+        <div className="flex items-center gap-2 mb-1 flex-wrap">
+          {/* List / Calendar 뷰 토글 */}
+          <div className="grid grid-cols-2 gap-1 p-1 bg-white border border-[var(--color-line)] rounded-[14px]">
+            {(["list", "calendar"] as const).map((v) => (
+              <button
+                key={v}
+                onClick={() => { setView(v); setSelectedDate(null); }}
+                className={`h-10 px-3.5 rounded-[10px] text-[12px] font-bold inline-flex items-center gap-1.5 ${
+                  view === v ? "bg-[var(--color-navy-700)] text-white" : "text-[var(--color-ink-500)]"
+                }`}
+              >
+                {v === "list" ? <ListIcon className="w-3.5 h-3.5" /> : <CalendarDays className="w-3.5 h-3.5" />}
+                {v === "list" ? t("ores.view.list", lang) : t("ores.view.calendar", lang)}
+              </button>
+            ))}
+          </div>
+          {/* 리스트 뷰에서만 upcoming/all 필터 노출 */}
+          {view === "list" && !selectedDate && (
+            <div className="grid grid-cols-2 gap-1 p-1 bg-[var(--color-navy-50)] rounded-[14px]">
+              {(["upcoming", "all"] as const).map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setFilter(f)}
+                  className={`h-10 px-3.5 rounded-[10px] text-[12px] font-bold ${
+                    filter === f ? "bg-white text-[var(--color-navy-800)]" : "text-[var(--color-ink-500)]"
+                  }`}
+                >
+                  {f === "upcoming" ? t("ores.filter.upcoming", lang) : t("ores.filter.all", lang)}
+                </button>
+              ))}
+            </div>
+          )}
+          {/* 선택된 날짜가 있으면 칩으로 표시 + 해제 */}
+          {selectedDate && (
+            <div className="inline-flex items-center gap-1.5 h-10 px-3.5 rounded-full bg-[var(--color-mint-100)] text-[var(--color-mint-700)] text-[12.5px] font-bold">
+              {new Date(selectedDate).toLocaleDateString(locale, { month: "long", day: "numeric", weekday: "short" })}
+              <button
+                onClick={() => setSelectedDate(null)}
+                className="w-5 h-5 rounded-full hover:bg-white/60 inline-flex items-center justify-center"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          )}
         </div>
+
+        {/* Calendar 뷰 */}
+        {view === "calendar" && (
+          <MonthCalendar
+            month={calMonth}
+            onPrev={() => setCalMonth((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))}
+            onNext={() => setCalMonth((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
+            onToday={() => {
+              const now = new Date();
+              setCalMonth(new Date(now.getFullYear(), now.getMonth(), 1));
+              setSelectedDate(now.toISOString().slice(0, 10));
+            }}
+            reservationsByDate={reservationsByDate}
+            onDayClick={(dateStr) => setSelectedDate(dateStr)}
+            selectedDate={selectedDate}
+            locale={locale}
+          />
+        )}
 
         {Object.keys(grouped).length === 0 ? (
           <Card padding="lg" className="text-center text-[14px] text-[var(--color-ink-500)] mt-4">
@@ -719,6 +797,180 @@ function CustomerPicker({
           )}
         </>
       )}
+    </div>
+  );
+}
+
+// ============================================================
+// MonthCalendar — 월간 예약 캘린더
+// 각 셀에 예약 개수 배지 + 가장 가까운 시간 미리보기.
+// 셀 클릭 시 그 날 예약 리스트로 필터.
+// ============================================================
+function MonthCalendar({
+  month,
+  onPrev,
+  onNext,
+  onToday,
+  reservationsByDate,
+  onDayClick,
+  selectedDate,
+  locale,
+}: {
+  month: Date;
+  onPrev: () => void;
+  onNext: () => void;
+  onToday: () => void;
+  reservationsByDate: Map<string, Reservation[]>;
+  onDayClick: (dateStr: string) => void;
+  selectedDate: string | null;
+  locale: string;
+}) {
+  const lang = useLanguage();
+  const year = month.getFullYear();
+  const m = month.getMonth();
+  // 그 달의 1일 요일(0=일) — 한국 달력 관습 따라 일요일 시작
+  const firstDay = new Date(year, m, 1).getDay();
+  const daysInMonth = new Date(year, m + 1, 0).getDate();
+  const todayStrLocal = new Date().toISOString().slice(0, 10);
+
+  // 셀(42칸 = 6주) 생성
+  const cells: Array<{ dateStr: string; day: number; inMonth: boolean }> = [];
+  // 앞쪽 빈칸 — 전달 마지막 며칠
+  const prevMonthLastDay = new Date(year, m, 0).getDate();
+  for (let i = firstDay - 1; i >= 0; i--) {
+    const day = prevMonthLastDay - i;
+    const d = new Date(year, m - 1, day);
+    cells.push({ dateStr: d.toISOString().slice(0, 10), day, inMonth: false });
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dt = new Date(year, m, d);
+    cells.push({ dateStr: dt.toISOString().slice(0, 10), day: d, inMonth: true });
+  }
+  // 뒤쪽 빈칸 — 다음달 시작
+  let nextDay = 1;
+  while (cells.length % 7 !== 0 || cells.length < 42) {
+    const d = new Date(year, m + 1, nextDay);
+    cells.push({ dateStr: d.toISOString().slice(0, 10), day: nextDay, inMonth: false });
+    nextDay++;
+    if (cells.length >= 42) break;
+  }
+
+  // 요일 헤더 — locale 기반
+  const weekdayLabels = useMemo(() => {
+    const base = new Date(2024, 0, 7); // 일요일
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(base);
+      d.setDate(base.getDate() + i);
+      return d.toLocaleDateString(locale, { weekday: "short" });
+    });
+  }, [locale]);
+
+  return (
+    <div className="mt-4 bg-white rounded-[16px] border border-[var(--color-line)] overflow-hidden">
+      {/* 헤더: 월 표시 + 이전/다음/오늘 */}
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--color-line)]">
+        <h3 className="text-[16px] font-extrabold text-[var(--color-navy-900)]">
+          {month.toLocaleDateString(locale, { year: "numeric", month: "long" })}
+        </h3>
+        <div className="ml-auto inline-flex items-center gap-1">
+          <button
+            onClick={onPrev}
+            aria-label={t("ores.cal.prev", lang)}
+            className="w-9 h-9 rounded-full hover:bg-[var(--color-navy-50)] inline-flex items-center justify-center"
+          >
+            <ChevronLeft className="w-4 h-4 text-[var(--color-navy-800)]" />
+          </button>
+          <button
+            onClick={onToday}
+            className="h-9 px-3 rounded-full bg-[var(--color-bg)] text-[var(--color-navy-800)] text-[12px] font-bold hover:bg-[var(--color-navy-50)]"
+          >
+            {t("ores.cal.today", lang)}
+          </button>
+          <button
+            onClick={onNext}
+            aria-label={t("ores.cal.next", lang)}
+            className="w-9 h-9 rounded-full hover:bg-[var(--color-navy-50)] inline-flex items-center justify-center"
+          >
+            <ChevronRight className="w-4 h-4 text-[var(--color-navy-800)]" />
+          </button>
+        </div>
+      </div>
+
+      {/* 요일 헤더 */}
+      <div className="grid grid-cols-7 border-b border-[var(--color-line)] bg-[var(--color-bg)]">
+        {weekdayLabels.map((w, i) => (
+          <div
+            key={i}
+            className={cn(
+              "py-1.5 text-center text-[11px] font-bold uppercase tracking-wider",
+              i === 0 ? "text-[var(--color-danger)]" : i === 6 ? "text-[var(--color-navy-600)]" : "text-[var(--color-ink-500)]"
+            )}
+          >
+            {w}
+          </div>
+        ))}
+      </div>
+
+      {/* 셀 그리드 */}
+      <div className="grid grid-cols-7">
+        {cells.map((c, i) => {
+          const items = reservationsByDate.get(c.dateStr) ?? [];
+          const confirmed = items.filter((r) => r.status === "confirmed");
+          const isToday = c.dateStr === todayStrLocal;
+          const isSelected = selectedDate === c.dateStr;
+          const dayOfWeek = i % 7;
+          return (
+            <button
+              key={`${c.dateStr}-${i}`}
+              onClick={() => onDayClick(c.dateStr)}
+              className={cn(
+                "min-h-[84px] border-t border-l border-[var(--color-line-soft)] p-1.5 text-left transition-colors",
+                !c.inMonth && "bg-[var(--color-bg)]/40 opacity-50",
+                isSelected && "bg-[var(--color-mint-50)] ring-2 ring-[var(--color-mint-500)] ring-inset",
+                !isSelected && c.inMonth && "hover:bg-[var(--color-navy-50)]",
+                i % 7 === 0 && "border-l-0"
+              )}
+            >
+              <div className="flex items-center justify-between">
+                <span
+                  className={cn(
+                    "text-[12px] font-bold tabular-nums",
+                    isToday
+                      ? "inline-flex items-center justify-center w-6 h-6 rounded-full bg-[var(--color-navy-700)] text-white"
+                      : dayOfWeek === 0
+                      ? "text-[var(--color-danger)]"
+                      : dayOfWeek === 6
+                      ? "text-[var(--color-navy-700)]"
+                      : "text-[var(--color-ink-700)]"
+                  )}
+                >
+                  {c.day}
+                </span>
+                {confirmed.length > 0 && (
+                  <span className="text-[10px] font-extrabold bg-[var(--color-mint-100)] text-[var(--color-mint-700)] px-1.5 rounded-full tabular-nums">
+                    {confirmed.length}
+                  </span>
+                )}
+              </div>
+              {/* 시간 미리보기 — 최대 2건 */}
+              {confirmed.slice(0, 2).map((r) => (
+                <div
+                  key={r.id}
+                  className="mt-1 text-[10px] font-bold text-[var(--color-navy-800)] truncate"
+                >
+                  <span className="tabular-nums">{r.time}</span>{" "}
+                  <span className="text-[var(--color-ink-600)] font-semibold">{r.customerName.slice(0, 4)}</span>
+                </div>
+              ))}
+              {confirmed.length > 2 && (
+                <div className="mt-0.5 text-[10px] font-bold text-[var(--color-ink-500)]">
+                  {t("ores.cal.moreN", lang, { n: confirmed.length - 2 })}
+                </div>
+              )}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

@@ -1413,6 +1413,13 @@ const ko: Dict = {
   "resMsg.toast.noPhone": "전화번호가 없어 메시지를 보낼 수 없어요.",
   "resMsg.toast.batchDone": "{n}건 리마인더를 보냈어요.",
   "resMsg.toast.noTomorrow": "내일 예약된 손님이 없어요.",
+  "ores.view.list": "리스트",
+  "ores.view.calendar": "캘린더",
+  "ores.cal.prev": "이전 달",
+  "ores.cal.next": "다음 달",
+  "ores.cal.today": "오늘",
+  "ores.cal.partyN": "{n}명",
+  "ores.cal.moreN": "+{n}개",
 };
 
 const en: Dict = {
@@ -2702,6 +2709,13 @@ const en: Dict = {
   "resMsg.toast.noPhone": "No phone number — can't send a message.",
   "resMsg.toast.batchDone": "Sent {n} reminders.",
   "resMsg.toast.noTomorrow": "No reservations for tomorrow.",
+  "ores.view.list": "List",
+  "ores.view.calendar": "Calendar",
+  "ores.cal.prev": "Previous month",
+  "ores.cal.next": "Next month",
+  "ores.cal.today": "Today",
+  "ores.cal.partyN": "{n}p",
+  "ores.cal.moreN": "+{n}",
 };
 
 const vi: Dict = {
@@ -3991,6 +4005,13 @@ const vi: Dict = {
   "resMsg.toast.noPhone": "Không có số điện thoại — không gửi được.",
   "resMsg.toast.batchDone": "Đã gửi {n} lời nhắc.",
   "resMsg.toast.noTomorrow": "Không có đơn đặt ngày mai.",
+  "ores.view.list": "Danh sách",
+  "ores.view.calendar": "Lịch",
+  "ores.cal.prev": "Tháng trước",
+  "ores.cal.next": "Tháng sau",
+  "ores.cal.today": "Hôm nay",
+  "ores.cal.partyN": "{n} người",
+  "ores.cal.moreN": "+{n}",
 };
 
 const zh: Dict = {
@@ -5280,6 +5301,13 @@ const zh: Dict = {
   "resMsg.toast.noPhone": "没有电话号码,无法发送。",
   "resMsg.toast.batchDone": "已发送 {n} 条提醒。",
   "resMsg.toast.noTomorrow": "明日没有预订。",
+  "ores.view.list": "列表",
+  "ores.view.calendar": "日历",
+  "ores.cal.prev": "上个月",
+  "ores.cal.next": "下个月",
+  "ores.cal.today": "今天",
+  "ores.cal.partyN": "{n}人",
+  "ores.cal.moreN": "+{n}",
 };
 
 const DICT: Record<Lang, Dict> = { ko, en, vi, zh };
