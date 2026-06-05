@@ -17,13 +17,13 @@ import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
 import { useStore } from "../../store/store";
 import { getEffectiveTier, TIER_BADGE } from "../../lib/tier";
-import { useLanguage, t } from "../../lib/i18n";
+import { useLanguage, t, getLocale } from "../../lib/i18n";
 
 export default function CustomerHome() {
   const nav = useNavigate();
   const { currentUser, users, visits, coupons, tierOverrides, logout, deleteAccount } = useStore();
   const lang = useLanguage();
-  const locale = lang === "ko" ? "ko-KR" : lang === "zh" ? "zh-CN" : lang === "vi" ? "vi-VN" : "en-US";
+  const locale = getLocale(lang);
 
   // 본인이 방문했던 매장 리스트 + 매장별 등급 계산
   const storesUsed = useMemo(() => {

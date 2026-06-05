@@ -18,7 +18,7 @@ import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
 import { useStore } from "../../store/store";
 import { showToast } from "../../lib/toast";
-import { useLanguage, t, type Lang } from "../../lib/i18n";
+import { useLanguage, t, type Lang, getLocale } from "../../lib/i18n";
 
 function fmtDuration(ms: number, lang: Lang) {
   const total = Math.max(0, Math.floor(ms / 1000));
@@ -30,7 +30,7 @@ function fmtDuration(ms: number, lang: Lang) {
 export default function StaffDashboard() {
   const { currentUser, users, shifts, activeShift, clockIn, clockOut } = useStore();
   const lang = useLanguage();
-  const locale = lang === "ko" ? "ko-KR" : lang === "zh" ? "zh-CN" : lang === "vi" ? "vi-VN" : "en-US";
+  const locale = getLocale(lang);
 
   // 1분마다 갱신해 경과 시간/오늘 누적이 살아 움직이게
   const [tick, setTick] = useState(0);

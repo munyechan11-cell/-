@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useStore } from "../../store/store";
 import type { Reservation } from "../../lib/types";
-import { useLanguage, t, type Lang } from "../../lib/i18n";
+import { useLanguage, t, type Lang, getLocale } from "../../lib/i18n";
 
 // 듀얼 모니터/큰 화면 송출용 — 별도 창(window.open)으로 열어 손님이 보는 화면.
 // 오늘의 확정 예약을 큰 글씨로 보여주고, 가장 임박한 예약을 hero로 강조한다.
@@ -22,7 +22,7 @@ export default function WelcomeDisplay() {
   const { effectiveStoreId, reservations, users, currentUser } = useStore();
   const storeId = effectiveStoreId;
   const lang = useLanguage();
-  const locale = lang === "ko" ? "ko-KR" : lang === "zh" ? "zh-CN" : lang === "vi" ? "vi-VN" : "en-US";
+  const locale = getLocale(lang);
 
   const owner = useMemo(
     () => users.find((u) => u.id === storeId && u.role === "owner"),

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { MapPin, Save, Receipt, KeyRound, Info, Printer, Plug, CheckCircle2, AlertCircle, Bell, BellOff, Smartphone, Clock, Languages } from "lucide-react";
-import { LANGS, useLanguage, setLanguage, t } from "../../lib/i18n";
+import { LANGS, useLanguage, setLanguage, t, getLocale } from "../../lib/i18n";
 import { cn } from "../../lib/cn";
 import { OwnerShell } from "../../components/layout/OwnerShell";
 import { Card } from "../../components/ui/Card";
@@ -533,7 +533,7 @@ function PrintBridgeSection({
   onToggle: (v: boolean) => Promise<void>;
 }) {
   const lang = useLanguage();
-  const locale = lang === "ko" ? "ko-KR" : lang === "zh" ? "zh-CN" : lang === "vi" ? "vi-VN" : "en-US";
+  const locale = getLocale(lang);
   const [busy, setBusy] = useState(false);
   const [code, setCode] = useState<string | null>(null);
   const [expiresAt, setExpiresAt] = useState<number | null>(null);

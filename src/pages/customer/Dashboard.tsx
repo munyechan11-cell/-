@@ -22,7 +22,7 @@ import {
   X as XIcon,
 } from "lucide-react";
 import { resizeImage } from "../owner/PhotoVault";
-import { LANGS, useLanguage, setLanguage, t, fmtKRW } from "../../lib/i18n";
+import { LANGS, useLanguage, setLanguage, t, fmtKRW, getLocale } from "../../lib/i18n";
 import { MobileShell } from "../../components/layout/MobileShell";
 import { TopBar } from "../../components/ui/TopBar";
 import { Card } from "../../components/ui/Card";
@@ -549,7 +549,7 @@ export default function CustomerDashboard() {
             ) : (
               <div className="space-y-2">
                 {myVisits.slice(0, 5).map((v) => {
-                  const locale = lang === "ko" ? "ko-KR" : lang === "zh" ? "zh-CN" : lang === "vi" ? "vi-VN" : "en-US";
+                  const locale = getLocale(lang);
                   return (
                     <Card key={v.id} padding="md" className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-lg bg-[var(--color-navy-50)] text-[var(--color-navy-700)] inline-flex items-center justify-center font-bold text-[12px]">
@@ -825,7 +825,7 @@ type PastVisitGroup = {
 function PastVisitsCard({ visits, storeName }: { visits: PastVisitGroup[]; storeName: string }) {
   const lang = useLanguage();
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
-  const locale = lang === "ko" ? "ko-KR" : lang === "zh" ? "zh-CN" : lang === "vi" ? "vi-VN" : "en-US";
+  const locale = getLocale(lang);
 
   const formatDate = (iso: string) => {
     const d = new Date(iso);

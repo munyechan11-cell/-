@@ -11,7 +11,7 @@ import { showToast } from "../../lib/toast";
 import { useEscapeClose } from "../../lib/useEscapeClose";
 import { useModalChrome } from "../../lib/useModalChrome";
 import { cn } from "../../lib/cn";
-import { useLanguage, t } from "../../lib/i18n";
+import { useLanguage, t, getLocale } from "../../lib/i18n";
 import { sendKakaoMessage, sendPhysicalSms } from "../../lib/messaging";
 
 const STATUS_KEYS: Record<ReservationStatus, string> = {
@@ -61,7 +61,7 @@ export default function OwnerReservations() {
   const { effectiveStoreId, reservations, users, visits, currentUser, addReservation, updateReservation, deleteReservation } = useStore();
   const storeId = effectiveStoreId;
   const lang = useLanguage();
-  const locale = lang === "ko" ? "ko-KR" : lang === "zh" ? "zh-CN" : lang === "vi" ? "vi-VN" : "en-US";
+  const locale = getLocale(lang);
 
   // 매장 이름 — 메시지 템플릿에서 사용
   const storeOwner = users.find((u) => u.id === storeId);

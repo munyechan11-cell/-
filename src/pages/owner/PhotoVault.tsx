@@ -7,7 +7,7 @@ import { deleteField } from "firebase/firestore";
 import { useStore } from "../../store/store";
 import type { Photo } from "../../lib/types";
 import { showToast } from "../../lib/toast";
-import { useLanguage, t } from "../../lib/i18n";
+import { useLanguage, t, getLocale } from "../../lib/i18n";
 
 // Firestore 문서 1MB 제한을 고려, base64 inflation 33% 감안하여 안전 한도 ~700KB
 const MAX_BASE64_BYTES = 700_000;
@@ -305,7 +305,7 @@ export default function OwnerPhotoVault() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4 pb-8">
                 {filteredReviews.map((r) => {
-                  const locale = lang === "ko" ? "ko-KR" : lang === "zh" ? "zh-CN" : lang === "vi" ? "vi-VN" : "en-US";
+                  const locale = getLocale(lang);
                   return (
                   <Card key={r.id} padding="md" className="flex flex-col gap-2">
                     <div className="flex items-center gap-2">

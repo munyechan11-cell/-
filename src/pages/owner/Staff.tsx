@@ -5,7 +5,7 @@ import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
 import { useStore } from "../../store/store";
 import { formatPhoneNumber } from "../../lib/ids";
-import { useLanguage, t, type Lang } from "../../lib/i18n";
+import { useLanguage, t, type Lang, getLocale } from "../../lib/i18n";
 
 function fmtDuration(ms: number, lang: Lang) {
   const total = Math.max(0, Math.floor(ms / 1000));
@@ -16,7 +16,7 @@ function fmtDuration(ms: number, lang: Lang) {
 
 function fmtDate(iso: string, lang: Lang) {
   const d = new Date(iso);
-  const locale = lang === "ko" ? "ko-KR" : lang === "zh" ? "zh-CN" : lang === "vi" ? "vi-VN" : "en-US";
+  const locale = getLocale(lang);
   return `${d.getMonth() + 1}/${d.getDate()} ${d.toLocaleTimeString(locale, {
     hour: "2-digit",
     minute: "2-digit",
@@ -26,7 +26,7 @@ function fmtDate(iso: string, lang: Lang) {
 export default function OwnerStaff() {
   const { currentUser, users, shifts, approveStaff, rejectStaff, removeStaffMembership } = useStore();
   const lang = useLanguage();
-  const locale = lang === "ko" ? "ko-KR" : lang === "zh" ? "zh-CN" : lang === "vi" ? "vi-VN" : "en-US";
+  const locale = getLocale(lang);
   const [openShiftsFor, setOpenShiftsFor] = useState<string | null>(null);
 
   const storeId = currentUser?.id ?? "";

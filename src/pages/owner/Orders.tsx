@@ -29,7 +29,7 @@ import {
 import { printReceipt } from "../../lib/receipt";
 import { printReceiptViaUsb, getAuthorizedPrinters } from "../../lib/thermalPrinter";
 import { showToast } from "../../lib/toast";
-import { useLanguage, t, fmtKRW } from "../../lib/i18n";
+import { useLanguage, t, fmtKRW, getLocale } from "../../lib/i18n";
 
 const STATUS_KEYS: Record<OrderStatus, string> = {
   pending: "oorders.status.pending",
@@ -433,7 +433,7 @@ function OrderCard({
   const lang = useLanguage();
   const advance = ADVANCE_BUTTON[order.status];
   const isNew = order.status === "pending";
-  const locale = lang === "ko" ? "ko-KR" : lang === "zh" ? "zh-CN" : lang === "vi" ? "vi-VN" : "en-US";
+  const locale = getLocale(lang);
   return (
     <Card
       padding="md"

@@ -1601,10 +1601,24 @@ export function t(
   );
 }
 
+// Lang → BCP47 locale 매핑. toLocaleString / toLocaleDateString 에 전달.
+const LOCALE_MAP: Record<Lang, string> = {
+  ko: "ko-KR",
+  en: "en-US",
+  vi: "vi-VN",
+  zh: "zh-CN",
+};
+
+/** 현재 또는 지정 언어의 BCP47 locale 코드. */
+export function getLocale(lang?: Lang): string {
+  return LOCALE_MAP[lang ?? currentLang];
+}
+
 // 통화 포매팅 — 한국어는 '₩ 1,000', 그 외는 '₩1,000' (KRW 단위 그대로)
 export function fmtKRW(n: number, lang: Lang = currentLang): string {
-  const locale = lang === "ko" ? "ko-KR" : lang === "zh" ? "zh-CN" : lang === "vi" ? "vi-VN" : "en-US";
-  return lang === "ko" ? `₩ ${n.toLocaleString(locale)}` : `₩${n.toLocaleString(locale)}`;
+  return lang === "ko"
+    ? `₩ ${n.toLocaleString(LOCALE_MAP.ko)}`
+    : `₩${n.toLocaleString(LOCALE_MAP[lang])}`;
 }
 
 // 초기 lang 속성 — html 태그에 반영
