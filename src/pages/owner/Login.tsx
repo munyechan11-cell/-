@@ -23,6 +23,7 @@ import { signInWithGoogle, signInWithKakao, consumeGoogleRedirect } from "../../
 import type { SocialResult } from "../../lib/auth";
 import { useLanguage, t } from "../../lib/i18n";
 import { LanguagePill } from "../../components/ui/LanguagePill";
+import { PhoneVerifyModal } from "../../components/ui/PhoneVerifyModal";
 
 type Mode = "login" | "signup";
 
@@ -37,8 +38,29 @@ export default function OwnerLogin() {
   const [posVendor, setPosVendor] = useState<PosVendor>("none");
   const [posApiKey, setPosApiKey] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPhoneVerify, setShowPhoneVerify] = useState(false);
 
   const vendorInfo = useMemo(() => getVendor(posVendor), [posVendor]);
+
+  // 소셜 pending stash 파싱 — submit 과 verify 후 두 번 사용해 헬퍼화
+  const readPendingSocial = () => {
+    const stash =
+      typeof window !== "undefined" ? sessionStorage.getItem("gyeol:pending-owner-social") : null;
+    if (!stash) return null;
+    try {
+      const parsed = JSON.parse(stash) as {
+        id: string; provider: "google" | "kakao"; avatarUrl?: string; ts?: number;
+      };
+      const fresh = !parsed.ts || Date.now() - parsed.ts < 10 * 60 * 1000;
+      if (fresh && parsed.id && parsed.provider) {
+        return { id: parsed.id, provider: parsed.provider, avatarUrl: parsed.avatarUrl };
+      }
+      sessionStorage.removeItem("gyeol:pending-owner-social");
+    } catch {
+      sessionStorage.removeItem("gyeol:pending-owner-social");
+    }
+    return null;
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,27 +72,17 @@ export default function OwnerLogin() {
       showToast(t("ownerLogin.toast.fillRestaurant", lang), "error");
       return;
     }
-    // 소셜 pending이 있으면 소셜 ID를 함께 연결 (탭 토글 등으로 일반 submit이 타도 안전)
-    // 단, 10분 이상 묵은 stash는 무시 — 옛 시도가 의도치 않게 적용되는 사고 방지
-    const stash =
-      typeof window !== "undefined"
-        ? sessionStorage.getItem("gyeol:pending-owner-social")
-        : null;
-    let pendingSocial: { id: string; provider: "google" | "kakao"; avatarUrl?: string } | null = null;
-    if (stash) {
-      try {
-        const parsed = JSON.parse(stash) as { id: string; provider: "google" | "kakao"; avatarUrl?: string; ts?: number };
-        const fresh = !parsed.ts || Date.now() - parsed.ts < 10 * 60 * 1000;
-        if (fresh && parsed.id && parsed.provider) {
-          pendingSocial = { id: parsed.id, provider: parsed.provider, avatarUrl: parsed.avatarUrl };
-        } else {
-          sessionStorage.removeItem("gyeol:pending-owner-social");
-        }
-      } catch {
-        sessionStorage.removeItem("gyeol:pending-owner-social");
-      }
+    // 가입은 SMS 인증 후 진행. 로그인 모드는 인증 없이 그대로.
+    if (mode === "signup") {
+      setShowPhoneVerify(true);
+      return;
     }
+    await runLogin();
+  };
 
+  // 실제 login() 호출 — submit 또는 PhoneVerifyModal onVerified 에서 진입.
+  const runLogin = async (verified = false) => {
+    const pendingSocial = readPendingSocial();
     setLoading(true);
     try {
       await login({
@@ -86,8 +98,10 @@ export default function OwnerLogin() {
         posApiKey: mode === "signup" ? posApiKey || undefined : undefined,
         // 소셜 pending 상태라면 신규 가입까지 허용
         signInOnly: mode === "login" && !pendingSocial,
+        phoneVerifiedAt: verified ? new Date().toISOString() : undefined,
       });
       if (pendingSocial) sessionStorage.removeItem("gyeol:pending-owner-social");
+      setShowPhoneVerify(false);
       nav("/biz/owner", { replace: true });
     } catch (e: any) {
       showToast(
@@ -159,7 +173,8 @@ export default function OwnerLogin() {
   };
 
   // 가입 시 보관된 social 정보 사용
-  const finalizeSocialSignup = async () => {
+  // 소셜 가입 마무리도 전번 인증을 거친다. phone 이 비었거나 짧으면 차단.
+  const finalizeSocialSignup = async (verified = false) => {
     const stash = sessionStorage.getItem("gyeol:pending-owner-social");
     if (!stash) return;
     const social = JSON.parse(stash) as { id: string; provider: "google" | "kakao"; avatarUrl?: string };
@@ -167,10 +182,19 @@ export default function OwnerLogin() {
       showToast(t("ownerLogin.toast.fillNameRestaurant", lang), "error");
       return;
     }
+    if (!verified) {
+      // phone 필수 — SMS 인증 필요
+      if (phone.replace(/\D/g, "").length < 10) {
+        showToast(t("ownerLogin.toast.fillNamePhone", lang), "error");
+        return;
+      }
+      setShowPhoneVerify(true);
+      return;
+    }
     setLoading(true);
     try {
       await login({
-        phone: digitsOnly(phone), // 빈값 허용
+        phone: digitsOnly(phone),
         name,
         role: "owner",
         restaurantName,
@@ -180,8 +204,10 @@ export default function OwnerLogin() {
         avatarUrl: social.avatarUrl,
         posVendor,
         posApiKey: posApiKey || undefined,
+        phoneVerifiedAt: new Date().toISOString(),
       });
       sessionStorage.removeItem("gyeol:pending-owner-social");
+      setShowPhoneVerify(false);
       nav("/biz/owner", { replace: true });
     } catch (e: any) {
       showToast(t("ownerLogin.toast.signupFailed", lang, { msg: e?.message ?? "" }), "error");
@@ -363,6 +389,16 @@ export default function OwnerLogin() {
           </p>
         )}
       </div>
+      {showPhoneVerify && (
+        <PhoneVerifyModal
+          initialPhone={phone}
+          onVerified={() =>
+            hasSocialPending && mode === "signup"
+              ? finalizeSocialSignup(true)
+              : runLogin(true)
+          }
+        />
+      )}
     </MobileShell>
   );
 }

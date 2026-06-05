@@ -15,6 +15,7 @@ import { TERMS, type TermKey, type TermDoc } from "../../lib/terms";
 import { TermsModal } from "../../components/ui/TermsModal";
 import { useLanguage, t } from "../../lib/i18n";
 import { LanguagePill } from "../../components/ui/LanguagePill";
+import { PhoneVerifyModal } from "../../components/ui/PhoneVerifyModal";
 
 type Step = 1 | 2 | 3;
 type Mode = "login" | "signup";
@@ -45,6 +46,8 @@ export default function CustomerLogin() {
   const [agreeMarketing, setAgreeMarketing] = useState(false);
   const [viewingTerm, setViewingTerm] = useState<TermDoc | null>(null);
   const [loading, setLoading] = useState(false);
+  // 가입 마지막 단계 — 전번 SMS 인증 모달. 인증 성공 시 실제 login() 호출.
+  const [showPhoneVerify, setShowPhoneVerify] = useState(false);
 
   const onAfterLogin = () => {
     // QR로 진입한 경우만 그 매장으로 복귀, 그 외엔 내 개인 대시보드
@@ -232,11 +235,17 @@ export default function CustomerLogin() {
     setStep(3);
   };
 
-  const submitStep3 = async () => {
+  const submitStep3 = () => {
     if (!agreePrivacy || !agreeService) {
       showToast(t("login.err.requiredTerms"), "error");
       return;
     }
+    // 약관 통과 → 전번 SMS 인증 단계로
+    setShowPhoneVerify(true);
+  };
+
+  // 전번 인증 성공 → 실제 login() 호출. 인증된 phone(e164) 을 동봉해 phoneVerifiedAt 마킹까지.
+  const completeSignupAfterVerify = async () => {
     setLoading(true);
     try {
       await login({
@@ -255,7 +264,9 @@ export default function CustomerLogin() {
           : undefined,
         isPohangResident: isPohangResident ?? undefined,
         privacyAgreedAt: new Date().toISOString(),
+        phoneVerifiedAt: new Date().toISOString(),
       });
+      setShowPhoneVerify(false);
       onAfterLogin();
     } catch (e: any) {
       showToast(t("login.err.signupFail", undefined, { msg: e?.message ?? "" }), "error");
@@ -547,6 +558,12 @@ export default function CustomerLogin() {
         {/* 약관 보기 모달 */}
         {viewingTerm && (
           <TermsModal term={viewingTerm} onClose={() => setViewingTerm(null)} />
+        )}
+        {showPhoneVerify && (
+          <PhoneVerifyModal
+            initialPhone={phone}
+            onVerified={completeSignupAfterVerify}
+          />
         )}
       </div>
     </MobileShell>

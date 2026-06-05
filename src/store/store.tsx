@@ -90,6 +90,8 @@ interface StoreState {
   logout: () => void;
   deleteAccount: () => Promise<void>;
   setMasterPassword: (pw: string) => Promise<void>;
+  /** 전화번호 SMS 인증 완료 마킹 — Firebase Auth 검증 후 호출. */
+  markPhoneVerified: (userId: string, e164Phone?: string) => Promise<void>;
   loginMaster: (pw: string) => boolean;
   logoutMaster: () => void;
   deleteUser: (userId: string, role: Role) => Promise<void>;
@@ -206,6 +208,8 @@ interface LoginInput {
   posApiKey?: string;
   /** true면 기존 계정만 로그인 허용, 매칭 실패 시 throw (자동 가입 방지) */
   signInOnly?: boolean;
+  /** SMS 전번 인증 통과 시각 — 가입 흐름에서 PhoneVerifyModal 인증 직후 동봉. */
+  phoneVerifiedAt?: string;
 }
 
 const StoreCtx = createContext<StoreState | null>(null);
@@ -553,6 +557,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         if (input.gender) patch.gender = input.gender;
         if (input.isPohangResident !== undefined) patch.isPohangResident = input.isPohangResident;
         if (input.privacyAgreedAt) patch.privacyAgreedAt = input.privacyAgreedAt;
+        if (input.phoneVerifiedAt) patch.phoneVerifiedAt = input.phoneVerifiedAt;
 
         await updateFirestoreDoc("users", match.id, patch);
         const final = { ...match, ...patch } as User;
@@ -598,6 +603,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       if (input.gender) user.gender = input.gender;
       if (input.isPohangResident !== undefined) user.isPohangResident = input.isPohangResident;
       if (input.privacyAgreedAt) user.privacyAgreedAt = input.privacyAgreedAt;
+      if (input.phoneVerifiedAt) user.phoneVerifiedAt = input.phoneVerifiedAt;
 
       await updateFirestoreDoc("users", newId, user);
 
@@ -643,6 +649,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     await updateFirestoreDoc("appState", "settings", { masterPassword: pw });
     setMasterPasswordState(pw);
     showToast(t("store.master.pwChanged"), "success");
+  }, []);
+
+  /** SMS 인증 완료 후 users 문서에 phoneVerifiedAt 마킹 + 인증한 번호 동기화. */
+  const markPhoneVerified = useCallback(async (userId: string, e164Phone?: string) => {
+    const patch: Partial<User> = {
+      phoneVerifiedAt: new Date().toISOString(),
+    };
+    if (e164Phone) patch.phone = e164Phone;
+    await updateFirestoreDoc("users", userId, patch);
   }, []);
 
   const loginMaster = useCallback(
@@ -1850,6 +1865,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       logout,
       deleteAccount,
       setMasterPassword,
+      markPhoneVerified,
       loginMaster,
       logoutMaster,
       deleteUser,
@@ -1930,6 +1946,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       logout,
       deleteAccount,
       setMasterPassword,
+      markPhoneVerified,
       loginMaster,
       logoutMaster,
       deleteUser,

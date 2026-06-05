@@ -6,6 +6,7 @@ import { ToastHost } from "./components/ui/Toast";
 import { PageLoader } from "./components/ui/PageLoader";
 import { GlobalOrderNotifier } from "./components/layout/GlobalOrderNotifier";
 import { InstallPrompt } from "./components/ui/InstallPrompt";
+import { PhoneVerifyGate } from "./components/ui/PhoneVerifyGate";
 
 const Home = lazy(() => import("./pages/Home"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -204,6 +205,7 @@ export default function App() {
       <ToastHost />
       <GlobalOrderNotifier />
       <InstallPrompt />
+      <PhoneVerifyGate />
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/" element={<Home />} />

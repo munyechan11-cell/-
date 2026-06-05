@@ -32,6 +32,8 @@ export interface User {
   socialIds?: string[];
   authType?: AuthType;
   status?: "active" | "deleted";
+  /** 전화번호 SMS 인증을 통과한 시각. 미설정 = 미인증 → 로그인 시 강제 인증 모달. */
+  phoneVerifiedAt?: string;
   linkedProviders?: ("google" | "kakao")[];
   isPohangResident?: boolean;
   gender?: "male" | "female";

@@ -13,6 +13,7 @@ import type { SocialResult } from "../../lib/auth";
 import { cn } from "../../lib/cn";
 import { useLanguage, t } from "../../lib/i18n";
 import { LanguagePill } from "../../components/ui/LanguagePill";
+import { PhoneVerifyModal } from "../../components/ui/PhoneVerifyModal";
 
 type Mode = "login" | "signup";
 
@@ -25,10 +26,30 @@ export default function StaffLogin() {
   const [name, setName] = useState("");
   const [position, setPosition] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPhoneVerify, setShowPhoneVerify] = useState(false);
 
   const afterStaffLogin = () => {
     // 직원: 가입 후 store-search → pending → /staff
     nav("/biz/staff/store-search", { replace: true });
+  };
+
+  const readPendingSocial = () => {
+    const stash =
+      typeof window !== "undefined" ? sessionStorage.getItem("gyeol:pending-staff-social") : null;
+    if (!stash) return null;
+    try {
+      const parsed = JSON.parse(stash) as {
+        id: string; provider: "google" | "kakao"; avatarUrl?: string; ts?: number;
+      };
+      const fresh = !parsed.ts || Date.now() - parsed.ts < 10 * 60 * 1000;
+      if (fresh && parsed.id && parsed.provider) {
+        return { id: parsed.id, provider: parsed.provider, avatarUrl: parsed.avatarUrl };
+      }
+      sessionStorage.removeItem("gyeol:pending-staff-social");
+    } catch {
+      sessionStorage.removeItem("gyeol:pending-staff-social");
+    }
+    return null;
   };
 
   const submit = async (e: React.FormEvent) => {
@@ -37,26 +58,16 @@ export default function StaffLogin() {
       showToast(t("slogin.err.required", lang), "error");
       return;
     }
-    // 10분 이상 묵은 stash는 무시 (옛 시도가 의도치 않게 적용되는 사고 방지)
-    const stash =
-      typeof window !== "undefined"
-        ? sessionStorage.getItem("gyeol:pending-staff-social")
-        : null;
-    let pendingSocial: { id: string; provider: "google" | "kakao"; avatarUrl?: string } | null = null;
-    if (stash) {
-      try {
-        const parsed = JSON.parse(stash) as { id: string; provider: "google" | "kakao"; avatarUrl?: string; ts?: number };
-        const fresh = !parsed.ts || Date.now() - parsed.ts < 10 * 60 * 1000;
-        if (fresh && parsed.id && parsed.provider) {
-          pendingSocial = { id: parsed.id, provider: parsed.provider, avatarUrl: parsed.avatarUrl };
-        } else {
-          sessionStorage.removeItem("gyeol:pending-staff-social");
-        }
-      } catch {
-        sessionStorage.removeItem("gyeol:pending-staff-social");
-      }
+    if (mode === "signup") {
+      // 가입 — 전번 SMS 인증 후 진행
+      setShowPhoneVerify(true);
+      return;
     }
+    await runLogin();
+  };
 
+  const runLogin = async (verified = false) => {
+    const pendingSocial = readPendingSocial();
     setLoading(true);
     try {
       await login({
@@ -69,8 +80,10 @@ export default function StaffLogin() {
         avatarUrl: pendingSocial?.avatarUrl,
         position: mode === "signup" ? position || undefined : undefined,
         signInOnly: mode === "login" && !pendingSocial,
+        phoneVerifiedAt: verified ? new Date().toISOString() : undefined,
       } as any);
       if (pendingSocial) sessionStorage.removeItem("gyeol:pending-staff-social");
+      setShowPhoneVerify(false);
       afterStaffLogin();
     } catch (e: any) {
       showToast(
@@ -284,6 +297,12 @@ export default function StaffLogin() {
           </>
         )}
       </div>
+      {showPhoneVerify && (
+        <PhoneVerifyModal
+          initialPhone={phone}
+          onVerified={() => runLogin(true)}
+        />
+      )}
     </MobileShell>
   );
 }
