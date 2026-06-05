@@ -93,6 +93,7 @@ export const COLLECTIONS = [
   "reservations",
   "photos",
   "shifts",
+  "ingredients",
   "appState",
 ] as const;
 

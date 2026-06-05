@@ -20,6 +20,7 @@ import {
   Lock,
   HelpCircle,
   Megaphone,
+  Package,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useStore } from "../../store/store";
@@ -55,6 +56,7 @@ const NAV: NavItem[] = [
   { to: "/biz/owner/orders", labelKey: "ownerNav.orders", icon: ChefHat, staff: true },
   { to: "/biz/owner/tables", labelKey: "ownerNav.tables", icon: LayoutGrid, staff: true },
   { to: "/biz/owner/menus", labelKey: "ownerNav.menus", icon: UtensilsCrossed, staff: true },
+  { to: "/biz/owner/inventory", labelKey: "ownerNav.inventory", icon: Package },
   { to: "/biz/owner/customers", labelKey: "ownerNav.customers", icon: Users },
   { to: "/biz/owner/marketing", labelKey: "ownerNav.marketing", icon: Megaphone },
   { to: "/biz/owner/reservations", labelKey: "ownerNav.reservations", icon: Calendar, staff: true, staffFree: true },

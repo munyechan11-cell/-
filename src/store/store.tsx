@@ -49,6 +49,7 @@ import type {
   Tier,
   TableStatus,
   Shift,
+  Ingredient,
 } from "../lib/types";
 
 type FirebaseStatus = "connecting" | "ok" | "error" | "offline";
@@ -73,6 +74,7 @@ interface StoreState {
   reservations: Reservation[];
   photos: Photo[];
   shifts: Shift[];
+  ingredients: Ingredient[];
 
   /** 현재 컨텍스트의 매장 id (사장님=자기 id, 직원=employerStoreId) */
   effectiveStoreId: string;
@@ -125,6 +127,9 @@ interface StoreState {
   addMenuItem: (storeId: string, data: Omit<Menu, "id" | "storeId">) => Promise<void>;
   updateMenuItem: (id: string, data: Partial<Menu>) => Promise<void>;
   deleteMenuItem: (id: string) => Promise<void>;
+  addIngredient: (storeId: string, data: Omit<Ingredient, "id" | "storeId" | "updatedAt">) => Promise<void>;
+  updateIngredient: (id: string, data: Partial<Ingredient>) => Promise<void>;
+  deleteIngredient: (id: string) => Promise<void>;
 
   // orders
   placeOrder: (input: {
@@ -253,6 +258,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [shifts, setShifts] = useState<Shift[]>([]);
+  const [ingredients, setIngredients] = useState<Ingredient[]>([]);
+  const ingredientsRef = useRef<Ingredient[]>([]);
+  useEffect(() => { ingredientsRef.current = ingredients; }, [ingredients]);
 
   const scopedUnsubsRef = useRef<Array<() => void>>([]);
   const storeContextUnsubsRef = useRef<Array<() => void>>([]);
@@ -298,6 +306,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         orders,
         reservations,
         photos,
+        ingredients,
       })
     );
   }, [
@@ -314,6 +323,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     orders,
     reservations,
     photos,
+    ingredients,
   ]);
 
   // Boot
@@ -340,6 +350,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           setOrders(s.orders ?? []);
           setReservations(s.reservations ?? []);
           setPhotos(s.photos ?? []);
+          setIngredients(s.ingredients ?? []);
         }
       } catch {}
       setFirebaseStatus("offline");
@@ -417,6 +428,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       sub<Reservation>("reservations", setReservations, "storeId", sid);
       sub<Photo>("photos", setPhotos, "storeId", sid);
       sub<Shift>("shifts", setShifts, "storeId", sid);
+      sub<Ingredient>("ingredients", setIngredients, "storeId", sid);
     } else if (currentUser.role === "staff") {
       const sid = currentUser.employerStoreId;
       // 본인 근무 기록은 항상 구독 (승인 전에도 빈 배열)
@@ -428,6 +440,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         sub<Order>("orders", setOrders, "storeId", sid);
         sub<Reservation>("reservations", setReservations, "storeId", sid);
         sub<Photo>("photos", setPhotos, "storeId", sid);
+        sub<Ingredient>("ingredients", setIngredients, "storeId", sid);
       } else {
         setTables([]);
         setSections([]);
@@ -435,6 +448,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         setOrders([]);
         setReservations([]);
         setPhotos([]);
+        setIngredients([]);
       }
     } else {
       // customer: 본인 데이터를 매장 무관하게 구독
@@ -1074,6 +1088,72 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     await updateFirestoreDoc("menus", id, undefined, true);
   }, []);
 
+  // ============ INGREDIENTS ============
+  const addIngredient = useCallback(
+    async (storeId: string, data: Omit<Ingredient, "id" | "storeId" | "updatedAt">) => {
+      const id = generateId();
+      const doc: Ingredient = {
+        id,
+        storeId,
+        ...data,
+        updatedAt: new Date().toISOString(),
+      };
+      await updateFirestoreDoc("ingredients", id, doc);
+    },
+    []
+  );
+
+  const updateIngredient = useCallback(
+    async (id: string, data: Partial<Ingredient>) => {
+      await updateFirestoreDoc("ingredients", id, {
+        ...data,
+        updatedAt: new Date().toISOString(),
+      });
+    },
+    []
+  );
+
+  const deleteIngredient = useCallback(async (id: string) => {
+    await updateFirestoreDoc("ingredients", id, undefined, true);
+  }, []);
+
+  /**
+   * 주문 항목 기반으로 원재료 재고를 일괄 차감/복원.
+   * direction: -1 = 차감(판매), +1 = 복원(주문 취소).
+   * menus.recipe 의 quantityPerServing × orderItem.quantity 만큼 ingredient.stock 변동.
+   */
+  const adjustStockForOrder = useCallback(
+    async (items: OrderItem[], direction: -1 | 1) => {
+      const menusList = menusRef.current;
+      const ingList = ingredientsRef.current;
+      // 같은 원재료가 여러 메뉴에 걸쳐 나오면 누적
+      const deltaMap = new Map<string, number>();
+      for (const it of items) {
+        const menu = menusList.find((m) => m.id === it.menuId);
+        if (!menu?.recipe) continue;
+        for (const r of menu.recipe) {
+          const cur = deltaMap.get(r.ingredientId) ?? 0;
+          deltaMap.set(r.ingredientId, cur + r.quantity * it.quantity * direction);
+        }
+      }
+      // Firestore 업데이트 — 동시 발생할 수 있어 병렬
+      const updates: Promise<void>[] = [];
+      for (const [ingId, delta] of deltaMap) {
+        const ing = ingList.find((x) => x.id === ingId);
+        if (!ing) continue;
+        const next = Math.max(0, Number((ing.stock + delta).toFixed(4)));
+        updates.push(
+          updateFirestoreDoc("ingredients", ingId, {
+            stock: next,
+            updatedAt: new Date().toISOString(),
+          })
+        );
+      }
+      await Promise.all(updates);
+    },
+    []
+  );
+
   // ============ ORDERS ============
   const placeOrder = useCallback(
     async ({
@@ -1179,6 +1259,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
       // 영수증 인쇄(①②③④) 는 모두 결제 승인 시점(approvePayment) 으로 이동.
       // 손님이 중간에 영수증을 원하면 BillModal 의 '계산서 보기' 로 확인 가능.
+
+      // 재고 자동 차감 — 메뉴.recipe 가 등록된 경우만. 실패해도 주문 자체는 진행.
+      adjustStockForOrder(items, -1).catch((e) => {
+        console.warn("[ingredients] adjust failed", e);
+      });
 
       showToast(t("store.order.placed"), "success");
       return order;
@@ -1750,6 +1835,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       reservations,
       photos,
       shifts,
+      ingredients,
       activeShift,
       effectiveStoreId,
       activeStoreId,
@@ -1800,6 +1886,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       addPhoto,
       updatePhoto,
       deletePhoto,
+      addIngredient,
+      updateIngredient,
+      deleteIngredient,
       requestJoinStore,
       cancelJoinRequest,
       approveStaff,
@@ -1827,6 +1916,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       reservations,
       photos,
       shifts,
+      ingredients,
       activeShift,
       effectiveStoreId,
       activeStoreId,
@@ -1876,6 +1966,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       addPhoto,
       updatePhoto,
       deletePhoto,
+      addIngredient,
+      updateIngredient,
+      deleteIngredient,
       requestJoinStore,
       cancelJoinRequest,
       approveStaff,

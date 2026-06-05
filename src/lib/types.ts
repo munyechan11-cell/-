@@ -219,6 +219,28 @@ export interface Menu {
   description?: string;
   isAvailable?: boolean;
   posProductCode?: string;
+  /** 메뉴 1인분에 소요되는 원재료 목록 — 판매 시 자동 차감 + 원가 계산 */
+  recipe?: { ingredientId: string; quantity: number }[];
+}
+
+/** 원재료 — 매장에 보관하는 식자재/물품. */
+export interface Ingredient {
+  id: string;
+  storeId: string;
+  /** 표시 이름 (예: "쌀", "양배추", "맥주 500ml") */
+  name: string;
+  /** 단위 (예: "kg", "g", "L", "ml", "개") */
+  unit: string;
+  /** 현재 재고 수량 (단위: unit) */
+  stock: number;
+  /** 단위당 원가 — 메뉴 원가 계산에 사용 (KRW) */
+  unitCost: number;
+  /** 부족 알림 임계값. 미설정 시 알림 없음 */
+  lowThreshold?: number;
+  /** 마지막 수동 조정/입고 시각 */
+  updatedAt: string;
+  /** 메모 — 거래처 등 자유 입력 */
+  memo?: string;
 }
 
 export type OrderStatus = "pending" | "accepted" | "cooking" | "served" | "cancelled";
