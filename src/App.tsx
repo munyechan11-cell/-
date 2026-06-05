@@ -21,6 +21,7 @@ const OwnerLogin = lazy(() => import("./pages/owner/Login"));
 const StaffLogin = lazy(() => import("./pages/staff/Login"));
 const OwnerDashboard = lazy(() => import("./pages/owner/Dashboard"));
 const OwnerCustomers = lazy(() => import("./pages/owner/Customers"));
+const OwnerMarketing = lazy(() => import("./pages/owner/Marketing"));
 const OwnerStatistics = lazy(() => import("./pages/owner/Statistics"));
 const BrandSettings = lazy(() => import("./pages/owner/BrandSettings"));
 const QrPrint = lazy(() => import("./pages/owner/QrPrint"));
@@ -255,6 +256,14 @@ export default function App() {
             element={
               <PrivateRoute role="owner">
                 <OwnerCustomers />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/biz/owner/marketing"
+            element={
+              <PrivateRoute role="owner">
+                <OwnerMarketing />
               </PrivateRoute>
             }
           />

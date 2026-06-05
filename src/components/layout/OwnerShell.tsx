@@ -19,6 +19,7 @@ import {
   Clock,
   Lock,
   HelpCircle,
+  Megaphone,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useStore } from "../../store/store";
@@ -55,6 +56,7 @@ const NAV: NavItem[] = [
   { to: "/biz/owner/tables", labelKey: "ownerNav.tables", icon: LayoutGrid, staff: true },
   { to: "/biz/owner/menus", labelKey: "ownerNav.menus", icon: UtensilsCrossed, staff: true },
   { to: "/biz/owner/customers", labelKey: "ownerNav.customers", icon: Users },
+  { to: "/biz/owner/marketing", labelKey: "ownerNav.marketing", icon: Megaphone },
   { to: "/biz/owner/reservations", labelKey: "ownerNav.reservations", icon: Calendar, staff: true, staffFree: true },
   { to: "/biz/owner/statistics", labelKey: "ownerNav.statistics", icon: BarChart3 },
   { to: "/biz/owner/photos", labelKey: "ownerNav.reviews", icon: ImageIcon, staff: true },
