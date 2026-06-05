@@ -112,31 +112,37 @@ export default function OwnerInventory() {
     };
   }, [orders, myIngredients, myMenus, storeId]);
 
+  const [saveBusy, setSaveBusy] = useState(false);
   const saveIngredient = async () => {
-    if (!editing) return;
+    if (!editing || saveBusy) return;
     if (!editing.name?.trim() || !editing.unit?.trim()) return;
-    if (editing.id) {
-      await updateIngredient(editing.id, {
-        name: editing.name.trim(),
-        unit: editing.unit.trim(),
-        stock: Number(editing.stock) || 0,
-        unitCost: Number(editing.unitCost) || 0,
-        lowThreshold: editing.lowThreshold ? Number(editing.lowThreshold) : undefined,
-        memo: editing.memo,
-      });
-      showToast(t("inv.updated", lang), "success");
-    } else {
-      await addIngredient(storeId, {
-        name: editing.name.trim(),
-        unit: editing.unit.trim(),
-        stock: Number(editing.stock) || 0,
-        unitCost: Number(editing.unitCost) || 0,
-        lowThreshold: editing.lowThreshold ? Number(editing.lowThreshold) : undefined,
-        memo: editing.memo,
-      });
-      showToast(t("inv.added", lang), "success");
+    setSaveBusy(true);
+    try {
+      if (editing.id) {
+        await updateIngredient(editing.id, {
+          name: editing.name.trim(),
+          unit: editing.unit.trim(),
+          stock: Number(editing.stock) || 0,
+          unitCost: Number(editing.unitCost) || 0,
+          lowThreshold: editing.lowThreshold ? Number(editing.lowThreshold) : undefined,
+          memo: editing.memo,
+        });
+        showToast(t("inv.updated", lang), "success");
+      } else {
+        await addIngredient(storeId, {
+          name: editing.name.trim(),
+          unit: editing.unit.trim(),
+          stock: Number(editing.stock) || 0,
+          unitCost: Number(editing.unitCost) || 0,
+          lowThreshold: editing.lowThreshold ? Number(editing.lowThreshold) : undefined,
+          memo: editing.memo,
+        });
+        showToast(t("inv.added", lang), "success");
+      }
+      setEditing(null);
+    } finally {
+      setSaveBusy(false);
     }
-    setEditing(null);
   };
 
   const removeIngredient = async (ing: Ingredient) => {

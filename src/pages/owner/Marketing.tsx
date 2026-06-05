@@ -39,8 +39,10 @@ const DEFAULT_SLIPPING_DAYS = 30;
 const RECENT_TIER_DAYS = 14;
 
 export default function OwnerMarketing() {
-  const { effectiveStoreId, currentUser, users, visits, bulkIssueCoupon } = useStore();
-  const storeId = effectiveStoreId ?? currentUser?.id ?? "";
+  const { effectiveStoreId, users, visits, bulkIssueCoupon } = useStore();
+  // effectiveStoreId 가 비어 있으면(직원 미승인 등) 잘못된 매장에 쿠폰이 박히므로
+  // currentUser.id 폴백 금지. 빈 문자열이면 후보 계산이 0건으로 나와 안전 차단.
+  const storeId = effectiveStoreId;
   const lang = useLanguage();
 
   // 사장님이 이탈 기준 일수를 즉석에서 조정 (기본 30일)
@@ -92,22 +94,29 @@ export default function OwnerMarketing() {
     const now = new Date();
     const thisMonth = now.getMonth() + 1; // 1~12
     const today = now.getDate();
+    // 이번달 일수 — 28/29/30/31 분기. 정렬에서 다음달 환산 시 사용.
+    const daysInThisMonth = new Date(now.getFullYear(), thisMonth, 0).getDate();
     return customers
       .filter((c) => {
         if (!c.user.birthday) return false;
         const parts = c.user.birthday.split("-");
         if (parts.length !== 3) return false;
-        return Number(parts[1]) === thisMonth;
+        const m = Number(parts[1]);
+        return Number.isFinite(m) && m === thisMonth;
       })
       .map((c) => {
         const day = Number(c.user.birthday!.split("-")[2]);
-        return { user: c.user, birthDay: day, tier: c.tier };
+        return {
+          user: c.user,
+          birthDay: Number.isFinite(day) ? day : undefined,
+          tier: c.tier,
+        };
       })
+      .filter((c) => c.birthDay !== undefined)
       .sort((a, b) => {
-        // 오늘부터 가까운 순. 오늘 이전이면 다음달까지로 환산
-        const distA = ((a.birthDay ?? 0) - today + 31) % 31;
-        const distB = ((b.birthDay ?? 0) - today + 31) % 31;
-        return distA - distB;
+        // 오늘 이후는 가까운 순, 지난 날은 뒤로(이번달 일수 + 1)
+        const d = (bd: number) => (bd >= today ? bd - today : bd - today + daysInThisMonth + 1);
+        return d(a.birthDay ?? 0) - d(b.birthDay ?? 0);
       });
   }, [customers]);
 
@@ -399,7 +408,7 @@ function BulkCouponModal({
   const [busy, setBusy] = useState(false);
 
   const submit = async () => {
-    if (!desc.trim()) return;
+    if (busy || !desc.trim()) return;
     setBusy(true);
     try {
       await onConfirm(type.trim() || defaultType, desc.trim());
@@ -409,7 +418,7 @@ function BulkCouponModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-end" onClick={onClose}>
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-end" onClick={busy ? undefined : onClose}>
       <div
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-[440px] mx-auto bg-white rounded-t-[28px] p-6 pb-[max(env(safe-area-inset-bottom),24px)]"

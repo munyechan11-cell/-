@@ -41,7 +41,10 @@ interface Draft {
   isGuest?: boolean;
 }
 
-const todayStr = () => new Date().toISOString().slice(0, 10);
+// 로컬 자정 기준 'YYYY-MM-DD' — KST/UTC 차이로 달력이 어긋나지 않게.
+const toLocalISO = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const todayStr = () => toLocalISO(new Date());
 
 const newDraft = (): Draft => ({
   date: todayStr(),
@@ -100,11 +103,17 @@ export default function OwnerReservations() {
     else showToast(t("resMsg.toast.smsFail", lang, { msg: res.message ?? "" }), "error");
   };
 
-  // 내일 예약 일괄 리마인더
+  // 로컬 자정 기준 'YYYY-MM-DD' — toISOString() 은 UTC 라 KST 외 매장에서 어긋남.
+  const localISO = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+  // 내일 예약 일괄 리마인더 — 중복 클릭 가드 포함
+  const [reminderBusy, setReminderBusy] = useState(false);
   const sendTomorrowReminders = async (via: "kakao" | "sms") => {
+    if (reminderBusy) return;
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowStr = tomorrow.toISOString().slice(0, 10);
+    const tomorrowStr = localISO(tomorrow);
     const targets = reservations.filter(
       (r) => r.storeId === storeId && r.date === tomorrowStr && r.status === "confirmed" && r.customerPhone
     );
@@ -112,23 +121,28 @@ export default function OwnerReservations() {
       showToast(t("resMsg.toast.noTomorrow", lang), "info");
       return;
     }
-    let sent = 0;
-    for (const r of targets) {
-      // SMS는 sms: 딥링크라 연속 호출이 깨짐 — 카톡만 일괄 가능
-      // SMS의 경우 첫 1건만 발송하고 나머지는 사장님이 수동 진행 (모바일 UX 한계)
-      if (via === "sms" && sent >= 1) break;
-      // eslint-disable-next-line no-await-in-loop
-      await sendMessage(r, via, "reminder");
-      sent++;
+    setReminderBusy(true);
+    try {
+      let sent = 0;
+      for (const r of targets) {
+        // SMS는 sms: 딥링크라 연속 호출이 깨짐 — 카톡만 일괄 가능
+        // SMS의 경우 첫 1건만 발송하고 나머지는 사장님이 수동 진행 (모바일 UX 한계)
+        if (via === "sms" && sent >= 1) break;
+        // eslint-disable-next-line no-await-in-loop
+        await sendMessage(r, via, "reminder");
+        sent++;
+      }
+      showToast(t("resMsg.toast.batchDone", lang, { n: sent }), "success");
+    } finally {
+      setReminderBusy(false);
     }
-    showToast(t("resMsg.toast.batchDone", lang, { n: sent }), "success");
   };
 
   // 내일 예약 카운트
   const tomorrowReservationsCount = useMemo(() => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowStr = tomorrow.toISOString().slice(0, 10);
+    const tomorrowStr = localISO(tomorrow);
     return reservations.filter(
       (r) => r.storeId === storeId && r.date === tomorrowStr && r.status === "confirmed" && r.customerPhone
     ).length;
@@ -266,7 +280,8 @@ export default function OwnerReservations() {
           {tomorrowReservationsCount > 0 && (
             <button
               onClick={() => sendTomorrowReminders("kakao")}
-              className="h-10 px-3.5 rounded-full bg-[#FEE500] text-[#191919] inline-flex items-center gap-1.5 text-[12.5px] font-extrabold"
+              disabled={reminderBusy}
+              className="h-10 px-3.5 rounded-full bg-[#FEE500] text-[#191919] inline-flex items-center gap-1.5 text-[12.5px] font-extrabold disabled:opacity-50"
               title={t("resMsg.btn.reminderAll", lang, { n: tomorrowReservationsCount })}
             >
               <Bell className="w-4 h-4" />
@@ -354,7 +369,7 @@ export default function OwnerReservations() {
             onToday={() => {
               const now = new Date();
               setCalMonth(new Date(now.getFullYear(), now.getMonth(), 1));
-              setSelectedDate(now.toISOString().slice(0, 10));
+              setSelectedDate(toLocalISO(now));
             }}
             reservationsByDate={reservationsByDate}
             onDayClick={(dateStr) => setSelectedDate(dateStr)}
@@ -831,7 +846,7 @@ function MonthCalendar({
   // 그 달의 1일 요일(0=일) — 한국 달력 관습 따라 일요일 시작
   const firstDay = new Date(year, m, 1).getDay();
   const daysInMonth = new Date(year, m + 1, 0).getDate();
-  const todayStrLocal = new Date().toISOString().slice(0, 10);
+  const todayStrLocal = toLocalISO(new Date());
 
   // 셀(42칸 = 6주) 생성
   const cells: Array<{ dateStr: string; day: number; inMonth: boolean }> = [];
@@ -840,17 +855,17 @@ function MonthCalendar({
   for (let i = firstDay - 1; i >= 0; i--) {
     const day = prevMonthLastDay - i;
     const d = new Date(year, m - 1, day);
-    cells.push({ dateStr: d.toISOString().slice(0, 10), day, inMonth: false });
+    cells.push({ dateStr: toLocalISO(d), day, inMonth: false });
   }
   for (let d = 1; d <= daysInMonth; d++) {
     const dt = new Date(year, m, d);
-    cells.push({ dateStr: dt.toISOString().slice(0, 10), day: d, inMonth: true });
+    cells.push({ dateStr: toLocalISO(dt), day: d, inMonth: true });
   }
   // 뒤쪽 빈칸 — 다음달 시작
   let nextDay = 1;
   while (cells.length % 7 !== 0 || cells.length < 42) {
     const d = new Date(year, m + 1, nextDay);
-    cells.push({ dateStr: d.toISOString().slice(0, 10), day: nextDay, inMonth: false });
+    cells.push({ dateStr: toLocalISO(d), day: nextDay, inMonth: false });
     nextDay++;
     if (cells.length >= 42) break;
   }
