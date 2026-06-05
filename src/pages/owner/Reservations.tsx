@@ -66,15 +66,18 @@ export default function OwnerReservations() {
   const storeOwner = users.find((u) => u.id === storeId);
   const storeName = storeOwner?.restaurantName ?? currentUser?.restaurantName ?? "결";
 
-  // 예약을 카카오톡/SMS로 보내는 핸들러
+  // 예약을 카카오톡/SMS로 보내는 핸들러.
+  // 반환값: 성공 시 true. 일괄 발송에서 정확한 카운트를 위해 boolean 반환.
+  // silent=true 면 토스트 출력 생략 (일괄 발송에서 마지막에 하나만 띄우기).
   const sendMessage = async (
     r: Reservation,
     via: "kakao" | "sms",
-    kind: "confirm" | "reminder"
-  ) => {
+    kind: "confirm" | "reminder",
+    silent = false
+  ): Promise<boolean> => {
     if (!r.customerPhone) {
-      showToast(t("resMsg.toast.noPhone", lang), "error");
-      return;
+      if (!silent) showToast(t("resMsg.toast.noPhone", lang), "error");
+      return false;
     }
     const fmtDate = new Date(r.date).toLocaleDateString(locale, {
       month: "long",
@@ -93,14 +96,21 @@ export default function OwnerReservations() {
 
     if (via === "kakao") {
       const res = await sendKakaoMessage(body, title, storeId ?? "");
-      if (res.ok) showToast(t("resMsg.toast.kakaoOk", lang), "success");
-      else showToast(t("resMsg.toast.kakaoFail", lang, { msg: res.message ?? "" }), "error");
-      return;
+      if (res.ok) {
+        if (!silent) showToast(t("resMsg.toast.kakaoOk", lang), "success");
+        return true;
+      }
+      if (!silent) showToast(t("resMsg.toast.kakaoFail", lang, { msg: res.message ?? "" }), "error");
+      return false;
     }
     // SMS — 모바일에서 sms: 딥링크, PC면 차단됨
     const res = await sendPhysicalSms(r.customerPhone, `${title}\n${body}`, "device");
-    if (res.ok) showToast(t("resMsg.toast.smsOk", lang), "success");
-    else showToast(t("resMsg.toast.smsFail", lang, { msg: res.message ?? "" }), "error");
+    if (res.ok) {
+      if (!silent) showToast(t("resMsg.toast.smsOk", lang), "success");
+      return true;
+    }
+    if (!silent) showToast(t("resMsg.toast.smsFail", lang, { msg: res.message ?? "" }), "error");
+    return false;
   };
 
   // 로컬 자정 기준 'YYYY-MM-DD' — toISOString() 은 UTC 라 KST 외 매장에서 어긋남.
@@ -124,15 +134,25 @@ export default function OwnerReservations() {
     setReminderBusy(true);
     try {
       let sent = 0;
+      let failed = 0;
       for (const r of targets) {
         // SMS는 sms: 딥링크라 연속 호출이 깨짐 — 카톡만 일괄 가능
         // SMS의 경우 첫 1건만 발송하고 나머지는 사장님이 수동 진행 (모바일 UX 한계)
-        if (via === "sms" && sent >= 1) break;
+        if (via === "sms" && sent + failed >= 1) break;
+        // silent=true 로 카드별 토스트 생략, 마지막에 1개만 — 토스트 폭격 차단.
+        // 실제 성공한 건만 sent 카운트 — 기존엔 실패도 sent++ 되어 사장님이
+        // 잘못된 "n명 보냈어요" 토스트 보고 안 보낸 손님을 또 안 보내던 버그.
         // eslint-disable-next-line no-await-in-loop
-        await sendMessage(r, via, "reminder");
-        sent++;
+        const ok = await sendMessage(r, via, "reminder", true);
+        if (ok) sent++;
+        else failed++;
       }
-      showToast(t("resMsg.toast.batchDone", lang, { n: sent }), "success");
+      if (sent > 0) {
+        showToast(t("resMsg.toast.batchDone", lang, { n: sent }), "success");
+      }
+      if (failed > 0) {
+        showToast(t("resMsg.toast.batchFailed", lang, { n: failed }), "error");
+      }
     } finally {
       setReminderBusy(false);
     }

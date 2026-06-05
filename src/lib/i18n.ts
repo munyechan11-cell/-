@@ -1423,6 +1423,7 @@ const ko: Dict = {
   "resMsg.toast.smsFail": "SMS 발송 실패: {msg}",
   "resMsg.toast.noPhone": "전화번호가 없어 메시지를 보낼 수 없어요.",
   "resMsg.toast.batchDone": "{n}건 리마인더를 보냈어요.",
+  "resMsg.toast.batchFailed": "{n}건은 전송 실패. 카드별로 직접 보내주세요.",
   "resMsg.toast.noTomorrow": "내일 예약된 손님이 없어요.",
   "ores.view.list": "리스트",
   "ores.view.calendar": "캘린더",

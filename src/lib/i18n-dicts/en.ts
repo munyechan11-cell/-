@@ -1286,6 +1286,7 @@ const dict: Record<string, string> = {
   "resMsg.toast.smsFail": "SMS failed: {msg}",
   "resMsg.toast.noPhone": "No phone number — can't send a message.",
   "resMsg.toast.batchDone": "Sent {n} reminders.",
+  "resMsg.toast.batchFailed": "{n} failed. Please send those individually.",
   "resMsg.toast.noTomorrow": "No reservations for tomorrow.",
   "ores.view.list": "List",
   "ores.view.calendar": "Calendar",
