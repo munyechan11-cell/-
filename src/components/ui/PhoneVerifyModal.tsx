@@ -18,7 +18,7 @@
  *   - 코드 자동 포커스
  *   - 모달 esc/배경 닫기 — signup 모드에선 차단, grandfather 모드에선 허용 안 함(강제)
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Phone, ShieldCheck, X } from "lucide-react";
 import { Button } from "./Button";
 import { Input } from "./Input";
@@ -34,7 +34,6 @@ import {
 import type { ConfirmationResult } from "firebase/auth";
 
 const RESEND_COOLDOWN_SEC = 60;
-const RECAPTCHA_CONTAINER_ID = "gyeol-recaptcha-container";
 
 interface Props {
   /** 사전 입력된 전화번호 (가입 폼에서 받은 값). 비어 있으면 입력 폼 노출. */
@@ -55,6 +54,9 @@ export function PhoneVerifyModal({
   onVerified,
 }: Props) {
   const lang = useLanguage();
+  // useId() 로 컨테이너 고유 ID — 여러 PhoneVerifyModal 인스턴스가 동시 마운트되어도
+  // reCAPTCHA 가 같은 DOM 노드에 겹쳐 마운트되지 않게.
+  const recaptchaId = `gyeol-recaptcha-${useId()}`;
   const [phone, setPhone] = useState(initialPhone);
   const [code, setCode] = useState("");
   const [stage, setStage] = useState<"phone" | "code">("phone");
@@ -62,6 +64,11 @@ export function PhoneVerifyModal({
   const [verifying, setVerifying] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const confirmRef = useRef<ConfirmationResult | null>(null);
+
+  // 외부 prop 변화 sync — grandfather 모드에서 currentUser.phone 이 늦게 도착하는 케이스
+  useEffect(() => {
+    if (initialPhone) setPhone(initialPhone);
+  }, [initialPhone]);
 
   // 쿨다운 타이머
   useEffect(() => {
@@ -75,6 +82,13 @@ export function PhoneVerifyModal({
     return () => clearRecaptcha();
   }, []);
 
+  // 모달 열려있는 동안 body 스크롤 잠금
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+
   const send = async () => {
     if (sending) return;
     if (!isValidKRPhone(phone)) {
@@ -83,8 +97,10 @@ export function PhoneVerifyModal({
     }
     setSending(true);
     try {
-      const result = await sendVerificationCode(phone, RECAPTCHA_CONTAINER_ID);
+      const result = await sendVerificationCode(phone, recaptchaId);
       confirmRef.current = result;
+      // stage 전환 시 옛 코드 잔존 방지 — 자동 verify 폭주 차단
+      setCode("");
       setStage("code");
       setCooldown(RESEND_COOLDOWN_SEC);
       showToast(t("phoneVerify.toast.sent", lang), "info");
@@ -176,30 +192,44 @@ export function PhoneVerifyModal({
 
         {/* Stage 1: 전화번호 입력 + 발송 */}
         {stage === "phone" && (
-          <div className="space-y-3">
+          <form
+            className="space-y-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              send();
+            }}
+          >
             <Input
               label={t("phoneVerify.phone", lang)}
               placeholder={t("phoneVerify.phonePh", lang)}
               value={phone}
               onChange={(e) => setPhone(formatPhoneNumber(e.target.value))}
-              inputMode="numeric"
+              inputMode="tel"
+              autoComplete="tel"
               leftSlot={<Phone className="w-4 h-4" />}
               disabled={!!initialPhone && !grandfather /* 가입 폼에서 받은 번호는 잠금 */}
             />
             <Button
               block
-              onClick={send}
+              type="submit"
               loading={sending}
               disabled={!isValidKRPhone(phone) || sending}
             >
               {t("phoneVerify.send", lang)}
             </Button>
-          </div>
+          </form>
         )}
 
-        {/* Stage 2: 코드 입력 + 검증 */}
+        {/* Stage 2: 코드 입력 + 검증.
+            form 으로 감싸 모바일 SMS 자동완성 후 Enter 키로 submit 가능. */}
         {stage === "code" && (
-          <div className="space-y-3">
+          <form
+            className="space-y-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              verify();
+            }}
+          >
             <p className="text-[12.5px] text-[var(--color-ink-600)] tabular-nums">
               {phone}
             </p>
@@ -210,10 +240,12 @@ export function PhoneVerifyModal({
               onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
               inputMode="numeric"
               autoFocus
+              // iOS/Android SMS 자동완성 — 도착한 SMS 의 6자리를 자판 위에 띄움
+              autoComplete="one-time-code"
             />
             <Button
               block
-              onClick={verify}
+              type="submit"
               loading={verifying}
               disabled={code.length !== 6 || verifying}
             >
@@ -229,11 +261,11 @@ export function PhoneVerifyModal({
                 ? t("phoneVerify.resendIn", lang, { n: cooldown })
                 : t("phoneVerify.resend", lang)}
             </button>
-          </div>
+          </form>
         )}
 
         {/* invisible reCAPTCHA 마운트 지점 — DOM 에 존재해야 verify() 가 동작 */}
-        <div id={RECAPTCHA_CONTAINER_ID} className="mt-2" />
+        <div id={recaptchaId} className="mt-2" />
         <p className="text-[10.5px] text-[var(--color-ink-400)] mt-3 leading-relaxed">
           protected by reCAPTCHA · {digitsOnly(phone).length} digits
         </p>

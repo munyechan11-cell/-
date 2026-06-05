@@ -48,27 +48,23 @@ export function isValidKRPhone(phone: string): boolean {
 }
 
 let recaptcha: RecaptchaVerifier | null = null;
-let recaptchaContainerId: string | null = null;
 
 /**
- * Invisible reCAPTCHA Verifier 1회 생성 또는 재사용.
- * 호출자가 button container DOM id 를 전달 — 그 안에 invisible badge 가 마운트됨.
- *
- * RecaptchaVerifier 인스턴스는 verify() 호출 후 토큰이 소진되면 자동 reset 되지만,
- * 안전하게 매 send 전에 .clear() 후 새로 만들어 사용.
+ * Invisible reCAPTCHA Verifier 매 send 마다 새로 생성.
+ * RecaptchaVerifier 토큰은 verify() 1회 후 소진되므로 재사용 시 두 번째
+ * sendVerificationCode 가 `auth/captcha-check-failed` 로 실패할 수 있다.
+ * 따라서 매 호출마다 기존 인스턴스를 clear 하고 새로 만드는 것이 안전.
  */
-function getOrCreateRecaptcha(containerId: string): RecaptchaVerifier {
+function createFreshRecaptcha(containerId: string): RecaptchaVerifier {
   if (!auth) throw new Error("Firebase Auth not configured");
-  if (recaptcha && recaptchaContainerId === containerId) {
-    return recaptcha;
-  }
   try {
     recaptcha?.clear();
-  } catch {}
+  } catch (e) {
+    console.warn("[phoneVerify] recaptcha clear failed", (e as any)?.message);
+  }
   recaptcha = new RecaptchaVerifier(auth, containerId, {
     size: "invisible",
   });
-  recaptchaContainerId = containerId;
   return recaptcha;
 }
 
@@ -88,7 +84,7 @@ export async function sendVerificationCode(
   if (!e164 || !isValidKRPhone(phone)) {
     throw new Error("invalid-phone");
   }
-  const verifier = getOrCreateRecaptcha(containerId);
+  const verifier = createFreshRecaptcha(containerId);
   return await signInWithPhoneNumber(auth, e164, verifier);
 }
 
@@ -117,7 +113,8 @@ export async function confirmCode(
 export function clearRecaptcha() {
   try {
     recaptcha?.clear();
-  } catch {}
+  } catch (e) {
+    console.warn("[phoneVerify] clear failed", (e as any)?.message);
+  }
   recaptcha = null;
-  recaptchaContainerId = null;
 }
