@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Plus, Trash2, Phone, UserPlus, User as UserIcon, Search, X, Minus, Monitor } from "lucide-react";
+import { Plus, Trash2, Phone, UserPlus, User as UserIcon, Search, X, Minus, Monitor, MessageCircle, MessageSquare, Bell } from "lucide-react";
 import { OwnerShell } from "../../components/layout/OwnerShell";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
@@ -11,6 +11,7 @@ import { showToast } from "../../lib/toast";
 import { useEscapeClose } from "../../lib/useEscapeClose";
 import { cn } from "../../lib/cn";
 import { useLanguage, t } from "../../lib/i18n";
+import { sendKakaoMessage, sendPhysicalSms } from "../../lib/messaging";
 
 const STATUS_KEYS: Record<ReservationStatus, string> = {
   confirmed: "ores.status.confirmed",
@@ -53,10 +54,85 @@ const newDraft = (): Draft => ({
 });
 
 export default function OwnerReservations() {
-  const { effectiveStoreId, reservations, users, visits, addReservation, updateReservation, deleteReservation } = useStore();
+  const { effectiveStoreId, reservations, users, visits, currentUser, addReservation, updateReservation, deleteReservation } = useStore();
   const storeId = effectiveStoreId;
   const lang = useLanguage();
   const locale = lang === "ko" ? "ko-KR" : lang === "zh" ? "zh-CN" : lang === "vi" ? "vi-VN" : "en-US";
+
+  // 매장 이름 — 메시지 템플릿에서 사용
+  const storeOwner = users.find((u) => u.id === storeId);
+  const storeName = storeOwner?.restaurantName ?? currentUser?.restaurantName ?? "결";
+
+  // 예약을 카카오톡/SMS로 보내는 핸들러
+  const sendMessage = async (
+    r: Reservation,
+    via: "kakao" | "sms",
+    kind: "confirm" | "reminder"
+  ) => {
+    if (!r.customerPhone) {
+      showToast(t("resMsg.toast.noPhone", lang), "error");
+      return;
+    }
+    const fmtDate = new Date(r.date).toLocaleDateString(locale, {
+      month: "long",
+      day: "numeric",
+      weekday: "short",
+    });
+    const titleKey = kind === "confirm" ? "resMsg.confirm.title" : "resMsg.reminder.title";
+    const bodyKey = kind === "confirm" ? "resMsg.confirm.body" : "resMsg.reminder.body";
+    const title = t(titleKey, lang, { store: storeName });
+    const body = t(bodyKey, lang, {
+      name: r.customerName,
+      date: fmtDate,
+      time: r.time,
+      party: r.partySize,
+    });
+
+    if (via === "kakao") {
+      const res = await sendKakaoMessage(body, title, storeId ?? "");
+      if (res.ok) showToast(t("resMsg.toast.kakaoOk", lang), "success");
+      else showToast(t("resMsg.toast.kakaoFail", lang, { msg: res.message ?? "" }), "error");
+      return;
+    }
+    // SMS — 모바일에서 sms: 딥링크, PC면 차단됨
+    const res = await sendPhysicalSms(r.customerPhone, `${title}\n${body}`, "device");
+    if (res.ok) showToast(t("resMsg.toast.smsOk", lang), "success");
+    else showToast(t("resMsg.toast.smsFail", lang, { msg: res.message ?? "" }), "error");
+  };
+
+  // 내일 예약 일괄 리마인더
+  const sendTomorrowReminders = async (via: "kakao" | "sms") => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toISOString().slice(0, 10);
+    const targets = reservations.filter(
+      (r) => r.storeId === storeId && r.date === tomorrowStr && r.status === "confirmed" && r.customerPhone
+    );
+    if (targets.length === 0) {
+      showToast(t("resMsg.toast.noTomorrow", lang), "info");
+      return;
+    }
+    let sent = 0;
+    for (const r of targets) {
+      // SMS는 sms: 딥링크라 연속 호출이 깨짐 — 카톡만 일괄 가능
+      // SMS의 경우 첫 1건만 발송하고 나머지는 사장님이 수동 진행 (모바일 UX 한계)
+      if (via === "sms" && sent >= 1) break;
+      // eslint-disable-next-line no-await-in-loop
+      await sendMessage(r, via, "reminder");
+      sent++;
+    }
+    showToast(t("resMsg.toast.batchDone", lang, { n: sent }), "success");
+  };
+
+  // 내일 예약 카운트
+  const tomorrowReservationsCount = useMemo(() => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toISOString().slice(0, 10);
+    return reservations.filter(
+      (r) => r.storeId === storeId && r.date === tomorrowStr && r.status === "confirmed" && r.customerPhone
+    ).length;
+  }, [reservations, storeId]);
 
   // 본 매장 단골 (visits 있는 고객) — 검색 후보 1순위
   const myCustomers = useMemo(() => {
@@ -159,6 +235,17 @@ export default function OwnerReservations() {
       title={t("ores.title", lang)}
       headerRight={
         <div className="flex items-center gap-2">
+          {tomorrowReservationsCount > 0 && (
+            <button
+              onClick={() => sendTomorrowReminders("kakao")}
+              className="h-10 px-3.5 rounded-full bg-[#FEE500] text-[#191919] inline-flex items-center gap-1.5 text-[12.5px] font-extrabold"
+              title={t("resMsg.btn.reminderAll", lang, { n: tomorrowReservationsCount })}
+            >
+              <Bell className="w-4 h-4" />
+              <span className="hidden sm:inline">{t("resMsg.btn.reminderAll", lang, { n: tomorrowReservationsCount })}</span>
+              <span className="sm:hidden tabular-nums">{tomorrowReservationsCount}</span>
+            </button>
+          )}
           <button
             onClick={() =>
               window.open(
@@ -257,6 +344,26 @@ export default function OwnerReservations() {
                         </button>
                       ))}
                     </div>
+                    {/* 확정 상태일 때만 메시지 버튼 노출. 카톡/SMS — 확인 메시지는 클릭 시점 자동 분기:
+                        오늘 이전 = 확인, 그 외(미래) = 확인. 리마인더는 일괄 버튼이 따로 있음. */}
+                    {r.status === "confirmed" && r.customerPhone && (
+                      <div className="grid grid-cols-2 gap-1.5 mt-1.5">
+                        <button
+                          onClick={() => sendMessage(r, "kakao", "confirm")}
+                          className="h-9 rounded-lg bg-[#FEE500] text-[#191919] inline-flex items-center justify-center gap-1 text-[12px] font-extrabold"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5" />
+                          {t("resMsg.btn.kakao", lang)}
+                        </button>
+                        <button
+                          onClick={() => sendMessage(r, "sms", "confirm")}
+                          className="h-9 rounded-lg bg-white border border-[var(--color-line)] text-[var(--color-navy-800)] inline-flex items-center justify-center gap-1 text-[12px] font-bold hover:bg-[var(--color-navy-50)]"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5" />
+                          {t("resMsg.btn.sms", lang)}
+                        </button>
+                      </div>
+                    )}
                   </Card>
                 ))}
               </div>

@@ -1399,6 +1399,20 @@ const ko: Dict = {
   "pushOnboard.toast.granted": "알림이 켜졌어요. 새 주문이 오면 폰에 표시됩니다.",
   "pushOnboard.toast.denied": "알림이 차단되어 있어요. 주소창 자물쇠 → 알림 → 허용에서 변경할 수 있어요.",
   "pushOnboard.toast.unsupported": "이 브라우저는 알림을 지원하지 않아요.",
+  "resMsg.confirm.title": "[{store}] 예약 확정 안내",
+  "resMsg.confirm.body": "{name}님, {date} {time}에 {party}명 예약이 확정되었습니다. 변경/취소는 매장으로 연락 부탁드립니다.",
+  "resMsg.reminder.title": "[{store}] 예약 알림",
+  "resMsg.reminder.body": "{name}님, 내일 {date} {time}에 {party}명 예약 있으세요. 즐거운 시간 보내실 수 있도록 준비하고 있겠습니다.",
+  "resMsg.btn.kakao": "카톡",
+  "resMsg.btn.sms": "문자",
+  "resMsg.btn.reminderAll": "내일 예약 {n}건 리마인더",
+  "resMsg.toast.kakaoOk": "카카오톡 공유 창을 열었어요.",
+  "resMsg.toast.kakaoFail": "카카오 메시지 전송 실패: {msg}",
+  "resMsg.toast.smsOk": "SMS 앱이 열렸어요. 발송을 마무리해 주세요.",
+  "resMsg.toast.smsFail": "SMS 발송 실패: {msg}",
+  "resMsg.toast.noPhone": "전화번호가 없어 메시지를 보낼 수 없어요.",
+  "resMsg.toast.batchDone": "{n}건 리마인더를 보냈어요.",
+  "resMsg.toast.noTomorrow": "내일 예약된 손님이 없어요.",
 };
 
 const en: Dict = {
@@ -2674,6 +2688,20 @@ const en: Dict = {
   "pushOnboard.toast.granted": "Alerts enabled. New orders will appear on your phone.",
   "pushOnboard.toast.denied": "Alerts are blocked. Open the address-bar lock → Notifications → Allow to change.",
   "pushOnboard.toast.unsupported": "This browser doesn't support notifications.",
+  "resMsg.confirm.title": "[{store}] Reservation confirmed",
+  "resMsg.confirm.body": "Hi {name}, your reservation for {party} on {date} at {time} is confirmed. Please contact us for changes/cancellation.",
+  "resMsg.reminder.title": "[{store}] Reservation reminder",
+  "resMsg.reminder.body": "Hi {name}, you have a reservation for {party} tomorrow {date} at {time}. We look forward to seeing you.",
+  "resMsg.btn.kakao": "Kakao",
+  "resMsg.btn.sms": "SMS",
+  "resMsg.btn.reminderAll": "Send reminders for {n} tomorrow",
+  "resMsg.toast.kakaoOk": "KakaoTalk share window opened.",
+  "resMsg.toast.kakaoFail": "Kakao message failed: {msg}",
+  "resMsg.toast.smsOk": "SMS app opened. Please finish sending.",
+  "resMsg.toast.smsFail": "SMS failed: {msg}",
+  "resMsg.toast.noPhone": "No phone number — can't send a message.",
+  "resMsg.toast.batchDone": "Sent {n} reminders.",
+  "resMsg.toast.noTomorrow": "No reservations for tomorrow.",
 };
 
 const vi: Dict = {
@@ -3949,6 +3977,20 @@ const vi: Dict = {
   "pushOnboard.toast.granted": "Đã bật thông báo. Đơn mới sẽ hiện trên điện thoại.",
   "pushOnboard.toast.denied": "Thông báo đang bị chặn. Mở khóa trên thanh địa chỉ → Thông báo → Cho phép.",
   "pushOnboard.toast.unsupported": "Trình duyệt này không hỗ trợ thông báo.",
+  "resMsg.confirm.title": "[{store}] Xác nhận đặt bàn",
+  "resMsg.confirm.body": "Chào {name}, đơn đặt {party} người vào {date} lúc {time} đã được xác nhận. Vui lòng liên hệ quán nếu cần đổi/hủy.",
+  "resMsg.reminder.title": "[{store}] Nhắc lịch đặt",
+  "resMsg.reminder.body": "Chào {name}, ngày mai {date} lúc {time} bạn có đặt cho {party} người. Hẹn gặp bạn!",
+  "resMsg.btn.kakao": "Kakao",
+  "resMsg.btn.sms": "SMS",
+  "resMsg.btn.reminderAll": "Nhắc {n} đơn ngày mai",
+  "resMsg.toast.kakaoOk": "Đã mở cửa sổ chia sẻ Kakao.",
+  "resMsg.toast.kakaoFail": "Gửi tin Kakao thất bại: {msg}",
+  "resMsg.toast.smsOk": "Đã mở app SMS, hãy hoàn tất gửi.",
+  "resMsg.toast.smsFail": "Gửi SMS thất bại: {msg}",
+  "resMsg.toast.noPhone": "Không có số điện thoại — không gửi được.",
+  "resMsg.toast.batchDone": "Đã gửi {n} lời nhắc.",
+  "resMsg.toast.noTomorrow": "Không có đơn đặt ngày mai.",
 };
 
 const zh: Dict = {
@@ -5224,6 +5266,20 @@ const zh: Dict = {
   "pushOnboard.toast.granted": "已开启提醒。新订单会在手机上显示。",
   "pushOnboard.toast.denied": "提醒被拦截。请点地址栏锁形图标 → 通知 → 允许。",
   "pushOnboard.toast.unsupported": "当前浏览器不支持通知。",
+  "resMsg.confirm.title": "[{store}] 预订已确认",
+  "resMsg.confirm.body": "{name}您好,{date} {time} {party}位的预订已确认。如需更改/取消请联系门店。",
+  "resMsg.reminder.title": "[{store}] 预订提醒",
+  "resMsg.reminder.body": "{name}您好,明天 {date} {time} 您有 {party}位的预订。期待您的到来。",
+  "resMsg.btn.kakao": "Kakao",
+  "resMsg.btn.sms": "短信",
+  "resMsg.btn.reminderAll": "提醒明日 {n} 单",
+  "resMsg.toast.kakaoOk": "已打开 Kakao 分享窗口。",
+  "resMsg.toast.kakaoFail": "发送 Kakao 消息失败:{msg}",
+  "resMsg.toast.smsOk": "已打开短信应用,请完成发送。",
+  "resMsg.toast.smsFail": "短信发送失败:{msg}",
+  "resMsg.toast.noPhone": "没有电话号码,无法发送。",
+  "resMsg.toast.batchDone": "已发送 {n} 条提醒。",
+  "resMsg.toast.noTomorrow": "明日没有预订。",
 };
 
 const DICT: Record<Lang, Dict> = { ko, en, vi, zh };
