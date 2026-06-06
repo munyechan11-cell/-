@@ -35,6 +35,7 @@ const OwnerTables = lazy(() => import("./pages/owner/Tables"));
 const OwnerMenus = lazy(() => import("./pages/owner/Menus"));
 const OwnerOrders = lazy(() => import("./pages/owner/Orders"));
 const OwnerKitchen = lazy(() => import("./pages/owner/KitchenDisplay"));
+const OwnerKiosk = lazy(() => import("./pages/owner/KioskMode"));
 const OwnerStaff = lazy(() => import("./pages/owner/Staff"));
 const OwnerHelp = lazy(() => import("./pages/owner/Help"));
 
@@ -381,6 +382,14 @@ export default function App() {
             element={
               <PrivateRoute role={["owner", "staff"]} requiresClockIn>
                 <OwnerKitchen />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/biz/owner/kiosk"
+            element={
+              <PrivateRoute role="owner">
+                <OwnerKiosk />
               </PrivateRoute>
             }
           />
