@@ -16,7 +16,7 @@ const localDateStr = (d: Date) =>
 type Period = "today" | "week" | "month";
 
 export default function Settlement() {
-  const { orders, menus, ingredients, expenses, currentUser, addExpense, deleteExpense } = useStore();
+  const { orders, menus, ingredients, expenses, shifts, users, currentUser, addExpense, deleteExpense } = useStore();
   const lang = useLanguage();
   const [period, setPeriod] = useState<Period>("month");
   const [adding, setAdding] = useState(false);
@@ -72,7 +72,24 @@ export default function Settlement() {
     [expenses, storeId, period, todayStr]
   );
   const expenseTotal = periodExpenses.reduce((s, e) => s + e.amount, 0);
-  const netProfit = revenue - cost - expenseTotal;
+
+  const userById = useMemo(() => new Map(users.map((u) => [u.id, u])), [users]);
+  // 인건비 — 기간 내 완료된 근무(shift) × 직원 시급 자동 집계
+  const labor = useMemo(() => {
+    let sum = 0;
+    for (const sh of shifts) {
+      if (sh.storeId !== storeId || !sh.clockOutAt) continue;
+      const inDate = new Date(sh.clockInAt);
+      if (!inRange(localDateStr(inDate))) continue;
+      const dur = new Date(sh.clockOutAt).getTime() - inDate.getTime();
+      const wage = userById.get(sh.staffId)?.hourlyWage ?? 0;
+      sum += (Math.max(0, dur) / 3600000) * wage;
+    }
+    return Math.round(sum);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shifts, storeId, period, userById, todayStr]);
+
+  const netProfit = revenue - cost - expenseTotal - labor;
 
   return (
     <OwnerShell
@@ -115,6 +132,9 @@ export default function Settlement() {
         </div>
         <p className="text-[12px] text-[var(--color-ink-600)] mb-1 px-1 font-semibold tabular-nums">
           {t("settle.cardCash", lang, { card: fmtKRW(cardRevenue), cash: fmtKRW(cashRevenue) })}
+          {labor > 0 && (
+            <span className="ml-2 text-[var(--color-ink-500)]">· {t("settle.labor", lang, { amount: fmtKRW(labor) })}</span>
+          )}
         </p>
         <p className="text-[12px] text-[var(--color-ink-500)] mb-5 px-1">
           {t("settle.formula", lang)}
