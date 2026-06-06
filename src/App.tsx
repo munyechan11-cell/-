@@ -34,6 +34,7 @@ const OwnerPhotoVault = lazy(() => import("./pages/owner/PhotoVault"));
 const OwnerTables = lazy(() => import("./pages/owner/Tables"));
 const OwnerMenus = lazy(() => import("./pages/owner/Menus"));
 const OwnerOrders = lazy(() => import("./pages/owner/Orders"));
+const OwnerKitchen = lazy(() => import("./pages/owner/KitchenDisplay"));
 const OwnerStaff = lazy(() => import("./pages/owner/Staff"));
 const OwnerHelp = lazy(() => import("./pages/owner/Help"));
 
@@ -372,6 +373,14 @@ export default function App() {
             element={
               <PrivateRoute role={["owner", "staff"]} requiresClockIn>
                 <OwnerOrders />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/biz/owner/kitchen"
+            element={
+              <PrivateRoute role={["owner", "staff"]} requiresClockIn>
+                <OwnerKitchen />
               </PrivateRoute>
             }
           />

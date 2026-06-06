@@ -22,6 +22,7 @@ import {
   Megaphone,
   Package,
   Wallet,
+  Monitor,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useStore } from "../../store/store";
@@ -55,6 +56,7 @@ type NavItem = {
 const NAV: NavItem[] = [
   { to: "/biz/owner", labelKey: "ownerNav.dashboard", icon: LayoutDashboard, end: true },
   { to: "/biz/owner/orders", labelKey: "ownerNav.orders", icon: ChefHat, staff: true },
+  { to: "/biz/owner/kitchen", labelKey: "ownerNav.kitchen", icon: Monitor, staff: true },
   { to: "/biz/owner/tables", labelKey: "ownerNav.tables", icon: LayoutGrid, staff: true },
   { to: "/biz/owner/menus", labelKey: "ownerNav.menus", icon: UtensilsCrossed, staff: true },
   { to: "/biz/owner/inventory", labelKey: "ownerNav.inventory", icon: Package },
