@@ -1190,7 +1190,8 @@ async function runMarketingAutomation(db: any): Promise<{ birthdayIssued: number
 
 // 외부 cron(cron-job.org 등)이 매일 호출. 무료 cron 타임아웃·cold start 와 무관하도록
 // 기본은 즉시 응답 후 백그라운드에서 발급 진행. ?sync=1 이면 동기 실행해 결과 반환(수동 테스트용).
-app.post('/api/cron/marketing', async (req, res) => {
+// GET·POST 모두 허용 — cron 서비스가 method 설정을 못 바꿔도 동작(보안은 x-cron-secret 헤더).
+app.all('/api/cron/marketing', async (req, res) => {
   if (!process.env.CRON_SECRET || req.headers['x-cron-secret'] !== process.env.CRON_SECRET) {
     return res.status(401).json({ error: 'unauthorized' });
   }
