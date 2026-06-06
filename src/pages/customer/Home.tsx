@@ -205,7 +205,7 @@ export default function CustomerHome() {
                       <span className="ml-auto text-[11px] text-[var(--color-warn)] font-bold">{t("chome.couponPending", lang)}</span>
                     )}
                   </div>
-                  <p className="text-[14px] font-bold text-[var(--color-navy-900)]">{c.description}</p>
+                  <p className="text-[14px] font-bold text-[var(--color-navy-900)]">{c.descKey ? t(c.descKey, lang) : c.description}</p>
                   {owner && (
                     <Link
                       to={`/customer/store/${c.storeId}`}

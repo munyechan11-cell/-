@@ -115,6 +115,8 @@ export interface Coupon {
   storeId: string;
   type: string;
   description: string;
+  /** 등급 자동 쿠폰의 i18n 키 — 있으면 표시 시 고객 언어로 변환. 사장님 커스텀 보상은 미설정(description 사용). */
+  descKey?: string;
   status: CouponStatus;
   issuedAt: string;
   usedAt?: string;

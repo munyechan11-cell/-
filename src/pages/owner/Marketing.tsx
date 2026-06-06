@@ -78,12 +78,15 @@ export default function OwnerMarketing() {
 
   // 1) 이탈 위험: 2회+ 방문이지만 최근 slippingDays 동안 무방문
   const slipping = useMemo<Candidate[]>(() => {
-    const now = Date.now();
+    // 자정 기준 일수 차 — ms 차/86400000 을 floor 하면 방문 시각이 늦을수록 하루 적게 세어
+    // slippingDays 경계(예: 30일)가 실제 31일째에 잡히던 off-by-one 이 있었음.
+    const startOfDay = (ms: number) => { const d = new Date(ms); d.setHours(0, 0, 0, 0); return d.getTime(); };
+    const today0 = startOfDay(Date.now());
     return customers
       .filter((c) => c.uniqueDays >= 2 && c.lastVisit)
       .map((c) => ({
         user: c.user,
-        lastVisitDaysAgo: Math.floor((now - (c.lastVisit ?? now)) / 86_400_000),
+        lastVisitDaysAgo: Math.round((today0 - startOfDay(c.lastVisit ?? today0)) / 86_400_000),
         tier: c.tier,
       }))
       .filter((c) => (c.lastVisitDaysAgo ?? 0) >= slippingDays)
@@ -115,8 +118,8 @@ export default function OwnerMarketing() {
       })
       .filter((c) => c.birthDay !== undefined)
       .sort((a, b) => {
-        // 오늘 이후는 가까운 순, 지난 날은 뒤로(이번달 일수 + 1)
-        const d = (bd: number) => (bd >= today ? bd - today : bd - today + daysInThisMonth + 1);
+        // 오늘=0, 다가오는 생일 오름차순, 지난 생일은 순환시켜 뒤로 (모듈러 거리)
+        const d = (bd: number) => (bd - today + daysInThisMonth) % daysInThisMonth;
         return d(a.birthDay ?? 0) - d(b.birthDay ?? 0);
       });
   }, [customers]);

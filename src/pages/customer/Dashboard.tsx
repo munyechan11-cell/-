@@ -933,7 +933,7 @@ function CouponRow({
   onUse,
   onCancel,
 }: {
-  coupon: { id: string; type: string; description: string; status: "available" | "pending" | "used"; usedAtTable?: number };
+  coupon: { id: string; type: string; description: string; descKey?: string; status: "available" | "pending" | "used"; usedAtTable?: number };
   tableNumber?: number;
   onUse: () => void;
   onCancel: () => void;
@@ -959,7 +959,7 @@ function CouponRow({
           </span>
         )}
       </div>
-      <p className="text-[15px] font-bold text-[var(--color-navy-900)] mt-2">{coupon.description}</p>
+      <p className="text-[15px] font-bold text-[var(--color-navy-900)] mt-2">{coupon.descKey ? t(coupon.descKey, lang) : coupon.description}</p>
       {coupon.status === "available" && (
         <Button
           size="md"

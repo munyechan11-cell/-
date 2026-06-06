@@ -22,7 +22,7 @@ import { updateFirestoreDoc, flushOfflineQueue } from "../lib/firestore";
 import { calculateAgeGroup } from "../lib/auth";
 import { generateId, digitsOnly } from "../lib/ids";
 import { showToast } from "../lib/toast";
-import { t, useLanguage, fmtKRW } from "../lib/i18n";
+import { t, useLanguage, fmtKRW, getLanguage } from "../lib/i18n";
 import { getCustomerTier } from "../lib/tier";
 import { relayOrderToPos } from "../lib/pos";
 import { printReceipt } from "../lib/receipt";
@@ -825,12 +825,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             .map((v) => new Date(v.date).toDateString())
         ).size;
 
-        const tierRules: { min: number; tier: Tier; defaultDesc: string }[] = [
-          { min: 12, tier: "VIP", defaultDesc: "사장님 특별 서비스" },
-          { min: 8, tier: "다이아", defaultDesc: "메인 메뉴 할인 쿠폰" },
-          { min: 6, tier: "골드", defaultDesc: "사이드 메뉴 무료권" },
-          { min: 4, tier: "실버", defaultDesc: "음료 무료 쿠폰" },
-          { min: 2, tier: "브론즈", defaultDesc: "재방문 스탬프 추가 적립" },
+        const tierRules: { min: number; tier: Tier; descKey: string }[] = [
+          { min: 12, tier: "VIP", descKey: "coupon.reward.vip" },
+          { min: 8, tier: "다이아", descKey: "coupon.reward.diamond" },
+          { min: 6, tier: "골드", descKey: "coupon.reward.gold" },
+          { min: 4, tier: "실버", descKey: "coupon.reward.silver" },
+          { min: 2, tier: "브론즈", descKey: "coupon.reward.bronze" },
         ];
         for (const rule of tierRules) {
           if (uniqueDays >= rule.min) {
@@ -838,13 +838,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               (c) => c.customerId === customerId && c.storeId === storeId && c.type === rule.tier
             );
             if (!already) {
-              const desc = owner?.tierRewards?.[rule.tier] ?? rule.defaultDesc;
+              // 사장님이 보상을 커스텀했으면 그 문자열(사장님 언어 그대로), 아니면 descKey 를 저장해
+              // 표시 시점에 t(descKey, 고객언어) 로 변환 → 비한국어 고객도 모국어로 쿠폰을 봄.
+              const custom = owner?.tierRewards?.[rule.tier];
               const c: Coupon = {
                 id: generateId(),
                 customerId,
                 storeId,
                 type: rule.tier,
-                description: desc,
+                description: custom ?? t(rule.descKey, "ko"),
+                ...(custom ? {} : { descKey: rule.descKey }),
                 status: "available",
                 issuedAt: new Date().toISOString(),
               };
@@ -1456,7 +1459,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         const payload = {
           storeName: owner?.restaurantName ?? "결",
           order: aggregated,
-          footer: `테이블 ${tableNumber} · ${targets.length}건 합산 영수증`,
+          footer: t("receipt.footer.aggregated", getLanguage(), { table: tableNumber, count: targets.length }),
         };
 
         // 브릿지 큐 우선 (매장 PC 에이전트가 처리)
@@ -1552,7 +1555,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const payload = {
         storeName: owner?.restaurantName ?? "결",
         order: aggregated,
-        footer: `[중간 계산서] 결제 전 미리보기 — 정식 영수증 아님`,
+        footer: t("receipt.footer.interim", getLanguage()),
       };
       if (owner?.printBridgeEnabled) {
         void enqueuePrintJob({ storeId, type: "receipt", payload, expectedUid: storeId });
