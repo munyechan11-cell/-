@@ -263,6 +263,11 @@ export default function OwnerInventory() {
                               {t("inv.unitCostSuffix", lang, { unit: ing.unit })}
                             </span>
                           </p>
+                          {ing.lowThreshold != null && ing.stock <= ing.lowThreshold && (
+                            <p className="text-[11.5px] font-bold text-[var(--color-danger)] mt-0.5">
+                              🛒 {t("inv.reorder", lang, { n: Math.max(1, ing.lowThreshold * 2 - ing.stock), unit: ing.unit })}
+                            </p>
+                          )}
                           {ing.memo && (
                             <p className="text-[11.5px] text-[var(--color-ink-500)] mt-0.5 truncate">
                               {ing.memo}

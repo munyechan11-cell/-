@@ -36,6 +36,22 @@ export default function Settlement() {
     return dateStr >= weekStartStr && dateStr <= todayStr;
   };
 
+  // 직전 동기간(어제 / 직전 7일 / 전월) — 매출 증감률 비교용
+  const yesterdayStr = useMemo(() => { const d = new Date(); d.setDate(d.getDate() - 1); return localDateStr(d); }, []);
+  const prevWeekStartStr = useMemo(() => { const d = new Date(); d.setDate(d.getDate() - 13); return localDateStr(d); }, []);
+  const prevWeekEndStr = useMemo(() => { const d = new Date(); d.setDate(d.getDate() - 7); return localDateStr(d); }, []);
+  const prevMonthStr = useMemo(() => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = d.getMonth(); // 0-11
+    return `${m === 0 ? y - 1 : y}-${String(m === 0 ? 12 : m).padStart(2, "0")}`;
+  }, []);
+  const prevInRange = (dateStr: string) => {
+    if (period === "today") return dateStr === yesterdayStr;
+    if (period === "month") return dateStr.slice(0, 7) === prevMonthStr;
+    return dateStr >= prevWeekStartStr && dateStr <= prevWeekEndStr;
+  };
+
   const ingMap = useMemo(() => new Map(ingredients.map((i) => [i.id, i])), [ingredients]);
   const menuMap = useMemo(() => new Map(menus.map((m) => [m.id, m])), [menus]);
 
@@ -62,6 +78,19 @@ export default function Settlement() {
     return { revenue: rev, cardRevenue: card, cashRevenue: cash, cost: cst };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orders, storeId, period, menuMap, ingMap, todayStr]);
+
+  // 직전 동기간 매출 → 증감률(%)
+  const prevRevenue = useMemo(() => {
+    let sum = 0;
+    for (const o of orders) {
+      if (o.storeId !== storeId || o.paymentStatus !== "paid") continue;
+      if (!prevInRange(localDateStr(new Date(o.createdAt)))) continue;
+      sum += o.totalAmount;
+    }
+    return sum;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orders, storeId, period, yesterdayStr, prevMonthStr, prevWeekStartStr, prevWeekEndStr]);
+  const changeRate = prevRevenue > 0 ? Math.round(((revenue - prevRevenue) / prevRevenue) * 100) : null;
 
   const periodExpenses = useMemo(
     () =>
@@ -120,7 +149,7 @@ export default function Settlement() {
 
         {/* 요약 카드 */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
-          <SummaryCard label={t("settle.revenue", lang)} value={revenue} cls="text-[var(--color-navy-900)]" />
+          <SummaryCard label={t("settle.revenue", lang)} value={revenue} cls="text-[var(--color-navy-900)]" delta={changeRate} />
           <SummaryCard label={t("settle.cost", lang)} value={cost} cls="text-[#d98a00]" />
           <SummaryCard label={t("settle.expense", lang)} value={expenseTotal} cls="text-[var(--color-danger)]" />
           <SummaryCard
@@ -195,16 +224,23 @@ function SummaryCard({
   value,
   cls,
   highlight,
+  delta,
 }: {
   label: string;
   value: number;
   cls: string;
   highlight?: boolean;
+  delta?: number | null;
 }) {
   return (
     <Card padding="md" className={highlight ? "ring-[1.5px] ring-[var(--color-navy-700)]" : ""}>
       <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-ink-500)] mb-1">{label}</p>
       <p className={`text-[17px] lg:text-[19px] font-extrabold tabular-nums ${cls}`}>{fmtKRW(value)}</p>
+      {delta != null && (
+        <p className={`text-[11px] font-bold tabular-nums mt-0.5 ${delta >= 0 ? "text-[var(--color-mint-700)]" : "text-[var(--color-danger)]"}`}>
+          {delta >= 0 ? "▲" : "▼"} {Math.abs(delta)}%
+        </p>
+      )}
     </Card>
   );
 }

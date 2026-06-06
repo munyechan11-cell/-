@@ -1194,6 +1194,7 @@ const dict: Record<string, string> = {
   "gnotif.staffJoin.body": "{name}{position} xin gia nhập.",
   "gnotif.staffJoin.nameFallback": "Nhân viên",
   "inv.soldout": "Hết hàng",
+  "inv.reorder": "Đặt thêm {n}{unit}",
   "coupon.reward.vip": "Dịch vụ đặc biệt từ chủ quán",
   "coupon.reward.diamond": "Phiếu giảm giá món chính",
   "coupon.reward.gold": "Phiếu món phụ miễn phí",

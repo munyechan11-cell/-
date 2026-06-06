@@ -1331,6 +1331,7 @@ const ko: Dict = {
   "gnotif.staffJoin.body": "{name}님{position}이 합류를 요청했어요.",
   "gnotif.staffJoin.nameFallback": "직원",
   "inv.soldout": "품절",
+  "inv.reorder": "{n}{unit} 발주 권장",
   "coupon.reward.vip": "사장님 특별 서비스",
   "coupon.reward.diamond": "메인 메뉴 할인 쿠폰",
   "coupon.reward.gold": "사이드 메뉴 무료권",

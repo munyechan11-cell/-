@@ -1194,6 +1194,7 @@ const dict: Record<string, string> = {
   "gnotif.staffJoin.body": "{name}{position} 申请加入。",
   "gnotif.staffJoin.nameFallback": "员工",
   "inv.soldout": "售罄",
+  "inv.reorder": "建议补货 {n}{unit}",
   "coupon.reward.vip": "店主特别服务",
   "coupon.reward.diamond": "主菜折扣券",
   "coupon.reward.gold": "免费配菜券",
