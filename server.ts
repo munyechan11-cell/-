@@ -1091,18 +1091,9 @@ app.post('/api/webhook/order-status', async (req, res) => {
   res.json({ received: true, orderId, status });
 });
 
-// --- MARKETING AUTOMATION CRON (Render Cron Job 이 매일 호출) ---
-// 각 매장의 marketingTriggers 에 따라 생일/이탈 손님에게 쿠폰 자동 발급.
-// 중복 방지: 같은 type 의 available 쿠폰을 이미 보유하면 skip → 매일 돌아도 1장만.
-app.post('/api/cron/marketing', async (req, res) => {
-  if (!process.env.CRON_SECRET || req.headers['x-cron-secret'] !== process.env.CRON_SECRET) {
-    return res.status(401).json({ error: 'unauthorized' });
-  }
-  const adminApp = getFirebaseAdmin();
-  if (!adminApp) return res.status(500).json({ error: 'admin-not-configured' });
-  const db = adminApp.firestore();
-
-  try {
+// --- MARKETING AUTOMATION (생일/이탈 쿠폰 자동 발급) ---
+// 각 매장의 marketingTriggers 에 따라 발급. 중복 방지: 같은 type available 보유 시 skip → 매일 돌아도 1장만.
+async function runMarketingAutomation(db: any): Promise<{ birthdayIssued: number; winbackIssued: number; capped: number }> {
     // KST(UTC+9) 기준 오늘 — 생일/경과일 판정
     const kstMs = Date.now() + 9 * 3600 * 1000;
     const kst = new Date(kstMs);
@@ -1194,11 +1185,31 @@ app.post('/api/cron/marketing', async (req, res) => {
     }
 
     console.log(`[marketing-cron] birthday=${birthdayIssued} winback=${winbackIssued} capped=${capped}`);
-    res.json({ ok: true, birthdayIssued, winbackIssued, capped });
-  } catch (e: any) {
-    console.error('[marketing-cron] failed', e?.message);
-    res.status(500).json({ error: e?.message });
+    return { birthdayIssued, winbackIssued, capped };
+}
+
+// 외부 cron(cron-job.org 등)이 매일 호출. 무료 cron 타임아웃·cold start 와 무관하도록
+// 기본은 즉시 응답 후 백그라운드에서 발급 진행. ?sync=1 이면 동기 실행해 결과 반환(수동 테스트용).
+app.post('/api/cron/marketing', async (req, res) => {
+  if (!process.env.CRON_SECRET || req.headers['x-cron-secret'] !== process.env.CRON_SECRET) {
+    return res.status(401).json({ error: 'unauthorized' });
   }
+  const adminApp = getFirebaseAdmin();
+  if (!adminApp) return res.status(500).json({ error: 'admin-not-configured' });
+  const db = adminApp.firestore();
+
+  if (req.query.sync === '1') {
+    try {
+      res.json({ ok: true, ...(await runMarketingAutomation(db)) });
+    } catch (e: any) {
+      console.error('[marketing-cron] failed', e?.message);
+      res.status(500).json({ error: e?.message });
+    }
+    return;
+  }
+  // 즉시 응답 → 외부 cron 이 기다리지 않아도 됨. 발급은 백그라운드에서 진행.
+  res.json({ ok: true, accepted: true });
+  runMarketingAutomation(db).catch((e) => console.error('[marketing-cron] failed', e?.message));
 });
 
 // Optimized startServer for faster Render ready-signal

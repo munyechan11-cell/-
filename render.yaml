@@ -74,18 +74,7 @@ services:
       - key: VITE_FIREBASE_AUTH_DOMAIN
         sync: false
 
-  # ===== ③ 마케팅 자동화 Cron — 매일 생일/이탈 손님에게 쿠폰 자동 발급 =====
-  - type: cron
-    name: gyeol-marketing-cron
-    runtime: node
-    plan: starter                  # ← Render Cron 은 유료(최소 ~$1/월). 무료로 하려면 이 블록 대신 외부 cron(cron-job.org) 사용
-    region: singapore
-    branch: main
-    schedule: "0 0 * * *"          # 매일 00:00 UTC = KST 09:00
-    buildCommand: npm install
-    startCommand: 'curl -fsS -X POST "$CRON_TARGET_URL/api/cron/marketing" -H "x-cron-secret: $CRON_SECRET"'
-    envVars:
-      - key: CRON_TARGET_URL
-        sync: false                  # ← API 서비스 URL (예: https://gyeol-api.onrender.com)
-      - key: CRON_SECRET
-        sync: false                  # ← API 서비스와 동일한 값
+  # ===== 마케팅 자동화 =====
+  # Render Cron(유료) 대신 무료 외부 cron(cron-job.org 등)이 매일
+  #   POST $API_URL/api/cron/marketing  (헤더 x-cron-secret: $CRON_SECRET)
+  # 을 호출한다. 필요한 건 위 gyeol-api 의 CRON_SECRET 환경변수뿐.
