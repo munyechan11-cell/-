@@ -8,7 +8,8 @@ import { useLanguage, t, fmtKRW, type Lang } from "../../lib/i18n";
 import { useModalChrome } from "../../lib/useModalChrome";
 import type { ExpenseCategory } from "../../lib/types";
 
-const CATEGORIES: ExpenseCategory[] = ["rent", "labor", "material", "utility", "marketing", "other"];
+// 인건비(labor)는 근태×시급으로 자동 집계되므로 수동 입력 카테고리에서 제외 → 이중 차감 방지
+const CATEGORIES: ExpenseCategory[] = ["rent", "material", "utility", "marketing", "other"];
 
 const localDateStr = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;

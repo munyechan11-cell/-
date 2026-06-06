@@ -48,6 +48,7 @@ export default function PaymentResult({ mode }: { mode: "success" | "fail" }) {
       paymentKey,
       orderId,
       amount: amt,
+      orderIds: ctx.orderIds ?? [],
     })
       .then(() => {
         clearPayContext();

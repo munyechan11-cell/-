@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Navigate } from "react-router-dom";
 import { X, Plus, Minus, ShoppingCart, CheckCircle2, ChevronUp } from "lucide-react";
 import { useStore } from "../../store/store";
 import { useLanguage, t, fmtKRW } from "../../lib/i18n";
@@ -69,6 +69,11 @@ export default function KioskMode() {
       setBusy(false);
     }
   };
+
+  // 키오스크 옵트인 — 설정에서 꺼져 있으면 진입 차단 (URL 직접 접근 방어)
+  if (currentUser?.storeConfig?.kioskEnabled !== true) {
+    return <Navigate to="/biz/owner" replace />;
+  }
 
   // ── 완료 화면 ──
   if (ordered) {

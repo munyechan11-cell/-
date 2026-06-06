@@ -104,13 +104,13 @@ export async function confirmCode(
   // 사이드이펙트 발생 가능. 호출처에서 인증 직후 우리 store 의 login() 을
   // 곧장 호출해 다시 세션을 회복하는 패턴으로 사용.
   try {
-    if (auth) {
-      await signOut(auth);
-      // 익명 토큰 즉시 회복 — 직후 Firestore 쓰기(markPhoneVerified 등)가
-      // 보안 규칙(request.auth != null)에 막히지 않도록.
-      await ensureAnonymousAuth();
-    }
-  } catch {}
+    if (auth) await signOut(auth);
+  } catch (e) {
+    console.warn("[phoneVerify] signOut failed", (e as any)?.message);
+  }
+  // 익명 토큰 회복 — 직후 Firestore 쓰기(markPhoneVerified)가 규칙(request.auth != null)에
+  // 막히지 않도록. 여기서 실패해도 markPhoneVerified 가 write 직전 한 번 더 보장한다.
+  if (auth) await ensureAnonymousAuth();
   return phone;
 }
 

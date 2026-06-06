@@ -162,6 +162,7 @@ interface StoreState {
     paymentKey: string;
     orderId: string;
     amount: number;
+    orderIds: string[];
   }) => Promise<void>;
   /** 사장님 측 — 계산 완료. 테이블 정리 (status: available + occupant null) */
   completeTable: (storeId: string, tableNumber: number) => Promise<void>;
@@ -446,9 +447,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       value: string
     ) => {
       const q = query(collection(db!, coll), where(whereField, "==", value));
-      const un = onSnapshot(q, (snap) => {
-        setter(snap.docs.map((d) => ({ id: d.id, ...d.data() } as T)));
-      });
+      const un = onSnapshot(
+        q,
+        (snap) => {
+          setter(snap.docs.map((d) => ({ id: d.id, ...d.data() } as T)));
+        },
+        (err) => {
+          // 침묵 실패 방지 — permission-denied 면 보안규칙(firestore.rules) 배포 여부 확인
+          console.error(`[onSnapshot ${coll}]`, (err as any)?.code, err?.message);
+        }
+      );
       scopedUnsubsRef.current.push(un);
     };
 
@@ -520,9 +528,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
     const sub = <T,>(coll: string, setter: (rows: T[]) => void) => {
       const q = query(collection(db!, coll), where("storeId", "==", activeStoreId));
-      const un = onSnapshot(q, (snap) => {
-        setter(snap.docs.map((d) => ({ id: d.id, ...d.data() } as T)));
-      });
+      const un = onSnapshot(
+        q,
+        (snap) => {
+          setter(snap.docs.map((d) => ({ id: d.id, ...d.data() } as T)));
+        },
+        (err) => {
+          // 침묵 실패 방지 — permission-denied 면 보안규칙(firestore.rules) 배포 여부 확인
+          console.error(`[onSnapshot ${coll}]`, (err as any)?.code, err?.message);
+        }
+      );
       storeContextUnsubsRef.current.push(un);
     };
 
@@ -706,6 +721,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       phoneVerifiedAt: new Date().toISOString(),
     };
     if (e164Phone) patch.phone = e164Phone;
+    // write 전 익명 토큰 보장 — 전화인증(signOut) 직후 토큰 미회복 시 permission-denied 로
+    // phoneVerifiedAt 저장이 실패해 재인증이 반복되던 버그를 차단.
+    await ensureAnonymousAuth();
     await updateFirestoreDoc("users", userId, patch);
     // 로컬 currentUser 도 즉시 반영 — 안 하면 새로고침 시 인증 게이트가 다시 떠 재인증(SMS 비용) 발생
     const cu = currentUserRef.current;
@@ -1439,6 +1457,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       paymentKey: string;
       orderId: string;
       amount: number;
+      orderIds: string[];
     }): Promise<void> => {
       // 1) 서버에서 토스 결제 승인 (실제 과금 확정)
       const res = await fetch(api("/api/payment/confirm"), {
@@ -1455,13 +1474,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         throw new Error(err?.error ?? "payment-confirm-failed");
       }
 
-      // 2) 해당 손님의 미결제 주문을 paid 로 전환
+      // 2) 결제 시작 시점에 스냅샷한 주문만 paid 로 전환 (왕복 중 추가된 주문은 제외 — 과다 결제완료 방지)
       const targets = ordersRef.current.filter(
-        (o) =>
-          o.storeId === params.storeId &&
-          o.customerId === params.customerId &&
-          o.status !== "cancelled" &&
-          o.paymentStatus !== "paid"
+        (o) => params.orderIds.includes(o.id) && o.paymentStatus !== "paid"
       );
       if (db && targets.length > 0) {
         const batch = writeBatch(db);

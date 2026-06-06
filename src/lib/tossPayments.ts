@@ -17,6 +17,8 @@ export interface PayContext {
   tableNumber: number;
   customerId: string;
   amount: number;
+  /** 결제 시작 시점의 미결제 주문 id — confirm 성공 후 이 주문들만 paid (왕복 중 추가된 주문 제외) */
+  orderIds: string[];
 }
 
 /** 결제 시작 시 컨텍스트를 sessionStorage 에 보관 — 리다이렉트 후 successUrl 에서 복원. */
@@ -55,6 +57,7 @@ export async function startCardPayment(opts: {
   customerId: string;
   amount: number;
   orderName: string;
+  orderIds: string[];
 }): Promise<void> {
   const TP = (window as any).TossPayments;
   if (typeof TP !== "function") throw new Error("toss-sdk-not-loaded");
@@ -68,6 +71,7 @@ export async function startCardPayment(opts: {
     tableNumber: opts.tableNumber,
     customerId: opts.customerId,
     amount: opts.amount,
+    orderIds: opts.orderIds,
   });
 
   const tossPayments = TP(opts.clientKey || TOSS_TEST_CLIENT_KEY);

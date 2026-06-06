@@ -1143,7 +1143,7 @@ async function runMarketingAutomation(db: any): Promise<{ birthdayIssued: number
           ? new Date(kstMs - triggers.inactiveDays * 86400000).toISOString().slice(0, 10)
           : null;
 
-        const batch = db.batch();
+        let batch = db.batch();
         let n = 0;
         const issue = (cid: string, type: string, descKey: string) => {
           const ref = db.collection('coupons').doc();
@@ -1161,7 +1161,7 @@ async function runMarketingAutomation(db: any): Promise<{ birthdayIssued: number
         };
 
         for (const [cid, last] of lastVisit) {
-          if (n >= 450) { capped++; break; } // batch 한도 안전 — 초과분은 다음 실행에서 처리
+          if (n >= 450) { await batch.commit(); batch = db.batch(); n = 0; capped++; } // 450 단위 chunk 커밋 — 대형 매장도 누락 없이 전량 처리
           const u = userById.get(cid);
           if (!u) continue;
           if (

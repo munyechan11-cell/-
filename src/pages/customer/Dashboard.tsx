@@ -753,6 +753,9 @@ export default function CustomerDashboard() {
           onPayCard={() => {
             if (!myTable || unpaidTotal <= 0) return;
             setBillOpen(false);
+            const orderIds = mySessionOrders
+              .filter((o) => o.paymentStatus !== "paid" && o.status !== "cancelled")
+              .map((o) => o.id);
             startCardPayment({
               clientKey: owner?.storeConfig?.tossClientKey,
               storeId,
@@ -760,6 +763,7 @@ export default function CustomerDashboard() {
               customerId: currentUser.id,
               amount: unpaidTotal,
               orderName: owner?.restaurantName ?? t("common.store", lang),
+              orderIds,
             }).catch(() => showToast(t("pay.failDesc", lang), "error"));
           }}
         />
