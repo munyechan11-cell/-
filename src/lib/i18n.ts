@@ -1333,6 +1333,8 @@ const ko: Dict = {
   "coupon.reward.gold": "사이드 메뉴 무료권",
   "coupon.reward.silver": "음료 무료 쿠폰",
   "coupon.reward.bronze": "재방문 스탬프 추가 적립",
+  "coupon.birthday": "생일 축하 쿠폰",
+  "coupon.winback": "재방문 감사 쿠폰",
   "receipt.footer.aggregated": "테이블 {table} · {count}건 합산 영수증",
   "receipt.footer.interim": "[중간 계산서] 결제 전 미리보기 — 정식 영수증 아님",
   "bill.payCard": "카드로 결제 {amount}",

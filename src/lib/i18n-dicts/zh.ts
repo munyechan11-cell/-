@@ -1196,6 +1196,8 @@ const dict: Record<string, string> = {
   "coupon.reward.gold": "免费配菜券",
   "coupon.reward.silver": "免费饮料券",
   "coupon.reward.bronze": "再次光临额外积分",
+  "coupon.birthday": "生日礼券",
+  "coupon.winback": "回访优惠券",
   "receipt.footer.aggregated": "{table} 桌 · 合并 {count} 单",
   "receipt.footer.interim": "[中间小票] 结账前预览 — 非正式收据",
   "bill.payCard": "刷卡支付 {amount}",

@@ -46,6 +46,8 @@ services:
         sync: false
       - key: OPENAI_API_KEY
         sync: false
+      - key: CRON_SECRET
+        sync: false                  # ← 마케팅 크론 인증용 (Cron 서비스와 동일 값)
 
   # ===== ② React SPA — Static Site (자동 글로벌 CDN, 무료) =====
   - type: web
@@ -71,3 +73,19 @@ services:
         sync: false
       - key: VITE_FIREBASE_AUTH_DOMAIN
         sync: false
+
+  # ===== ③ 마케팅 자동화 Cron — 매일 생일/이탈 손님에게 쿠폰 자동 발급 =====
+  - type: cron
+    name: gyeol-marketing-cron
+    runtime: node
+    plan: free
+    region: singapore
+    branch: main
+    schedule: "0 0 * * *"          # 매일 00:00 UTC = KST 09:00
+    buildCommand: npm install
+    startCommand: 'curl -fsS -X POST "$CRON_TARGET_URL/api/cron/marketing" -H "x-cron-secret: $CRON_SECRET"'
+    envVars:
+      - key: CRON_TARGET_URL
+        sync: false                  # ← API 서비스 URL (예: https://gyeol-api.onrender.com)
+      - key: CRON_SECRET
+        sync: false                  # ← API 서비스와 동일한 값

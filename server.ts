@@ -1091,6 +1091,116 @@ app.post('/api/webhook/order-status', async (req, res) => {
   res.json({ received: true, orderId, status });
 });
 
+// --- MARKETING AUTOMATION CRON (Render Cron Job 이 매일 호출) ---
+// 각 매장의 marketingTriggers 에 따라 생일/이탈 손님에게 쿠폰 자동 발급.
+// 중복 방지: 같은 type 의 available 쿠폰을 이미 보유하면 skip → 매일 돌아도 1장만.
+app.post('/api/cron/marketing', async (req, res) => {
+  if (!process.env.CRON_SECRET || req.headers['x-cron-secret'] !== process.env.CRON_SECRET) {
+    return res.status(401).json({ error: 'unauthorized' });
+  }
+  const adminApp = getFirebaseAdmin();
+  if (!adminApp) return res.status(500).json({ error: 'admin-not-configured' });
+  const db = adminApp.firestore();
+
+  try {
+    // KST(UTC+9) 기준 오늘 — 생일/경과일 판정
+    const kstMs = Date.now() + 9 * 3600 * 1000;
+    const kst = new Date(kstMs);
+    const todayMMDD = `${String(kst.getUTCMonth() + 1).padStart(2, '0')}-${String(kst.getUTCDate()).padStart(2, '0')}`;
+
+    const usersSnap = await db.collection('users').get();
+    const userById = new Map<string, any>();
+    const owners: any[] = [];
+    usersSnap.docs.forEach((d) => {
+      const u = { id: d.id, ...(d.data() as any) };
+      userById.set(d.id, u);
+      if (u.role === 'owner') owners.push(u);
+    });
+
+    let birthdayIssued = 0;
+    let winbackIssued = 0;
+    let capped = 0;
+
+    for (const owner of owners) {
+      const triggers = owner.storeConfig?.marketingTriggers ?? {};
+      if (!triggers.birthdayCoupon && !triggers.inactiveDays) continue;
+      const storeId = owner.id;
+      try {
+        // 매장 손님별 마지막 방문일
+        const visitsSnap = await db.collection('visits').where('storeId', '==', storeId).get();
+        const lastVisit = new Map<string, string>();
+        visitsSnap.docs.forEach((v) => {
+          const d = v.data() as any;
+          const prev = lastVisit.get(d.customerId);
+          if (!prev || d.date > prev) lastVisit.set(d.customerId, d.date);
+        });
+        if (lastVisit.size === 0) continue;
+
+        // 기존 available 쿠폰 — 중복 발급 방지
+        const cpSnap = await db
+          .collection('coupons')
+          .where('storeId', '==', storeId)
+          .where('status', '==', 'available')
+          .get();
+        const held = new Set<string>();
+        cpSnap.docs.forEach((c) => {
+          const d = c.data() as any;
+          held.add(`${d.customerId}|${d.type}`);
+        });
+
+        const winbackCutoff = triggers.inactiveDays
+          ? new Date(kstMs - triggers.inactiveDays * 86400000).toISOString().slice(0, 10)
+          : null;
+
+        const batch = db.batch();
+        let n = 0;
+        const issue = (cid: string, type: string, descKey: string) => {
+          const ref = db.collection('coupons').doc();
+          batch.set(ref, {
+            id: ref.id,
+            customerId: cid,
+            storeId,
+            type,
+            description: '',
+            descKey,
+            status: 'available',
+            issuedAt: new Date().toISOString(),
+          });
+          n++;
+        };
+
+        for (const [cid, last] of lastVisit) {
+          if (n >= 450) { capped++; break; } // batch 한도 안전 — 초과분은 다음 실행에서 처리
+          const u = userById.get(cid);
+          if (!u) continue;
+          if (
+            triggers.birthdayCoupon &&
+            u.birthday &&
+            String(u.birthday).slice(5) === todayMMDD &&
+            !held.has(`${cid}|birthday`)
+          ) {
+            issue(cid, 'birthday', 'coupon.birthday');
+            birthdayIssued++;
+          }
+          if (winbackCutoff && last < winbackCutoff && !held.has(`${cid}|winback`)) {
+            issue(cid, 'winback', 'coupon.winback');
+            winbackIssued++;
+          }
+        }
+        if (n > 0) await batch.commit();
+      } catch (e: any) {
+        console.error(`[marketing-cron] store ${storeId} failed`, e?.message);
+      }
+    }
+
+    console.log(`[marketing-cron] birthday=${birthdayIssued} winback=${winbackIssued} capped=${capped}`);
+    res.json({ ok: true, birthdayIssued, winbackIssued, capped });
+  } catch (e: any) {
+    console.error('[marketing-cron] failed', e?.message);
+    res.status(500).json({ error: e?.message });
+  }
+});
+
 // Optimized startServer for faster Render ready-signal
 async function startServer() {
   // 1. Open port EARLY to tell Render we are live

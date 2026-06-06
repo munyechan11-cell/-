@@ -1196,6 +1196,8 @@ const dict: Record<string, string> = {
   "coupon.reward.gold": "Free side dish voucher",
   "coupon.reward.silver": "Free drink coupon",
   "coupon.reward.bronze": "Bonus revisit stamp",
+  "coupon.birthday": "Birthday gift coupon",
+  "coupon.winback": "We miss you — welcome back coupon",
   "receipt.footer.aggregated": "Table {table} · {count} orders combined",
   "receipt.footer.interim": "[Interim check] Pre-payment preview — not an official receipt",
   "bill.payCard": "Pay by card {amount}",

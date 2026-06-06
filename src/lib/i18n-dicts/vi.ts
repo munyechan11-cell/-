@@ -1196,6 +1196,8 @@ const dict: Record<string, string> = {
   "coupon.reward.gold": "Phiếu món phụ miễn phí",
   "coupon.reward.silver": "Phiếu đồ uống miễn phí",
   "coupon.reward.bronze": "Tích thêm tem tái ghé",
+  "coupon.birthday": "Phiếu mừng sinh nhật",
+  "coupon.winback": "Phiếu mời quay lại",
   "receipt.footer.aggregated": "Bàn {table} · gộp {count} đơn",
   "receipt.footer.interim": "[Hoá đơn tạm] Xem trước trước thanh toán — không phải hoá đơn chính thức",
   "bill.payCard": "Thanh toán thẻ {amount}",
