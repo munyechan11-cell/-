@@ -78,7 +78,7 @@ services:
   - type: cron
     name: gyeol-marketing-cron
     runtime: node
-    plan: free
+    plan: starter                  # ← Render Cron 은 유료(최소 ~$1/월). 무료로 하려면 이 블록 대신 외부 cron(cron-job.org) 사용
     region: singapore
     branch: main
     schedule: "0 0 * * *"          # 매일 00:00 UTC = KST 09:00
