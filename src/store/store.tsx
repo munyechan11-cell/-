@@ -321,24 +321,28 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!isReady) return;
     if (firebaseStatus !== "offline") return;
-    localStorage.setItem(
-      LS_OFFLINE_STATE,
-      JSON.stringify({
-        users,
-        visits,
-        coupons,
-        tables,
-        sections,
-        communications,
-        tierOverrides,
-        menus,
-        orders,
-        reservations,
-        photos,
-        ingredients,
-        expenses,
-      })
-    );
+    // 디바운스(1s) — 오프라인에서 onSnapshot 이 연달아 오더라도 마지막 1회만 직렬화/저장
+    const id = setTimeout(() => {
+      localStorage.setItem(
+        LS_OFFLINE_STATE,
+        JSON.stringify({
+          users,
+          visits,
+          coupons,
+          tables,
+          sections,
+          communications,
+          tierOverrides,
+          menus,
+          orders,
+          reservations,
+          photos,
+          ingredients,
+          expenses,
+        })
+      );
+    }, 1000);
+    return () => clearTimeout(id);
   }, [
     firebaseStatus,
     isReady,

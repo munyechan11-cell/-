@@ -13,7 +13,7 @@
  *  - 그 외: 자동으로 비활성, isPushSupported() 가 false 반환
  */
 import { getMessaging, getToken, onMessage, isSupported, type Messaging } from "firebase/messaging";
-import { arrayRemove, arrayUnion, doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
+import { arrayRemove, doc, getDoc, runTransaction, updateDoc } from "firebase/firestore";
 import { app, db, ensureAnonymousAuth } from "./firebase";
 import { showToast } from "./toast";
 
@@ -185,27 +185,17 @@ export async function registerOwnerDevice(userId: string): Promise<{
   };
   try {
     const ref = doc(db, "users", userId);
-    let stale: Array<unknown> = [];
-    try {
-      const snap = await getDoc(ref);
-      const existing = (snap.data()?.fcmTokens as Array<{ token?: string }>) ?? [];
-      stale = existing.filter((e) => e?.token === token);
-    } catch {
-      // 권한/없음 — 빈 배열로 진행
-    }
-    if (stale.length > 0) {
-      // arrayRemove 는 한 번에 여러 인자 받음
-      await setDoc(
-        ref,
-        { fcmTokens: arrayRemove(...(stale as any[])) },
-        { merge: true }
+    // 트랜잭션으로 read+write 원자화 — 두 디바이스 동시 등록 race 와, entry 의
+    // registeredAt(매번 다른 값) 때문에 arrayUnion 멱등성이 깨지던 문제를 차단.
+    // 같은 token 의 옛 entry 는 모두 걷어내고 새 entry 1건만 남긴다.
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(ref);
+      const existing = ((snap.data()?.fcmTokens as Array<{ token?: string }>) ?? []).filter(
+        (e) => e?.token !== token
       );
-    }
-    await setDoc(
-      ref,
-      { fcmTokens: arrayUnion(entry) },
-      { merge: true }
-    );
+      existing.push(entry);
+      tx.set(ref, { fcmTokens: existing }, { merge: true });
+    });
   } catch (e: any) {
     console.error("[push] firestore update failed", e?.code, e?.message);
     return { ok: false, reason: "firestore-error", detail: e?.message, token };
