@@ -13,6 +13,8 @@ interface Props {
   paidTotal: number;
   onClose: () => void;
   onPay?: () => void;
+  /** 카드 결제(토스 결제창) 시작 — 있으면 주 버튼으로 노출 */
+  onPayCard?: () => void;
   canPay: boolean;
 }
 
@@ -29,6 +31,7 @@ export function BillModal({
   paidTotal,
   onClose,
   onPay,
+  onPayCard,
   canPay,
 }: Props) {
   const lang = useLanguage();
@@ -185,23 +188,36 @@ export function BillModal({
               <span>{t("bill.totalVat", lang, { amount: fmtKRW(totalVat) })}</span>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 mt-4">
-              <Button
-                variant="ghost"
-                onClick={() => window.print()}
-                leftIcon={<Printer className="w-4 h-4" />}
-              >
-                {t("bill.print", lang)}
-              </Button>
-              <Button
-                disabled={!canPay || unpaidTotal === 0}
-                onClick={onPay}
-                leftIcon={<CreditCard className="w-4 h-4" />}
-              >
-                {unpaidTotal > 0
-                  ? t("bill.payAmount", lang, { amount: fmtKRW(unpaidTotal) })
-                  : t("bill.payDisabled", lang)}
-              </Button>
+            <div className="mt-4 space-y-2">
+              {onPayCard && (
+                <Button
+                  disabled={!canPay || unpaidTotal === 0}
+                  onClick={onPayCard}
+                  className="w-full"
+                  leftIcon={<CreditCard className="w-4 h-4" />}
+                >
+                  {unpaidTotal > 0
+                    ? t("bill.payCard", lang, { amount: fmtKRW(unpaidTotal) })
+                    : t("bill.payDisabled", lang)}
+                </Button>
+              )}
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="ghost"
+                  onClick={() => window.print()}
+                  leftIcon={<Printer className="w-4 h-4" />}
+                >
+                  {t("bill.print", lang)}
+                </Button>
+                <Button
+                  variant="ghost"
+                  disabled={!canPay || unpaidTotal === 0}
+                  onClick={onPay}
+                  leftIcon={<CreditCard className="w-4 h-4" />}
+                >
+                  {t("bill.payStaff", lang)}
+                </Button>
+              </div>
             </div>
             {!canPay && unpaidTotal > 0 && (
               <p className="text-[12px] text-[var(--color-ink-600)] mt-2 text-center">

@@ -32,6 +32,7 @@ import { useStore } from "../../store/store";
 import { getEffectiveTier, getNextTier, TIER_BADGE } from "../../lib/tier";
 import { cn } from "../../lib/cn";
 import { showToast } from "../../lib/toast";
+import { startCardPayment } from "../../lib/tossPayments";
 import type { Order } from "../../lib/types";
 import { getStoreOpenStatus, summarizeStatus } from "../../lib/businessHours";
 
@@ -748,6 +749,18 @@ export default function CustomerDashboard() {
           onPay={() => {
             setBillOpen(false);
             handlePay();
+          }}
+          onPayCard={() => {
+            if (!myTable || unpaidTotal <= 0) return;
+            setBillOpen(false);
+            startCardPayment({
+              clientKey: owner?.storeConfig?.tossClientKey,
+              storeId,
+              tableNumber: myTable.number,
+              customerId: currentUser.id,
+              amount: unpaidTotal,
+              orderName: owner?.restaurantName ?? t("common.store", lang),
+            }).catch(() => showToast(t("pay.failDesc", lang), "error"));
           }}
         />
       )}

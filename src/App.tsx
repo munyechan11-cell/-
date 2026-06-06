@@ -40,6 +40,8 @@ const StaffStoreSearch = lazy(() => import("./pages/staff/StoreSearch"));
 const StaffPending = lazy(() => import("./pages/staff/Pending"));
 const StaffDashboard = lazy(() => import("./pages/staff/Dashboard"));
 
+const PaymentResult = lazy(() => import("./pages/PaymentResult"));
+
 type Roles = "customer" | "owner" | "staff" | Array<"customer" | "owner" | "staff">;
 
 function PrivateRoute({
@@ -211,6 +213,8 @@ export default function App() {
           <Route path="/" element={<Home />} />
           <Route path="/master" element={<Master />} />
           <Route path="/scan" element={<CustomerScanner />} />
+          <Route path="/pay/success" element={<PaymentResult mode="success" />} />
+          <Route path="/pay/fail" element={<PaymentResult mode="fail" />} />
 
           <Route path="/customer/login" element={<CustomerLogin />} />
           <Route path="/customer/store/:storeId/login" element={<CustomerLogin />} />

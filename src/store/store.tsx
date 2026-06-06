@@ -29,6 +29,7 @@ import { printReceipt } from "../lib/receipt";
 import { printReceiptViaUsb, getAuthorizedPrinters } from "../lib/thermalPrinter";
 import { enqueuePrintJob } from "../lib/printBridge";
 import { sendOwnerPush } from "../lib/pushTriggers";
+import { api } from "../lib/api";
 import { getStoreOpenStatus } from "../lib/businessHours";
 import type {
   User,
@@ -149,6 +150,15 @@ interface StoreState {
   ) => Promise<number>;
   /** 사장님 측 — 결제 승인. paid 처리 + 총 영수증 인쇄. table.status: paid */
   approvePayment: (storeId: string, tableNumber: number) => Promise<number>;
+  /** 손님/사장님 카드결제 성공(토스 successUrl) → 서버 confirm + 해당 손님 미결제 주문 paid. */
+  confirmTossPayment: (params: {
+    storeId: string;
+    customerId: string;
+    tableNumber: number;
+    paymentKey: string;
+    orderId: string;
+    amount: number;
+  }) => Promise<void>;
   /** 사장님 측 — 계산 완료. 테이블 정리 (status: available + occupant null) */
   completeTable: (storeId: string, tableNumber: number) => Promise<void>;
   /** 사장님 또는 손님 측 — 중간 계산서 즉시 출력 (정식 영수증 아님 표시) */
@@ -1390,6 +1400,65 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   );
 
   /**
+   * 카드결제 성공 콜백 — 토스 successUrl(/pay/success)에서 호출.
+   * 서버 confirm 으로 실제 결제를 확정한 뒤, 그 손님의 미결제 주문을 paid 로 전환하고
+   * 사장님에게 '결제 완료' 푸시를 보낸다. (영수증 인쇄는 사장님 측 approvePayment 와 분리)
+   */
+  const confirmTossPayment = useCallback(
+    async (params: {
+      storeId: string;
+      customerId: string;
+      tableNumber: number;
+      paymentKey: string;
+      orderId: string;
+      amount: number;
+    }): Promise<void> => {
+      // 1) 서버에서 토스 결제 승인 (실제 과금 확정)
+      const res = await fetch(api("/api/payment/confirm"), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          paymentKey: params.paymentKey,
+          orderId: params.orderId,
+          amount: params.amount,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({} as any));
+        throw new Error(err?.error ?? "payment-confirm-failed");
+      }
+
+      // 2) 해당 손님의 미결제 주문을 paid 로 전환
+      const targets = ordersRef.current.filter(
+        (o) =>
+          o.storeId === params.storeId &&
+          o.customerId === params.customerId &&
+          o.status !== "cancelled" &&
+          o.paymentStatus !== "paid"
+      );
+      if (db && targets.length > 0) {
+        const batch = writeBatch(db);
+        targets.forEach((o) =>
+          batch.set(doc(db!, "orders", o.id), { paymentStatus: "paid" }, { merge: true })
+        );
+        await batch.commit();
+      }
+
+      // 3) 사장님 디바이스로 '결제 완료' 푸시 (영수증 인쇄는 사장님 화면에서)
+      const ownerLang = usersRef.current.find((u) => u.id === params.storeId)?.lang ?? "ko";
+      sendOwnerPush({
+        storeId: params.storeId,
+        kind: "payment-request",
+        title: t("gnotif.paid.title", ownerLang, { table: params.tableNumber }),
+        body: t("gnotif.paid.body", ownerLang, { amount: fmtKRW(params.amount, ownerLang) }),
+        focusUrl: "/biz/owner/orders",
+        tag: `gyeol-paid-T${params.tableNumber}`,
+      });
+    },
+    []
+  );
+
+  /**
    * 사장님이 '결제 승인' — 실제 결제 처리 + 총 영수증 인쇄.
    * - paymentStatus: requested|unpaid → paid
    * - 테이블 status: occupied → paid (정리 대기)
@@ -1986,6 +2055,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       updateOrderStatus,
       payTableSession,
       approvePayment,
+      confirmTossPayment,
       completeTable,
       printInterimReceipt,
       recordCommunication,
@@ -2067,6 +2137,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       updateOrderStatus,
       payTableSession,
       approvePayment,
+      confirmTossPayment,
       completeTable,
       printInterimReceipt,
       recordCommunication,
