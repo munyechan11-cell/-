@@ -281,6 +281,8 @@ export interface Order {
   totalAmount: number;
   status: OrderStatus;
   paymentStatus?: "unpaid" | "requested" | "paid" | "refunded";
+  /** 결제수단 — 카드(토스)/현금(수동승인). 매출장부 분리용. */
+  paymentMethod?: "card" | "cash";
   createdAt: string;
 }
 

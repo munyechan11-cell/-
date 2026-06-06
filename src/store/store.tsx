@@ -1465,7 +1465,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       if (db && targets.length > 0) {
         const batch = writeBatch(db);
         targets.forEach((o) =>
-          batch.set(doc(db!, "orders", o.id), { paymentStatus: "paid" }, { merge: true })
+          batch.set(doc(db!, "orders", o.id), { paymentStatus: "paid", paymentMethod: "card" }, { merge: true })
         );
         await batch.commit();
       }
@@ -1525,7 +1525,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         if (db) {
           const batch = writeBatch(db);
           targets.forEach((o) => {
-            batch.set(doc(db!, "orders", o.id), { paymentStatus: "paid" }, { merge: true });
+            batch.set(doc(db!, "orders", o.id), { paymentStatus: "paid", paymentMethod: "cash" }, { merge: true });
           });
           const tableId = `${storeId}_${tableNumber}`;
           if (tablesNow.some((t) => t.id === tableId)) {
@@ -1534,7 +1534,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           await batch.commit();
         } else {
           for (const o of targets) {
-            await updateFirestoreDoc("orders", o.id, { paymentStatus: "paid" });
+            await updateFirestoreDoc("orders", o.id, { paymentStatus: "paid", paymentMethod: "cash" });
           }
         }
 

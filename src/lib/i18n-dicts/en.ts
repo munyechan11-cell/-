@@ -1220,6 +1220,7 @@ const dict: Record<string, string> = {
   "settle.expense": "Expenses",
   "settle.netProfit": "Net profit",
   "settle.formula": "Net = Revenue − Cost(materials) − Expenses",
+  "settle.cardCash": "💳 Card {card} · 💵 Cash {cash}",
   "settle.addExpense": "Add expense",
   "settle.expenseList": "Expense log",
   "settle.empty": "No expenses in this period.",

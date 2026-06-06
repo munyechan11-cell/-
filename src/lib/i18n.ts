@@ -1357,6 +1357,7 @@ const ko: Dict = {
   "settle.expense": "비용",
   "settle.netProfit": "순이익",
   "settle.formula": "순이익 = 매출 − 원가(재료) − 비용",
+  "settle.cardCash": "💳 카드 {card} · 💵 현금 {cash}",
   "settle.addExpense": "비용 추가",
   "settle.expenseList": "비용 내역",
   "settle.empty": "이 기간에 등록된 비용이 없어요.",

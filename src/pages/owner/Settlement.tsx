@@ -40,13 +40,17 @@ export default function Settlement() {
   const menuMap = useMemo(() => new Map(menus.map((m) => [m.id, m])), [menus]);
 
   // 매출(결제완료 주문 합) + 원가(레시피×재료단가) 동시 집계
-  const { revenue, cost } = useMemo(() => {
+  const { revenue, cardRevenue, cashRevenue, cost } = useMemo(() => {
     let rev = 0;
+    let card = 0;
+    let cash = 0;
     let cst = 0;
     for (const o of orders) {
       if (o.storeId !== storeId || o.paymentStatus !== "paid") continue;
       if (!inRange(localDateStr(new Date(o.createdAt)))) continue;
       rev += o.totalAmount;
+      if (o.paymentMethod === "card") card += o.totalAmount;
+      else cash += o.totalAmount; // 미설정(과거 데이터)·현금 → 현금으로 집계
       for (const item of o.items) {
         const menu = menuMap.get(item.menuId);
         for (const r of menu?.recipe ?? []) {
@@ -55,7 +59,7 @@ export default function Settlement() {
         }
       }
     }
-    return { revenue: rev, cost: cst };
+    return { revenue: rev, cardRevenue: card, cashRevenue: cash, cost: cst };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orders, storeId, period, menuMap, ingMap, todayStr]);
 
@@ -109,6 +113,9 @@ export default function Settlement() {
             highlight
           />
         </div>
+        <p className="text-[12px] text-[var(--color-ink-600)] mb-1 px-1 font-semibold tabular-nums">
+          {t("settle.cardCash", lang, { card: fmtKRW(cardRevenue), cash: fmtKRW(cashRevenue) })}
+        </p>
         <p className="text-[12px] text-[var(--color-ink-500)] mb-5 px-1">
           {t("settle.formula", lang)}
         </p>

@@ -1220,6 +1220,7 @@ const dict: Record<string, string> = {
   "settle.expense": "Chi phí",
   "settle.netProfit": "Lợi nhuận",
   "settle.formula": "Lợi nhuận = Doanh thu − Giá vốn − Chi phí",
+  "settle.cardCash": "💳 Thẻ {card} · 💵 Tiền mặt {cash}",
   "settle.addExpense": "Thêm chi phí",
   "settle.expenseList": "Nhật ký chi phí",
   "settle.empty": "Không có chi phí trong kỳ này.",

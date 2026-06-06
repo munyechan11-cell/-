@@ -1220,6 +1220,7 @@ const dict: Record<string, string> = {
   "settle.expense": "支出",
   "settle.netProfit": "净利润",
   "settle.formula": "净利润 = 营收 − 成本(材料) − 支出",
+  "settle.cardCash": "💳 刷卡 {card} · 💵 现金 {cash}",
   "settle.addExpense": "添加支出",
   "settle.expenseList": "支出记录",
   "settle.empty": "本期间没有支出记录。",
