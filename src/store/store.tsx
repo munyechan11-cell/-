@@ -177,6 +177,7 @@ interface StoreState {
     senderRole?: "owner" | "customer"
   ) => Promise<void>;
   updateUserMemo: (userId: string, memo: string) => Promise<void>;
+  setStaffWage: (userId: string, hourlyWage: number) => Promise<void>;
   setCustomerTier: (customerId: string, storeId: string, tier: Tier | "auto") => Promise<void>;
   bulkIssueCoupon: (customerIds: string[], storeId: string, type: string, description: string) => Promise<void>;
   updateBrandSettings: (storeId: string, data: Partial<User>) => Promise<void>;
@@ -1694,6 +1695,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     await updateFirestoreDoc("users", userId, { memo });
   }, []);
 
+  const setStaffWage = useCallback(async (userId: string, hourlyWage: number) => {
+    await updateFirestoreDoc("users", userId, { hourlyWage });
+  }, []);
+
   const setCustomerTier = useCallback(
     async (customerId: string, storeId: string, tier: Tier | "auto") => {
       const id = `${customerId}_${storeId}`;
@@ -2087,6 +2092,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       printInterimReceipt,
       recordCommunication,
       updateUserMemo,
+      setStaffWage,
       setCustomerTier,
       bulkIssueCoupon,
       updateBrandSettings,
@@ -2172,6 +2178,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       printInterimReceipt,
       recordCommunication,
       updateUserMemo,
+      setStaffWage,
       setCustomerTier,
       bulkIssueCoupon,
       updateBrandSettings,

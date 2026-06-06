@@ -89,6 +89,8 @@ export interface User {
   employerStatus?: StaffStatus;
   /** 직원 전용: 직책/포지션 (홀, 주방 등) */
   position?: string;
+  /** 직원 전용: 시급 (KRW) — 급여 계산용. 사장님이 설정. */
+  hourlyWage?: number;
   /** 직원 전용: 가입 요청 시각 */
   joinRequestedAt?: string;
 }
