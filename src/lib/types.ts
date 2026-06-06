@@ -18,6 +18,8 @@ export interface StoreConfig {
   locationAccessOnly?: boolean;
   allowedRadius?: number;
   tossClientKey?: string;
+  /** 키오스크 모드 사용 — 사장님이 켜면 NAV에 키오스크 메뉴가 노출됨 */
+  kioskEnabled?: boolean;
 }
 
 export interface User {

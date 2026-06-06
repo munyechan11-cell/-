@@ -93,6 +93,7 @@ export default function BrandSettings() {
   const [locationOnly, setLocationOnly] = useState(!!cfg?.locationAccessOnly);
   const [radius, setRadius] = useState(String(cfg?.allowedRadius ?? 100));
   const [tossKey, setTossKey] = useState(cfg?.tossClientKey ?? "");
+  const [kioskEnabled, setKioskEnabled] = useState(!!cfg?.kioskEnabled);
 
   const [tierNames, setTierNames] = useState<Record<string, string>>(currentUser?.tierNames ?? {});
   const [tierRewards, setTierRewards] = useState<Record<string, string>>(currentUser?.tierRewards ?? {});
@@ -135,6 +136,7 @@ export default function BrandSettings() {
       locationAccessOnly: locationOnly,
       allowedRadius: r,
       tossClientKey: (tossKey || null) as any,
+      kioskEnabled,
     });
     // 화면 입력값도 클램프 결과로 정정
     setPointRate(String(rate));
@@ -421,6 +423,11 @@ export default function BrandSettings() {
 
         <Sec title={t("obs.sec.payment", lang)}>
           <Input label={t("obs.payment.toss", lang)} value={tossKey} onChange={(e) => setTossKey(e.target.value)} />
+        </Sec>
+
+        <Sec title={t("obs.sec.kiosk", lang)}>
+          <Toggle label={t("obs.kiosk.enable", lang)} value={kioskEnabled} onChange={setKioskEnabled} />
+          <p className="text-[12px] text-[var(--color-ink-500)] mt-2 leading-relaxed">{t("obs.kiosk.desc", lang)}</p>
         </Sec>
 
         <Sec title={t("obs.sec.geo", lang)}>

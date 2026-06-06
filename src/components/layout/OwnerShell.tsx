@@ -86,9 +86,11 @@ export function OwnerShell({ children, title, headerRight, width = "default" }: 
   const isStaff = currentUser?.role === "staff";
   const onDuty = !!activeShift;
 
+  // 키오스크는 사장님이 설정에서 켰을 때만 노출 (옵트인)
+  const kioskOn = !isStaff && currentUser?.storeConfig?.kioskEnabled === true;
   const navItems: NavItem[] = isStaff
     ? [STAFF_DASHBOARD, ...NAV.filter((n) => n.staff)]
-    : NAV;
+    : NAV.filter((n) => n.to !== "/biz/owner/kiosk" || kioskOn);
 
   const active = navItems.find((n) => (n.end ? loc.pathname === n.to : loc.pathname.startsWith(n.to)));
   const heading = title ?? (active ? t(active.labelKey, lang) : t("ownerNav.dashboard", lang));
