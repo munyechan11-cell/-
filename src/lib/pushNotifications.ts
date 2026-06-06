@@ -127,10 +127,16 @@ export async function registerOwnerDevice(userId: string): Promise<{
       if (swReg.installing) {
         await new Promise<void>((resolve) => {
           const inst = swReg!.installing!;
-          const timer = setTimeout(() => resolve(), 3000);
-          inst.addEventListener("statechange", () => {
-            if (inst.state === "activated") { clearTimeout(timer); resolve(); }
-          });
+          // resolve 시점·타임아웃 양쪽에서 리스너를 제거 — 안 그러면 activated 가
+          // 안 올 때 statechange 리스너가 영구히 남아 권한 재시도마다 누적됨.
+          const finish = () => {
+            clearTimeout(timer);
+            inst.removeEventListener("statechange", onChange);
+            resolve();
+          };
+          const onChange = () => { if (inst.state === "activated") finish(); };
+          const timer = setTimeout(finish, 3000);
+          inst.addEventListener("statechange", onChange);
         });
       }
     } catch (e: any) {

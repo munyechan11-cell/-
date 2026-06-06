@@ -67,6 +67,8 @@ export interface User {
     staffJoin?: boolean;      // 직원 가입 요청
     couponRequest?: boolean;  // 쿠폰 사용 요청
   };
+  /** 사장님 앱 언어 — 받는 푸시·알림을 이 언어로 보냄. (i18n Lang 과 동일 집합) */
+  lang?: "ko" | "en" | "vi" | "zh";
   /** 페어링된 에이전트 식별자 (디바이스명·OS·페어링 시각). 페어링 해제 시 비움 */
   printBridgeDevice?: { name?: string; pairedAt: string };
   /** 에이전트 마지막 하트비트 시각 — 60초 이상 지나면 '오프라인'으로 표시 */

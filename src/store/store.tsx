@@ -22,7 +22,7 @@ import { updateFirestoreDoc, flushOfflineQueue } from "../lib/firestore";
 import { calculateAgeGroup } from "../lib/auth";
 import { generateId, digitsOnly } from "../lib/ids";
 import { showToast } from "../lib/toast";
-import { t } from "../lib/i18n";
+import { t, useLanguage, fmtKRW } from "../lib/i18n";
 import { getCustomerTier } from "../lib/tier";
 import { relayOrderToPos } from "../lib/pos";
 import { printReceipt } from "../lib/receipt";
@@ -291,6 +291,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => { ordersRef.current = orders; }, [orders]);
   useEffect(() => { reservationsRef.current = reservations; }, [reservations]);
   useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
+
+  // 사장님이 앱 언어를 바꾸면 User.lang 에 저장 — 손님/직원 기기가 주문·결제·쿠폰 푸시를
+  // 만들 때 이 값을 읽어 '사장님이 설정한 언어'로 알림을 보냄(수신자 언어 = 사장님 언어).
+  const lang = useLanguage();
+  useEffect(() => {
+    const cu = currentUserRef.current;
+    if (cu?.role === "owner" && cu.lang !== lang) {
+      updateFirestoreDoc("users", cu.id, { lang }).catch(() => {});
+    }
+  }, [lang, currentUser]);
 
   // Persist for offline fallback
   useEffect(() => {
@@ -629,6 +639,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(() => {
     setCurrentUser(null);
+    // 계정 전환 시 이전 매장 데이터가 다음 유저 화면에 잠깐 노출되지 않도록 scoped 상태를 비움.
+    // (scoped 리스너는 currentUser=null 이면 early-return 하므로 자동으로는 비워지지 않음)
+    setVisits([]);
+    setCoupons([]);
+    setTables([]);
+    setSections([]);
+    setCommunications([]);
+    setTierOverrides([]);
+    setMenus([]);
+    setOrders([]);
+    setReservations([]);
+    setPhotos([]);
+    setShifts([]);
+    setIngredients([]);
     showToast(t("store.loggedOut"), "info");
   }, [setCurrentUser]);
 
@@ -658,7 +682,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     };
     if (e164Phone) patch.phone = e164Phone;
     await updateFirestoreDoc("users", userId, patch);
-  }, []);
+    // 로컬 currentUser 도 즉시 반영 — 안 하면 새로고침 시 인증 게이트가 다시 떠 재인증(SMS 비용) 발생
+    const cu = currentUserRef.current;
+    if (cu?.id === userId) setCurrentUser({ ...cu, ...patch });
+  }, [setCurrentUser]);
 
   const loginMaster = useCallback(
     (pw: string) => {
@@ -981,11 +1008,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     // 쿠폰의 매장(storeId) 으로 사장님 푸시
     const c = couponsRef.current.find((x) => x.id === couponId);
     if (c?.storeId) {
+      const ownerLang = usersRef.current.find((u) => u.id === c.storeId)?.lang ?? "ko";
+      const couponDesc = c.description ?? t("gnotif.coupon.descFallback", ownerLang);
       sendOwnerPush({
         storeId: c.storeId,
         kind: "coupon-request",
-        title: "🎟 쿠폰 사용 요청",
-        body: `${c.description ?? "쿠폰"}${tableNumber ? ` · 테이블 ${tableNumber}` : ""}`,
+        title: t("gnotif.coupon.title", ownerLang),
+        body: tableNumber
+          ? t("gnotif.coupon.bodyTable", ownerLang, { desc: couponDesc, table: tableNumber })
+          : t("gnotif.coupon.body", ownerLang, { desc: couponDesc }),
         focusUrl: "/biz/owner/orders",
         tag: "gyeol-coupon",
       });
@@ -1263,11 +1294,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         owner?.posVendor && owner.posVendor !== "none" && owner.posApiKey;
 
       // 사장님 디바이스 푸시 — 새 주문 도착
+      const ownerLang = usersRef.current.find((u) => u.id === storeId)?.lang ?? "ko";
       sendOwnerPush({
         storeId,
         kind: "new-order",
-        title: `🔔 새 주문 — 테이블 ${tableNumber}`,
-        body: `${items.length}종 · ₩${totalAmount.toLocaleString()}`,
+        title: t("gnotif.newOrder.title", ownerLang, { table: tableNumber }),
+        body: t("gnotif.newOrder.body", ownerLang, { count: items.length, amount: fmtKRW(totalAmount, ownerLang) }),
         focusUrl: "/biz/owner/orders",
         tag: `gyeol-order-T${tableNumber}`,
       });
@@ -1338,11 +1370,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
 
       // 사장님 디바이스 푸시 — 결제 요청
+      const ownerLang = usersRef.current.find((u) => u.id === storeId)?.lang ?? "ko";
       sendOwnerPush({
         storeId,
         kind: "payment-request",
-        title: `💳 결제 요청 — 테이블 ${tableNumber}`,
-        body: `₩ ${total.toLocaleString()} (${unpaid.length}건)`,
+        title: t("gnotif.payment.title", ownerLang, { table: tableNumber }),
+        body: t("gnotif.payment.body", ownerLang, { amount: fmtKRW(total, ownerLang), count: unpaid.length }),
         focusUrl: "/biz/owner/orders",
         tag: `gyeol-pay-T${tableNumber}`,
       });
@@ -1578,22 +1611,42 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const bulkIssueCoupon = useCallback(
     async (customerIds: string[], storeId: string, type: string, description: string) => {
       if (!db) return;
-      const batch = writeBatch(db);
-      const now = new Date().toISOString();
-      for (const cid of customerIds) {
-        const id = generateId();
-        batch.set(doc(db, "coupons", id), {
-          id,
-          customerId: cid,
-          storeId,
-          type,
-          description,
-          status: "available",
-          issuedAt: now,
-        });
+      // 이미 같은 종류의 미사용 쿠폰을 보유한 손님은 제외 — 재방문/연타 시 중복 발급 방지
+      const existing = couponsRef.current;
+      const targets = customerIds.filter(
+        (cid) =>
+          !existing.some(
+            (c) =>
+              c.customerId === cid &&
+              c.storeId === storeId &&
+              c.type === type &&
+              c.status === "available"
+          )
+      );
+      if (targets.length === 0) {
+        showToast(t("store.bulkCouponNone"), "info");
+        return;
       }
-      await batch.commit();
-      showToast(t("store.bulkCoupon", undefined, { n: customerIds.length }), "success");
+      const now = new Date().toISOString();
+      // Firestore writeBatch 는 한 번에 최대 500 writes — 450개씩 나눠 커밋해 대형 매장에서 전량 실패 방지
+      for (let i = 0; i < targets.length; i += 450) {
+        const chunk = targets.slice(i, i + 450);
+        const batch = writeBatch(db);
+        for (const cid of chunk) {
+          const id = generateId();
+          batch.set(doc(db, "coupons", id), {
+            id,
+            customerId: cid,
+            storeId,
+            type,
+            description,
+            status: "available",
+            issuedAt: now,
+          });
+        }
+        await batch.commit();
+      }
+      showToast(t("store.bulkCoupon", undefined, { n: targets.length }), "success");
     },
     []
   );
@@ -1632,7 +1685,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
    *   available 로 복귀. 손님이 이미 들어와 있으면 그대로 둠.
    */
   const _activeReservationsFor = (storeId: string, tableNumber: number, excludeId?: string) => {
-    const today = new Date().toISOString().slice(0, 10);
+    // 로컬(매장) 자정 기준 오늘 — toISOString 은 UTC라 KST 새벽엔 날짜가 하루 밀려
+    // 어제 예약이 계속 활성으로 잡혀 테이블이 '예약됨'에서 안 풀리던 버그가 있었음.
+    const n = new Date();
+    const today = `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`;
     return reservationsRef.current.filter(
       (r) =>
         r.id !== excludeId &&
@@ -1759,11 +1815,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       await updateFirestoreDoc("users", cu.id, patch);
       setCurrentUser({ ...cu, ...patch });
       // 사장님 디바이스 푸시 — 새 직원 가입 요청
+      const ownerLang = usersRef.current.find((u) => u.id === storeId)?.lang ?? "ko";
+      const staffName = cu.name ?? t("gnotif.staffJoin.nameFallback", ownerLang);
+      const positionStr = position ? ` (${position})` : "";
       sendOwnerPush({
         storeId,
         kind: "staff-join",
-        title: "👤 새 직원 가입 요청",
-        body: `${cu.name ?? "직원"}님${position ? ` (${position})` : ""}이 합류를 요청했어요.`,
+        title: t("gnotif.staffJoin.title", ownerLang),
+        body: t("gnotif.staffJoin.body", ownerLang, { name: staffName, position: positionStr }),
         focusUrl: "/biz/owner/staff",
         tag: "gyeol-staff",
       });

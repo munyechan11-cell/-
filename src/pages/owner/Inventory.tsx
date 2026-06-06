@@ -232,26 +232,32 @@ export default function OwnerInventory() {
                 {t("inv.empty", lang)}
               </Card>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
                 {myIngredients.map((ing) => {
-                  const low = ing.lowThreshold && ing.stock <= ing.lowThreshold;
+                  const soldout = ing.stock <= 0;
+                  const low = !soldout && ing.lowThreshold != null && ing.stock <= ing.lowThreshold;
                   return (
-                    <Card key={ing.id} padding="md" className={low ? "border-[1.5px] border-[#ffd1cc] bg-[#fff8f7]" : ""}>
+                    <Card key={ing.id} padding="md" className={soldout || low ? "border-[1.5px] border-[#ffd1cc] bg-[#fff8f7]" : ""}>
                       <div className="flex items-start gap-2">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <p className="text-[14.5px] font-extrabold text-[var(--color-navy-900)]">
                               {ing.name}
                             </p>
-                            {low && (
+                            {soldout ? (
+                              <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-white bg-[var(--color-danger)] px-1.5 py-0.5 rounded-full">
+                                <AlertTriangle className="w-3 h-3" />
+                                {t("inv.soldout", lang)}
+                              </span>
+                            ) : low ? (
                               <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-[var(--color-danger)] bg-[#fff1f0] px-1.5 py-0.5 rounded-full">
                                 <AlertTriangle className="w-3 h-3" />
                                 {t("inv.low", lang)}
                               </span>
-                            )}
+                            ) : null}
                           </div>
                           <p className="text-[12.5px] text-[var(--color-navy-700)] font-bold mt-0.5 tabular-nums">
-                            {t("inv.stockUnit", lang, { n: ing.stock, unit: ing.unit })}
+                            {t("inv.stockUnit", lang, { n: Math.max(0, ing.stock), unit: ing.unit })}
                             <span className="text-[var(--color-ink-500)] font-medium ml-2">
                               · {fmtKRW(ing.unitCost)}
                               {t("inv.unitCostSuffix", lang, { unit: ing.unit })}
@@ -265,10 +271,11 @@ export default function OwnerInventory() {
                         </div>
                         <button
                           onClick={() => setRestockTarget(ing)}
-                          className="h-8 px-2.5 rounded-full bg-[var(--color-mint-100)] text-[var(--color-mint-700)] text-[11.5px] font-extrabold inline-flex items-center gap-1"
+                          className="h-8 px-2.5 rounded-full bg-[var(--color-mint-100)] text-[var(--color-mint-700)] text-[11.5px] font-extrabold inline-flex items-center gap-1 shrink-0"
+                          aria-label={t("inv.btn.restock", lang)}
                         >
                           <PackagePlus className="w-3.5 h-3.5" />
-                          {t("inv.btn.restock", lang)}
+                          <span className="hidden min-[400px]:inline">{t("inv.btn.restock", lang)}</span>
                         </button>
                         <button
                           onClick={() => setEditing(ing)}
@@ -376,7 +383,7 @@ function RecipeTab({
             const ing = ingMap.get(r.ingredientId);
             if (ing) cost += ing.unitCost * r.quantity;
           }
-          const margin = m.price > 0 ? Math.max(0, Math.min(100, ((m.price - cost) / m.price) * 100)) : 0;
+          const margin = m.price > 0 ? Math.min(100, ((m.price - cost) / m.price) * 100) : 0;
           return (
             <Card key={m.id} padding="md" className="hover:bg-[var(--color-navy-50)] cursor-pointer" onClick={() => onSelect(m)}>
               <p className="text-[14.5px] font-extrabold text-[var(--color-navy-900)]">{m.name}</p>

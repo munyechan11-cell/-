@@ -331,18 +331,20 @@ export default function OwnerReservations() {
                 "popup=yes,width=1280,height=800"
               )
             }
-            className="h-10 px-3.5 rounded-full bg-white border border-[var(--color-line)] text-[var(--color-navy-700)] inline-flex items-center gap-1.5 text-[13px] font-bold"
+            className="h-10 px-3 sm:px-3.5 rounded-full bg-white border border-[var(--color-line)] text-[var(--color-navy-700)] inline-flex items-center gap-1.5 text-[13px] font-bold shrink-0"
             title={t("ores.openDisplayTip", lang)}
+            aria-label={t("ores.openDisplay", lang)}
           >
             <Monitor className="w-4 h-4" />
-            {t("ores.openDisplay", lang)}
+            <span className="hidden sm:inline">{t("ores.openDisplay", lang)}</span>
           </button>
           <button
             onClick={() => setDraft(newDraft())}
-            className="h-10 px-4 rounded-full bg-[var(--color-navy-700)] text-white inline-flex items-center gap-1.5 text-[13px] font-bold shadow-[var(--shadow-navy)]"
+            className="h-10 px-3 sm:px-4 rounded-full bg-[var(--color-navy-700)] text-white inline-flex items-center gap-1.5 text-[13px] font-bold shadow-[var(--shadow-navy)] shrink-0"
+            aria-label={t("ores.newBtn", lang)}
           >
             <Plus className="w-4 h-4" />
-            {t("ores.newBtn", lang)}
+            <span className="hidden sm:inline">{t("ores.newBtn", lang)}</span>
           </button>
         </div>
       }
@@ -422,7 +424,7 @@ export default function OwnerReservations() {
               <h3 className="text-[14px] font-bold text-[var(--color-ink-700)] px-1 mb-2">
                 {new Date(date).toLocaleDateString(locale, { month: "long", day: "numeric", weekday: "short" })}
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
                 {items.map((r) => (
                   <Card key={r.id} padding="md">
                     <div className="flex items-center gap-2 mb-1.5">
