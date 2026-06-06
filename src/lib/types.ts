@@ -249,6 +249,20 @@ export interface Ingredient {
   memo?: string;
 }
 
+/** 지출/비용 — 매출장부 순이익 계산용. 사장님이 직접 입력. */
+export type ExpenseCategory = "rent" | "labor" | "material" | "utility" | "marketing" | "other";
+export interface Expense {
+  id: string;
+  storeId: string;
+  category: ExpenseCategory;
+  /** 금액 (KRW) */
+  amount: number;
+  /** 지출일 YYYY-MM-DD (로컬) */
+  date: string;
+  memo?: string;
+  createdAt: string;
+}
+
 export type OrderStatus = "pending" | "accepted" | "cooking" | "served" | "cancelled";
 export interface OrderItem {
   menuId: string;

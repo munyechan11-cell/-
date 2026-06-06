@@ -94,6 +94,7 @@ export const COLLECTIONS = [
   "photos",
   "shifts",
   "ingredients",
+  "expenses",
   "appState",
 ] as const;
 

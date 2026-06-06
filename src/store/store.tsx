@@ -51,6 +51,7 @@ import type {
   TableStatus,
   Shift,
   Ingredient,
+  Expense,
 } from "../lib/types";
 
 type FirebaseStatus = "connecting" | "ok" | "error" | "offline";
@@ -76,6 +77,7 @@ interface StoreState {
   photos: Photo[];
   shifts: Shift[];
   ingredients: Ingredient[];
+  expenses: Expense[];
 
   /** 현재 컨텍스트의 매장 id (사장님=자기 id, 직원=employerStoreId) */
   effectiveStoreId: string;
@@ -133,6 +135,8 @@ interface StoreState {
   addIngredient: (storeId: string, data: Omit<Ingredient, "id" | "storeId" | "updatedAt">) => Promise<void>;
   updateIngredient: (id: string, data: Partial<Ingredient>) => Promise<void>;
   deleteIngredient: (id: string) => Promise<void>;
+  addExpense: (storeId: string, data: Omit<Expense, "id" | "storeId" | "createdAt">) => Promise<void>;
+  deleteExpense: (id: string) => Promise<void>;
 
   // orders
   placeOrder: (input: {
@@ -274,6 +278,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const ingredientsRef = useRef<Ingredient[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
   useEffect(() => { ingredientsRef.current = ingredients; }, [ingredients]);
 
   const scopedUnsubsRef = useRef<Array<() => void>>([]);
@@ -331,6 +336,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         reservations,
         photos,
         ingredients,
+        expenses,
       })
     );
   }, [
@@ -348,6 +354,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     reservations,
     photos,
     ingredients,
+    expenses,
   ]);
 
   // Boot
@@ -375,6 +382,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           setReservations(s.reservations ?? []);
           setPhotos(s.photos ?? []);
           setIngredients(s.ingredients ?? []);
+          setExpenses(s.expenses ?? []);
         }
       } catch {}
       setFirebaseStatus("offline");
@@ -453,6 +461,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       sub<Photo>("photos", setPhotos, "storeId", sid);
       sub<Shift>("shifts", setShifts, "storeId", sid);
       sub<Ingredient>("ingredients", setIngredients, "storeId", sid);
+      sub<Expense>("expenses", setExpenses, "storeId", sid);
     } else if (currentUser.role === "staff") {
       const sid = currentUser.employerStoreId;
       // 본인 근무 기록은 항상 구독 (승인 전에도 빈 배열)
@@ -663,6 +672,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setPhotos([]);
     setShifts([]);
     setIngredients([]);
+    setExpenses([]);
     showToast(t("store.loggedOut"), "info");
   }, [setCurrentUser]);
 
@@ -1186,6 +1196,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const deleteIngredient = useCallback(async (id: string) => {
     await updateFirestoreDoc("ingredients", id, undefined, true);
+  }, []);
+
+  const addExpense = useCallback(
+    async (storeId: string, data: Omit<Expense, "id" | "storeId" | "createdAt">) => {
+      const id = generateId();
+      const docData: Expense = { id, storeId, createdAt: new Date().toISOString(), ...data };
+      await updateFirestoreDoc("expenses", id, docData);
+    },
+    []
+  );
+  const deleteExpense = useCallback(async (id: string) => {
+    await updateFirestoreDoc("expenses", id, undefined, true);
   }, []);
 
   /**
@@ -2019,6 +2041,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       photos,
       shifts,
       ingredients,
+      expenses,
       activeShift,
       effectiveStoreId,
       activeStoreId,
@@ -2074,6 +2097,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       addIngredient,
       updateIngredient,
       deleteIngredient,
+      addExpense,
+      deleteExpense,
       requestJoinStore,
       cancelJoinRequest,
       approveStaff,
@@ -2102,6 +2127,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       photos,
       shifts,
       ingredients,
+      expenses,
       activeShift,
       effectiveStoreId,
       activeStoreId,
@@ -2156,6 +2182,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       addIngredient,
       updateIngredient,
       deleteIngredient,
+      addExpense,
+      deleteExpense,
       requestJoinStore,
       cancelJoinRequest,
       approveStaff,

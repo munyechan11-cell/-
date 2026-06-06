@@ -21,6 +21,7 @@ import {
   HelpCircle,
   Megaphone,
   Package,
+  Wallet,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useStore } from "../../store/store";
@@ -61,6 +62,7 @@ const NAV: NavItem[] = [
   { to: "/biz/owner/marketing", labelKey: "ownerNav.marketing", icon: Megaphone },
   { to: "/biz/owner/reservations", labelKey: "ownerNav.reservations", icon: Calendar, staff: true, staffFree: true },
   { to: "/biz/owner/statistics", labelKey: "ownerNav.statistics", icon: BarChart3 },
+  { to: "/biz/owner/settlement", labelKey: "ownerNav.settlement", icon: Wallet },
   { to: "/biz/owner/photos", labelKey: "ownerNav.reviews", icon: ImageIcon, staff: true },
   { to: "/biz/owner/qr-print", labelKey: "ownerNav.qrPrint", icon: QrCode, staff: true },
   { to: "/biz/owner/staff", labelKey: "ownerNav.staff", icon: Briefcase },
