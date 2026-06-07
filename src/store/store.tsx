@@ -526,8 +526,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const sub = <T,>(coll: string, setter: (rows: T[]) => void) => {
-      const q = query(collection(db!, coll), where("storeId", "==", activeStoreId));
+    const sub = <T,>(
+      coll: string,
+      setter: (rows: T[]) => void,
+      field: string = "storeId",
+      value: string = activeStoreId!
+    ) => {
+      const q = query(collection(db!, coll), where(field, "==", value));
       const un = onSnapshot(
         q,
         (snap) => {
@@ -543,7 +548,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
     sub<TableDoc>("tables", setTables);
     sub<Menu>("menus", setMenus);
-    sub<Order>("orders", setOrders);
+    // 손님은 본인 주문만 필요(Dashboard 가 customerId 로 필터)·매장 전체 주문 구독은
+    // 읽기 낭비 + 남의 주문 노출이므로 customerId 로 좁힌다 — 읽기 원가↓ + 프라이버시↑.
+    sub<Order>("orders", setOrders, "customerId", currentUser.id);
     sub<Photo>("photos", setPhotos);
 
     return () => {
