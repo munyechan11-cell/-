@@ -40,6 +40,7 @@ export default function OwnerInventory() {
   const {
     effectiveStoreId,
     currentUser,
+    users,
     ingredients,
     menus,
     orders,
@@ -58,12 +59,15 @@ export default function OwnerInventory() {
   // 업종 기본 재료 일괄 등록 (ERP 차용 후속: 빈 화면 제거 → 진입장벽↓)
   const loadDefaults = async () => {
     if (loadingDefaults) return;
-    const industry = currentUser?.storeConfig?.industry ?? "general";
+    // 업종은 onSnapshot 으로 항상 최신인 users 에서 매장을 직접 조회 (currentUser 로컬 캐시가 stale 일 수 있음)
+    const store = users.find((u) => u.id === storeId);
+    const industry = store?.storeConfig?.industry ?? currentUser?.storeConfig?.industry ?? "general";
     const defaults = INDUSTRY_INGREDIENTS[industry] ?? INDUSTRY_INGREDIENTS.general;
     setLoadingDefaults(true);
     try {
       for (const d of defaults) {
-        await addIngredient(storeId, { name: d.name, unit: d.unit, stock: 0, unitCost: 0 });
+        // 대략 참고 단가까지 함께 등록 → 메뉴 원가가 0이 아니라 바로 계산됨 (사장이 조정 가능)
+        await addIngredient(storeId, { name: d.name, unit: d.unit, stock: 0, unitCost: d.unitCost });
       }
       showToast(t("inv.defaultsLoaded", lang, { n: defaults.length }), "success");
     } finally {
