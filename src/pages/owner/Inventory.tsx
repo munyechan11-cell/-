@@ -58,7 +58,13 @@ export default function OwnerInventory() {
     () =>
       ingredients
         .filter((i) => i.storeId === storeId)
-        .sort((a, b) => a.name.localeCompare(b.name)),
+        // 소진율(현재고÷부족기준) 낮은=급한 순으로 정렬, 동률은 이름순 (ERP 차용: 급한 재고 위로)
+        .sort((a, b) => {
+          const ra = a.lowThreshold != null && a.lowThreshold > 0 ? a.stock / a.lowThreshold : Infinity;
+          const rb = b.lowThreshold != null && b.lowThreshold > 0 ? b.stock / b.lowThreshold : Infinity;
+          if (ra !== rb) return ra - rb;
+          return a.name.localeCompare(b.name);
+        }),
     [ingredients, storeId]
   );
   const myMenus = useMemo(
@@ -377,44 +383,57 @@ function RecipeTab({
     );
   }
   const ingMap = new Map(ingredients.map((i) => [i.id, i]));
+  // 메뉴별 원가·마진 선계산 → 마진 낮은 메뉴를 상단에 모아 경고 (ERP 차용: 위험 한눈에)
+  const rows = menus.map((m) => {
+    const recipe = m.recipe ?? [];
+    let cost = 0;
+    for (const r of recipe) {
+      const ing = ingMap.get(r.ingredientId);
+      if (ing) cost += ing.unitCost * r.quantity;
+    }
+    const margin = m.price > 0 ? Math.min(100, ((m.price - cost) / m.price) * 100) : 0;
+    return { m, cost, margin, hasRecipe: recipe.length > 0 };
+  });
+  const risky = rows.filter((x) => x.hasRecipe && x.margin < 30);
   return (
     <>
+      {risky.length > 0 && (
+        <Card padding="md" className="mb-3 border-[1.5px] border-[#ffd1cc] bg-[#fff8f7]">
+          <p className="text-[13px] font-extrabold text-[var(--color-danger)]">
+            ⚠️ {t("inv.recipe.riskTitle", lang, { n: risky.length })}
+          </p>
+          <p className="text-[12px] text-[var(--color-ink-600)] mt-1 leading-relaxed">
+            {risky.map((x) => x.m.name).join(", ")}
+          </p>
+        </Card>
+      )}
       <p className="text-[12.5px] text-[var(--color-ink-600)] mb-3">{t("inv.recipe.desc", lang)}</p>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-        {menus.map((m) => {
-          const recipe = m.recipe ?? [];
-          let cost = 0;
-          for (const r of recipe) {
-            const ing = ingMap.get(r.ingredientId);
-            if (ing) cost += ing.unitCost * r.quantity;
-          }
-          const margin = m.price > 0 ? Math.min(100, ((m.price - cost) / m.price) * 100) : 0;
-          return (
-            <Card key={m.id} padding="md" className="hover:bg-[var(--color-navy-50)] cursor-pointer" onClick={() => onSelect(m)}>
-              <p className="text-[14.5px] font-extrabold text-[var(--color-navy-900)]">{m.name}</p>
-              {recipe.length === 0 ? (
-                <p className="text-[12px] text-[var(--color-ink-500)] mt-1">{t("inv.recipe.noRecipe", lang)}</p>
-              ) : (
-                <>
-                  <div className="flex items-center gap-2 mt-1 text-[12px] tabular-nums">
-                    <span className="text-[var(--color-ink-600)]">
-                      {t("inv.recipe.cost", lang, { amount: fmtKRW(cost) })}
-                    </span>
-                    <span className={`font-bold ${margin >= 50 ? "text-[var(--color-mint-700)]" : margin >= 30 ? "text-[#f0b400]" : "text-[var(--color-danger)]"}`}>
-                      {t("inv.recipe.margin", lang, { pct: margin.toFixed(0) })}
-                    </span>
-                  </div>
-                  <p className="text-[11.5px] text-[var(--color-ink-500)] mt-1 truncate">
-                    {recipe
-                      .map((r) => ingMap.get(r.ingredientId)?.name)
-                      .filter(Boolean)
-                      .join(", ")}
-                  </p>
-                </>
-              )}
-            </Card>
-          );
-        })}
+        {rows.map(({ m, cost, margin, hasRecipe }) => (
+          <Card key={m.id} padding="md" className="hover:bg-[var(--color-navy-50)] cursor-pointer" onClick={() => onSelect(m)}>
+            <p className="text-[14.5px] font-extrabold text-[var(--color-navy-900)]">{m.name}</p>
+            {!hasRecipe ? (
+              <p className="text-[12px] text-[var(--color-ink-500)] mt-1">{t("inv.recipe.noRecipe", lang)}</p>
+            ) : (
+              <>
+                <div className="flex items-center gap-2 mt-1 text-[12px] tabular-nums">
+                  <span className="text-[var(--color-ink-600)]">
+                    {t("inv.recipe.cost", lang, { amount: fmtKRW(cost) })}
+                  </span>
+                  <span className={`font-bold ${margin >= 50 ? "text-[var(--color-mint-700)]" : margin >= 30 ? "text-[#f0b400]" : "text-[var(--color-danger)]"}`}>
+                    {t("inv.recipe.margin", lang, { pct: margin.toFixed(0) })}
+                  </span>
+                </div>
+                <p className="text-[11.5px] text-[var(--color-ink-500)] mt-1 truncate">
+                  {(m.recipe ?? [])
+                    .map((r) => ingMap.get(r.ingredientId)?.name)
+                    .filter(Boolean)
+                    .join(", ")}
+                </p>
+              </>
+            )}
+          </Card>
+        ))}
       </div>
     </>
   );
@@ -609,6 +628,16 @@ function EditModal({
 }) {
   const lang = useLanguage();
   useModalChrome(true, onClose);
+  // 단가 간편 계산 (ERP 차용) — 구매가÷구매량 → unitCost 자동, 단가 손계산 부담 제거
+  const [pp, setPp] = useState("");
+  const [pq, setPq] = useState("");
+  const applyPurchase = (price: string, qty: string) => {
+    setPp(price);
+    setPq(qty);
+    const p = Number(price);
+    const q = Number(qty);
+    if (p > 0 && q > 0) onChange({ ...editing, unitCost: Math.round((p / q) * 100) / 100 });
+  };
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-end" onClick={onClose}>
       <div
@@ -645,6 +674,29 @@ function EditModal({
               value={String(editing.unitCost ?? "")}
               onChange={(e) => onChange({ ...editing, unitCost: Number(e.target.value) || 0 })}
             />
+          </div>
+          {/* 단가 간편 계산 (ERP 차용) — 영수증의 총 구매가·용량만 넣으면 단가 자동 */}
+          <div className="rounded-[12px] bg-[var(--color-navy-50)] border border-[var(--color-navy-100)] p-3">
+            <p className="text-[11.5px] font-bold text-[var(--color-navy-700)] mb-2">
+              {t("inv.field.autoCost", lang)}
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <Input
+                label={t("inv.field.purchasePrice", lang)}
+                inputMode="decimal"
+                value={pp}
+                onChange={(e) => applyPurchase(e.target.value, pq)}
+              />
+              <Input
+                label={t("inv.field.purchaseQty", lang)}
+                inputMode="decimal"
+                value={pq}
+                onChange={(e) => applyPurchase(pp, e.target.value)}
+              />
+            </div>
+            <p className="text-[10.5px] text-[var(--color-ink-500)] mt-1.5">
+              {t("inv.field.autoCostHint", lang)}
+            </p>
           </div>
           <Input
             label={t("inv.field.lowThreshold", lang)}
