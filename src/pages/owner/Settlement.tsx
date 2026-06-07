@@ -1,11 +1,14 @@
 import { useMemo, useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, ScanLine } from "lucide-react";
 import { OwnerShell } from "../../components/layout/OwnerShell";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
 import { useStore } from "../../store/store";
 import { useLanguage, t, fmtKRW, type Lang } from "../../lib/i18n";
 import { useModalChrome } from "../../lib/useModalChrome";
+import { resizeImage } from "./PhotoVault";
+import { api } from "../../lib/api";
+import { showToast } from "../../lib/toast";
 import type { ExpenseCategory } from "../../lib/types";
 
 // 인건비(labor)는 근태×시급으로 자동 집계되므로 수동 입력 카테고리에서 제외 → 이중 차감 방지
@@ -268,6 +271,33 @@ function ExpenseModal({
   const [date, setDate] = useState(todayStr);
   const [memo, setMemo] = useState("");
   const [busy, setBusy] = useState(false);
+  const [scanning, setScanning] = useState(false);
+
+  // 영수증 사진 → AI 추출 → 폼 자동 채움. 사장님은 확인 후 저장만 (진입장벽↓).
+  const onReceipt = async (file: File) => {
+    if (scanning) return;
+    setScanning(true);
+    try {
+      const dataUrl = await resizeImage(file, 1600); // 영수증 글자 인식 위해 약간 크게
+      const res = await fetch(api("/api/ai/receipt"), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ image: dataUrl }),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      const r = await res.json();
+      if (r.category && (CATEGORIES as string[]).includes(r.category)) setCategory(r.category);
+      if (r.amount && Number(r.amount) > 0) setAmount(String(Math.round(Number(r.amount))));
+      if (typeof r.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(r.date)) setDate(r.date);
+      const note = [r.vendor, r.memo].filter(Boolean).join(" · ");
+      if (note) setMemo(note);
+      showToast(t("settle.receipt.done", lang), "success");
+    } catch {
+      showToast(t("settle.receipt.fail", lang), "error");
+    } finally {
+      setScanning(false);
+    }
+  };
 
   const submit = async () => {
     const amt = Number(amount);
@@ -293,9 +323,26 @@ function ExpenseModal({
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-[440px] mx-auto bg-white rounded-t-[28px] sm:rounded-[28px] sm:my-4 max-h-[92vh] overflow-y-auto p-5 pb-[max(env(safe-area-inset-bottom),20px)] animate-[gyeol-slide-up_.2s_ease-out]"
       >
-        <h2 className="text-[18px] font-extrabold text-[var(--color-navy-900)] mb-4">
+        <h2 className="text-[18px] font-extrabold text-[var(--color-navy-900)] mb-3">
           {t("settle.addExpense", lang)}
         </h2>
+        {/* 영수증 촬영 → AI 자동 채움 */}
+        <label className="mb-4 flex items-center justify-center gap-2 h-12 rounded-[14px] border-[1.5px] border-dashed border-[var(--color-navy-300)] bg-[var(--color-navy-50)] text-[13.5px] font-bold text-[var(--color-navy-700)] cursor-pointer active:scale-[0.99] transition-transform">
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            disabled={scanning}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) onReceipt(f);
+              e.currentTarget.value = "";
+            }}
+          />
+          <ScanLine className="w-4 h-4" />
+          {scanning ? t("settle.receipt.scanning", lang) : t("settle.receipt.scan", lang)}
+        </label>
         <div className="space-y-3">
           <div>
             <label className="text-[12px] font-bold text-[var(--color-ink-600)] mb-1 block">

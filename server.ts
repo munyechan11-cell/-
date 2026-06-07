@@ -700,6 +700,85 @@ app.post('/api/ai/floor-plan', async (req, res) => {
 });
 
 // ============================================================
+// AI RECEIPT — 영수증 사진에서 지출 정보 추출 (ERP 진입장벽↓)
+// 영수증 촬영 한 장으로 매출장부 비용 입력을 자동 채운다.
+// ============================================================
+app.post('/api/ai/receipt', async (req, res) => {
+  const ip = String(req.ip || 'unknown').split(',')[0].trim();
+  const rl = checkAiRateLimit(ip);
+  if (!rl.ok) {
+    return res.status(429).json({
+      error: rl.reason === 'minute'
+        ? '잠시 후 다시 시도해 주세요 (분당 4회 제한).'
+        : '요청이 너무 빠릅니다. 10초 후 다시 시도해 주세요.',
+    });
+  }
+  const { image } = req.body ?? {};
+  if (!image || typeof image !== 'string' || !image.startsWith('data:image/')) {
+    return res.status(400).json({ error: 'image (data URL) is required' });
+  }
+  const MAX_IMG_BYTES = 8 * 1024 * 1024;
+  const b64Body = image.split(',')[1] ?? '';
+  if (Math.floor((b64Body.length * 3) / 4) > MAX_IMG_BYTES) {
+    return res.status(413).json({ error: '영수증 이미지가 너무 큽니다. 8MB 이하로 줄여 주세요.' });
+  }
+  const geminiKey = process.env.GEMINI_API_KEY;
+  if (!geminiKey) return res.status(503).json({ error: 'AI_NOT_CONFIGURED' });
+  const m = image.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
+  if (!m) return res.status(400).json({ error: 'invalid image data URL' });
+  const mediaType = m[1];
+  const ALLOWED = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
+  if (!ALLOWED.has(mediaType)) {
+    return res.status(400).json({ error: `unsupported image type: ${mediaType}` });
+  }
+  const b64 = m[2];
+  const todayKST = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+  const systemPrompt = `당신은 한국 식당 사장님의 영수증·거래명세서 사진에서 지출 정보를 추출합니다.
+JSON 만 출력. 스키마:
+{ "amount": 숫자, "vendor": "상호명", "date": "YYYY-MM-DD", "category": "rent|material|utility|marketing|other", "memo": "간단 메모" }
+규칙:
+- amount: 최종 결제 합계(VAT 포함). 콤마·₩·"원" 제거하고 숫자만.
+- date: 영수증 발행일. 안 보이면 "${todayKST}".
+- category: 임대료=rent, 식자재·재료·매입=material, 전기·가스·수도·통신=utility, 광고·마케팅=marketing, 그 외=other.
+- vendor: 가맹점/상호명. 없으면 "".
+- memo: 주요 품목 한 줄 요약(선택).
+- 안 보이는 값은 비우되 amount 는 최선 추정. 애매하면 category="other".`;
+  try {
+    const apiRes = await fetchWithTimeout(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: systemPrompt }] },
+          contents: [
+            {
+              role: 'user',
+              parts: [
+                { inlineData: { mimeType: mediaType, data: b64 } },
+                { text: '이 영수증에서 지출 정보를 위 스키마 JSON 으로 추출하세요.' },
+              ],
+            },
+          ],
+          generationConfig: { responseMimeType: 'application/json', temperature: 0.1, maxOutputTokens: 800 },
+        }),
+      },
+      30000
+    );
+    if (!apiRes.ok) {
+      const t = await apiRes.text();
+      throw new Error(`Gemini ${apiRes.status}: ${t.slice(0, 200)}`);
+    }
+    const data: any = await apiRes.json();
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+    return res.json(extractJson(text));
+  } catch (e: any) {
+    console.error('[AI receipt]', e?.message ?? e);
+    res.status(500).json({ error: e?.message ?? '영수증 분석 실패' });
+  }
+});
+
+// ============================================================
 // AI BUSINESS INSIGHT — 매장 데이터 자연어 분석
 // ============================================================
 // 사장님이 통계 페이지에서 미리 정의된 질문을 클릭 → 매장 요약 데이터 +
