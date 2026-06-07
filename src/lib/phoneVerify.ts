@@ -1,46 +1,53 @@
 /**
  * Firebase Auth Phone Verification 헬퍼.
  *
+ * ⚠️ 메인 세션 보호 — 전화 인증은 "보조 Firebase 앱"으로 격리한다.
+ *   signInWithPhoneNumber() 는 호출한 auth 의 currentUser 를 phone 계정으로 바꿔버린다.
+ *   메인 auth 로 하면 로그인된 Google/익명 세션이 파괴되고, 그걸 signOut→익명 회복으로
+ *   메우던 기존 방식이 불안정해 Firestore 쓰기에서 permission-denied("권한이 없습니다")를
+ *   유발했다. → 보조 앱으로 분리해 메인 세션을 절대 건드리지 않는다.
+ *   인증 성공 후 호출처는 "원래 메인 세션 토큰"으로 users.{id}.phoneVerifiedAt 를 쓴다.
+ *
  * 사용 흐름:
- *   1. ensureRecaptcha(containerId) — invisible reCAPTCHA 컨테이너 마운트 (1회)
- *   2. sendVerificationCode("010-1234-5678") → ConfirmationResult
- *   3. user 가 받은 6자리 코드 입력 → confirmCode(result, code) → 검증된 phoneNumber 반환
+ *   1. sendVerificationCode("010-1234-5678", containerId) → ConfirmationResult (SMS 발송)
+ *   2. confirmCode(result, code) → 검증된 phoneNumber 반환 (보조 세션만 정리)
  *
- * 주의:
- *   - 부팅 시 익명 로그인된 상태라면 phone 인증 시 익명 → phone account 로 자동 업그레이드됨.
- *     기존 소셜 계정과 연결하려면 confirmCode 호출 후 우리 측 users.{id}.phoneVerifiedAt 갱신만으로 충분 —
- *     phone Firebase user 는 검증 용도로만 사용하고 즉시 sign out 처리.
- *   - reCAPTCHA Verifier 는 한 번 호출되면 재사용 불가 — 매 send 마다 새로 생성.
- *
- * 비용 (한국 +82): SMS 1건당 약 $0.05. 무료 할당 미적용.
- * 비용 누수 방지 — 발송 직전에 E.164 변환 + 정규식 검증.
+ * 비용 (한국 +82): SMS 1건당 약 $0.05. 발송 직전 E.164 변환 + 정규식 검증으로 누수 차단.
  */
 import {
   RecaptchaVerifier,
   signInWithPhoneNumber,
-  type ConfirmationResult,
+  getAuth,
   signOut,
+  type ConfirmationResult,
+  type Auth,
 } from "firebase/auth";
-import { auth, ensureAnonymousAuth } from "./firebase";
+import { initializeApp, getApps } from "firebase/app";
+import { firebaseConfig } from "./firebase";
+
+// 전화 인증 전용 보조 앱 — 메인 세션과 분리. 1회 생성 후 재사용.
+let secondaryAuth: Auth | null = null;
+function getSecondaryAuth(): Auth {
+  if (secondaryAuth) return secondaryAuth;
+  const existing = getApps().find((a) => a.name === "gyeol-phone-verify");
+  const app2 = existing ?? initializeApp(firebaseConfig, "gyeol-phone-verify");
+  secondaryAuth = getAuth(app2);
+  return secondaryAuth;
+}
 
 /**
- * 'YYYY-MM-DD' 폼이 아닌 한국식 전화번호("010-1234-5678", "01012345678") 를
- * E.164 형식("+821012345678") 으로 변환. 변환 실패 시 null.
+ * 한국식 전화번호("010-1234-5678", "01012345678") → E.164("+821012345678"). 실패 시 null.
  */
 export function toE164KR(phone: string): string | null {
   const digits = (phone || "").replace(/\D/g, "");
   if (!digits) return null;
-  // 010, 011, 016, 017, 018, 019, 070, 02, 0xx
-  // 가장 흔한 010 (11자리), 그 외 0X로 시작하는 9~11자리
+  // 82로 시작하면 이미 국가코드 포함, 0으로 시작하면 0 제거 후 +82
   if (digits.startsWith("82")) return `+${digits}`;
   if (!digits.startsWith("0")) return null;
-  // 0 제거 후 +82 prefix
   return `+82${digits.slice(1)}`;
 }
 
-/**
- * E.164 한국 번호 정합성 — +8210, +8211 등으로 시작하고 10~11자리 끝.
- */
+/** E.164 한국 번호 정합성 — +8210 등으로 시작하고 적정 자리수. */
 export function isValidKRPhone(phone: string): boolean {
   const e164 = toE164KR(phone);
   if (!e164) return false;
@@ -50,47 +57,40 @@ export function isValidKRPhone(phone: string): boolean {
 let recaptcha: RecaptchaVerifier | null = null;
 
 /**
- * Invisible reCAPTCHA Verifier 매 send 마다 새로 생성.
- * RecaptchaVerifier 토큰은 verify() 1회 후 소진되므로 재사용 시 두 번째
- * sendVerificationCode 가 `auth/captcha-check-failed` 로 실패할 수 있다.
- * 따라서 매 호출마다 기존 인스턴스를 clear 하고 새로 만드는 것이 안전.
+ * Invisible reCAPTCHA — 매 send 마다 새로 생성(토큰은 verify 1회 후 소진).
+ * 보조 auth 에 바인딩한다.
  */
 function createFreshRecaptcha(containerId: string): RecaptchaVerifier {
-  if (!auth) throw new Error("Firebase Auth not configured");
+  const a = getSecondaryAuth();
   try {
     recaptcha?.clear();
   } catch (e) {
     console.warn("[phoneVerify] recaptcha clear failed", (e as any)?.message);
   }
-  recaptcha = new RecaptchaVerifier(auth, containerId, {
-    size: "invisible",
-  });
+  recaptcha = new RecaptchaVerifier(a, containerId, { size: "invisible" });
   return recaptcha;
 }
 
 /**
- * 인증번호 SMS 발송.
- * @param phone 한국식 전화번호 ("010-1234-5678" 등). 내부에서 E.164 변환.
- * @param containerId invisible reCAPTCHA 가 마운트될 DOM id (사라지지 않게 send 동안 유지)
- * @returns ConfirmationResult — confirmCode 에 전달
- * @throws Firebase 오류 (auth/invalid-phone-number, auth/too-many-requests 등)
+ * 인증번호 SMS 발송 (보조 앱 사용 — 메인 세션 불변).
+ * @throws Firebase 오류 (auth/invalid-phone-number, auth/too-many-requests 등) / "invalid-phone"
  */
 export async function sendVerificationCode(
   phone: string,
   containerId: string
 ): Promise<ConfirmationResult> {
-  if (!auth) throw new Error("Firebase Auth not configured");
   const e164 = toE164KR(phone);
   if (!e164 || !isValidKRPhone(phone)) {
     throw new Error("invalid-phone");
   }
   const verifier = createFreshRecaptcha(containerId);
-  return await signInWithPhoneNumber(auth, e164, verifier);
+  return await signInWithPhoneNumber(getSecondaryAuth(), e164, verifier);
 }
 
 /**
- * 6자리 코드 검증. 성공 시 Firebase user 의 phoneNumber 반환.
- * 즉시 sign out 처리해서 익명/소셜 세션이 phone user 로 바뀌는 사이드이펙트 차단.
+ * 6자리 코드 검증. 성공 시 검증된 phoneNumber 반환.
+ * 보조 세션만 sign out 한다 — 메인(소셜/익명) 세션은 그대로 유지되어,
+ * 직후 markPhoneVerified 의 Firestore 쓰기가 원래 토큰으로 정상 통과한다.
  */
 export async function confirmCode(
   result: ConfirmationResult,
@@ -98,19 +98,11 @@ export async function confirmCode(
 ): Promise<string> {
   const cred = await result.confirm(code);
   const phone = cred.user.phoneNumber ?? "";
-  // phone 검증 용도로만 사용 — 실제 앱 세션은 우리 users 컬렉션 기반이라
-  // 익명/소셜 세션을 그대로 두려면 sign out 후 다시 익명 토큰 받기.
-  // 다만 phone 인증 후 sign out 하면 현재 카카오/구글 사용자가 로그아웃되는
-  // 사이드이펙트 발생 가능. 호출처에서 인증 직후 우리 store 의 login() 을
-  // 곧장 호출해 다시 세션을 회복하는 패턴으로 사용.
   try {
-    if (auth) await signOut(auth);
+    await signOut(getSecondaryAuth());
   } catch (e) {
-    console.warn("[phoneVerify] signOut failed", (e as any)?.message);
+    console.warn("[phoneVerify] secondary signOut failed", (e as any)?.message);
   }
-  // 익명 토큰 회복 — 직후 Firestore 쓰기(markPhoneVerified)가 규칙(request.auth != null)에
-  // 막히지 않도록. 여기서 실패해도 markPhoneVerified 가 write 직전 한 번 더 보장한다.
-  if (auth) await ensureAnonymousAuth();
   return phone;
 }
 

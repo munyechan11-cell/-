@@ -10,7 +10,7 @@ import firebaseConfigFromJson from "../../firebase-applet-config.json";
 
 const env = (import.meta as any).env ?? {};
 
-const firebaseConfig = {
+export const firebaseConfig = {
   ...firebaseConfigFromJson,
   apiKey: env.VITE_FIREBASE_API_KEY || (firebaseConfigFromJson as any).apiKey,
   projectId: env.VITE_FIREBASE_PROJECT_ID || (firebaseConfigFromJson as any).projectId,
