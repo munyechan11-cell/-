@@ -26,6 +26,7 @@ import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
 import { EmptyState } from "../../components/ui/EmptyState";
+import { INDUSTRY_INGREDIENTS } from "../../lib/industryDefaults";
 import { increment } from "firebase/firestore";
 import { useStore } from "../../store/store";
 import { showToast } from "../../lib/toast";
@@ -38,6 +39,7 @@ type Tab = "list" | "recipe" | "cost";
 export default function OwnerInventory() {
   const {
     effectiveStoreId,
+    currentUser,
     ingredients,
     menus,
     orders,
@@ -51,6 +53,23 @@ export default function OwnerInventory() {
   const [tab, setTab] = useState<Tab>("list");
   const [editing, setEditing] = useState<Partial<Ingredient> | null>(null);
   const [restockTarget, setRestockTarget] = useState<Ingredient | null>(null);
+  const [loadingDefaults, setLoadingDefaults] = useState(false);
+
+  // 업종 기본 재료 일괄 등록 (ERP 차용 후속: 빈 화면 제거 → 진입장벽↓)
+  const loadDefaults = async () => {
+    if (loadingDefaults) return;
+    const industry = currentUser?.storeConfig?.industry ?? "general";
+    const defaults = INDUSTRY_INGREDIENTS[industry] ?? INDUSTRY_INGREDIENTS.general;
+    setLoadingDefaults(true);
+    try {
+      for (const d of defaults) {
+        await addIngredient(storeId, { name: d.name, unit: d.unit, stock: 0, unitCost: 0 });
+      }
+      showToast(t("inv.defaultsLoaded", lang, { n: defaults.length }), "success");
+    } finally {
+      setLoadingDefaults(false);
+    }
+  };
   const [restockAmount, setRestockAmount] = useState("");
   const [recipeMenu, setRecipeMenu] = useState<Menu | null>(null);
 
@@ -240,9 +259,17 @@ export default function OwnerInventory() {
                 title={t("inv.empty", lang)}
                 description={t("inv.empty.desc", lang)}
                 action={
-                  <Button onClick={() => setEditing({ name: "", unit: "", stock: 0, unitCost: 0 })}>
-                    {t("inv.add", lang)}
-                  </Button>
+                  <div className="flex flex-col items-center gap-2">
+                    <Button onClick={loadDefaults} loading={loadingDefaults}>
+                      {t("inv.loadDefaults", lang)}
+                    </Button>
+                    <button
+                      onClick={() => setEditing({ name: "", unit: "", stock: 0, unitCost: 0 })}
+                      className="text-[13px] font-bold text-[var(--color-ink-500)] hover:text-[var(--color-navy-700)] py-1"
+                    >
+                      {t("inv.addManual", lang)}
+                    </button>
+                  </div>
                 }
               />
             ) : (
