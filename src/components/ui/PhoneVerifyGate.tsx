@@ -24,6 +24,8 @@ export function PhoneVerifyGate() {
   if (!currentUser) return null;
   if (currentUser.role !== "owner" && currentUser.role !== "staff" && currentUser.role !== "customer") return null;
   if (currentUser.phoneVerifiedAt) return null;
+  // 소셜(구글/카카오)로 신원이 확인된 사용자는 SMS 인증 면제 — 비용 절감 + UX 개선
+  if (currentUser.googleId || currentUser.kakaoId || (currentUser.socialIds?.length ?? 0) > 0) return null;
   if (!currentUser.phone) return null; // 인증할 번호 없음
   if (done) return null;
 
