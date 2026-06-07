@@ -7,6 +7,8 @@ import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
 import { useStore } from "../../store/store";
+import { auth } from "../../lib/firebase";
+import { api } from "../../lib/api";
 import { showToast } from "../../lib/toast";
 import { getCurrentPosition } from "../../lib/geo";
 import { TIER_ORDER } from "../../lib/tier";
@@ -93,6 +95,7 @@ export default function BrandSettings() {
   const [locationOnly, setLocationOnly] = useState(!!cfg?.locationAccessOnly);
   const [radius, setRadius] = useState(String(cfg?.allowedRadius ?? 100));
   const [tossKey, setTossKey] = useState(cfg?.tossClientKey ?? "");
+  const [tossSecret, setTossSecret] = useState(""); // write-only — 보안상 화면에 표시하지 않음
   const [kioskEnabled, setKioskEnabled] = useState(!!cfg?.kioskEnabled);
 
   const [tierNames, setTierNames] = useState<Record<string, string>>(currentUser?.tierNames ?? {});
@@ -138,6 +141,21 @@ export default function BrandSettings() {
       tossClientKey: (tossKey || null) as any,
       kioskEnabled,
     });
+    // 시크릿 키 — 입력했을 때만 서버 보안 컬렉션(store_secrets)에 저장. 클라이언트엔 남기지 않음.
+    if (tossSecret.trim()) {
+      try {
+        const idToken = await auth?.currentUser?.getIdToken();
+        const res = await fetch(api("/api/store/toss-secret"), {
+          method: "POST",
+          headers: { "content-type": "application/json", authorization: `Bearer ${idToken ?? ""}` },
+          body: JSON.stringify({ storeId, secretKey: tossSecret.trim() }),
+        });
+        if (res.ok) setTossSecret("");
+        else showToast(t("obs.toss.secretFail", lang), "error");
+      } catch {
+        showToast(t("obs.toss.secretFail", lang), "error");
+      }
+    }
     // 화면 입력값도 클램프 결과로 정정
     setPointRate(String(rate));
     setStampMax(String(stamps));
@@ -423,6 +441,16 @@ export default function BrandSettings() {
 
         <Sec title={t("obs.sec.payment", lang)}>
           <Input label={t("obs.payment.toss", lang)} value={tossKey} onChange={(e) => setTossKey(e.target.value)} />
+          <Input
+            label={t("obs.payment.tossSecret", lang)}
+            type="password"
+            value={tossSecret}
+            onChange={(e) => setTossSecret(e.target.value)}
+            placeholder={t("obs.payment.tossSecretPh", lang)}
+          />
+          <p className="text-[12px] text-[var(--color-ink-500)] mt-1 leading-relaxed">
+            {t("obs.payment.tossSecretHelp", lang)}
+          </p>
         </Sec>
 
         <Sec title={t("obs.sec.kiosk", lang)}>

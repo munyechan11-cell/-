@@ -1467,6 +1467,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           paymentKey: params.paymentKey,
           orderId: params.orderId,
           amount: params.amount,
+          storeId: params.storeId, // 매장별 시크릿 키로 confirm (멀티테넌트 정산)
         }),
       });
       if (!res.ok) {

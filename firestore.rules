@@ -65,6 +65,11 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // 매장 토스 시크릿 키 — 서버(Admin SDK) 전용. 클라이언트는 읽기·쓰기 모두 불가.
+    match /store_secrets/{storeId} {
+      allow read, write: if false;
+    }
+
     // 명시되지 않은 모든 경로 — 기본 거부
     match /{document=**} {
       allow read, write: if false;
