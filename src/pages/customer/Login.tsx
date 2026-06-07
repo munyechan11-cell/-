@@ -240,18 +240,12 @@ export default function CustomerLogin() {
       showToast(t("login.err.requiredTerms"), "error");
       return;
     }
-    // 소셜(구글/카카오) 가입은 이미 신원이 확인됨 → SMS 인증 생략 (비용 절감 + 가입 단계 단축).
-    // 일반(전화) 가입만 SMS 인증 단계로 진입.
-    if (social) {
-      completeSignup();
-    } else {
-      setShowPhoneVerify(true);
-    }
+    // 약관 통과 → 전번 SMS 인증 단계로. 소셜·일반 모두 "가입 시 1회" 인증해
+    // 전화번호 신뢰성을 확보한다(사장님 데이터 활용). 인증 후에는 재인증 없음.
+    setShowPhoneVerify(true);
   };
 
-  // 가입 완료 → login() 호출.
-  //  - 일반(전화) 가입: SMS 인증 성공 후 호출되며 phoneVerifiedAt 마킹
-  //  - 소셜 가입: SMS 없이 호출되며 socialId 로 신원 식별 (phoneVerifiedAt 생략)
+  // 가입 완료 → login() 호출. SMS 인증 성공 후 호출되며 phoneVerifiedAt 마킹(가입 시 1회).
   const completeSignup = async () => {
     setLoading(true);
     try {
@@ -271,8 +265,7 @@ export default function CustomerLogin() {
           : undefined,
         isPohangResident: isPohangResident ?? undefined,
         privacyAgreedAt: new Date().toISOString(),
-        // 소셜 가입은 SMS 미인증 → phoneVerifiedAt 생략 (Gate가 socialId로 통과시킴)
-        phoneVerifiedAt: social ? undefined : new Date().toISOString(),
+        phoneVerifiedAt: new Date().toISOString(), // 가입 시 1회 인증 완료 마킹
       });
       setShowPhoneVerify(false);
       onAfterLogin();
