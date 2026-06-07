@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Plus, Trash2, ScanLine } from "lucide-react";
+import { Plus, Trash2, ScanLine, Copy } from "lucide-react";
 import { OwnerShell } from "../../components/layout/OwnerShell";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
@@ -194,6 +194,16 @@ export default function Settlement() {
                   <span className="text-[14px] font-bold tabular-nums text-[var(--color-navy-900)] shrink-0">
                     {fmtKRW(e.amount)}
                   </span>
+                  <button
+                    onClick={() => {
+                      addExpense(storeId, { category: e.category, amount: e.amount, date: todayStr, memo: e.memo });
+                      showToast(t("settle.copied", lang), "success");
+                    }}
+                    className="w-8 h-8 rounded-full hover:bg-[var(--color-navy-50)] inline-flex items-center justify-center text-[var(--color-ink-500)] shrink-0"
+                    aria-label={t("settle.copyAria", lang)}
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                  </button>
                   <button
                     onClick={() => {
                       if (confirm(t("settle.deleteConfirm", lang))) deleteExpense(e.id);

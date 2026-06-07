@@ -25,6 +25,7 @@ import { OwnerShell } from "../../components/layout/OwnerShell";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
+import { EmptyState } from "../../components/ui/EmptyState";
 import { increment } from "firebase/firestore";
 import { useStore } from "../../store/store";
 import { showToast } from "../../lib/toast";
@@ -234,9 +235,16 @@ export default function OwnerInventory() {
         {tab === "list" && (
           <>
             {myIngredients.length === 0 ? (
-              <Card padding="lg" className="text-center text-[14px] text-[var(--color-ink-500)]">
-                {t("inv.empty", lang)}
-              </Card>
+              <EmptyState
+                icon={<Boxes className="w-7 h-7" />}
+                title={t("inv.empty", lang)}
+                description={t("inv.empty.desc", lang)}
+                action={
+                  <Button onClick={() => setEditing({ name: "", unit: "", stock: 0, unitCost: 0 })}>
+                    {t("inv.add", lang)}
+                  </Button>
+                }
+              />
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
                 {myIngredients.map((ing) => {

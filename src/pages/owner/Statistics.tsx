@@ -120,7 +120,21 @@ export default function OwnerStatistics() {
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
 
-    return { revenue, periodVisits, uniqueCustomers, avg, hourly, weekday, topMenus };
+    // 직전 동기간 매출 → 전기 대비 증감(%) (ERP 차용: 비교 인사이트)
+    const periodMs = (range === "day" ? 1 : range === "week" ? 7 : 30) * 86_400_000;
+    const prevCutoff = cutoff - periodMs;
+    const prevRevenue = orders
+      .filter(
+        (o) =>
+          o.storeId === storeId &&
+          o.status !== "cancelled" &&
+          new Date(o.createdAt).getTime() >= prevCutoff &&
+          new Date(o.createdAt).getTime() < cutoff
+      )
+      .reduce((s, o) => s + o.totalAmount, 0);
+    const changeRate = prevRevenue > 0 ? Math.round(((revenue - prevRevenue) / prevRevenue) * 100) : null;
+
+    return { revenue, periodVisits, uniqueCustomers, avg, hourly, weekday, topMenus, changeRate };
   }, [visits, orders, storeId, range]);
 
   // tier distribution (all customers)
@@ -139,6 +153,11 @@ export default function OwnerStatistics() {
   }, [visits, tierOverrides, storeId]);
 
   const maxHour = Math.max(...Object.values(stats.hourly), 1);
+  // 가장 바쁜 시간대 (ERP 차용: 피크 강조 → 인력배치·이벤트 타이밍)
+  const peakHour = Array.from({ length: 24 }, (_, h) => h).reduce(
+    (mx, h) => (stats.hourly[h] > stats.hourly[mx] ? h : mx),
+    0
+  );
   const maxWeek = Math.max(...Object.values(stats.weekday), 1);
   const totalTierUsers = Object.values(tierDist).reduce((a, b) => a + b, 0) || 1;
 
@@ -162,6 +181,11 @@ export default function OwnerStatistics() {
         <Card className="mt-4 bg-[var(--color-navy-700)] border-transparent text-white p-6 lg:p-8 shadow-[var(--shadow-navy)]">
           <p className="label-xs text-white/70">{t("ostat.totalRev", lang)}</p>
           <p className="mt-2 text-[36px] lg:text-[48px] font-extrabold tracking-tighter tabular-nums">{fmtKRW(stats.revenue, lang)}</p>
+          {stats.changeRate != null && (
+            <p className={`mt-1 text-[13px] font-bold ${stats.changeRate >= 0 ? "text-[#7be8c4]" : "text-[#ffb4b4]"}`}>
+              {stats.changeRate >= 0 ? "▲" : "▼"} {Math.abs(stats.changeRate)}% · {t("ostat.vsPrev", lang)}
+            </p>
+          )}
           <div className="grid grid-cols-3 mt-5 pt-5 border-t border-white/15 text-[13px]">
             <Stat label={t("ostat.stat.visits", lang)} value={`${stats.periodVisits.length}${t("ostat.unit.count", lang)}`} />
             <Stat label={t("ostat.stat.unique", lang)} value={`${stats.uniqueCustomers}${t("ostat.unit.people", lang)}`} />
@@ -290,7 +314,7 @@ export default function OwnerStatistics() {
               return (
                 <div key={h} className="flex-1 flex flex-col items-center justify-end h-full">
                   <div
-                    className="w-full rounded-t bg-[var(--color-navy-700)]/80 transition-all"
+                    className={`w-full rounded-t transition-all ${h === peakHour && v > 0 ? "bg-[var(--color-mint-700)]" : "bg-[var(--color-navy-700)]/80"}`}
                     style={{ height: `${Math.max(pct, 2)}%` }}
                     title={t("ostat.hourly.tip", lang, { h, n: v })}
                   />
@@ -305,6 +329,13 @@ export default function OwnerStatistics() {
             <span>{t("ostat.hour18", lang)}</span>
             <span>{t("ostat.hour23", lang)}</span>
           </div>
+          {stats.periodVisits.length > 0 && (
+            <div className="mt-3">
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[var(--color-mint-50)] text-[var(--color-mint-700)] text-[11.5px] font-bold">
+                🔥 {t("ostat.peakHour", lang, { h: peakHour })}
+              </span>
+            </div>
+          )}
         </Card>
 
         </div>
