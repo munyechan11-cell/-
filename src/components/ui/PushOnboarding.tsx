@@ -56,9 +56,10 @@ export function PushOnboarding() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    // 사장님/직원만, 로그인 상태일 때만
+    // 사장님/직원/손님 모두 — 로그인 상태일 때만
+    // 손님: 쿠폰·혜택 도착 알림을 받게 하여 재방문 유도(소셜 손님 도달 보강)
     if (!currentUser) return;
-    if (currentUser.role !== "owner" && currentUser.role !== "staff") return;
+    if (currentUser.role !== "owner" && currentUser.role !== "staff" && currentUser.role !== "customer") return;
 
     // 7일 cooldown 체크
     const stored = loadState();

@@ -983,7 +983,7 @@ app.post('/api/print-bridge/exchange', async (req, res) => {
 
 interface PushIn {
   storeId: string;
-  kind: "new-order" | "payment-request" | "staff-join" | "coupon-request" | "test";
+  kind: "new-order" | "payment-request" | "staff-join" | "coupon-request" | "test" | "coupon-issued";
   title: string;
   body: string;
   focusUrl?: string;
@@ -1010,6 +1010,7 @@ async function sendPushToOwner(input: PushIn): Promise<{ sent: number; failed: n
       (input.kind === 'payment-request' && prefs.paymentRequest !== false) ||
       (input.kind === 'staff-join' && prefs.staffJoin !== false) ||
       (input.kind === 'coupon-request' && prefs.couponRequest !== false) ||
+      input.kind === 'coupon-issued' || // 손님 쿠폰/혜택 도착 — 기본 ON
       input.kind === 'test';
     if (!enabled) return { sent: 0, failed: 0 };
 
@@ -1191,6 +1192,7 @@ async function runMarketingAutomation(db: any): Promise<{ birthdayIssued: number
 
         let batch = db.batch();
         let n = 0;
+        const pushTargets: Array<{ cid: string; type: string }> = [];
         const issue = (cid: string, type: string, descKey: string) => {
           const ref = db.collection('coupons').doc();
           batch.set(ref, {
@@ -1204,6 +1206,7 @@ async function runMarketingAutomation(db: any): Promise<{ birthdayIssued: number
             issuedAt: new Date().toISOString(),
           });
           n++;
+          pushTargets.push({ cid, type });
         };
 
         for (const [cid, last] of lastVisit) {
@@ -1225,6 +1228,21 @@ async function runMarketingAutomation(db: any): Promise<{ birthdayIssued: number
           }
         }
         if (n > 0) await batch.commit();
+
+        // 발급받은 손님에게 쿠폰 도착 푸시(도달 보강). 토큰 미등록 손님은 자동 스킵(sent:0).
+        const storeName = owner.restaurantName || '단골 매장';
+        for (const tgt of pushTargets) {
+          const title = tgt.type === 'birthday'
+            ? '🎂 생일 축하 쿠폰이 도착했어요'
+            : '🎁 다시 만나요, 쿠폰이 도착했어요';
+          await sendPushToOwner({
+            storeId: tgt.cid, // 손님 users 문서로 발송(필드명만 storeId)
+            kind: 'coupon-issued',
+            title,
+            body: `${storeName}에서 보낸 혜택을 쿠폰함에서 확인해보세요`,
+            focusUrl: '/customer',
+          });
+        }
       } catch (e: any) {
         console.error(`[marketing-cron] store ${storeId} failed`, e?.message);
       }

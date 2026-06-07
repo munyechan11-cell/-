@@ -1,5 +1,6 @@
 import React from "react";
 import { cn } from "../../lib/cn";
+import { PushOnboarding } from "../ui/PushOnboarding";
 
 interface Props {
   children: React.ReactNode;
@@ -25,6 +26,8 @@ export function MobileShell({ children, bottomNav, className, framed = true }: P
           className
         )}
       >
+        {/* 로그인된 손님이면 푸시 권한 사전 안내(쿠폰·혜택 도착 알림). 비로그인/타역할이면 자동 무표시 */}
+        <PushOnboarding />
         <main
           className={cn(
             framed ? "lg:flex-1 lg:overflow-y-auto" : "",
