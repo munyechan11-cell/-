@@ -154,6 +154,7 @@ interface StoreState {
   ) => Promise<number>;
   /** 사장님 측 — 결제 승인. paid 처리 + 총 영수증 인쇄. table.status: paid */
   approvePayment: (storeId: string, tableNumber: number) => Promise<number>;
+  moveOrdersTable: (storeId: string, fromTable: number, toTable: number) => Promise<void>;
   /** 손님/사장님 카드결제 성공(토스 successUrl) → 서버 confirm + 해당 손님 미결제 주문 paid. */
   confirmTossPayment: (params: {
     storeId: string;
@@ -1794,6 +1795,23 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     [users, currentUser, setCurrentUser]
   );
 
+  // 대기 탭의 미결제 주문을 실제 테이블로 이동 (구두주문 후 손님이 자리 잡으면)
+  const moveOrdersTable = useCallback(
+    async (storeId: string, fromTable: number, toTable: number) => {
+      const targets = ordersRef.current.filter(
+        (o) =>
+          o.storeId === storeId &&
+          o.tableNumber === fromTable &&
+          o.status !== "cancelled" &&
+          o.paymentStatus !== "paid"
+      );
+      for (const o of targets) {
+        await updateFirestoreDoc("orders", o.id, { tableNumber: toTable });
+      }
+    },
+    []
+  );
+
   const updateStoreLocation = useCallback(
     async (storeId: string, lat: number, lng: number) => {
       await updateFirestoreDoc("users", storeId, { lat, lng });
@@ -2110,6 +2128,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       updateOrderStatus,
       payTableSession,
       approvePayment,
+      moveOrdersTable,
       confirmTossPayment,
       completeTable,
       printInterimReceipt,
@@ -2196,6 +2215,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       updateOrderStatus,
       payTableSession,
       approvePayment,
+      moveOrdersTable,
       confirmTossPayment,
       completeTable,
       printInterimReceipt,

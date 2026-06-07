@@ -24,6 +24,7 @@ import {
   Wallet,
   Monitor,
   Tablet,
+  Zap,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useStore } from "../../store/store";
@@ -63,6 +64,7 @@ const NAV: NavItem[] = [
   // 운영 — 매일 쓰는 현장 기능
   { to: "/biz/owner", labelKey: "ownerNav.dashboard", icon: LayoutDashboard, end: true, group: "operation" },
   { to: "/biz/owner/orders", labelKey: "ownerNav.orders", icon: ChefHat, staff: true, group: "operation" },
+  { to: "/biz/owner/quick-order", labelKey: "ownerNav.quickOrder", icon: Zap, group: "operation" },
   { to: "/biz/owner/kitchen", labelKey: "ownerNav.kitchen", icon: Monitor, staff: true, group: "operation" },
   { to: "/biz/owner/kiosk", labelKey: "ownerNav.kiosk", icon: Tablet, group: "operation" },
   { to: "/biz/owner/tables", labelKey: "ownerNav.tables", icon: LayoutGrid, staff: true, group: "operation" },
