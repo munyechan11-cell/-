@@ -255,6 +255,10 @@ const dict: Record<string, string> = {
   "landing.tagline": "GYEOL · Connecting with care",
   "landing.bizEntry": "Store operator →",
 
+  "navGroup.operation": "Operations",
+  "navGroup.customer": "Customers",
+  "navGroup.management": "Management",
+  "navGroup.settings": "Settings",
   "ownerNav.dashboard": "Dashboard",
   "ownerNav.orders": "Orders & Coupons",
   "ownerNav.tables": "Table layout",

@@ -52,29 +52,38 @@ type NavItem = {
   staff?: boolean;
   /** staff가 출근하지 않아도 접근 가능한지 */
   staffFree?: boolean;
+  /** 사이드바 그룹 — 사장님 메뉴 분류 */
+  group?: NavGroup;
 };
 
+type NavGroup = "operation" | "customer" | "management" | "settings";
+const NAV_GROUPS: NavGroup[] = ["operation", "customer", "management", "settings"];
+
 const NAV: NavItem[] = [
-  { to: "/biz/owner", labelKey: "ownerNav.dashboard", icon: LayoutDashboard, end: true },
-  { to: "/biz/owner/orders", labelKey: "ownerNav.orders", icon: ChefHat, staff: true },
-  { to: "/biz/owner/kitchen", labelKey: "ownerNav.kitchen", icon: Monitor, staff: true },
-  { to: "/biz/owner/kiosk", labelKey: "ownerNav.kiosk", icon: Tablet },
-  { to: "/biz/owner/tables", labelKey: "ownerNav.tables", icon: LayoutGrid, staff: true },
-  { to: "/biz/owner/menus", labelKey: "ownerNav.menus", icon: UtensilsCrossed, staff: true },
-  { to: "/biz/owner/inventory", labelKey: "ownerNav.inventory", icon: Package },
-  { to: "/biz/owner/customers", labelKey: "ownerNav.customers", icon: Users },
-  { to: "/biz/owner/marketing", labelKey: "ownerNav.marketing", icon: Megaphone },
-  { to: "/biz/owner/reservations", labelKey: "ownerNav.reservations", icon: Calendar, staff: true, staffFree: true },
-  { to: "/biz/owner/statistics", labelKey: "ownerNav.statistics", icon: BarChart3 },
-  { to: "/biz/owner/settlement", labelKey: "ownerNav.settlement", icon: Wallet },
-  { to: "/biz/owner/photos", labelKey: "ownerNav.reviews", icon: ImageIcon, staff: true },
-  { to: "/biz/owner/qr-print", labelKey: "ownerNav.qrPrint", icon: QrCode, staff: true },
-  { to: "/biz/owner/staff", labelKey: "ownerNav.staff", icon: Briefcase },
-  { to: "/biz/owner/brand-settings", labelKey: "ownerNav.brand", icon: Settings },
-  { to: "/biz/owner/help", labelKey: "ownerNav.help", icon: HelpCircle, staff: true, staffFree: true },
+  // 운영 — 매일 쓰는 현장 기능
+  { to: "/biz/owner", labelKey: "ownerNav.dashboard", icon: LayoutDashboard, end: true, group: "operation" },
+  { to: "/biz/owner/orders", labelKey: "ownerNav.orders", icon: ChefHat, staff: true, group: "operation" },
+  { to: "/biz/owner/kitchen", labelKey: "ownerNav.kitchen", icon: Monitor, staff: true, group: "operation" },
+  { to: "/biz/owner/kiosk", labelKey: "ownerNav.kiosk", icon: Tablet, group: "operation" },
+  { to: "/biz/owner/tables", labelKey: "ownerNav.tables", icon: LayoutGrid, staff: true, group: "operation" },
+  { to: "/biz/owner/menus", labelKey: "ownerNav.menus", icon: UtensilsCrossed, staff: true, group: "operation" },
+  // 고객 — 고객관계·마케팅
+  { to: "/biz/owner/customers", labelKey: "ownerNav.customers", icon: Users, group: "customer" },
+  { to: "/biz/owner/marketing", labelKey: "ownerNav.marketing", icon: Megaphone, group: "customer" },
+  { to: "/biz/owner/reservations", labelKey: "ownerNav.reservations", icon: Calendar, staff: true, staffFree: true, group: "customer" },
+  { to: "/biz/owner/photos", labelKey: "ownerNav.reviews", icon: ImageIcon, staff: true, group: "customer" },
+  // 경영 — 재고·정산·인사
+  { to: "/biz/owner/inventory", labelKey: "ownerNav.inventory", icon: Package, group: "management" },
+  { to: "/biz/owner/statistics", labelKey: "ownerNav.statistics", icon: BarChart3, group: "management" },
+  { to: "/biz/owner/settlement", labelKey: "ownerNav.settlement", icon: Wallet, group: "management" },
+  { to: "/biz/owner/staff", labelKey: "ownerNav.staff", icon: Briefcase, group: "management" },
+  // 설정
+  { to: "/biz/owner/qr-print", labelKey: "ownerNav.qrPrint", icon: QrCode, staff: true, group: "settings" },
+  { to: "/biz/owner/brand-settings", labelKey: "ownerNav.brand", icon: Settings, group: "settings" },
+  { to: "/biz/owner/help", labelKey: "ownerNav.help", icon: HelpCircle, staff: true, staffFree: true, group: "settings" },
 ];
 
-const STAFF_DASHBOARD: NavItem = { to: "/biz/staff", labelKey: "ownerNav.dashboard", icon: LayoutDashboard, end: true, staff: true, staffFree: true };
+const STAFF_DASHBOARD: NavItem = { to: "/biz/staff", labelKey: "ownerNav.dashboard", icon: LayoutDashboard, end: true, staff: true, staffFree: true, group: "operation" };
 
 export function OwnerShell({ children, title, headerRight, width = "default" }: Props) {
   const { currentUser, users, logout, activeShift, clockIn, clockOut, updateBrandSettings } = useStore();
@@ -151,29 +160,40 @@ export function OwnerShell({ children, title, headerRight, width = "default" }: 
           </div>
         </Link>
 
-        <nav className="flex-1 overflow-y-auto p-3 space-y-0.5">
-          {navItems.map((n) => {
-            const locked = isStaff && !n.staffFree && !n.end && !onDuty;
+        <nav className="flex-1 overflow-y-auto p-3 space-y-3">
+          {NAV_GROUPS.map((g) => {
+            const items = navItems.filter((n) => n.group === g);
+            if (items.length === 0) return null;
             return (
-              <NavLink
-                key={n.to}
-                to={n.to}
-                end={n.end}
-                onClick={(e) => handleStaffLinkClick(n, e)}
-                className={({ isActive }) =>
-                  cn(
-                    "flex items-center gap-3 h-12 px-3.5 rounded-xl text-[14.5px] font-semibold transition-colors",
-                    isActive
-                      ? "bg-[var(--color-navy-700)] text-white shadow-[var(--shadow-navy)]"
-                      : "text-[var(--color-ink-700)] hover:bg-[var(--color-navy-50)] hover:text-[var(--color-navy-800)]",
-                    locked && "opacity-50"
-                  )
-                }
-              >
-                <n.icon className="w-[18px] h-[18px] shrink-0" />
-                <span className="flex-1">{t(n.labelKey, lang)}</span>
-                {locked && <Lock className="w-3.5 h-3.5" />}
-              </NavLink>
+              <div key={g} className="space-y-0.5">
+                <p className="px-3.5 pb-1 text-[10.5px] font-bold uppercase tracking-wider text-[var(--color-ink-400)]">
+                  {t(`navGroup.${g}`, lang)}
+                </p>
+                {items.map((n) => {
+                  const locked = isStaff && !n.staffFree && !n.end && !onDuty;
+                  return (
+                    <NavLink
+                      key={n.to}
+                      to={n.to}
+                      end={n.end}
+                      onClick={(e) => handleStaffLinkClick(n, e)}
+                      className={({ isActive }) =>
+                        cn(
+                          "flex items-center gap-3 h-12 px-3.5 rounded-xl text-[14.5px] font-semibold transition-colors",
+                          isActive
+                            ? "bg-[var(--color-navy-700)] text-white shadow-[var(--shadow-navy)]"
+                            : "text-[var(--color-ink-700)] hover:bg-[var(--color-navy-50)] hover:text-[var(--color-navy-800)]",
+                          locked && "opacity-50"
+                        )
+                      }
+                    >
+                      <n.icon className="w-[18px] h-[18px] shrink-0" />
+                      <span className="flex-1">{t(n.labelKey, lang)}</span>
+                      {locked && <Lock className="w-3.5 h-3.5" />}
+                    </NavLink>
+                  );
+                })}
+              </div>
             );
           })}
         </nav>
@@ -212,32 +232,43 @@ export function OwnerShell({ children, title, headerRight, width = "default" }: 
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <nav className="flex-1 overflow-y-auto p-3 space-y-0.5">
-              {navItems.map((n) => {
-                const locked = isStaff && !n.staffFree && !n.end && !onDuty;
+            <nav className="flex-1 overflow-y-auto p-3 space-y-3">
+              {NAV_GROUPS.map((g) => {
+                const items = navItems.filter((n) => n.group === g);
+                if (items.length === 0) return null;
                 return (
-                  <NavLink
-                    key={n.to}
-                    to={n.to}
-                    end={n.end}
-                    onClick={(e) => {
-                      handleStaffLinkClick(n, e);
-                      if (!e.defaultPrevented) setDrawerOpen(false);
-                    }}
-                    className={({ isActive }) =>
-                      cn(
-                        "flex items-center gap-3 h-12 px-3.5 rounded-xl text-[15px] font-semibold transition-colors",
-                        isActive
-                          ? "bg-[var(--color-navy-700)] text-white"
-                          : "text-[var(--color-ink-700)] hover:bg-[var(--color-navy-50)]",
-                        locked && "opacity-50"
-                      )
-                    }
-                  >
-                    <n.icon className="w-5 h-5 shrink-0" />
-                    <span className="flex-1">{t(n.labelKey, lang)}</span>
-                    {locked && <Lock className="w-4 h-4" />}
-                  </NavLink>
+                  <div key={g} className="space-y-0.5">
+                    <p className="px-3.5 pb-1 text-[10.5px] font-bold uppercase tracking-wider text-[var(--color-ink-400)]">
+                      {t(`navGroup.${g}`, lang)}
+                    </p>
+                    {items.map((n) => {
+                      const locked = isStaff && !n.staffFree && !n.end && !onDuty;
+                      return (
+                        <NavLink
+                          key={n.to}
+                          to={n.to}
+                          end={n.end}
+                          onClick={(e) => {
+                            handleStaffLinkClick(n, e);
+                            if (!e.defaultPrevented) setDrawerOpen(false);
+                          }}
+                          className={({ isActive }) =>
+                            cn(
+                              "flex items-center gap-3 h-12 px-3.5 rounded-xl text-[15px] font-semibold transition-colors",
+                              isActive
+                                ? "bg-[var(--color-navy-700)] text-white"
+                                : "text-[var(--color-ink-700)] hover:bg-[var(--color-navy-50)]",
+                              locked && "opacity-50"
+                            )
+                          }
+                        >
+                          <n.icon className="w-5 h-5 shrink-0" />
+                          <span className="flex-1">{t(n.labelKey, lang)}</span>
+                          {locked && <Lock className="w-4 h-4" />}
+                        </NavLink>
+                      );
+                    })}
+                  </div>
                 );
               })}
             </nav>

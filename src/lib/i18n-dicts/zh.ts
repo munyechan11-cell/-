@@ -255,6 +255,10 @@ const dict: Record<string, string> = {
   "landing.tagline": "GYEOL · 用心连接",
   "landing.bizEntry": "门店运营 →",
 
+  "navGroup.operation": "运营",
+  "navGroup.customer": "客户",
+  "navGroup.management": "管理",
+  "navGroup.settings": "设置",
   "ownerNav.dashboard": "仪表板",
   "ownerNav.orders": "订单·优惠券",
   "ownerNav.tables": "桌位布局",

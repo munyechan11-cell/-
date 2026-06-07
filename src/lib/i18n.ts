@@ -353,6 +353,10 @@ const ko: Dict = {
   "landing.bizEntry": "매장 운영자 →",
 
   // 사장님 사이드바 메뉴
+  "navGroup.operation": "운영",
+  "navGroup.customer": "고객",
+  "navGroup.management": "경영",
+  "navGroup.settings": "설정",
   "ownerNav.dashboard": "대시보드",
   "ownerNav.orders": "주문·쿠폰",
   "ownerNav.tables": "테이블 편집",
