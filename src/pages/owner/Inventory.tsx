@@ -27,6 +27,7 @@ import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { INDUSTRY_INGREDIENTS } from "../../lib/industryDefaults";
+import { SimpleInventory } from "./SimpleInventory";
 import { increment } from "firebase/firestore";
 import { useStore } from "../../store/store";
 import { showToast } from "../../lib/toast";
@@ -238,14 +239,18 @@ export default function OwnerInventory() {
     </div>
   );
 
-  // 간편·AI 모드는 별도 화면(각 단계에서 채움). 지금은 모드 전환 + 안내.
-  if (mode !== "full") {
+  // 간편 모드 — 매출 + 원재료 구매만으로 원가율 자동 계산 (#3)
+  if (mode === "simple") {
+    return <SimpleInventory storeId={storeId} modeTabs={modeTabs} />;
+  }
+  // AI 모드 — 다음 단계(#4)에서 채움
+  if (mode === "ai") {
     return (
       <OwnerShell title={t("inv.title", lang)}>
         <div className="max-w-[900px] mx-auto">
           {modeTabs}
           <div className="text-center py-16 px-6 rounded-2xl border border-dashed border-[var(--color-line)] bg-white">
-            <p className="text-[15px] font-extrabold text-[var(--color-navy-900)]">{t(`inv.mode.${mode}`, lang)}</p>
+            <p className="text-[15px] font-extrabold text-[var(--color-navy-900)]">{t("inv.mode.ai", lang)}</p>
             <p className="text-[13px] text-[var(--color-ink-500)] mt-2 leading-relaxed">{t("inv.mode.soon", lang)}</p>
           </div>
         </div>
