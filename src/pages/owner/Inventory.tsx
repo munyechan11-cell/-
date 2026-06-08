@@ -48,6 +48,7 @@ export default function OwnerInventory() {
     updateIngredient,
     deleteIngredient,
     updateMenuItem,
+    updateStoreConfig,
   } = useStore();
   const storeId = effectiveStoreId;
   const lang = useLanguage();
@@ -218,6 +219,40 @@ export default function OwnerInventory() {
     }
   };
 
+  // 재고 3모드 (ERP 차용 후속: 사장 수준에 맞게 가독성↑) — full 깐깐 / simple 간편 / ai 자동
+  const mode = currentUser?.storeConfig?.inventoryMode ?? "full";
+  const setMode = (m: "full" | "simple" | "ai") => updateStoreConfig(storeId, { inventoryMode: m });
+  const modeTabs = (
+    <div className="grid grid-cols-3 gap-1 p-1 bg-[var(--color-navy-50)] rounded-[12px] mb-4 max-w-md">
+      {(["full", "simple", "ai"] as const).map((m) => (
+        <button
+          key={m}
+          onClick={() => setMode(m)}
+          className={`h-10 rounded-[9px] text-[12.5px] font-bold transition-colors ${
+            mode === m ? "bg-white text-[var(--color-navy-800)] shadow-[var(--shadow-press)]" : "text-[var(--color-ink-500)]"
+          }`}
+        >
+          {t(`inv.mode.${m}`, lang)}
+        </button>
+      ))}
+    </div>
+  );
+
+  // 간편·AI 모드는 별도 화면(각 단계에서 채움). 지금은 모드 전환 + 안내.
+  if (mode !== "full") {
+    return (
+      <OwnerShell title={t("inv.title", lang)}>
+        <div className="max-w-[900px] mx-auto">
+          {modeTabs}
+          <div className="text-center py-16 px-6 rounded-2xl border border-dashed border-[var(--color-line)] bg-white">
+            <p className="text-[15px] font-extrabold text-[var(--color-navy-900)]">{t(`inv.mode.${mode}`, lang)}</p>
+            <p className="text-[13px] text-[var(--color-ink-500)] mt-2 leading-relaxed">{t("inv.mode.soon", lang)}</p>
+          </div>
+        </div>
+      </OwnerShell>
+    );
+  }
+
   return (
     <OwnerShell
       title={t("inv.title", lang)}
@@ -234,6 +269,7 @@ export default function OwnerInventory() {
       }
     >
       <div className="max-w-[900px] mx-auto pb-12">
+        {modeTabs}
         <p className="text-[13px] text-[var(--color-ink-600)] mb-4 leading-relaxed">
           {t("inv.subtitle", lang)}
         </p>

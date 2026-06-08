@@ -20,6 +20,8 @@ export interface StoreConfig {
   tossClientKey?: string;
   /** 키오스크 모드 사용 — 사장님이 켜면 NAV에 키오스크 메뉴가 노출됨 */
   kioskEnabled?: boolean;
+  /** 재고/원가 관리 모드 — full(깐깐 ERP·기본)·simple(간편 입력)·ai(AI 자동 원가율) */
+  inventoryMode?: "full" | "simple" | "ai";
 }
 
 export interface User {
