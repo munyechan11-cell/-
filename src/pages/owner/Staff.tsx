@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
-import { Check, X, UserMinus, Clock, ChevronDown, ChevronUp, UserCheck, UserPlus } from "lucide-react";
+import { Check, X, UserMinus, Clock, ChevronDown, ChevronUp, UserCheck, UserPlus, Shield } from "lucide-react";
 import { OwnerShell } from "../../components/layout/OwnerShell";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
 import { useStore } from "../../store/store";
+import { STAFF_LEVELS, STAFF_LEVEL_KEY, STAFF_FEATURES } from "../../lib/staffAccess";
 import { formatPhoneNumber } from "../../lib/ids";
 import { useLanguage, t, type Lang, getLocale, fmtKRW } from "../../lib/i18n";
 
@@ -24,10 +25,11 @@ function fmtDate(iso: string, lang: Lang) {
 }
 
 export default function OwnerStaff() {
-  const { currentUser, users, shifts, approveStaff, rejectStaff, removeStaffMembership, setStaffWage } = useStore();
+  const { currentUser, users, shifts, approveStaff, rejectStaff, removeStaffMembership, setStaffWage, setStaffLevel, setStaffPerms } = useStore();
   const lang = useLanguage();
   const locale = getLocale(lang);
   const [openShiftsFor, setOpenShiftsFor] = useState<string | null>(null);
+  const [openPermsFor, setOpenPermsFor] = useState<string | null>(null);
   const [wageEdit, setWageEdit] = useState<Record<string, string>>({});
 
   const storeId = currentUser?.id ?? "";
@@ -124,6 +126,7 @@ export default function OwnerStaff() {
             {approved.map((s) => {
               const st = statsByStaff.get(s.id) ?? { todayMs: 0, weekMs: 0, monthMs: 0, onDuty: false };
               const open = openShiftsFor === s.id;
+              const permsOpen = openPermsFor === s.id;
               const myShifts = shifts
                 .filter((sh) => sh.storeId === storeId && sh.staffId === s.id)
                 .sort((a, b) => b.clockInAt.localeCompare(a.clockInAt))
@@ -176,8 +179,35 @@ export default function OwnerStaff() {
                           })}
                         </span>
                       </div>
+                      {/* 권한 등급 — 사장님이 직원 등급 지정. 등급↑ → 접근 범위 누적 */}
+                      <div className="flex items-center gap-2 mt-2 flex-wrap">
+                        <span className="text-[11.5px] text-[var(--color-ink-500)] font-bold">{t("ostaff.level", lang)}</span>
+                        <div className="inline-flex gap-0.5 p-0.5 bg-[var(--color-navy-50)] rounded-lg">
+                          {STAFF_LEVELS.map((lv) => (
+                            <button
+                              key={lv}
+                              onClick={() => setStaffLevel(s.id, lv)}
+                              className={`h-7 px-2.5 rounded-md text-[11.5px] font-bold transition-colors ${
+                                (s.staffLevel ?? 1) === lv
+                                  ? "bg-white text-[var(--color-navy-800)] shadow-[var(--shadow-press)]"
+                                  : "text-[var(--color-ink-500)]"
+                              }`}
+                            >
+                              {t(`staffLevel.${STAFF_LEVEL_KEY[lv]}`, lang)}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                     <div className="flex gap-2 ml-auto">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        leftIcon={<Shield className="w-4 h-4" />}
+                        onClick={() => setOpenPermsFor(permsOpen ? null : s.id)}
+                      >
+                        {t("ostaff.perms", lang)}
+                      </Button>
                       <Button
                         size="sm"
                         variant="ghost"
@@ -199,6 +229,39 @@ export default function OwnerStaff() {
                     </div>
                   </div>
 
+                  {permsOpen && (
+                    <div className="mt-3 pt-3 border-t border-[var(--color-line-soft)]">
+                      <p className="text-[12px] font-bold text-[var(--color-ink-600)] mb-2">{t("ostaff.perms.title", lang)}</p>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {STAFF_FEATURES.map((f) => {
+                          const lvl = s.staffLevel ?? 1;
+                          const byLevel = lvl >= f.minLevel;
+                          const extra = s.extraPerms ?? [];
+                          const granted = byLevel || extra.includes(f.path);
+                          return (
+                            <button
+                              key={f.path}
+                              disabled={byLevel}
+                              onClick={() => {
+                                const next = extra.includes(f.path)
+                                  ? extra.filter((p) => p !== f.path)
+                                  : [...extra, f.path];
+                                setStaffPerms(s.id, next);
+                              }}
+                              className={`flex items-center gap-1.5 h-9 px-2.5 rounded-lg text-[12px] font-semibold text-left transition-colors ${
+                                granted ? "bg-[var(--color-mint-50)] text-[var(--color-navy-800)]" : "bg-[var(--color-bg)] text-[var(--color-ink-500)]"
+                              } ${byLevel ? "opacity-70 cursor-default" : ""}`}
+                            >
+                              {granted ? <Check className="w-3.5 h-3.5 shrink-0 text-[var(--color-mint-700)]" /> : <span className="w-3.5 shrink-0" />}
+                              <span className="truncate flex-1">{t(f.labelKey, lang)}</span>
+                              {byLevel && <span className="text-[9px] text-[var(--color-ink-400)] shrink-0">{t("ostaff.perms.byLevel", lang)}</span>}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <p className="text-[11px] text-[var(--color-ink-500)] mt-2 leading-relaxed">{t("ostaff.perms.hint", lang)}</p>
+                    </div>
+                  )}
                   {open && (
                     <div className="mt-3 pt-3 border-t border-[var(--color-line-soft)] space-y-1">
                       {myShifts.length === 0 ? (

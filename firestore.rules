@@ -70,6 +70,40 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // ============================================================
+    // 직원 등급(staffLevel) 서버단 보안 — Custom Token 전환 시 활성화
+    //
+    // ⚠️ 현재 익명 인증에서는 request.auth.uid ≠ user.id 이므로 규칙이
+    //    "요청자가 어느 직원·무슨 등급인지"를 식별할 수 없다.
+    //    → 지금은 클라이언트(OwnerShell NAV 필터 + App 라우트 가드)가
+    //      등급 권한의 1차 방어선이며, 아래 구조로 Custom Token 을 도입한
+    //      뒤 서버단에서 강제한다. (정책 단일 원천: src/lib/staffAccess.ts)
+    //
+    // 전환 절차:
+    //  1) 로그인 시 server.ts 가 createCustomToken(user.id, {
+    //       role, staffLevel, employerStoreId }) 발급 → signInWithCustomToken
+    //  2) 등급 변경(store.setStaffLevel) 시 admin.setCustomUserClaims(...) +
+    //     클라이언트 getIdToken(true) 강제 갱신
+    //  3) 아래 함수의 주석을 해제하고, 각 컬렉션 match 의 allow 를 교체
+    //
+    // function claims()        { return request.auth.token; }
+    // function role()          { return claims().role; }
+    // function lvl()           { return claims().staffLevel is int ? claims().staffLevel : 1; }
+    // function myStore()       { return role() == 'owner' ? request.auth.uid : claims().employerStoreId; }
+    // function ownsStore(sid)  { return sid == myStore(); }            // 매장 간 격리
+    // function staffAtLeast(n) { return role() == 'owner' || lvl() >= n; }
+    //
+    // 등급 → 컬렉션 게이트 (staffAccess.ts STAFF_FEATURES 표준 매핑과 동일):
+    //   ingredients : write/read = staffAtLeast(3) && ownsStore(...)   // 재고 = 매니저+
+    //   expenses    : read       = staffAtLeast(4) && ownsStore(...)   // 정산 = 실장+
+    //   visits      : read       = staffAtLeast(3) && ownsStore(...)   // 통계 = 매니저+
+    //   Communications : write   = staffAtLeast(2) && ownsStore(...)   // 고객메시지 = 정규직+
+    //   users(직원 등급 변경)    : write = role() == 'owner'           // 직원관리 쓰기 = 사장만
+    //   그 외 매장 데이터        : ownsStore(resource.data.storeId)    // 전 컬렉션 매장 격리
+    //   ※ extraPerms(개별 추가 권한)는 claims 에 함께 실어 staffAtLeast 대신
+    //     (staffAtLeast(n) || path in claims().extraPerms) 형태로 확장.
+    // ============================================================
+
     // 명시되지 않은 모든 경로 — 기본 거부
     match /{document=**} {
       allow read, write: if false;

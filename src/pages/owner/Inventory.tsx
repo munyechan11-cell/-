@@ -558,10 +558,10 @@ function RecipeModal({
   }, 0);
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-end" onClick={onClose}>
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center sm:p-4" onClick={onClose}>
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-[480px] mx-auto bg-white rounded-t-[28px] p-6 pb-[max(env(safe-area-inset-bottom),24px)] max-h-[88vh] overflow-y-auto"
+        className="w-full max-w-[480px] mx-auto bg-white rounded-t-[28px] sm:rounded-[28px] p-6 pb-[max(env(safe-area-inset-bottom),24px)] sm:pb-6 max-h-[88vh] overflow-y-auto"
       >
         <div className="w-12 h-1.5 rounded-full bg-[var(--color-ink-100)] mx-auto mb-4" />
         <h2 className="text-[17px] font-extrabold text-[var(--color-navy-900)] mb-1">{menu.name}</h2>
@@ -719,10 +719,10 @@ function EditModal({
     if (p > 0 && q > 0) onChange({ ...editing, unitCost: Math.round((p / q) * 100) / 100 });
   };
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-end" onClick={onClose}>
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center sm:p-4" onClick={onClose}>
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-[440px] mx-auto bg-white rounded-t-[28px] p-6 pb-[max(env(safe-area-inset-bottom),24px)] max-h-[88vh] overflow-y-auto"
+        className="w-full max-w-[440px] mx-auto bg-white rounded-t-[28px] sm:rounded-[28px] p-6 pb-[max(env(safe-area-inset-bottom),24px)] sm:pb-6 max-h-[88vh] overflow-y-auto"
       >
         <div className="w-12 h-1.5 rounded-full bg-[var(--color-ink-100)] mx-auto mb-4" />
         <h2 className="text-[17px] font-extrabold text-[var(--color-navy-900)] mb-3">
@@ -828,10 +828,10 @@ function RestockModal({
   const lang = useLanguage();
   useModalChrome(true, onClose);
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-end" onClick={onClose}>
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center sm:p-4" onClick={onClose}>
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-[400px] mx-auto bg-white rounded-t-[28px] p-6 pb-[max(env(safe-area-inset-bottom),24px)]"
+        className="w-full max-w-[400px] mx-auto bg-white rounded-t-[28px] sm:rounded-[28px] p-6 pb-[max(env(safe-area-inset-bottom),24px)] sm:pb-6"
       >
         <div className="w-12 h-1.5 rounded-full bg-[var(--color-ink-100)] mx-auto mb-4" />
         <h2 className="text-[17px] font-extrabold text-[var(--color-navy-900)] mb-3">{ingredient.name}</h2>

@@ -92,7 +92,7 @@ export default function QuickOrder() {
     try {
       const items = cartLines.map((l) => ({ menuId: l.menu.id, name: l.menu.name, quantity: l.qty, price: l.menu.price }));
       const cid = activeTab >= WAIT_BASE ? `walkin_W${activeTab}` : `pos_T${activeTab}`;
-      await placeOrder({ storeId, tableNumber: activeTab, customerId: cid, items });
+      await placeOrder({ storeId, tableNumber: activeTab, customerId: cid, items, manual: true });
       setCart({});
       setCartOpen(false);
       showToast(t("quick.added", lang), "success");
@@ -274,11 +274,28 @@ export default function QuickOrder() {
               <p className="text-[13px] text-[var(--color-ink-500)]">{t("quick.noTables", lang)}</p>
             ) : (
               <div className="grid grid-cols-4 gap-2">
-                {storeTables.map((tb) => (
-                  <button key={tb.id} onClick={() => moveToTable(tb.number)} className="aspect-square rounded-xl border border-[var(--color-line)] text-[16px] font-extrabold tabular-nums hover:border-[var(--color-navy-700)]">
-                    {tb.number}
-                  </button>
-                ))}
+                {storeTables.map((tb) => {
+                  // 이미 미결제 주문이 있는 테이블은 민트색 + 금액으로 표시 — 합석/주문 합쳐짐을 사장이 인지하도록
+                  const u = unpaidByTable.get(tb.number);
+                  return (
+                    <button
+                      key={tb.id}
+                      onClick={() => moveToTable(tb.number)}
+                      className={`relative aspect-square rounded-xl border text-[16px] font-extrabold tabular-nums ${
+                        u
+                          ? "border-[var(--color-mint-300)] bg-[var(--color-mint-50)] text-[var(--color-navy-900)]"
+                          : "border-[var(--color-line)] hover:border-[var(--color-navy-700)]"
+                      }`}
+                    >
+                      {tb.number}
+                      {u && (
+                        <span className="absolute bottom-1 left-0 right-0 text-[9px] font-bold text-[var(--color-mint-700)] tabular-nums">
+                          {fmtKRW(u.total, lang)}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>

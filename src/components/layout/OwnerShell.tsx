@@ -32,6 +32,7 @@ import { cn } from "../../lib/cn";
 import { showToast } from "../../lib/toast";
 import { getStoreOpenStatus, summarizeStatus } from "../../lib/businessHours";
 import { useLanguage, t } from "../../lib/i18n";
+import { canStaffAccess } from "../../lib/staffAccess";
 import { PushOnboarding } from "../ui/PushOnboarding";
 
 interface Props {
@@ -49,8 +50,6 @@ type NavItem = {
   labelKey: string;
   icon: typeof LayoutDashboard;
   end?: boolean;
-  /** staff에게도 보일지 */
-  staff?: boolean;
   /** staff가 출근하지 않아도 접근 가능한지 */
   staffFree?: boolean;
   /** 사이드바 그룹 — 사장님 메뉴 분류 */
@@ -63,29 +62,29 @@ const NAV_GROUPS: NavGroup[] = ["operation", "customer", "management", "settings
 const NAV: NavItem[] = [
   // 운영 — 매일 쓰는 현장 기능
   { to: "/biz/owner", labelKey: "ownerNav.dashboard", icon: LayoutDashboard, end: true, group: "operation" },
-  { to: "/biz/owner/orders", labelKey: "ownerNav.orders", icon: ChefHat, staff: true, group: "operation" },
+  { to: "/biz/owner/orders", labelKey: "ownerNav.orders", icon: ChefHat, group: "operation" },
   { to: "/biz/owner/quick-order", labelKey: "ownerNav.quickOrder", icon: Zap, group: "operation" },
-  { to: "/biz/owner/kitchen", labelKey: "ownerNav.kitchen", icon: Monitor, staff: true, group: "operation" },
+  { to: "/biz/owner/kitchen", labelKey: "ownerNav.kitchen", icon: Monitor, group: "operation" },
   { to: "/biz/owner/kiosk", labelKey: "ownerNav.kiosk", icon: Tablet, group: "operation" },
-  { to: "/biz/owner/tables", labelKey: "ownerNav.tables", icon: LayoutGrid, staff: true, group: "operation" },
-  { to: "/biz/owner/menus", labelKey: "ownerNav.menus", icon: UtensilsCrossed, staff: true, group: "operation" },
+  { to: "/biz/owner/tables", labelKey: "ownerNav.tables", icon: LayoutGrid, group: "operation" },
+  { to: "/biz/owner/menus", labelKey: "ownerNav.menus", icon: UtensilsCrossed, group: "operation" },
   // 고객 — 고객관계·마케팅
   { to: "/biz/owner/customers", labelKey: "ownerNav.customers", icon: Users, group: "customer" },
   { to: "/biz/owner/marketing", labelKey: "ownerNav.marketing", icon: Megaphone, group: "customer" },
-  { to: "/biz/owner/reservations", labelKey: "ownerNav.reservations", icon: Calendar, staff: true, staffFree: true, group: "customer" },
-  { to: "/biz/owner/photos", labelKey: "ownerNav.reviews", icon: ImageIcon, staff: true, group: "customer" },
+  { to: "/biz/owner/reservations", labelKey: "ownerNav.reservations", icon: Calendar, staffFree: true, group: "customer" },
+  { to: "/biz/owner/photos", labelKey: "ownerNav.reviews", icon: ImageIcon, group: "customer" },
   // 경영 — 재고·정산·인사
   { to: "/biz/owner/inventory", labelKey: "ownerNav.inventory", icon: Package, group: "management" },
   { to: "/biz/owner/statistics", labelKey: "ownerNav.statistics", icon: BarChart3, group: "management" },
   { to: "/biz/owner/settlement", labelKey: "ownerNav.settlement", icon: Wallet, group: "management" },
   { to: "/biz/owner/staff", labelKey: "ownerNav.staff", icon: Briefcase, group: "management" },
   // 설정
-  { to: "/biz/owner/qr-print", labelKey: "ownerNav.qrPrint", icon: QrCode, staff: true, group: "settings" },
+  { to: "/biz/owner/qr-print", labelKey: "ownerNav.qrPrint", icon: QrCode, group: "settings" },
   { to: "/biz/owner/brand-settings", labelKey: "ownerNav.brand", icon: Settings, group: "settings" },
-  { to: "/biz/owner/help", labelKey: "ownerNav.help", icon: HelpCircle, staff: true, staffFree: true, group: "settings" },
+  { to: "/biz/owner/help", labelKey: "ownerNav.help", icon: HelpCircle, staffFree: true, group: "settings" },
 ];
 
-const STAFF_DASHBOARD: NavItem = { to: "/biz/staff", labelKey: "ownerNav.dashboard", icon: LayoutDashboard, end: true, staff: true, staffFree: true, group: "operation" };
+const STAFF_DASHBOARD: NavItem = { to: "/biz/staff", labelKey: "ownerNav.dashboard", icon: LayoutDashboard, end: true, staffFree: true, group: "operation" };
 
 export function OwnerShell({ children, title, headerRight, width = "default" }: Props) {
   const { currentUser, users, logout, activeShift, clockIn, clockOut, updateBrandSettings } = useStore();
@@ -99,8 +98,9 @@ export function OwnerShell({ children, title, headerRight, width = "default" }: 
 
   // 키오스크는 사장님이 설정에서 켰을 때만 노출 (옵트인)
   const kioskOn = !isStaff && currentUser?.storeConfig?.kioskEnabled === true;
+  const staffLevel = currentUser?.staffLevel ?? 1;
   const navItems: NavItem[] = isStaff
-    ? [STAFF_DASHBOARD, ...NAV.filter((n) => n.staff)]
+    ? [STAFF_DASHBOARD, ...NAV.filter((n) => canStaffAccess(n.to, staffLevel, currentUser?.extraPerms))]
     : NAV.filter((n) => n.to !== "/biz/owner/kiosk" || kioskOn);
 
   const active = navItems.find((n) => (n.end ? loc.pathname === n.to : loc.pathname.startsWith(n.to)));

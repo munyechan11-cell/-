@@ -3,6 +3,7 @@ import { Plus } from "lucide-react";
 import { OwnerShell } from "../../components/layout/OwnerShell";
 import { useStore } from "../../store/store";
 import { useLanguage, t, fmtKRW } from "../../lib/i18n";
+import { localTodayStr } from "../../lib/date";
 
 /**
  * 재고 "간편 입력" 모드 (체크리스트 #3) — 가장 낮은 진입장벽.
@@ -16,7 +17,7 @@ export function SimpleInventory({ storeId, modeTabs }: { storeId: string; modeTa
   const [adding, setAdding] = useState(false);
   const [amount, setAmount] = useState("");
   const [memo, setMemo] = useState("");
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localTodayStr();
   const [date, setDate] = useState(today);
   const [busy, setBusy] = useState(false);
 

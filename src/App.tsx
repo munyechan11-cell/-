@@ -7,6 +7,7 @@ import { PageLoader } from "./components/ui/PageLoader";
 import { GlobalOrderNotifier } from "./components/layout/GlobalOrderNotifier";
 import { InstallPrompt } from "./components/ui/InstallPrompt";
 import { PhoneVerifyGate } from "./components/ui/PhoneVerifyGate";
+import { staffMinLevel } from "./lib/staffAccess";
 
 const Home = lazy(() => import("./pages/Home"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -96,6 +97,15 @@ function PrivateRoute({
     if (!currentUser.employerStoreId) return <Navigate to="/biz/staff/store-search" replace />;
     if (currentUser.employerStatus !== "approved") return <Navigate to="/biz/staff/pending" replace />;
     if (requiresClockIn && !activeShift) return <Navigate to="/biz/staff" replace />;
+    // 권한 등급 가드 — 경로 기본 최소 등급 미달이고 사장님 개별 허용(extraPerms)도 없으면 직원 대시보드로
+    const need = staffMinLevel(location.pathname);
+    if (need != null) {
+      const level = currentUser.staffLevel ?? 1;
+      const extra = currentUser.extraPerms ?? [];
+      if (level < need && !extra.includes(location.pathname)) {
+        return <Navigate to="/biz/staff" replace />;
+      }
+    }
   }
 
   return <>{children}</>;
@@ -265,7 +275,7 @@ export default function App() {
           <Route
             path="/biz/owner/customers"
             element={
-              <PrivateRoute role="owner">
+              <PrivateRoute role={["owner", "staff"]} requiresClockIn>
                 <OwnerCustomers />
               </PrivateRoute>
             }
@@ -273,7 +283,7 @@ export default function App() {
           <Route
             path="/biz/owner/marketing"
             element={
-              <PrivateRoute role="owner">
+              <PrivateRoute role={["owner", "staff"]} requiresClockIn>
                 <OwnerMarketing />
               </PrivateRoute>
             }
@@ -281,7 +291,7 @@ export default function App() {
           <Route
             path="/biz/owner/inventory"
             element={
-              <PrivateRoute role="owner">
+              <PrivateRoute role={["owner", "staff"]} requiresClockIn>
                 <OwnerInventory />
               </PrivateRoute>
             }
@@ -289,7 +299,7 @@ export default function App() {
           <Route
             path="/biz/owner/statistics"
             element={
-              <PrivateRoute role="owner">
+              <PrivateRoute role={["owner", "staff"]} requiresClockIn>
                 <OwnerStatistics />
               </PrivateRoute>
             }
@@ -297,7 +307,7 @@ export default function App() {
           <Route
             path="/biz/owner/settlement"
             element={
-              <PrivateRoute role="owner">
+              <PrivateRoute role={["owner", "staff"]} requiresClockIn>
                 <OwnerSettlement />
               </PrivateRoute>
             }
@@ -305,7 +315,7 @@ export default function App() {
           <Route
             path="/biz/owner/staff"
             element={
-              <PrivateRoute role="owner">
+              <PrivateRoute role={["owner", "staff"]} requiresClockIn>
                 <OwnerStaff />
               </PrivateRoute>
             }
@@ -397,7 +407,7 @@ export default function App() {
           <Route
             path="/biz/owner/quick-order"
             element={
-              <PrivateRoute role="owner">
+              <PrivateRoute role={["owner", "staff"]} requiresClockIn>
                 <OwnerQuickOrder />
               </PrivateRoute>
             }

@@ -33,6 +33,7 @@ import { api } from "../lib/api";
 import { getStoreOpenStatus } from "../lib/businessHours";
 import type {
   User,
+  StaffLevel,
   Visit,
   Coupon,
   TableDoc,
@@ -144,6 +145,8 @@ interface StoreState {
     tableNumber: number;
     customerId: string;
     items: OrderItem[];
+    /** 사장/직원이 카운터(빠른 주문)에서 직접 입력하는 주문 — 영업시간·임시마감 검증을 건너뜀 */
+    manual?: boolean;
   }) => Promise<Order>;
   updateOrderStatus: (id: string, status: OrderStatus) => Promise<void>;
   /** 손님 측 — 결제 요청만 보냄(paymentStatus: requested). 실제 결제는 사장님 승인. */
@@ -180,6 +183,10 @@ interface StoreState {
   ) => Promise<void>;
   updateUserMemo: (userId: string, memo: string) => Promise<void>;
   setStaffWage: (userId: string, hourlyWage: number) => Promise<void>;
+  /** 직원 권한 등급(1~4) 지정 — 사장님 직원관리. */
+  setStaffLevel: (userId: string, level: StaffLevel) => Promise<void>;
+  /** 직원 개별 추가 권한(extraPerms 경로 목록) 지정 — 등급 기본을 넘어 개방. */
+  setStaffPerms: (userId: string, perms: string[]) => Promise<void>;
   setCustomerTier: (customerId: string, storeId: string, tier: Tier | "auto") => Promise<void>;
   bulkIssueCoupon: (customerIds: string[], storeId: string, type: string, description: string) => Promise<void>;
   updateBrandSettings: (storeId: string, data: Partial<User>) => Promise<void>;
@@ -1288,19 +1295,25 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       tableNumber,
       customerId,
       items,
+      manual,
     }: {
       storeId: string;
       tableNumber: number;
       customerId: string;
       items: OrderItem[];
+      manual?: boolean;
     }): Promise<Order> => {
-      // 영업 시간 검증 — 영업 외 시간이거나 임시 마감이면 손님 주문 차단
-      const ownerForCheck = usersRef.current.find((u) => u.id === storeId && u.role === "owner");
-      const status = getStoreOpenStatus(ownerForCheck);
-      if (status.open === false) {
-        const msg = status.reason;
-        showToast(t("store.order.cannot", undefined, { msg }), "error");
-        throw new Error(msg);
+      // 영업 시간 검증 — 영업 외 시간이거나 임시 마감이면 손님 셀프 주문(키오스크 포함) 차단.
+      // 단 사장/직원이 카운터에서 직접 입력하는 수동 주문(manual)은 영업 준비·마감 정리 중에도
+      // 받을 수 있어야 하므로 검증을 건너뛴다 (실매장 POS 동작과 일치).
+      if (!manual) {
+        const ownerForCheck = usersRef.current.find((u) => u.id === storeId && u.role === "owner");
+        const status = getStoreOpenStatus(ownerForCheck);
+        if (status.open === false) {
+          const msg = status.reason;
+          showToast(t("store.order.cannot", undefined, { msg }), "error");
+          throw new Error(msg);
+        }
       }
 
       // 항목 입력 검증 — 음수·0 가격, 음수·0 수량 차단 (조작·실수 방어)
@@ -1723,6 +1736,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     await updateFirestoreDoc("users", userId, { hourlyWage });
   }, []);
 
+  const setStaffLevel = useCallback(async (userId: string, level: StaffLevel) => {
+    await updateFirestoreDoc("users", userId, { staffLevel: level });
+  }, []);
+  const setStaffPerms = useCallback(async (userId: string, perms: string[]) => {
+    await updateFirestoreDoc("users", userId, { extraPerms: perms });
+  }, []);
+
   const setCustomerTier = useCallback(
     async (customerId: string, storeId: string, tier: Tier | "auto") => {
       const id = `${customerId}_${storeId}`;
@@ -2135,6 +2155,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       recordCommunication,
       updateUserMemo,
       setStaffWage,
+      setStaffLevel,
+      setStaffPerms,
       setCustomerTier,
       bulkIssueCoupon,
       updateBrandSettings,
@@ -2222,6 +2244,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       recordCommunication,
       updateUserMemo,
       setStaffWage,
+      setStaffLevel,
+      setStaffPerms,
       setCustomerTier,
       bulkIssueCoupon,
       updateBrandSettings,

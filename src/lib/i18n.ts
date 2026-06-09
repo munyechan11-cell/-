@@ -733,6 +733,15 @@ const ko: Dict = {
   "ostaff.noRecord": "기록이 없습니다.",
   "ostaff.workingNow": "근무 중",
   "ostaff.hourMin": "{h}시간 {m}분",
+  "ostaff.level": "권한 등급",
+  "ostaff.perms": "권한",
+  "ostaff.perms.title": "이 직원이 접근할 수 있는 기능",
+  "ostaff.perms.byLevel": "등급 기본",
+  "ostaff.perms.hint": "등급 기본 권한은 자동 포함돼요. 더 열어주고 싶은 기능만 추가로 켜세요.",
+  "staffLevel.part": "알바생",
+  "staffLevel.regular": "정규직",
+  "staffLevel.manager": "매니저",
+  "staffLevel.director": "실장",
 
   // 테이블 편집
   "otables.title": "테이블 편집",

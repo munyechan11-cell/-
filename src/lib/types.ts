@@ -1,4 +1,6 @@
 export type Role = "customer" | "owner" | "staff";
+/** 직원 권한 등급 — 1 알바생 · 2 정규직 · 3 매니저 · 4 실장. 높을수록 하위 등급 권한이 모두 누적된다. */
+export type StaffLevel = 1 | 2 | 3 | 4;
 export type StaffStatus = "pending" | "approved" | "rejected";
 export type AuthType = "phone" | "google" | "kakao";
 export type Industry = "cafe" | "meat" | "bakery" | "general";
@@ -91,6 +93,10 @@ export interface User {
   employerStatus?: StaffStatus;
   /** 직원 전용: 직책/포지션 (홀, 주방 등) */
   position?: string;
+  /** 직원 전용: 권한 등급 1=알바 2=정규직 3=매니저 4=실장. 미설정=1(알바). 사장님이 직원관리에서 지정. */
+  staffLevel?: StaffLevel;
+  /** 직원 전용: 등급 기본 권한을 넘어 사장님이 개별 허용한 경로 목록 (예: 정규직이지만 정산만 추가 허용). */
+  extraPerms?: string[];
   /** 직원 전용: 시급 (KRW) — 급여 계산용. 사장님이 설정. */
   hourlyWage?: number;
   /** 직원 전용: 가입 요청 시각 */

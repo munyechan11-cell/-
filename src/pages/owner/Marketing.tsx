@@ -434,10 +434,10 @@ function BulkCouponModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-end" onClick={busy ? undefined : onClose}>
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center sm:p-4" onClick={busy ? undefined : onClose}>
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-[440px] mx-auto bg-white rounded-t-[28px] p-6 pb-[max(env(safe-area-inset-bottom),24px)]"
+        className="w-full max-w-[440px] mx-auto bg-white rounded-t-[28px] sm:rounded-[28px] p-6 pb-[max(env(safe-area-inset-bottom),24px)] sm:pb-6"
       >
         <div className="w-12 h-1.5 rounded-full bg-[var(--color-ink-100)] mx-auto mb-5" />
         <h2 className="text-[18px] font-extrabold text-[var(--color-navy-900)] mb-1">
