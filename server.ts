@@ -771,7 +771,7 @@ JSON 만 출력. 스키마:
     }
     const data: any = await apiRes.json();
     const text = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-    return res.json(extractJson(text));
+    return res.json(extractReceipt(text, todayKST));
   } catch (e: any) {
     console.error('[AI receipt]', e?.message ?? e);
     res.status(500).json({ error: e?.message ?? '영수증 분석 실패' });
@@ -945,6 +945,48 @@ function extractJson(text: string): { tables: any[]; structures: any[] } {
   const tables = Array.isArray(parsed?.tables) ? parsed.tables : [];
   const structures = Array.isArray(parsed?.structures) ? parsed.structures : [];
   return { tables, structures };
+}
+
+// ```json 펜스/잡음을 걷어내고 첫 JSON 객체만 파싱 — 실패 시 {} 반환(영수증은 부분값도 살림)
+function parseLooseJson(text: string): any {
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  const raw = fenced ? fenced[1] : text;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    const i = raw.indexOf('{');
+    const j = raw.lastIndexOf('}');
+    if (i < 0 || j <= i) return {};
+    try { return JSON.parse(raw.slice(i, j + 1)); }
+    catch { return {}; }
+  }
+}
+
+// 영수증 AI 응답 정규화 — 클라이언트가 항상 동일한 지출 스키마를 받도록 가드.
+// (floor-plan 의 extractJson 은 {tables,structures} 전용이라 영수증엔 쓰면 안 됨)
+const RECEIPT_CATEGORIES = new Set(['rent', 'material', 'utility', 'marketing', 'other']);
+function extractReceipt(
+  text: string,
+  fallbackDate: string,
+): { amount: number; vendor: string; date: string; category: string; memo: string } {
+  const parsed = parseLooseJson(text) ?? {};
+  // amount — 숫자/문자(₩·콤마·"원") 혼재 정상화
+  let amount = 0;
+  const a = parsed?.amount;
+  if (typeof a === 'number' && isFinite(a)) amount = Math.max(0, Math.round(a));
+  else if (typeof a === 'string') {
+    const n = Number(a.replace(/[^0-9.]/g, ''));
+    if (isFinite(n)) amount = Math.max(0, Math.round(n));
+  }
+  // date — YYYY-MM-DD 만 신뢰, 아니면 오늘(KST)
+  const date =
+    typeof parsed?.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(parsed.date)
+      ? parsed.date
+      : fallbackDate;
+  const category = RECEIPT_CATEGORIES.has(parsed?.category) ? parsed.category : 'other';
+  const vendor = typeof parsed?.vendor === 'string' ? parsed.vendor.trim().slice(0, 80) : '';
+  const memo = typeof parsed?.memo === 'string' ? parsed.memo.trim().slice(0, 200) : '';
+  return { amount, vendor, date, category, memo };
 }
 
 // ============================================================

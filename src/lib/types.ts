@@ -24,6 +24,8 @@ export interface StoreConfig {
   kioskEnabled?: boolean;
   /** 재고/원가 관리 모드 — full(깐깐 ERP·기본)·simple(간편 입력)·ai(AI 자동 원가율) */
   inventoryMode?: "full" | "simple" | "ai";
+  /** 매장 색 테마 id (src/lib/themes.ts). 미설정 시 업종 기본 테마로 폴백 */
+  theme?: string;
 }
 
 export interface User {

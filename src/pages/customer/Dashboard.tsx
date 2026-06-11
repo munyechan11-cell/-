@@ -20,6 +20,9 @@ import {
   Star,
   Camera,
   X as XIcon,
+  ClipboardCheck,
+  ChefHat,
+  PartyPopper,
 } from "lucide-react";
 import { resizeImage } from "../owner/PhotoVault";
 import { LANGS, useLanguage, setLanguage, t, fmtKRW, getLocale } from "../../lib/i18n";
@@ -1076,38 +1079,82 @@ function QtyStepper({ value, onChange }: { value: number; onChange: (v: number) 
 function OrderProgress({ status }: { status: "pending" | "accepted" | "cooking" | "served" }) {
   const lang = useLanguage();
   const steps = [
-    { key: "pending", label: t("order.status.pending", lang) },
-    { key: "accepted", label: t("order.status.accepted", lang) },
-    { key: "cooking", label: t("order.status.cooking", lang) },
-    { key: "served", label: t("order.status.served", lang) },
+    { key: "pending", label: t("order.status.pending", lang), Icon: Hourglass, eta: 5 },
+    { key: "accepted", label: t("order.status.accepted", lang), Icon: ClipboardCheck, eta: 5 },
+    { key: "cooking", label: t("order.status.cooking", lang), Icon: ChefHat, eta: 10 },
+    { key: "served", label: t("order.status.served", lang), Icon: PartyPopper, eta: 0 },
   ] as const;
-  const currentIdx = steps.findIndex((s) => s.key === status);
+  const currentIdx = Math.max(0, steps.findIndex((s) => s.key === status));
+  const current = steps[currentIdx];
+  const CurrentIcon = current.Icon;
+  const done = status === "served";
+  // 남은 예상 시간 — 현재 단계 이후 단계들의 eta 합
+  const remainEta = steps.slice(currentIdx).reduce((s, st) => s + st.eta, 0);
+
   return (
-    <div className="mb-3 px-1">
-      <div className="flex items-center">
+    <div className="mb-3">
+      {/* 현재 단계 — 큰 히어로 카드 (배민 스타일) */}
+      <div
+        className={cn(
+          "flex items-center gap-3 p-3.5 rounded-[16px] mb-3 border",
+          done
+            ? "bg-[var(--color-mint-50)] border-[var(--color-mint-200)]"
+            : "bg-[var(--color-navy-50)] border-[var(--color-navy-200)]"
+        )}
+      >
+        <div
+          className={cn(
+            "w-12 h-12 rounded-full inline-flex items-center justify-center shrink-0 text-white",
+            done ? "bg-[var(--color-mint-500)]" : "bg-[var(--color-navy-700)]",
+            !done && "animate-bounce"
+          )}
+          style={!done ? { animationDuration: "1.6s" } : undefined}
+        >
+          <CurrentIcon className="w-6 h-6" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p
+            className={cn(
+              "text-[15px] font-extrabold",
+              done ? "text-[var(--color-mint-700)]" : "text-[var(--color-navy-900)]"
+            )}
+          >
+            {t(`order.flow.headline.${current.key}`, lang)}
+          </p>
+          <p className="text-[12px] font-semibold text-[var(--color-ink-500)] mt-0.5">
+            {done
+              ? t("order.flow.thanks", lang)
+              : t("order.flow.eta", lang, { min: remainEta })}
+          </p>
+        </div>
+      </div>
+
+      {/* 4단계 아이콘 트랙 */}
+      <div className="flex items-center px-1">
         {steps.map((s, i) => {
-          const done = i <= currentIdx;
-          const active = i === currentIdx;
+          const reached = i <= currentIdx;
+          const active = i === currentIdx && !done;
+          const StepIcon = s.Icon;
           return (
             <div key={s.key} className="flex-1 flex items-center first:flex-none">
               {i > 0 && (
                 <div
                   className={cn(
-                    "h-[3px] flex-1 rounded-full mx-1 transition-colors",
-                    done ? "bg-[var(--color-mint-500)]" : "bg-[var(--color-ink-100)]"
+                    "h-[3px] flex-1 rounded-full mx-1 transition-colors duration-500",
+                    reached ? "bg-[var(--color-mint-500)]" : "bg-[var(--color-ink-100)]"
                   )}
                 />
               )}
               <div
                 className={cn(
-                  "w-7 h-7 rounded-full inline-flex items-center justify-center text-[12px] font-extrabold transition-colors shrink-0",
-                  done
+                  "w-9 h-9 rounded-full inline-flex items-center justify-center transition-colors shrink-0",
+                  reached
                     ? "bg-[var(--color-mint-500)] text-white shadow-[0_2px_6px_rgba(0,163,158,0.35)]"
-                    : "bg-[var(--color-ink-100)] text-[var(--color-ink-500)]",
-                  active && "ring-4 ring-[var(--color-mint-500)]/20"
+                    : "bg-[var(--color-ink-100)] text-[var(--color-ink-400)]",
+                  active && "ring-4 ring-[var(--color-mint-500)]/25 animate-pulse"
                 )}
               >
-                {done ? "✓" : i + 1}
+                <StepIcon className="w-[18px] h-[18px]" />
               </div>
             </div>
           );

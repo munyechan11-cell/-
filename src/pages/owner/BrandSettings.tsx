@@ -30,6 +30,7 @@ import {
   type PermissionState,
 } from "../../lib/pushNotifications";
 import type { Industry, RewardType } from "../../lib/types";
+import { THEMES, applyTheme, defaultThemeForIndustry } from "../../lib/themes";
 
 export default function BrandSettings() {
   const { currentUser, updateBrandSettings, updateStoreConfig, updateStoreLocation } = useStore();
@@ -97,6 +98,7 @@ export default function BrandSettings() {
   const [tossKey, setTossKey] = useState(cfg?.tossClientKey ?? "");
   const [tossSecret, setTossSecret] = useState(""); // write-only — 보안상 화면에 표시하지 않음
   const [kioskEnabled, setKioskEnabled] = useState(!!cfg?.kioskEnabled);
+  const [theme, setTheme] = useState(cfg?.theme ?? defaultThemeForIndustry(cfg?.industry));
 
   const [tierNames, setTierNames] = useState<Record<string, string>>(currentUser?.tierNames ?? {});
   const [tierRewards, setTierRewards] = useState<Record<string, string>>(currentUser?.tierRewards ?? {});
@@ -140,6 +142,7 @@ export default function BrandSettings() {
       allowedRadius: r,
       tossClientKey: (tossKey || null) as any,
       kioskEnabled,
+      theme,
     });
     // 시크릿 키 — 입력했을 때만 서버 보안 컬렉션(store_secrets)에 저장. 클라이언트엔 남기지 않음.
     if (tossSecret.trim()) {
@@ -396,6 +399,61 @@ export default function BrandSettings() {
               inputMode="numeric"
             />
           )}
+        </Sec>
+
+        <Sec title={t("obs.sec.theme", lang)}>
+          <p className="text-[12px] text-[var(--color-ink-500)] -mt-1 mb-1 leading-relaxed break-keep">
+            {t("obs.theme.desc", lang)}
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            {THEMES.map((th) => {
+              const active = theme === th.id;
+              const recommended = th.recommendedFor?.includes(industry);
+              return (
+                <button
+                  key={th.id}
+                  type="button"
+                  onClick={() => {
+                    setTheme(th.id);
+                    applyTheme(th.id); // 즉시 미리보기 (저장 전)
+                  }}
+                  className={cn(
+                    "relative text-left p-3 rounded-[14px] border-2 transition-all active:scale-[0.98]",
+                    active
+                      ? "border-[var(--color-navy-700)] shadow-[var(--shadow-card)]"
+                      : "border-[var(--color-line)] bg-white"
+                  )}
+                >
+                  {recommended && (
+                    <span className="absolute top-1.5 right-1.5 text-[9.5px] font-extrabold px-1.5 py-0.5 rounded-full bg-[var(--color-mint-100)] text-[var(--color-mint-700)]">
+                      {t("obs.theme.recommend", lang)}
+                    </span>
+                  )}
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <span
+                      className="w-5 h-5 rounded-full border border-black/5 shrink-0"
+                      style={{ background: th.primary }}
+                    />
+                    <span
+                      className="w-5 h-5 rounded-full border border-black/5 shrink-0 -ml-2.5"
+                      style={{ background: th.accent }}
+                    />
+                    <span className="text-[16px] ml-0.5">{th.emoji}</span>
+                  </div>
+                  <p className="text-[13px] font-extrabold text-[var(--color-navy-900)] flex items-center gap-1">
+                    {th.name}
+                    {active && <CheckCircle2 className="w-3.5 h-3.5 text-[var(--color-navy-700)]" />}
+                  </p>
+                  <p className="text-[10.5px] text-[var(--color-ink-500)] font-medium leading-snug mt-0.5 break-keep">
+                    {th.desc}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-[11px] text-[var(--color-ink-400)] font-medium mt-1">
+            {t("obs.theme.saveHint", lang)}
+          </p>
         </Sec>
 
         <Sec title={t("obs.sec.tierCustom", lang)}>

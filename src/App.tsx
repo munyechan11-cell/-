@@ -8,6 +8,8 @@ import { GlobalOrderNotifier } from "./components/layout/GlobalOrderNotifier";
 import { InstallPrompt } from "./components/ui/InstallPrompt";
 import { PhoneVerifyGate } from "./components/ui/PhoneVerifyGate";
 import { staffMinLevel } from "./lib/staffAccess";
+import { applyTheme, defaultThemeForIndustry } from "./lib/themes";
+import type { User } from "./lib/types";
 
 const Home = lazy(() => import("./pages/Home"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -205,6 +207,24 @@ function LegacyBizRedirect({ prefix }: { prefix: "owner" | "staff" }) {
   return <Navigate to={`/biz/${prefix}${sub}${loc.search}`} replace />;
 }
 
+// 현재 컨텍스트의 매장 테마를 :root 에 적용 — 앱 전체 색이 매장 테마로 바뀐다.
+// 사장님=자기 매장, 직원=소속 매장, 손님=보고 있는 매장.
+function ThemeApplier() {
+  const { currentUser, users, activeStoreId, effectiveStoreId } = useStore();
+
+  useEffect(() => {
+    const storeId = activeStoreId || effectiveStoreId || currentUser?.id || null;
+    let store: User | null = null;
+    if (currentUser?.role === "owner") store = currentUser;
+    else if (storeId) store = users.find((u) => u.id === storeId && u.role === "owner") ?? null;
+
+    const cfg = store?.storeConfig;
+    applyTheme(cfg?.theme ?? defaultThemeForIndustry(cfg?.industry));
+  }, [currentUser, users, activeStoreId, effectiveStoreId]);
+
+  return null;
+}
+
 export default function App() {
   const { isReady } = useStore();
 
@@ -217,6 +237,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <ThemeApplier />
       <BizNoIndex />
       <ToastHost />
       <GlobalOrderNotifier />
