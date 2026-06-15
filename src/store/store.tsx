@@ -116,7 +116,7 @@ interface StoreState {
   }) => Promise<void>;
   /** 사장님 측 — 손님 강제 퇴장 (미결제 주문은 cancelled 로) */
   evictTable: (tableNumber: number, storeId: string) => Promise<void>;
-  issueCoupon: (customerId: string, storeId: string, type: string, description: string) => Promise<void>;
+  issueCoupon: (customerId: string, storeId: string, type: string, description: string, amount?: number) => Promise<void>;
   requestCouponUse: (couponId: string, tableNumber?: number) => Promise<void>;
   cancelCouponRequest: (couponId: string) => Promise<void>;
   approveCouponUse: (couponId: string) => Promise<void>;
@@ -207,7 +207,7 @@ interface StoreState {
   /** 직원 개별 추가 권한(extraPerms 경로 목록) 지정 — 등급 기본을 넘어 개방. */
   setStaffPerms: (userId: string, perms: string[]) => Promise<void>;
   setCustomerTier: (customerId: string, storeId: string, tier: Tier | "auto") => Promise<void>;
-  bulkIssueCoupon: (customerIds: string[], storeId: string, type: string, description: string) => Promise<void>;
+  bulkIssueCoupon: (customerIds: string[], storeId: string, type: string, description: string, amount?: number) => Promise<void>;
   updateBrandSettings: (storeId: string, data: Partial<User>) => Promise<void>;
   updateStoreConfig: (storeId: string, partial: Partial<NonNullable<User["storeConfig"]>>) => Promise<void>;
   updateStoreLocation: (storeId: string, lat: number, lng: number) => Promise<void>;
@@ -1106,13 +1106,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   // ============ COUPONS ============
   const issueCoupon = useCallback(
-    async (customerId: string, storeId: string, type: string, description: string) => {
+    async (customerId: string, storeId: string, type: string, description: string, amount?: number) => {
+      const amt = Math.max(0, Math.round(Number(amount) || 0));
       const c: Coupon = {
         id: generateId(),
         customerId,
         storeId,
         type,
         description,
+        ...(amt > 0 ? { amount: amt } : {}), // 금액 쿠폰(8-7)
         status: "available",
         issuedAt: new Date().toISOString(),
       };
@@ -1155,6 +1157,31 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const approveCouponUse = useCallback(async (couponId: string) => {
+    const c = couponsRef.current.find((x) => x.id === couponId);
+    // 8-7: 금액 쿠폰이면 그 테이블 계산서에 할인 라인(−금액)을 추가 → approvePayment 합산 시 자동 차감.
+    // status !== 'used' 가드 — 이미 사용된 쿠폰 재승인 시 할인 중복 생성 방지.
+    if (c && c.status !== "used" && (c.amount ?? 0) > 0 && c.usedAtTable != null) {
+      const billTotal = ordersRef.current
+        .filter((o) => o.storeId === c.storeId && o.tableNumber === c.usedAtTable && o.status !== "cancelled" && o.paymentStatus !== "paid")
+        .reduce((s, o) => s + o.totalAmount, 0);
+      const discount = Math.min(c.amount!, Math.max(0, billTotal)); // 계산서 초과 차감 방지
+      if (discount <= 0) {
+        showToast(t("store.coupon.noBill"), "error"); // 차감할 미결제 금액이 없음
+        return;
+      }
+      const discountOrder: Order = {
+        id: generateId(),
+        storeId: c.storeId,
+        tableNumber: c.usedAtTable,
+        customerId: c.customerId,
+        items: [{ menuId: "", name: t("store.coupon.discountLine"), quantity: 1, price: -discount }],
+        totalAmount: -discount,
+        status: "served", // 주방·활성주문 흐름에서 제외
+        paymentStatus: "unpaid", // 테이블 결제 시 함께 paid 처리
+        createdAt: new Date().toISOString(),
+      };
+      await updateFirestoreDoc("orders", discountOrder.id, discountOrder);
+    }
     await updateFirestoreDoc("coupons", couponId, {
       status: "used",
       usedAt: new Date().toISOString(),
@@ -1889,8 +1916,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   );
 
   const bulkIssueCoupon = useCallback(
-    async (customerIds: string[], storeId: string, type: string, description: string) => {
+    async (customerIds: string[], storeId: string, type: string, description: string, amount?: number) => {
       if (!db) return;
+      const amt = Math.max(0, Math.round(Number(amount) || 0)); // 금액 쿠폰(8-7)
       // 이미 같은 종류의 미사용 쿠폰을 보유한 손님은 제외 — 재방문/연타 시 중복 발급 방지
       const existing = couponsRef.current;
       const targets = customerIds.filter(
@@ -1920,6 +1948,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             storeId,
             type,
             description,
+            ...(amt > 0 ? { amount: amt } : {}),
             status: "available",
             issuedAt: now,
           });

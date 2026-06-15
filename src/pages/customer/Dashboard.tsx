@@ -978,7 +978,7 @@ function CouponRow({
   onUse,
   onCancel,
 }: {
-  coupon: { id: string; type: string; description: string; descKey?: string; status: "available" | "pending" | "used"; usedAtTable?: number };
+  coupon: { id: string; type: string; description: string; descKey?: string; amount?: number; status: "available" | "pending" | "used"; usedAtTable?: number };
   tableNumber?: number;
   onUse: () => void;
   onCancel: () => void;
@@ -1005,6 +1005,11 @@ function CouponRow({
         )}
       </div>
       <p className="text-[15px] font-bold text-[var(--color-navy-900)] mt-2">{coupon.descKey ? t(coupon.descKey, lang) : coupon.description}</p>
+      {(coupon.amount ?? 0) > 0 && (
+        <p className="text-[18px] font-extrabold text-[var(--color-mint-700)] mt-0.5 tabular-nums">
+          {t("coupons.amountOff", lang, { amount: (coupon.amount as number).toLocaleString("ko-KR") })}
+        </p>
+      )}
       {coupon.status === "available" && (
         <Button
           size="md"

@@ -173,6 +173,8 @@ export interface Coupon {
   description: string;
   /** 등급 자동 쿠폰의 i18n 키 — 있으면 표시 시 고객 언어로 변환. 사장님 커스텀 보상은 미설정(description 사용). */
   descKey?: string;
+  /** 금액 쿠폰이면 할인액(원). >0 이면 사용 승인 시 그 테이블 계산서에서 자동 차감(8-7). 없으면 일반 쿠폰(수동). */
+  amount?: number;
   status: CouponStatus;
   issuedAt: string;
   usedAt?: string;

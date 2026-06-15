@@ -256,12 +256,13 @@ export default function OwnerMarketing() {
           customers={bulkModal.customers}
           storeId={storeId}
           onClose={() => setBulkModal(null)}
-          onConfirm={async (type, desc) => {
+          onConfirm={async (type, desc, amount) => {
             await bulkIssueCoupon(
               bulkModal.customers.map((u) => u.id),
               storeId,
               type,
-              desc
+              desc,
+              amount
             );
             setBulkModal(null);
           }}
@@ -406,7 +407,7 @@ function BulkCouponModal({
   customers: User[];
   storeId: string;
   onClose: () => void;
-  onConfirm: (type: string, desc: string) => Promise<void> | void;
+  onConfirm: (type: string, desc: string, amount?: number) => Promise<void> | void;
 }) {
   const lang = useLanguage();
   // busy 중엔 onClose 가 차단되므로 useModalChrome 의 ESC 도 안전.
@@ -421,13 +422,14 @@ function BulkCouponModal({
         : t("mkt.coupon.descPh.tier", lang);
   const [type, setType] = useState(defaultType);
   const [desc, setDesc] = useState(defaultDesc);
+  const [amount, setAmount] = useState(""); // 금액 쿠폰(8-7) — 비우면 일반 쿠폰
   const [busy, setBusy] = useState(false);
 
   const submit = async () => {
     if (busy || !desc.trim()) return;
     setBusy(true);
     try {
-      await onConfirm(type.trim() || defaultType, desc.trim());
+      await onConfirm(type.trim() || defaultType, desc.trim(), Math.max(0, Number(amount) || 0));
     } finally {
       setBusy(false);
     }
@@ -461,6 +463,16 @@ function BulkCouponModal({
             value={desc}
             onChange={(e) => setDesc(e.target.value)}
           />
+          <div>
+            <Input
+              label={t("mkt.coupon.amount", lang)}
+              value={amount}
+              onChange={(e) => setAmount(e.target.value.replace(/\D/g, ""))}
+              inputMode="numeric"
+              placeholder="0"
+            />
+            <p className="text-[11px] text-[var(--color-ink-500)] mt-1 leading-relaxed">{t("mkt.coupon.amountHint", lang)}</p>
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-2 mt-5">
           <Button variant="ghost" onClick={onClose}>

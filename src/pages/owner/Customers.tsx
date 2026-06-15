@@ -336,7 +336,7 @@ export default function OwnerCustomers() {
           stats={myCustomers.find((c) => c.user.id === selected.id)}
           coupons={coupons.filter((c) => c.customerId === selected.id)}
           communications={communications.filter((c) => c.customerId === selected.id).slice(0, 5)}
-          onIssue={(type, desc) => issueCoupon(selected.id, storeId, type, desc)}
+          onIssue={(type, desc, amount) => issueCoupon(selected.id, storeId, type, desc, amount)}
           onMemo={(m) => updateUserMemo(selected.id, m)}
           onSetTier={(tier) => setCustomerTier(selected.id, storeId, tier)}
           onCommunicate={recordCommunication}
@@ -353,7 +353,7 @@ interface DetailProps {
   stats?: { rfm: { r: number; f: number; m: number }; cluster: { id: string; label: string }; tier: Tier; overrideTier?: Tier | "auto" };
   coupons: { id: string; type: string; description: string; status: string }[];
   communications: { id: string; type: string; content: string; date: string }[];
-  onIssue: (type: string, desc: string) => void;
+  onIssue: (type: string, desc: string, amount?: number) => void;
   onMemo: (m: string) => Promise<void> | void;
   onSetTier: (tier: Tier | "auto") => void;
   onCommunicate: (cid: string, sid: string, type: "coupon" | "message", content: string) => void;
@@ -474,7 +474,10 @@ function CustomerDetail({
               variant="mint"
               onClick={() => {
                 const desc = prompt(t("ocust.couponPrompt", lang));
-                if (desc) onIssue(t("ocust.bulkType", lang), desc);
+                if (!desc) return;
+                const amtStr = prompt(t("ocust.couponAmountPrompt", lang)); // 비우면 일반 쿠폰
+                const amount = Math.max(0, Number(String(amtStr ?? "").replace(/\D/g, "")) || 0);
+                onIssue(t("ocust.bulkType", lang), desc, amount);
               }}
               leftIcon={<Ticket className="w-4 h-4" />}
             >
