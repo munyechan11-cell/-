@@ -7,7 +7,7 @@ import { PageLoader } from "./components/ui/PageLoader";
 import { GlobalOrderNotifier } from "./components/layout/GlobalOrderNotifier";
 import { InstallPrompt } from "./components/ui/InstallPrompt";
 import { PhoneVerifyGate } from "./components/ui/PhoneVerifyGate";
-import { staffMinLevel } from "./lib/staffAccess";
+import { staffMinLevel, normalizeStaffPath } from "./lib/staffAccess";
 import { applyTheme, defaultThemeForIndustry } from "./lib/themes";
 import type { User } from "./lib/types";
 
@@ -41,6 +41,7 @@ const OwnerKitchen = lazy(() => import("./pages/owner/KitchenDisplay"));
 const OwnerKiosk = lazy(() => import("./pages/owner/KioskMode"));
 const OwnerQuickOrder = lazy(() => import("./pages/owner/QuickOrder"));
 const OwnerStaff = lazy(() => import("./pages/owner/Staff"));
+const OwnerMarketingAgent = lazy(() => import("./pages/owner/MarketingAgent"));
 const OwnerHelp = lazy(() => import("./pages/owner/Help"));
 
 const StaffStoreSearch = lazy(() => import("./pages/staff/StoreSearch"));
@@ -99,12 +100,14 @@ function PrivateRoute({
     if (!currentUser.employerStoreId) return <Navigate to="/biz/staff/store-search" replace />;
     if (currentUser.employerStatus !== "approved") return <Navigate to="/biz/staff/pending" replace />;
     if (requiresClockIn && !activeShift) return <Navigate to="/biz/staff" replace />;
-    // 권한 등급 가드 — 경로 기본 최소 등급 미달이고 사장님 개별 허용(extraPerms)도 없으면 직원 대시보드로
-    const need = staffMinLevel(location.pathname);
+    // 권한 등급 가드 — 경로 기본 최소 등급 미달이고 사장님 개별 허용(extraPerms)도 없으면 직원 대시보드로.
+    // 트레일링 슬래시/대소문자 변형으로 가드를 우회하지 못하도록 경로를 정규화해서 비교한다.
+    const path = normalizeStaffPath(location.pathname);
+    const need = staffMinLevel(path);
     if (need != null) {
       const level = currentUser.staffLevel ?? 1;
       const extra = currentUser.extraPerms ?? [];
-      if (level < need && !extra.includes(location.pathname)) {
+      if (level < need && !extra.includes(path)) {
         return <Navigate to="/biz/staff" replace />;
       }
     }
@@ -219,7 +222,8 @@ function ThemeApplier() {
     else if (storeId) store = users.find((u) => u.id === storeId && u.role === "owner") ?? null;
 
     const cfg = store?.storeConfig;
-    applyTheme(cfg?.theme ?? defaultThemeForIndustry(cfg?.industry));
+    // 컨텍스트(사장 본인/소속 매장/보는 매장)의 확정 테마 → persist 로 LS 동기화. 미저장 미리보기 잔상도 정정됨.
+    applyTheme(cfg?.theme ?? defaultThemeForIndustry(cfg?.industry), { persist: true });
   }, [currentUser, users, activeStoreId, effectiveStoreId]);
 
   return null;
@@ -338,6 +342,15 @@ export default function App() {
             element={
               <PrivateRoute role={["owner", "staff"]} requiresClockIn>
                 <OwnerStaff />
+              </PrivateRoute>
+            }
+          />
+          {/* 마케팅 자율 에이전트 — 사장 전용 (승인·발행 책임이 크므로 owner 만) */}
+          <Route
+            path="/biz/owner/marketing-agent"
+            element={
+              <PrivateRoute role="owner">
+                <OwnerMarketingAgent />
               </PrivateRoute>
             }
           />

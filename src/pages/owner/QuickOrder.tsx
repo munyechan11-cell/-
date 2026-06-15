@@ -17,9 +17,11 @@ import { showToast } from "../../lib/toast";
 const WAIT_BASE = 900;
 
 export default function QuickOrder() {
-  const { menus, orders, tables, currentUser, placeOrder, approvePayment, moveOrdersTable } = useStore();
+  const { menus, orders, tables, effectiveStoreId, placeOrder, approvePayment, moveOrdersTable } = useStore();
   const lang = useLanguage();
-  const storeId = currentUser?.id ?? "";
+  // 매장 id = 사장이면 본인, 출근한 직원이면 소속 매장(employerStoreId). 직원 본인 id 를 쓰면
+  // 메뉴·테이블이 0건이 되고 placeOrder 가 고아 주문을 만들므로 반드시 effectiveStoreId 사용.
+  const storeId = effectiveStoreId;
 
   const [activeTab, setActiveTab] = useState<number | null>(null);
   const [cart, setCart] = useState<Record<string, number>>({});

@@ -17,8 +17,8 @@ const base =
   "inline-flex items-center justify-center gap-2 font-bold tracking-tight transition-all duration-150 select-none active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed";
 
 const variants: Record<Variant, string> = {
-  primary: "bg-[var(--color-navy-700)] text-white hover:bg-[var(--color-navy-800)] shadow-[var(--shadow-navy)]",
-  mint: "bg-[var(--color-mint-500)] text-white hover:bg-[var(--color-mint-600)] shadow-[var(--shadow-mint)]",
+  primary: "bg-[var(--color-navy-700)] text-[var(--color-on-primary,white)] hover:bg-[var(--color-navy-800)] shadow-[var(--shadow-navy)]",
+  mint: "bg-[var(--color-mint-500)] text-[var(--color-on-accent,white)] hover:bg-[var(--color-mint-600)] shadow-[var(--shadow-mint)]",
   ghost: "bg-[var(--color-navy-50)] text-[var(--color-navy-700)] hover:bg-[var(--color-navy-100)]",
   outline:
     "bg-white text-[var(--color-navy-700)] border-[1.5px] border-[var(--color-line)] hover:border-[var(--color-navy-700)]",

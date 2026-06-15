@@ -49,6 +49,7 @@ service cloud.firestore {
     match /photos/{id}                 { allow read, write: if signedIn(); }
     match /ingredients/{id}            { allow read, write: if signedIn(); }
     match /expenses/{id}               { allow read, write: if signedIn(); }
+    match /marketingDrafts/{id}        { allow read, write: if signedIn(); }
 
     // ============================================================
     // 영수증 인쇄 브릿지 — 인증된 사장님 + 페어링된 에이전트

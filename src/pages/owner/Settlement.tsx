@@ -20,12 +20,13 @@ const localDateStr = (d: Date) =>
 type Period = "today" | "week" | "month";
 
 export default function Settlement() {
-  const { orders, menus, ingredients, expenses, shifts, users, currentUser, addExpense, deleteExpense } = useStore();
+  const { orders, menus, ingredients, expenses, shifts, users, effectiveStoreId, addExpense, deleteExpense } = useStore();
   const lang = useLanguage();
   const [period, setPeriod] = useState<Period>("month");
   const [adding, setAdding] = useState(false);
 
-  const storeId = currentUser?.id ?? "";
+  // 사장=본인, 출근한 실장(lv4)=소속 매장. 직원 본인 id 면 정산·인건비 화면이 빈다.
+  const storeId = effectiveStoreId;
   const todayStr = localDateStr(new Date());
   const weekStartStr = useMemo(() => {
     const d = new Date();

@@ -4,6 +4,7 @@ import { OwnerShell } from "../../components/layout/OwnerShell";
 import { useStore } from "../../store/store";
 import { useLanguage, t, fmtKRW } from "../../lib/i18n";
 import { localTodayStr } from "../../lib/date";
+import { useModalChrome } from "../../lib/useModalChrome";
 
 /**
  * 재고 "간편 입력" 모드 (체크리스트 #3) — 가장 낮은 진입장벽.
@@ -20,6 +21,9 @@ export function SimpleInventory({ storeId, modeTabs }: { storeId: string; modeTa
   const today = localTodayStr();
   const [date, setDate] = useState(today);
   const [busy, setBusy] = useState(false);
+
+  // 모달 공통 UX — ESC 닫기 + body 스크롤 잠금
+  useModalChrome(adding, () => setAdding(false));
 
   const cutoff = useMemo(() => {
     const d = new Date();
@@ -123,8 +127,14 @@ export function SimpleInventory({ storeId, modeTabs }: { storeId: string; modeTa
 
       {/* 구매 추가 모달 */}
       {adding && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center" onClick={() => setAdding(false)}>
-          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-[400px] bg-white rounded-t-[24px] sm:rounded-2xl p-5 pb-[max(env(safe-area-inset-bottom),20px)]">
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center sm:p-4" onClick={() => setAdding(false)}>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label={t("inv.simple.addPurchase", lang)}
+            className="w-full max-w-[400px] bg-white rounded-t-[24px] sm:rounded-2xl p-5 pb-[max(env(safe-area-inset-bottom),20px)] max-h-[88vh] overflow-y-auto"
+          >
             <h2 className="text-[17px] font-extrabold text-[var(--color-navy-900)] mb-4">{t("inv.simple.addPurchase", lang)}</h2>
             <label className="text-[12px] font-bold text-[var(--color-ink-600)] mb-1 block">{t("inv.simple.amount", lang)}</label>
             <input type="number" inputMode="numeric" min={0} value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" className={`${field} tabular-nums mb-3`} autoFocus />

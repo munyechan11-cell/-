@@ -26,6 +26,33 @@ export interface StoreConfig {
   inventoryMode?: "full" | "simple" | "ai";
   /** 매장 색 테마 id (src/lib/themes.ts). 미설정 시 업종 기본 테마로 폴백 */
   theme?: string;
+  /** AI 전화 예약 설정 — 가게마다 전화번호·인사말이 다르므로 매장별 설정. 서버 예약 두뇌(server.ts)가 참조. */
+  aiReservation?: {
+    /** 이 매장에서 AI 전화 예약을 켰는지 */
+    enabled?: boolean;
+    /** 이 매장으로 걸려오는(또는 착신전환되는) 대표 전화번호 — 음성채널이 number→storeId 매핑에 사용 */
+    phoneNumber?: string;
+    /** AI 첫 인사말 (미설정 시 기본 문구). 예: "안녕하세요, OO식당입니다. 예약 도와드릴까요?" */
+    greeting?: string;
+    /** 한 예약이 테이블을 점유하는 시간(분). 미설정 시 90 */
+    durationMin?: number;
+  };
+  /** 마케팅 자율 에이전트("사장님 비서") 프로필 (TODO 7-1). 콘텐츠 생성·응대 초안의 톤·타깃 기준. */
+  marketingAgent?: {
+    enabled?: boolean;
+    /** 말투/톤 (예: "친근하고 따뜻하게", "정중하게") */
+    tone?: string;
+    /** 타깃 고객 (예: "20-30대 직장인", "가족 단위") */
+    target?: string;
+    /** 강조 키워드 (쉼표 구분) */
+    keywords?: string;
+    /** 금지어 (쉼표 구분) — 콘텐츠에 절대 넣지 않을 표현 */
+    bannedWords?: string;
+    /** 자동 발행 여부 — 책임이 크므로 기본 false(사람 승인 필수). 골격 단계에선 항상 false. */
+    autoPublish?: boolean;
+    /** 하루 발행 한도 (가드레일 7-7). 0/미설정 = 무제한. 최근 24시간 발행 수가 이 값 이상이면 발행 차단. */
+    dailyPublishLimit?: number;
+  };
 }
 
 export interface User {
@@ -343,4 +370,43 @@ export interface Photo {
     blog?: { id?: string; syncedAt: string };
   };
   createdAt: string;
+}
+
+// ============================================================
+// 마케팅 자율 에이전트 ("사장님 비서") — TODO 7
+// 에이전트가 만든 콘텐츠/응대는 항상 '초안(draft)'으로 들어와 사장 승인 후에만 발행된다.
+// 모든 상태 전이는 audit 로 남긴다(자동 발행은 책임이 크므로 승인 게이트·로깅 필수).
+// ============================================================
+export type MarketingDraftStatus = "draft" | "approved" | "rejected" | "published";
+export interface MarketingDraftLog {
+  /** ISO 시각 */
+  at: string;
+  /** created | edited | approved | rejected | published */
+  action: string;
+  /** 행위자 (owner id 등) */
+  by?: string;
+  /** 비고 (거절 사유 등) */
+  note?: string;
+}
+export interface MarketingDraft {
+  id: string;
+  storeId: string;
+  /** 발행 대상 채널 */
+  channel: "instagram" | "naverPlace" | "general";
+  /** 게시물 초안 vs 리뷰/DM 응대 초안 */
+  kind: "post" | "reply";
+  title?: string;
+  content: string;
+  status: MarketingDraftStatus;
+  /** 생성 출처 — 에이전트 생성 vs 사람 수동 */
+  source: "agent" | "manual";
+  /** 응대(reply) 초안이 답할 대상 — 리뷰(photos) id. 발행 시 그 리뷰의 ownerReply 로 기록. */
+  targetId?: string;
+  /** 대상 요약 — 큐에서 원본 리뷰를 함께 보여주기 위한 스냅샷(예: 별점·리뷰 글 일부) */
+  targetSummary?: string;
+  createdAt: string;
+  reviewedAt?: string;
+  publishedAt?: string;
+  /** 감사 로그 — 생성·수정·승인·거절·발행 전체 기록 */
+  audit: MarketingDraftLog[];
 }

@@ -628,7 +628,7 @@ export default function CustomerDashboard() {
 
           {cartItems.length > 0 && (
             <div
-              className="fixed left-1/2 -translate-x-1/2 w-full max-w-[480px] px-5 z-30"
+              className="fixed lg:absolute left-1/2 -translate-x-1/2 w-full max-w-[480px] px-5 z-30"
               style={{ bottom: "calc(64px + env(safe-area-inset-bottom) + 8px)" }}
             >
               <button

@@ -31,7 +31,8 @@ export function MobileShell({ children, bottomNav, className, framed = true }: P
         <main
           className={cn(
             framed ? "lg:flex-1 lg:overflow-y-auto" : "",
-            bottomNav ? "pb-28" : "pb-8"
+            // 모바일: fixed 하단바 가림 방지 pb-28. 데스크탑 framed 에선 하단바가 relative 라 가리지 않으므로 pb 제거.
+            bottomNav ? (framed ? "pb-28 lg:pb-0" : "pb-28") : "pb-8"
           )}
         >
           {children}
@@ -39,7 +40,7 @@ export function MobileShell({ children, bottomNav, className, framed = true }: P
         {bottomNav && (
           <nav
             className={cn(
-              "bg-white/95 backdrop-blur-md border-t border-[var(--color-line)] pb-[env(safe-area-inset-bottom)] z-40",
+              "bg-[var(--color-surface,white)]/95 backdrop-blur-md border-t border-[var(--color-line)] pb-[env(safe-area-inset-bottom)] z-40",
               framed
                 ? "fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] lg:relative lg:translate-x-0 lg:left-auto lg:bottom-auto lg:w-auto"
                 : "fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px]"

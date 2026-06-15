@@ -222,9 +222,17 @@ export default function OwnerInventory() {
   };
 
   // 재고 3모드 (ERP 차용 후속: 사장 수준에 맞게 가독성↑) — full 깐깐 / simple 간편 / ai 자동
-  const mode = currentUser?.storeConfig?.inventoryMode ?? "full";
-  const setMode = (m: "full" | "simple" | "ai") => updateStoreConfig(storeId, { inventoryMode: m });
+  // 모드는 매장(사장) storeConfig 에 저장되므로 직원도 소속 매장 기준으로 읽어야 사장과 화면이 일치한다.
+  const storeOwner = currentUser?.role === "owner" ? currentUser : users.find((u) => u.id === storeId);
+  const mode = storeOwner?.storeConfig?.inventoryMode ?? "full";
+  const isOwner = currentUser?.role === "owner";
+  const setMode = (m: "full" | "simple" | "ai") => {
+    if (!isOwner) return; // 모드 전환은 사장 전용 — 직원이 매장 전체 모드를 바꾸지 못하게 차단
+    updateStoreConfig(storeId, { inventoryMode: m });
+  };
   const modeTabs = (
+    // 직원에게는 모드 탭을 숨김(현재 매장 모드를 그대로 따름). 사장만 전환 가능.
+    isOwner ? (
     <div className="grid grid-cols-3 gap-1 p-1 bg-[var(--color-navy-50)] rounded-[12px] mb-4 max-w-md">
       {(["full", "simple", "ai"] as const).map((m) => (
         <button
@@ -238,6 +246,7 @@ export default function OwnerInventory() {
         </button>
       ))}
     </div>
+    ) : null
   );
 
   // 간편 모드 — 매출 + 원재료 구매만으로 원가율 자동 계산 (#3)

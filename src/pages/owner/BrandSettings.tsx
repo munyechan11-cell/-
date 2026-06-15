@@ -99,6 +99,10 @@ export default function BrandSettings() {
   const [tossSecret, setTossSecret] = useState(""); // write-only — 보안상 화면에 표시하지 않음
   const [kioskEnabled, setKioskEnabled] = useState(!!cfg?.kioskEnabled);
   const [theme, setTheme] = useState(cfg?.theme ?? defaultThemeForIndustry(cfg?.industry));
+  // AI 전화 예약 — 가게마다 전화번호·인사말이 다르므로 매장별 설정
+  const [aiResEnabled, setAiResEnabled] = useState(!!cfg?.aiReservation?.enabled);
+  const [aiResPhone, setAiResPhone] = useState(cfg?.aiReservation?.phoneNumber ?? "");
+  const [aiResGreeting, setAiResGreeting] = useState(cfg?.aiReservation?.greeting ?? "");
 
   const [tierNames, setTierNames] = useState<Record<string, string>>(currentUser?.tierNames ?? {});
   const [tierRewards, setTierRewards] = useState<Record<string, string>>(currentUser?.tierRewards ?? {});
@@ -143,6 +147,11 @@ export default function BrandSettings() {
       tossClientKey: (tossKey || null) as any,
       kioskEnabled,
       theme,
+      aiReservation: {
+        enabled: aiResEnabled,
+        phoneNumber: aiResPhone.replace(/[^\d+]/g, ""), // 숫자·+ 만 — number→storeId 매핑 일관성
+        greeting: aiResGreeting.trim(),
+      },
     });
     // 시크릿 키 — 입력했을 때만 서버 보안 컬렉션(store_secrets)에 저장. 클라이언트엔 남기지 않음.
     if (tossSecret.trim()) {
@@ -159,6 +168,8 @@ export default function BrandSettings() {
         showToast(t("obs.toss.secretFail", lang), "error");
       }
     }
+    // 저장 확정 시점에만 테마를 localStorage 에 영속화 (미리보기는 휘발 — 저장 안 하면 캐시에 안 남음)
+    applyTheme(theme, { persist: true });
     // 화면 입력값도 클램프 결과로 정정
     setPointRate(String(rate));
     setStampMax(String(stamps));
@@ -514,6 +525,29 @@ export default function BrandSettings() {
         <Sec title={t("obs.sec.kiosk", lang)}>
           <Toggle label={t("obs.kiosk.enable", lang)} value={kioskEnabled} onChange={setKioskEnabled} />
           <p className="text-[12px] text-[var(--color-ink-500)] mt-2 leading-relaxed">{t("obs.kiosk.desc", lang)}</p>
+        </Sec>
+
+        <Sec title={t("obs.sec.aiPhone", lang)}>
+          <Toggle label={t("obs.aiPhone.enable", lang)} value={aiResEnabled} onChange={setAiResEnabled} />
+          <p className="text-[12px] text-[var(--color-ink-500)] mt-2 mb-3 leading-relaxed">{t("obs.aiPhone.desc", lang)}</p>
+          {aiResEnabled && (
+            <>
+              <Input
+                label={t("obs.aiPhone.number", lang)}
+                value={aiResPhone}
+                onChange={(e) => setAiResPhone(e.target.value)}
+                inputMode="tel"
+                placeholder="010-1234-5678"
+              />
+              <p className="text-[12px] text-[var(--color-ink-500)] mt-1 mb-3 leading-relaxed">{t("obs.aiPhone.numberHelp", lang)}</p>
+              <Input
+                label={t("obs.aiPhone.greeting", lang)}
+                value={aiResGreeting}
+                onChange={(e) => setAiResGreeting(e.target.value)}
+                placeholder={t("obs.aiPhone.greetingPh", lang)}
+              />
+            </>
+          )}
         </Sec>
 
         <Sec title={t("obs.sec.geo", lang)}>

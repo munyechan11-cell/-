@@ -4,7 +4,7 @@ import { OwnerShell } from "../../components/layout/OwnerShell";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
 import { useStore } from "../../store/store";
-import { STAFF_LEVELS, STAFF_LEVEL_KEY, STAFF_FEATURES } from "../../lib/staffAccess";
+import { STAFF_LEVELS, STAFF_LEVEL_KEY, STAFF_FEATURES, PERM_MANAGE_STAFF, canStaffAccess } from "../../lib/staffAccess";
 import { formatPhoneNumber } from "../../lib/ids";
 import { useLanguage, t, type Lang, getLocale, fmtKRW } from "../../lib/i18n";
 
@@ -25,14 +25,20 @@ function fmtDate(iso: string, lang: Lang) {
 }
 
 export default function OwnerStaff() {
-  const { currentUser, users, shifts, approveStaff, rejectStaff, removeStaffMembership, setStaffWage, setStaffLevel, setStaffPerms } = useStore();
+  const { currentUser, effectiveStoreId, users, shifts, approveStaff, rejectStaff, removeStaffMembership, setStaffWage, setStaffLevel, setStaffPerms } = useStore();
   const lang = useLanguage();
   const locale = getLocale(lang);
   const [openShiftsFor, setOpenShiftsFor] = useState<string | null>(null);
   const [openPermsFor, setOpenPermsFor] = useState<string | null>(null);
   const [wageEdit, setWageEdit] = useState<Record<string, string>>({});
 
-  const storeId = currentUser?.id ?? "";
+  // 사장=본인, lv4(실장) 직원=소속 매장. 직원 본인 id 로 필터하면 직원 목록·근무기록이 비어 보인다.
+  const storeId = effectiveStoreId;
+  const isOwner = currentUser?.role === "owner";
+  // 등급 조정 능력 = 사장 기본, 또는 사장이 위임(PERM_MANAGE_STAFF)한 직원. 권한 부여(extraPerms)·재위임은 사장 전용.
+  const canManageStaff = isOwner || (currentUser?.extraPerms?.includes(PERM_MANAGE_STAFF) ?? false);
+  // 위임받은 직원이 '자기 자신'의 등급을 올리는 셀프 권한상승은 항상 차단.
+  const canEditLevelOf = (targetId: string) => canManageStaff && (isOwner || targetId !== currentUser?.id);
 
   const myStaff = useMemo(
     () => users.filter((u) => u.role === "staff" && u.employerStoreId === storeId),
@@ -182,32 +188,42 @@ export default function OwnerStaff() {
                       {/* 권한 등급 — 사장님이 직원 등급 지정. 등급↑ → 접근 범위 누적 */}
                       <div className="flex items-center gap-2 mt-2 flex-wrap">
                         <span className="text-[11.5px] text-[var(--color-ink-500)] font-bold">{t("ostaff.level", lang)}</span>
-                        <div className="inline-flex gap-0.5 p-0.5 bg-[var(--color-navy-50)] rounded-lg">
-                          {STAFF_LEVELS.map((lv) => (
-                            <button
-                              key={lv}
-                              onClick={() => setStaffLevel(s.id, lv)}
-                              className={`h-7 px-2.5 rounded-md text-[11.5px] font-bold transition-colors ${
-                                (s.staffLevel ?? 1) === lv
-                                  ? "bg-white text-[var(--color-navy-800)] shadow-[var(--shadow-press)]"
-                                  : "text-[var(--color-ink-500)]"
-                              }`}
-                            >
-                              {t(`staffLevel.${STAFF_LEVEL_KEY[lv]}`, lang)}
-                            </button>
-                          ))}
-                        </div>
+                        {canEditLevelOf(s.id) ? (
+                          // 등급 변경 = 사장 또는 위임받은 직원. 단 위임 직원은 자기 자신 행을 못 바꿈(셀프 권한상승 차단).
+                          <div role="group" aria-label={t("ostaff.level", lang)} className="inline-flex gap-0.5 p-0.5 bg-[var(--color-navy-50)] rounded-lg">
+                            {STAFF_LEVELS.map((lv) => (
+                              <button
+                                key={lv}
+                                onClick={() => setStaffLevel(s.id, lv)}
+                                aria-pressed={(s.staffLevel ?? 1) === lv}
+                                className={`h-7 px-2.5 rounded-md text-[11.5px] font-bold transition-colors ${
+                                  (s.staffLevel ?? 1) === lv
+                                    ? "bg-white text-[var(--color-navy-800)] shadow-[var(--shadow-press)]"
+                                    : "text-[var(--color-ink-500)]"
+                                }`}
+                              >
+                                {t(`staffLevel.${STAFF_LEVEL_KEY[lv]}`, lang)}
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="h-7 px-2.5 inline-flex items-center rounded-md text-[11.5px] font-bold bg-white text-[var(--color-navy-800)] shadow-[var(--shadow-press)]">
+                            {t(`staffLevel.${STAFF_LEVEL_KEY[s.staffLevel ?? 1]}`, lang)}
+                          </span>
+                        )}
                       </div>
                     </div>
                     <div className="flex gap-2 ml-auto">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        leftIcon={<Shield className="w-4 h-4" />}
-                        onClick={() => setOpenPermsFor(permsOpen ? null : s.id)}
-                      >
-                        {t("ostaff.perms", lang)}
-                      </Button>
+                      {isOwner && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          leftIcon={<Shield className="w-4 h-4" />}
+                          onClick={() => setOpenPermsFor(permsOpen ? null : s.id)}
+                        >
+                          {t("ostaff.perms", lang)}
+                        </Button>
+                      )}
                       <Button
                         size="sm"
                         variant="ghost"
@@ -260,6 +276,32 @@ export default function OwnerStaff() {
                         })}
                       </div>
                       <p className="text-[11px] text-[var(--color-ink-500)] mt-2 leading-relaxed">{t("ostaff.perms.hint", lang)}</p>
+
+                      {/* 직원 권한 관리 위임 — 직원관리 화면에 접근 가능한 직원에게만 의미. 켜면 그 직원이 다른 직원 등급을 조정 가능. */}
+                      {canStaffAccess("/biz/owner/staff", s.staffLevel ?? 1, s.extraPerms) && (() => {
+                        const extra = s.extraPerms ?? [];
+                        const delegated = extra.includes(PERM_MANAGE_STAFF);
+                        return (
+                          <div className="mt-3 pt-3 border-t border-[var(--color-line-soft)]">
+                            <button
+                              onClick={() =>
+                                setStaffPerms(
+                                  s.id,
+                                  delegated ? extra.filter((p) => p !== PERM_MANAGE_STAFF) : [...extra, PERM_MANAGE_STAFF]
+                                )
+                              }
+                              aria-pressed={delegated}
+                              className={`flex items-center gap-1.5 w-full h-10 px-2.5 rounded-lg text-[12px] font-bold text-left transition-colors ${
+                                delegated ? "bg-[var(--color-mint-50)] text-[var(--color-navy-800)]" : "bg-[var(--color-bg)] text-[var(--color-ink-500)]"
+                              }`}
+                            >
+                              {delegated ? <Check className="w-3.5 h-3.5 shrink-0 text-[var(--color-mint-700)]" /> : <Shield className="w-3.5 h-3.5 shrink-0" />}
+                              <span className="flex-1">{t("ostaff.perms.manageStaff", lang)}</span>
+                            </button>
+                            <p className="text-[11px] text-[var(--color-ink-500)] mt-1.5 leading-relaxed">{t("ostaff.perms.manageStaffHint", lang)}</p>
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
                   {open && (

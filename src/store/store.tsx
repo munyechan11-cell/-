@@ -16,6 +16,7 @@ import {
   where,
   writeBatch,
   increment,
+  arrayUnion,
 } from "firebase/firestore";
 import { db, isFirebaseConfigured, ensureAnonymousAuth } from "../lib/firebase";
 import { updateFirestoreDoc, flushOfflineQueue } from "../lib/firestore";
@@ -53,6 +54,7 @@ import type {
   Shift,
   Ingredient,
   Expense,
+  MarketingDraft,
 } from "../lib/types";
 
 type FirebaseStatus = "connecting" | "ok" | "error" | "offline";
@@ -79,6 +81,7 @@ interface StoreState {
   shifts: Shift[];
   ingredients: Ingredient[];
   expenses: Expense[];
+  marketingDrafts: MarketingDraft[];
 
   /** 현재 컨텍스트의 매장 id (사장님=자기 id, 직원=employerStoreId) */
   effectiveStoreId: string;
@@ -138,6 +141,22 @@ interface StoreState {
   deleteIngredient: (id: string) => Promise<void>;
   addExpense: (storeId: string, data: Omit<Expense, "id" | "storeId" | "createdAt">) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
+
+  // 마케팅 에이전트 초안 — 모두 '초안'으로 생성되어 사장 승인 후 발행. 전 상태전이 audit 로깅(TODO 7-3).
+  addMarketingDraft: (
+    storeId: string,
+    data: Pick<MarketingDraft, "channel" | "kind" | "content"> & {
+      title?: string;
+      source?: MarketingDraft["source"];
+      targetId?: string;
+      targetSummary?: string;
+    }
+  ) => Promise<void>;
+  /** 초안 검토 — approve/reject/publish. audit 에 행위·시각·사유 기록. */
+  reviewMarketingDraft: (id: string, action: "approve" | "reject" | "publish", note?: string) => Promise<void>;
+  /** 초안 본문 수정 — audit 에 edited 기록. */
+  updateMarketingDraftContent: (id: string, content: string, title?: string) => Promise<void>;
+  deleteMarketingDraft: (id: string) => Promise<void>;
 
   // orders
   placeOrder: (input: {
@@ -289,6 +308,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const ingredientsRef = useRef<Ingredient[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [marketingDrafts, setMarketingDrafts] = useState<MarketingDraft[]>([]);
   useEffect(() => { ingredientsRef.current = ingredients; }, [ingredients]);
 
   const scopedUnsubsRef = useRef<Array<() => void>>([]);
@@ -304,9 +324,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const sectionsRef = useRef<Section[]>(sections);
   const ordersRef = useRef<Order[]>(orders);
   const reservationsRef = useRef<Reservation[]>(reservations);
+  const marketingDraftsRef = useRef<MarketingDraft[]>(marketingDrafts);
   const currentUserRef = useRef<User | null>(currentUser);
   // 결제 승인 중복 실행 방지 (테이블별 in-flight set, 멱등성 보장)
   const approvingPaymentRef = useRef<Set<string>>(new Set());
+  // 출퇴근 중복 실행 방지 — 버튼 연타 시 shifts(onSnapshot 왕복 후 갱신) 기반 가드만으로는
+  // 두 호출이 모두 open===undefined 를 보고 각각 새 shift 를 만들 수 있어 동기 ref 로 막는다.
+  const clockingRef = useRef(false);
   useEffect(() => { usersRef.current = users; }, [users]);
   useEffect(() => { visitsRef.current = visits; }, [visits]);
   useEffect(() => { couponsRef.current = coupons; }, [coupons]);
@@ -315,6 +339,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => { sectionsRef.current = sections; }, [sections]);
   useEffect(() => { ordersRef.current = orders; }, [orders]);
   useEffect(() => { reservationsRef.current = reservations; }, [reservations]);
+  useEffect(() => { marketingDraftsRef.current = marketingDrafts; }, [marketingDrafts]);
   useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
 
   // 사장님이 앱 언어를 바꾸면 User.lang 에 저장 — 손님/직원 기기가 주문·결제·쿠폰 푸시를
@@ -331,6 +356,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!isReady) return;
     if (firebaseStatus !== "offline") return;
+    // 로그아웃/미로그인 상태에서는 캐시를 미러링하지 않는다. logout()이 메모리 상태를 []로 비우는데,
+    // 이때 빈 배열로 LS_OFFLINE_STATE 를 덮어쓰면 오프라인 캐시(매장·메뉴·주문)가 영구 소실된다.
+    if (!currentUser) return;
     // 디바운스(1s) — 오프라인에서 onSnapshot 이 연달아 오더라도 마지막 1회만 직렬화/저장
     const id = setTimeout(() => {
       localStorage.setItem(
@@ -356,6 +384,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, [
     firebaseStatus,
     isReady,
+    currentUser,
     users,
     visits,
     coupons,
@@ -483,6 +512,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       sub<Shift>("shifts", setShifts, "storeId", sid);
       sub<Ingredient>("ingredients", setIngredients, "storeId", sid);
       sub<Expense>("expenses", setExpenses, "storeId", sid);
+      sub<MarketingDraft>("marketingDrafts", setMarketingDrafts, "storeId", sid);
     } else if (currentUser.role === "staff") {
       const sid = currentUser.employerStoreId;
       // 본인 근무 기록은 항상 구독 (승인 전에도 빈 배열)
@@ -572,6 +602,36 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     if (u) localStorage.setItem(LS_USER, JSON.stringify(u));
     else localStorage.removeItem(LS_USER);
   }, []);
+
+  // 사장이 원격으로 바꾸는 직원의 권한 등급·추가권한·승인 상태를, 실행 중인 직원 세션에 실시간 반영.
+  // 전역 users 구독은 users 배열만 갱신하고 권한 판정의 원천인 currentUser 는 갱신하지 않아서,
+  // 재로그인 전까지 (a) 강등돼도 옛 등급 권한 유지, (b) 승인돼도 Pending 에 묶이고 매장 데이터 구독이
+  // 시작되지 않는 문제가 있었다. employerStatus/employerStoreId 가 scoped 구독 effect 의존성(524)이라
+  // 이 한 번의 setCurrentUser 로 라우트 가드·NAV·구독 재시작이 모두 정상화된다.
+  useEffect(() => {
+    if (currentUser?.role !== "staff") return; // 직원 세션만 — 사장/손님 낙관적 패치와 충돌 방지
+    const fresh = users.find((u) => u.id === currentUser.id);
+    if (!fresh) return;
+    const changed =
+      fresh.staffLevel !== currentUser.staffLevel ||
+      fresh.employerStatus !== currentUser.employerStatus ||
+      fresh.employerStoreId !== currentUser.employerStoreId ||
+      fresh.position !== currentUser.position ||
+      fresh.hourlyWage !== currentUser.hourlyWage ||
+      fresh.status !== currentUser.status ||
+      JSON.stringify(fresh.extraPerms ?? []) !== JSON.stringify(currentUser.extraPerms ?? []);
+    if (!changed) return; // 실제 변경이 있을 때만 set — 무한 루프 방지
+    setCurrentUser({
+      ...currentUser,
+      staffLevel: fresh.staffLevel,
+      extraPerms: fresh.extraPerms,
+      employerStatus: fresh.employerStatus,
+      employerStoreId: fresh.employerStoreId,
+      position: fresh.position,
+      hourlyWage: fresh.hourlyWage,
+      status: fresh.status,
+    });
+  }, [users, currentUser, setCurrentUser]);
 
   // ============ LOGIN ============
   const login = useCallback(
@@ -708,6 +768,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setShifts([]);
     setIngredients([]);
     setExpenses([]);
+    setMarketingDrafts([]);
     showToast(t("store.loggedOut"), "info");
   }, [setCurrentUser]);
 
@@ -1246,6 +1307,78 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   );
   const deleteExpense = useCallback(async (id: string) => {
     await updateFirestoreDoc("expenses", id, undefined, true);
+  }, []);
+
+  // ===== 마케팅 에이전트 초안 (TODO 7-3) — 승인 게이트 + 감사 로깅 =====
+  const addMarketingDraft = useCallback(
+    async (
+      storeId: string,
+      data: Pick<MarketingDraft, "channel" | "kind" | "content"> & {
+        title?: string;
+        source?: MarketingDraft["source"];
+        targetId?: string;
+        targetSummary?: string;
+      }
+    ) => {
+      const id = generateId();
+      const now = new Date().toISOString();
+      const by = currentUserRef.current?.id;
+      const draft: MarketingDraft = {
+        id,
+        storeId,
+        channel: data.channel,
+        kind: data.kind,
+        title: data.title,
+        content: data.content,
+        status: "draft", // 항상 초안으로 — 자동 발행 금지(승인 필수)
+        source: data.source ?? "manual",
+        targetId: data.targetId,
+        targetSummary: data.targetSummary,
+        createdAt: now,
+        audit: [{ at: now, action: "created", by }],
+      };
+      await updateFirestoreDoc("marketingDrafts", id, draft);
+    },
+    []
+  );
+  const reviewMarketingDraft = useCallback(
+    async (id: string, action: "approve" | "reject" | "publish", note?: string) => {
+      const cur = marketingDraftsRef.current.find((d) => d.id === id);
+      if (!cur) return;
+      const now = new Date().toISOString();
+      const by = currentUserRef.current?.id;
+      const status: MarketingDraft["status"] =
+        action === "approve" ? "approved" : action === "reject" ? "rejected" : "published";
+      // arrayUnion 으로 atomic append — 동시/멀티기기 쓰기에서도 로그 항목 유실 방지. (sentinel 내부는
+      // stripUndefined 가 정리하지 않으므로 undefined 키를 넣지 않도록 조건부 구성)
+      const entry: Record<string, string> = { at: now, action };
+      if (by) entry.by = by;
+      if (note?.trim()) entry.note = note.trim();
+      const patch: Partial<MarketingDraft> = {
+        status,
+        reviewedAt: now,
+        audit: arrayUnion(entry) as any,
+      };
+      if (action === "publish") patch.publishedAt = now;
+      await updateFirestoreDoc("marketingDrafts", id, patch);
+    },
+    []
+  );
+  const updateMarketingDraftContent = useCallback(async (id: string, content: string, title?: string) => {
+    const cur = marketingDraftsRef.current.find((d) => d.id === id);
+    if (!cur) return;
+    const now = new Date().toISOString();
+    const by = currentUserRef.current?.id;
+    const entry: Record<string, string> = { at: now, action: "edited" };
+    if (by) entry.by = by;
+    await updateFirestoreDoc("marketingDrafts", id, {
+      content,
+      title,
+      audit: arrayUnion(entry) as any,
+    });
+  }, []);
+  const deleteMarketingDraft = useCallback(async (id: string) => {
+    await updateFirestoreDoc("marketingDrafts", id, undefined, true);
   }, []);
 
   /**
@@ -2040,36 +2173,48 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       showToast(t("store.staff.cannotClockIn"), "error");
       return;
     }
+    if (clockingRef.current) return; // 진행 중이면 무시 (연타 방어)
     // 이미 진행 중인 근무가 있으면 무시
     const open = shifts.find((s) => s.staffId === cu.id && !s.clockOutAt);
     if (open) {
       showToast(t("store.staff.alreadyOn"), "info");
       return;
     }
-    const id = generateId();
-    const s: Shift = {
-      id,
-      staffId: cu.id,
-      storeId: cu.employerStoreId,
-      clockInAt: new Date().toISOString(),
-      clockOutAt: null,
-    };
-    await updateFirestoreDoc("shifts", id, s);
-    showToast(t("store.staff.clockInOk"), "success");
+    clockingRef.current = true;
+    try {
+      const id = generateId();
+      const s: Shift = {
+        id,
+        staffId: cu.id,
+        storeId: cu.employerStoreId,
+        clockInAt: new Date().toISOString(),
+        clockOutAt: null,
+      };
+      await updateFirestoreDoc("shifts", id, s);
+      showToast(t("store.staff.clockInOk"), "success");
+    } finally {
+      clockingRef.current = false;
+    }
   }, [shifts]);
 
   const clockOut = useCallback(async () => {
     const cu = currentUserRef.current;
     if (!cu || cu.role !== "staff") return;
+    if (clockingRef.current) return; // 진행 중이면 무시 (연타 방어)
     const open = shifts.find((s) => s.staffId === cu.id && !s.clockOutAt);
     if (!open) {
       showToast(t("store.staff.noShift"), "info");
       return;
     }
-    await updateFirestoreDoc("shifts", open.id, {
-      clockOutAt: new Date().toISOString(),
-    });
-    showToast(t("store.staff.clockOutOk"), "success");
+    clockingRef.current = true;
+    try {
+      await updateFirestoreDoc("shifts", open.id, {
+        clockOutAt: new Date().toISOString(),
+      });
+      showToast(t("store.staff.clockOutOk"), "success");
+    } finally {
+      clockingRef.current = false;
+    }
   }, [shifts]);
 
   // 현재 사용자 기준 진행 중 근무
@@ -2112,6 +2257,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       shifts,
       ingredients,
       expenses,
+      marketingDrafts,
       activeShift,
       effectiveStoreId,
       activeStoreId,
@@ -2173,6 +2319,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       deleteIngredient,
       addExpense,
       deleteExpense,
+      addMarketingDraft,
+      reviewMarketingDraft,
+      updateMarketingDraftContent,
+      deleteMarketingDraft,
       requestJoinStore,
       cancelJoinRequest,
       approveStaff,
@@ -2202,6 +2352,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       shifts,
       ingredients,
       expenses,
+      marketingDrafts,
       activeShift,
       effectiveStoreId,
       activeStoreId,
@@ -2262,6 +2413,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       deleteIngredient,
       addExpense,
       deleteExpense,
+      addMarketingDraft,
+      reviewMarketingDraft,
+      updateMarketingDraftContent,
+      deleteMarketingDraft,
       requestJoinStore,
       cancelJoinRequest,
       approveStaff,

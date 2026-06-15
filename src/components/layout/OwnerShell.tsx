@@ -25,6 +25,7 @@ import {
   Monitor,
   Tablet,
   Zap,
+  Bot,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useStore } from "../../store/store";
@@ -71,6 +72,7 @@ const NAV: NavItem[] = [
   // 고객 — 고객관계·마케팅
   { to: "/biz/owner/customers", labelKey: "ownerNav.customers", icon: Users, group: "customer" },
   { to: "/biz/owner/marketing", labelKey: "ownerNav.marketing", icon: Megaphone, group: "customer" },
+  { to: "/biz/owner/marketing-agent", labelKey: "ownerNav.marketingAgent", icon: Bot, group: "customer" },
   { to: "/biz/owner/reservations", labelKey: "ownerNav.reservations", icon: Calendar, staffFree: true, group: "customer" },
   { to: "/biz/owner/photos", labelKey: "ownerNav.reviews", icon: ImageIcon, group: "customer" },
   // 경영 — 재고·정산·인사
@@ -92,6 +94,7 @@ export function OwnerShell({ children, title, headerRight, width = "default" }: 
   const loc = useLocation();
   const lang = useLanguage();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [clockBusy, setClockBusy] = useState(false);
 
   const isStaff = currentUser?.role === "staff";
   const onDuty = !!activeShift;
@@ -218,7 +221,7 @@ export function OwnerShell({ children, title, headerRight, width = "default" }: 
       {drawerOpen && (
         <div className="lg:hidden fixed inset-0 z-40 bg-black/50" onClick={() => setDrawerOpen(false)}>
           <aside
-            className="absolute inset-y-0 left-0 w-[300px] max-w-[88vw] bg-white flex flex-col animate-[gyeol-slide-up_.2s_ease-out]"
+            className="absolute inset-y-0 left-0 w-[300px] max-w-[88vw] bg-white flex flex-col animate-[gyeol-slide-in-left_.22s_ease-out]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-5 h-[68px] border-b border-[var(--color-line-soft)]">
@@ -327,12 +330,19 @@ export function OwnerShell({ children, title, headerRight, width = "default" }: 
               </button>
               {isStaff && (
                 <button
+                  disabled={clockBusy}
                   onClick={async () => {
-                    if (onDuty) await clockOut();
-                    else await clockIn();
+                    if (clockBusy) return;
+                    setClockBusy(true);
+                    try {
+                      if (onDuty) await clockOut();
+                      else await clockIn();
+                    } finally {
+                      setClockBusy(false);
+                    }
                   }}
                   className={cn(
-                    "inline-flex items-center gap-1.5 h-9 px-3 rounded-full text-[12px] font-bold transition-colors",
+                    "inline-flex items-center gap-1.5 h-9 px-3 rounded-full text-[12px] font-bold transition-colors disabled:opacity-60",
                     onDuty
                       ? "bg-[var(--color-mint-100)] text-[var(--color-mint-700)] hover:bg-[var(--color-mint-200)]"
                       : "bg-[var(--color-navy-50)] text-[var(--color-navy-700)] hover:bg-[var(--color-navy-100)]"

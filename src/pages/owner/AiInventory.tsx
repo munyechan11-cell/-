@@ -6,6 +6,7 @@ import { useLanguage, t, fmtKRW } from "../../lib/i18n";
 import { localTodayStr } from "../../lib/date";
 import { api } from "../../lib/api";
 import { resizeImage } from "./PhotoVault";
+import { useModalChrome } from "../../lib/useModalChrome";
 import type { ExpenseCategory } from "../../lib/types";
 
 /**
@@ -35,6 +36,9 @@ export function AiInventory({ storeId, modeTabs }: { storeId: string; modeTabs: 
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // 모달 공통 UX — ESC 닫기 + body 스크롤 잠금 (다른 모달들과 동일 규약)
+  useModalChrome(!!draft, () => setDraft(null));
 
   const cutoff = useMemo(() => {
     const d = new Date();
@@ -77,7 +81,15 @@ export function AiInventory({ storeId, modeTabs }: { storeId: string; modeTabs: 
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({} as any));
-        setError(res.status === 503 || data?.error === "AI_NOT_CONFIGURED" ? t("inv.ai.notConfigured", lang) : t("inv.ai.failed", lang));
+        if (res.status === 503 || data?.error === "AI_NOT_CONFIGURED") {
+          setError(t("inv.ai.notConfigured", lang));
+        } else if (res.status === 429 && typeof data?.error === "string") {
+          // 요청 과다 — 서버가 내려준 구체 안내('분당 4회 제한'·'10초 후 재시도')를 그대로 노출.
+          // 일반 실패 문구('다시 찍어주세요')로 덮으면 재촬영 → 또 429 악순환에 빠진다.
+          setError(data.error);
+        } else {
+          setError(t("inv.ai.failed", lang));
+        }
         return;
       }
       const data = (await res.json()) as { amount?: number; vendor?: string; date?: string; category?: string; memo?: string };
@@ -128,6 +140,7 @@ export function AiInventory({ storeId, modeTabs }: { storeId: string; modeTabs: 
             <button
               key={p}
               onClick={() => setPeriod(p)}
+              aria-pressed={period === p}
               className={`h-9 rounded-[9px] text-[12.5px] font-bold transition-colors ${period === p ? "bg-white text-[var(--color-navy-800)] shadow-[var(--shadow-press)]" : "text-[var(--color-ink-500)]"}`}
             >
               {t(`inv.simple.${p}`, lang)}
@@ -205,8 +218,14 @@ export function AiInventory({ storeId, modeTabs }: { storeId: string; modeTabs: 
 
       {/* AI 결과 확인 / 직접 입력 모달 */}
       {draft && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center" onClick={() => setDraft(null)}>
-          <div onClick={(ev) => ev.stopPropagation()} className="w-full max-w-[400px] bg-white rounded-t-[24px] sm:rounded-2xl p-5 pb-[max(env(safe-area-inset-bottom),20px)]">
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center sm:p-4" onClick={() => setDraft(null)}>
+          <div
+            onClick={(ev) => ev.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label={t("inv.ai.confirmTitle", lang)}
+            className="w-full max-w-[400px] bg-white rounded-t-[24px] sm:rounded-2xl p-5 pb-[max(env(safe-area-inset-bottom),20px)] max-h-[88vh] overflow-y-auto"
+          >
             <h2 className="text-[17px] font-extrabold text-[var(--color-navy-900)] mb-1">{t("inv.ai.confirmTitle", lang)}</h2>
             <p className="text-[12.5px] text-[var(--color-ink-500)] mb-4 leading-relaxed">{t("inv.ai.confirmHint", lang)}</p>
 
@@ -216,6 +235,7 @@ export function AiInventory({ storeId, modeTabs }: { storeId: string; modeTabs: 
                 <button
                   key={c}
                   onClick={() => setDraft({ ...draft, category: c })}
+                  aria-pressed={draft.category === c}
                   className={`h-10 rounded-[10px] text-[12.5px] font-bold transition-colors ${
                     draft.category === c ? "bg-[var(--color-navy-700)] text-white" : "bg-[var(--color-bg)] text-[var(--color-ink-600)]"
                   }`}
@@ -225,8 +245,9 @@ export function AiInventory({ storeId, modeTabs }: { storeId: string; modeTabs: 
               ))}
             </div>
 
-            <label className="text-[12px] font-bold text-[var(--color-ink-600)] mb-1 block">{t("inv.ai.amount", lang)}</label>
+            <label htmlFor="ai-amount" className="text-[12px] font-bold text-[var(--color-ink-600)] mb-1 block">{t("inv.ai.amount", lang)}</label>
             <input
+              id="ai-amount"
               type="number"
               inputMode="numeric"
               min={0}
@@ -234,18 +255,22 @@ export function AiInventory({ storeId, modeTabs }: { storeId: string; modeTabs: 
               onChange={(ev) => setDraft({ ...draft, amount: ev.target.value })}
               placeholder="0"
               className={`${field} tabular-nums mb-3`}
-              autoFocus
+              // AI 가 금액을 이미 채운 경우(검토 흐름)엔 자동 포커스로 모바일 키보드를 띄우지 않음.
+              // 직접 입력(빈 금액)일 때만 바로 입력할 수 있게 포커스.
+              autoFocus={!draft.amount}
             />
-            <label className="text-[12px] font-bold text-[var(--color-ink-600)] mb-1 block">{t("inv.ai.date", lang)}</label>
+            <label htmlFor="ai-date" className="text-[12px] font-bold text-[var(--color-ink-600)] mb-1 block">{t("inv.ai.date", lang)}</label>
             <input
+              id="ai-date"
               type="date"
               value={draft.date}
               max={today}
               onChange={(ev) => setDraft({ ...draft, date: ev.target.value })}
               className={`${field} tabular-nums mb-3`}
             />
-            <label className="text-[12px] font-bold text-[var(--color-ink-600)] mb-1 block">{t("inv.ai.memo", lang)}</label>
+            <label htmlFor="ai-memo" className="text-[12px] font-bold text-[var(--color-ink-600)] mb-1 block">{t("inv.ai.memo", lang)}</label>
             <input
+              id="ai-memo"
               value={draft.memo}
               onChange={(ev) => setDraft({ ...draft, memo: ev.target.value })}
               placeholder={t("inv.ai.memoPh", lang)}

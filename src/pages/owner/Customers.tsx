@@ -19,6 +19,7 @@ type Filter = "all" | "vip" | "new" | "slipping" | "cold";
 export default function OwnerCustomers() {
   const {
     currentUser,
+    effectiveStoreId,
     users,
     visits,
     coupons,
@@ -30,7 +31,8 @@ export default function OwnerCustomers() {
     setCustomerTier,
     recordCommunication,
   } = useStore();
-  const storeId = currentUser?.id ?? "";
+  // 사장=본인, 출근한 직원=소속 매장. 직원 본인 id 로 쓰면 고객 0명 + 쿠폰/등급이 엉뚱한 매장에 기록됨.
+  const storeId = effectiveStoreId;
   const lang = useLanguage();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
@@ -164,7 +166,8 @@ export default function OwnerCustomers() {
       ];
     });
 
-    const storeName = currentUser?.restaurantName ?? t("common.store", lang);
+    const storeOwner = currentUser?.role === "owner" ? currentUser : users.find((u) => u.id === storeId);
+    const storeName = storeOwner?.restaurantName ?? t("common.store", lang);
     const safeStore = storeName.replace(/[\\/:*?"<>|]/g, "_"); // 파일명 안전화
     const scope = selectedMode.size > 0
       ? t("ocust.scopeSel", lang, { n: target.length })

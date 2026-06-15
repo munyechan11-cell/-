@@ -12,8 +12,9 @@ import { useLanguage, t, fmtKRW } from "../../lib/i18n";
 type Range = "day" | "week" | "month";
 
 export default function OwnerStatistics() {
-  const { currentUser, visits, orders, tierOverrides, users } = useStore();
-  const storeId = currentUser?.id ?? "";
+  const { currentUser, effectiveStoreId, visits, orders, tierOverrides, users } = useStore();
+  // 사장=본인, 출근한 매니저(lv3)=소속 매장. 직원 본인 id 면 통계가 항상 0건.
+  const storeId = effectiveStoreId;
   const lang = useLanguage();
   const [range, setRange] = useState<Range>("week");
 
@@ -33,7 +34,7 @@ export default function OwnerStatistics() {
     try {
       const context = buildContext({
         storeId,
-        storeName: currentUser?.restaurantName,
+        storeName: (currentUser?.role === "owner" ? currentUser : users.find((u) => u.id === storeId))?.restaurantName,
         orders,
         visits,
         users,

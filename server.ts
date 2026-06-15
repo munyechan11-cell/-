@@ -1104,7 +1104,7 @@ app.post('/api/print-bridge/exchange', async (req, res) => {
 
 interface PushIn {
   storeId: string;
-  kind: "new-order" | "payment-request" | "staff-join" | "coupon-request" | "test" | "coupon-issued";
+  kind: "new-order" | "payment-request" | "staff-join" | "coupon-request" | "test" | "coupon-issued" | "ai-reservation";
   title: string;
   body: string;
   focusUrl?: string;
@@ -1132,6 +1132,7 @@ async function sendPushToOwner(input: PushIn): Promise<{ sent: number; failed: n
       (input.kind === 'staff-join' && prefs.staffJoin !== false) ||
       (input.kind === 'coupon-request' && prefs.couponRequest !== false) ||
       input.kind === 'coupon-issued' || // 손님 쿠폰/혜택 도착 — 기본 ON
+      input.kind === 'ai-reservation' || // AI 전화 예약 접수 — 기본 ON (중요 알림)
       input.kind === 'test';
     if (!enabled) return { sent: 0, failed: 0 };
 
@@ -1244,6 +1245,707 @@ app.post('/api/push/send-to-owner', async (req, res) => {
   } catch (e: any) {
     console.error('[push] endpoint error', e?.message);
     res.status(500).json({ error: e?.message ?? 'push send failed' });
+  }
+});
+
+// ============================================================
+// AI 예약 두뇌 (TODO 6-1) — 전화 AI·외부 음성채널이 호출하는 서버 엔드포인트.
+//   /availability : 영업시간·테이블·기존예약으로 빈자리 판단(읽기)
+//   /create       : 검증 통과 시 예약 생성 + 테이블 reserved + 사장님 푸시(쓰기)
+// 전화 연동 전에 두뇌만 독립 테스트 가능. 서버-서버 호출이므로 공유키(AI_RESERVATION_KEY)로 보호.
+// ============================================================
+const RES_DURATION_MIN = 90; // 한 예약이 테이블을 점유하는 기본 시간(분)
+
+function hmToMin(hm: string): number {
+  const [h, m] = String(hm || '').split(':').map(Number);
+  return (h || 0) * 60 + (m || 0);
+}
+function minToHm(total: number): string {
+  const t = ((total % 1440) + 1440) % 1440; // 0~1439 로 래핑
+  return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
+}
+// 영업시간 판단 — 클라이언트 businessHours.ts(단일 진실원) 규칙과 동일하게.
+// 자정 넘는 영업(예: 18:00~02:00)·자정 넘는 휴게시간·마감 정각 배제(half-open [open,close))·open24h 우선 처리.
+function isStoreOpenAt(owner: any, date: string, time: string): boolean {
+  if (owner?.temporarilyClosed) return false;
+  const bh = owner?.businessHours;
+  if (!bh) return true; // 미설정 = 항상 영업으로 간주
+  if (bh.open24h) return true; // 24시간 영업은 closedDates 보다 우선 (client businessHours.ts:67 과 동일)
+  if (Array.isArray(bh.closedDates) && bh.closedDates.includes(date)) return false;
+  const day = new Date(`${date}T00:00:00`).getDay(); // 0=일
+  const wk = bh.weekly?.[day];
+  if (!wk || wk.closed) return false;
+  const t = hmToMin(time);
+  const openM = hmToMin(wk.open ?? '00:00');
+  const closeM = hmToMin(wk.close ?? '23:59');
+  // 마감 분은 닫힘으로(half-open). 자정 넘김(closeM<=openM)이면 [open,24:00)+[00:00,close).
+  const inWindow = closeM <= openM ? t >= openM || t < closeM : t >= openM && t < closeM;
+  if (!inWindow) return false;
+  if (wk.breakStart && wk.breakEnd) {
+    const bs = hmToMin(wk.breakStart);
+    const be = hmToMin(wk.breakEnd);
+    const inBreak = be <= bs ? t >= bs || t < be : t >= bs && t < be; // 자정 넘는 휴게도 처리
+    if (inBreak) return false;
+  }
+  return true;
+}
+// 메모리상 빈 테이블 선택 — 요청 시간 ±durationMin 으로 점유 중이지 않은, 인원 충족 최소 테이블.
+function pickFreeTable(tables: any[], reservations: any[], time: string, partySize: number, durationMin: number) {
+  const reqMin = hmToMin(time);
+  const taken = new Set<number>(
+    reservations
+      .filter((r: any) => r.status === 'confirmed' && Math.abs(hmToMin(r.time) - reqMin) < durationMin)
+      .map((r: any) => r.tableNumber)
+  );
+  return tables
+    .filter((tb: any) => tb.type == null || tb.type === 'table' || tb.type === 'room')
+    .filter((tb: any) => (tb.seats ?? 0) >= partySize && !taken.has(tb.number))
+    .sort((a: any, b: any) => (a.seats ?? 0) - (b.seats ?? 0))[0] ?? null; // 가장 작은 적합 테이블 우선
+}
+// 한 매장·하루의 테이블·예약을 1회만 조회 (slots 처럼 여러 시간대 반복 검사 시 읽기 비용 절감)
+async function loadStoreDay(fs: any, storeId: string, date: string) {
+  const [tablesSnap, resSnap] = await Promise.all([
+    fs.collection('tables').where('storeId', '==', storeId).get(),
+    fs.collection('reservations').where('storeId', '==', storeId).where('date', '==', date).get(),
+  ]);
+  return {
+    tables: tablesSnap.docs.map((d: any) => d.data()),
+    reservations: resSnap.docs.map((d: any) => d.data()),
+  };
+}
+async function findFreeTable(
+  fs: any,
+  storeId: string,
+  date: string,
+  time: string,
+  partySize: number,
+  durationMin: number = RES_DURATION_MIN
+) {
+  const { tables, reservations } = await loadStoreDay(fs, storeId, date);
+  return pickFreeTable(tables, reservations, time, partySize, durationMin);
+}
+/** 매장의 AI 예약 설정 — 활성화 여부 + 점유시간(분). 비활성 매장은 예약 두뇌가 거부. */
+function aiReservationConfig(owner: any): { enabled: boolean; durationMin: number } {
+  const c = owner?.storeConfig?.aiReservation ?? {};
+  return {
+    enabled: c.enabled === true,
+    durationMin: Math.max(15, Math.min(360, Number(c.durationMin) || RES_DURATION_MIN)),
+  };
+}
+
+// 다중 제공자 LLM 텍스트 생성 — Gemini→Anthropic→OpenAI 폴백(insight/floor-plan 과 동일 패턴).
+// 설정된 키가 하나도 없으면 null 반환(호출부가 503 처리). 대화 이해·문구 생성 전용(예약 확정은 서버가 결정).
+async function callLLMText(systemPrompt: string, userMsg: string, maxTokens = 600): Promise<string | null> {
+  const geminiKey = process.env.GEMINI_API_KEY;
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  const openaiKey = process.env.OPENAI_API_KEY;
+  if (!geminiKey && !anthropicKey && !openaiKey) return null; // 키 0개 = 미설정 → 호출부 503
+  // 각 제공자를 try/catch 로 감싸 런타임 장애 시 다음 제공자로 폴백. 전부 실패하면 마지막 에러를 throw(호출부 502).
+  let lastErr: any;
+  if (geminiKey) {
+    try {
+      const r = await fetchWithTimeout(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
+        { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({
+          systemInstruction: { parts: [{ text: systemPrompt }] },
+          contents: [{ role: 'user', parts: [{ text: userMsg }] }],
+          generationConfig: { temperature: 0.3, maxOutputTokens: maxTokens },
+        }) }, 20000);
+      if (!r.ok) throw new Error(`Gemini ${r.status}`);
+      const d: any = await r.json();
+      return d?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? '';
+    } catch (e: any) { lastErr = e; console.warn('[callLLMText] gemini fail', e?.message); }
+  }
+  if (anthropicKey) {
+    try {
+      const r = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-api-key': anthropicKey, 'anthropic-version': '2023-06-01' },
+        body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: maxTokens, system: systemPrompt, messages: [{ role: 'user', content: userMsg }] }),
+      }, 20000);
+      if (!r.ok) throw new Error(`Anthropic ${r.status}`);
+      const d: any = await r.json();
+      return d?.content?.[0]?.text?.trim() ?? '';
+    } catch (e: any) { lastErr = e; console.warn('[callLLMText] anthropic fail', e?.message); }
+  }
+  if (openaiKey) {
+    try {
+      const r = await fetchWithTimeout('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${openaiKey}` },
+        body: JSON.stringify({ model: 'gpt-4o-mini', temperature: 0.3, max_tokens: maxTokens, messages: [
+          { role: 'system', content: systemPrompt }, { role: 'user', content: userMsg },
+        ] }),
+      }, 20000);
+      if (!r.ok) throw new Error(`OpenAI ${r.status}`);
+      const d: any = await r.json();
+      return d?.choices?.[0]?.message?.content?.trim() ?? '';
+    } catch (e: any) { lastErr = e; console.warn('[callLLMText] openai fail', e?.message); }
+  }
+  throw lastErr ?? new Error('All LLM providers failed');
+}
+
+interface BookInput { date: string; time: string; partySize: number; customerName: string; customerPhone: string; memo?: string; }
+type BookResult =
+  | { status: 'closed' }
+  | { status: 'duplicate'; existing: { date: string; time: string; partySize: number; tableNumber: number } }
+  | { status: 'too_large'; maxSeats: number }
+  | { status: 'full' }
+  | { status: 'ok'; reservation: any };
+// 결정론적 예약 처리 — 영업시간·중복·빈자리를 서버가 판단하고 생성한다.
+// LLM 이 "예약됐다"를 임의로 말하지 못하게, 실제 booking 은 항상 이 함수가 단일 진실로 수행.
+// 읽기(테이블·당일예약) + 판정 + 쓰기(예약·테이블상태)를 한 트랜잭션으로 묶어, 동시 통화가
+// 같은 테이블을 동시에 예약하는 더블북을 막는다(충돌 시 Firestore 가 자동 재시도 → 재판정).
+async function tryBookReservation(fs: any, owner: any, storeId: string, input: BookInput, durationMin: number): Promise<BookResult> {
+  if (!isStoreOpenAt(owner, input.date, input.time)) return { status: 'closed' };
+  const normPhone = String(input.customerPhone).replace(/[^\d+]/g, '').slice(0, 20);
+  const reqMin = hmToMin(input.time);
+  const id = `res_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+  const result: BookResult = await fs.runTransaction(async (tx: any) => {
+    // 트랜잭션 내 읽기는 쓰기보다 먼저. 충돌(읽은 문서가 커밋 전 변경)이면 콜백 전체가 재실행된다.
+    const tablesQ = fs.collection('tables').where('storeId', '==', storeId);
+    const resQ = fs.collection('reservations').where('storeId', '==', storeId).where('date', '==', input.date);
+    const [tablesSnap, resSnap] = await Promise.all([tx.get(tablesQ), tx.get(resQ)]);
+    const tables = tablesSnap.docs.map((d: any) => d.data());
+    const reservations = resSnap.docs.map((d: any) => d.data());
+
+    // 중복: 같은 번호 + 시간 겹침(±durationMin)만. 같은 날 다른 시간대(점심/저녁)는 허용.
+    const dup = reservations.find((r: any) => r.status === 'confirmed'
+      && String(r.customerPhone || '').replace(/[^\d+]/g, '') === normPhone
+      && Math.abs(hmToMin(r.time) - reqMin) < durationMin);
+    if (dup) return { status: 'duplicate', existing: { date: dup.date, time: dup.time, partySize: dup.partySize, tableNumber: dup.tableNumber } } as BookResult;
+
+    // 인원이 매장 최대 수용을 넘으면 '만석'과 구분(어떤 시간/날짜로도 불가).
+    const maxSeats = tables
+      .filter((tb: any) => tb.type == null || tb.type === 'table' || tb.type === 'room')
+      .reduce((mx: number, tb: any) => Math.max(mx, tb.seats ?? 0), 0);
+    if (input.partySize > maxSeats) return { status: 'too_large', maxSeats } as BookResult;
+
+    const table = pickFreeTable(tables, reservations, input.time, input.partySize, durationMin);
+    if (!table) return { status: 'full' } as BookResult;
+
+    const reservation = {
+      id, storeId, date: input.date, time: input.time,
+      tableNumber: table.number,
+      partySize: input.partySize,
+      customerName: String(input.customerName).slice(0, 40),
+      customerPhone: normPhone,
+      memo: input.memo ? String(input.memo).slice(0, 200) : 'AI 전화 예약',
+      status: 'confirmed',
+      createdAt: new Date().toISOString(),
+    };
+    tx.set(fs.collection('reservations').doc(id), reservation);
+    // 테이블 reserved 전이 (점유 중이면 보호 — 읽어둔 table.status 로 판단, 같은 tx 라 원자적)
+    const cur = (table as any).status;
+    if (!cur || cur === 'available' || cur === 'setup' || cur === 'reserved') {
+      tx.set(fs.collection('tables').doc(`${storeId}_${table.number}`), { status: 'reserved' }, { merge: true });
+    }
+    return { status: 'ok', reservation } as BookResult;
+  });
+
+  // 푸시는 트랜잭션 밖(부수효과 — 재시도/커밋과 분리). 예약 성공 시에만.
+  if (result.status === 'ok') {
+    try {
+      await sendPushToOwner({
+        storeId, kind: 'ai-reservation', title: 'AI 전화 예약 접수',
+        body: `${input.date} ${input.time} · ${input.partySize}명 · ${result.reservation.customerName} (${result.reservation.tableNumber}번 테이블)`,
+        focusUrl: '/biz/owner/reservations', tag: `ai-res-${id}`,
+      });
+    } catch (e: any) {
+      console.warn('[tryBookReservation] push fail', e?.message);
+    }
+  }
+  return result;
+}
+// Firestore 문서 ID 로 안전한 storeId 인지 — 빈값·슬래시·예약어(__x__)·과도한 길이 차단.
+// (잘못된 id 를 .doc() 에 넘기면 Firestore 가 throw → 내부 에러 500 노출되므로 미리 400 으로 거른다.)
+function isValidStoreId(id: any): boolean {
+  return typeof id === 'string' && id.length > 0 && id.length <= 200 && !id.includes('/') && !/^__.*__$/.test(id);
+}
+// 공유키 인증 — 미설정 시 503(실수로 공개 방지). 음성채널 webhook 은 x-ai-key 헤더로 호출.
+function checkAiReservationAuth(req: any, res: any): boolean {
+  const key = process.env.AI_RESERVATION_KEY;
+  if (!key) { res.status(503).json({ error: 'AI_RESERVATION_NOT_CONFIGURED' }); return false; }
+  if (req.headers['x-ai-key'] !== key) { res.status(401).json({ error: 'invalid key' }); return false; }
+  return true;
+}
+// 예약 대화(/agent) rate limit — 매장당 분당 20회. LLM 호출/장애 증폭 방지(IP 아닌 storeId 기준 — 음성 webhook 은 IP 공유).
+const agentBuckets = new Map<string, { count: number; resetAt: number }>();
+const checkAgentRate = (storeId: string): boolean => {
+  const now = Date.now();
+  if (agentBuckets.size > 5000) agentBuckets.clear(); // 메모리 가드
+  const b = agentBuckets.get(storeId);
+  if (!b || now > b.resetAt) { agentBuckets.set(storeId, { count: 1, resetAt: now + 60_000 }); return true; }
+  if (b.count >= 20) return false;
+  b.count += 1;
+  return true;
+};
+// 마케팅 생성 rate limit — 매장당 분당 10회. insight 와 버킷 분리 + storeId 기준이라
+// (인증이 없는 엔드포인트라도) 한 매장이 유발할 수 있는 LLM 비용을 매장 단위로 묶는다.
+const marketingBuckets = new Map<string, { count: number; resetAt: number }>();
+const checkMarketingRate = (storeId: string): boolean => {
+  const now = Date.now();
+  if (marketingBuckets.size > 5000) marketingBuckets.clear();
+  const b = marketingBuckets.get(storeId);
+  if (!b || now > b.resetAt) { marketingBuckets.set(storeId, { count: 1, resetAt: now + 60_000 }); return true; }
+  if (b.count >= 10) return false;
+  b.count += 1;
+  return true;
+};
+
+app.post('/api/reservation/availability', async (req, res) => {
+  try {
+    if (!checkAiReservationAuth(req, res)) return;
+    const adminApp = getFirebaseAdmin();
+    if (!adminApp) return res.status(503).json({ error: 'FIREBASE_ADMIN_NOT_CONFIGURED' });
+    const { storeId, date, time, partySize } = req.body ?? {};
+    if (!isValidStoreId(storeId) || !/^\d{4}-\d{2}-\d{2}$/.test(date || '') || !/^\d{2}:\d{2}$/.test(time || '')) {
+      return res.status(400).json({ error: 'storeId, date(YYYY-MM-DD), time(HH:MM) required' });
+    }
+    const size = Math.max(1, Math.min(99, Number(partySize) || 1));
+    const fs = adminApp.firestore();
+    const ownerSnap = await fs.collection('users').doc(storeId).get();
+    if (!ownerSnap.exists) return res.status(404).json({ error: 'store not found' });
+    const owner = ownerSnap.data();
+    const { enabled, durationMin } = aiReservationConfig(owner);
+    if (!enabled) return res.status(403).json({ error: 'ai_disabled', available: false });
+    if (!isStoreOpenAt(owner, date, time)) {
+      return res.json({ available: false, reason: 'closed', alternatives: [] });
+    }
+    const table = await findFreeTable(fs, storeId, date, time, size, durationMin);
+    if (table) return res.json({ available: true, tableNumber: table.number, seats: table.seats });
+    // 만석 — 같은 날 ±30/60/90분 대안 시간 탐색(영업시간 내 + 빈자리 있는 슬롯)
+    const alternatives: string[] = [];
+    for (const delta of [30, -30, 60, -60, 90, -90, 120, -120]) {
+      const alt = minToHm(hmToMin(time) + delta);
+      if (isStoreOpenAt(owner, date, alt) && (await findFreeTable(fs, storeId, date, alt, size, durationMin))) {
+        alternatives.push(alt);
+        if (alternatives.length >= 3) break;
+      }
+    }
+    return res.json({ available: false, reason: 'full', alternatives });
+  } catch (e: any) {
+    console.error('[reservation/availability]', e?.message);
+    res.status(500).json({ error: e?.message ?? 'availability check failed' });
+  }
+});
+
+app.post('/api/reservation/create', async (req, res) => {
+  try {
+    if (!checkAiReservationAuth(req, res)) return;
+    const adminApp = getFirebaseAdmin();
+    if (!adminApp) return res.status(503).json({ error: 'FIREBASE_ADMIN_NOT_CONFIGURED' });
+    const { storeId, date, time, partySize, customerName, customerPhone, memo } = req.body ?? {};
+    if (!isValidStoreId(storeId) || !/^\d{4}-\d{2}-\d{2}$/.test(date || '') || !/^\d{2}:\d{2}$/.test(time || '') || !customerName || !customerPhone) {
+      return res.status(400).json({ error: 'storeId, date, time, customerName, customerPhone required' });
+    }
+    const size = Math.max(1, Math.min(99, Number(partySize) || 1));
+    const fs = adminApp.firestore();
+    const ownerSnap = await fs.collection('users').doc(storeId).get();
+    if (!ownerSnap.exists) return res.status(404).json({ error: 'store not found' });
+    const owner = ownerSnap.data();
+    const { enabled, durationMin } = aiReservationConfig(owner);
+    if (!enabled) return res.status(403).json({ error: 'ai_disabled', available: false });
+
+    const result = await tryBookReservation(fs, owner, storeId, { date, time, partySize: size, customerName, customerPhone, memo }, durationMin);
+    if (result.status === 'closed') return res.status(409).json({ error: 'closed', available: false });
+    if (result.status === 'duplicate') {
+      return res.status(409).json({ error: 'duplicate', message: '같은 번호로 비슷한 시간대 예약이 이미 있어요.', existing: result.existing });
+    }
+    if (result.status === 'too_large') return res.status(409).json({ error: 'too_large', maxSeats: result.maxSeats, available: false });
+    if (result.status === 'full') return res.status(409).json({ error: 'full', available: false });
+    return res.json({ ok: true, reservation: result.reservation });
+  } catch (e: any) {
+    console.error('[reservation/create]', e?.message);
+    res.status(500).json({ error: e?.message ?? 'reservation create failed' });
+  }
+});
+
+// 전화번호 → storeId 매핑 — 음성채널이 통화 시작 시 호출해 "어느 매장 예약인지" 식별.
+// 가게마다 전화번호가 다르므로(storeConfig.aiReservation.phoneNumber) 이 번호로 매장을 찾는다.
+app.post('/api/reservation/resolve-store', async (req, res) => {
+  try {
+    if (!checkAiReservationAuth(req, res)) return;
+    const adminApp = getFirebaseAdmin();
+    if (!adminApp) return res.status(503).json({ error: 'FIREBASE_ADMIN_NOT_CONFIGURED' });
+    const norm = String(req.body?.phoneNumber || '').replace(/[^\d+]/g, '');
+    if (!norm) return res.status(400).json({ error: 'phoneNumber required' });
+    const fs = adminApp.firestore();
+    const snap = await fs
+      .collection('users')
+      .where('storeConfig.aiReservation.phoneNumber', '==', norm)
+      .limit(5)
+      .get();
+    const store = snap.docs
+      .map((d: any) => ({ id: d.id, ...d.data() }))
+      .find((u: any) => u.role === 'owner' && u.storeConfig?.aiReservation?.enabled === true);
+    if (!store) return res.status(404).json({ matched: false, error: 'store not found or AI disabled' });
+    return res.json({
+      matched: true,
+      storeId: store.id,
+      restaurantName: store.restaurantName ?? '',
+      greeting: store.storeConfig?.aiReservation?.greeting || '',
+    });
+  } catch (e: any) {
+    console.error('[reservation/resolve-store]', e?.message);
+    res.status(500).json({ error: e?.message ?? 'resolve failed' });
+  }
+});
+
+// 예약 가능 시간대 목록 — AI 가 "○시, ○시 가능해요" 라고 손님에게 대안을 제시할 때 사용.
+app.post('/api/reservation/slots', async (req, res) => {
+  try {
+    if (!checkAiReservationAuth(req, res)) return;
+    const adminApp = getFirebaseAdmin();
+    if (!adminApp) return res.status(503).json({ error: 'FIREBASE_ADMIN_NOT_CONFIGURED' });
+    const { storeId, date, partySize, intervalMin } = req.body ?? {};
+    if (!isValidStoreId(storeId) || !/^\d{4}-\d{2}-\d{2}$/.test(date || '')) {
+      return res.status(400).json({ error: 'storeId, date(YYYY-MM-DD) required' });
+    }
+    const size = Math.max(1, Math.min(99, Number(partySize) || 1));
+    const step = Math.max(15, Math.min(120, Number(intervalMin) || 30));
+    const fs = adminApp.firestore();
+    const ownerSnap = await fs.collection('users').doc(storeId).get();
+    if (!ownerSnap.exists) return res.status(404).json({ error: 'store not found' });
+    const owner = ownerSnap.data();
+    const { enabled, durationMin } = aiReservationConfig(owner);
+    if (!enabled) return res.status(403).json({ error: 'ai_disabled' });
+    // 테이블·당일 예약을 1회만 조회 후, step 간격으로 영업시간을 훑어 빈자리 있는 시간만 수집(최대 20개).
+    const { tables, reservations } = await loadStoreDay(fs, storeId, date);
+    const slots: string[] = [];
+    for (let m = 0; m < 1440 && slots.length < 20; m += step) {
+      const time = minToHm(m);
+      if (!isStoreOpenAt(owner, date, time)) continue;
+      if (pickFreeTable(tables, reservations, time, size, durationMin)) slots.push(time);
+    }
+    return res.json({ date, partySize: size, slots });
+  } catch (e: any) {
+    console.error('[reservation/slots]', e?.message);
+    res.status(500).json({ error: e?.message ?? 'slots failed' });
+  }
+});
+
+// ============================================================
+// 예약 대화 두뇌 (TODO 6-4) — 벤더 중립. 음성채널(또는 텍스트)이 대화 누적(messages)을 보내면
+// LLM 이 발화를 이해해 예약 정보를 모으고 다음 질문을 만든다. 단, 실제 예약 확정은 항상 서버
+// (tryBookReservation)가 결정론적으로 수행 — LLM 이 "예약됐다"를 임의로 말하지 못하게 한다.
+// 어떤 음성 플랫폼(Vapi/Retell/Twilio+Realtime)을 골라도 이 엔드포인트를 그대로 붙일 수 있다.
+// ============================================================
+app.post('/api/reservation/agent', async (req, res) => {
+  try {
+    if (!checkAiReservationAuth(req, res)) return;
+    const adminApp = getFirebaseAdmin();
+    if (!adminApp) return res.status(503).json({ error: 'FIREBASE_ADMIN_NOT_CONFIGURED' });
+    const { storeId, messages, today } = req.body ?? {};
+    if (!isValidStoreId(storeId) || !Array.isArray(messages)) {
+      return res.status(400).json({ error: 'storeId, messages[] required' });
+    }
+    const fs = adminApp.firestore();
+    const ownerSnap = await fs.collection('users').doc(storeId).get();
+    if (!ownerSnap.exists) return res.status(404).json({ error: 'store not found' });
+    const owner = ownerSnap.data();
+    const { enabled, durationMin } = aiReservationConfig(owner);
+    if (!enabled) return res.status(403).json({ error: 'ai_disabled' });
+
+    const storeName = owner?.restaurantName || '저희 매장';
+    const greeting = owner?.storeConfig?.aiReservation?.greeting || `안녕하세요, ${storeName}입니다. 예약 도와드릴까요?`;
+
+    // 정규화된 대화 — role: 'user'(손님) | 'assistant'(AI)
+    const convo = messages
+      .filter((m: any) => m && typeof m.content === 'string')
+      .map((m: any) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: String(m.content).slice(0, 500) }));
+    const userTurns = convo.filter((m: any) => m.role === 'user');
+    // 첫 턴(손님 발화 없음) → 인사말만 (LLM 호출 없음 — rate limit 전에 처리)
+    if (userTurns.length === 0) return res.json({ reply: greeting, intent: {}, done: false });
+
+    // rate limit (LLM 호출 비용·장애 증폭 방지)
+    if (!checkAgentRate(storeId)) {
+      return res.status(429).json({ error: 'rate_limited', reply: '잠시만요, 곧 다시 도와드릴게요.' });
+    }
+    // 대화 턴 상한 — 정보 수렴 실패(LLM 오작동·형식 거부) 시 무한 되묻기 대신 사람 연결로 종료
+    if (userTurns.length > 12) {
+      return res.json({ reply: '예약 정보를 정확히 확인하기 어려워요. 잠시 후 직원이 직접 도와드릴게요. 감사합니다.', intent: {}, done: true, reason: 'handoff' });
+    }
+
+    const todayKst = (typeof today === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(today))
+      ? today
+      : new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10); // KST 오늘
+
+    const sys = `당신은 한국 식당 "${storeName}"의 친절한 전화 예약 접수원입니다. 손님과의 대화에서 예약 정보를 수집하세요.
+오늘 날짜: ${todayKst}. 손님이 "내일", "이번주 토요일", "저녁 7시" 처럼 말하면 구체적 날짜(YYYY-MM-DD)와 24시간 시간(HH:MM)으로 변환하세요.
+수집 항목: date(YYYY-MM-DD), time(HH:MM, 24시간), partySize(인원 수 정수), customerName(예약자 성함), customerPhone(연락처 숫자).
+반드시 아래 JSON 객체 하나만 출력하세요. 그 외 설명·마크다운·코드펜스 금지:
+{"date":"","time":"","partySize":0,"customerName":"","customerPhone":"","reply":"손님에게 할 다음 말","allCollected":false}
+규칙:
+- 아직 모르는 항목은 빈 문자열 또는 0 으로 두세요.
+- reply 는 한국어 존댓말 1~2문장. 부족한 항목을 한 번에 하나씩 자연스럽게 물어보세요.
+- 모든 항목을 다 알게 되면 allCollected=true 로 하고, reply 는 "잠시만요, 자리 확인해 드릴게요" 같은 짧은 말로 하세요. 예약 확정/완료는 시스템이 판단하므로 절대 "예약됐어요/완료됐어요" 라고 단정하지 마세요.
+- 전화번호는 손님이 말한 숫자를 그대로 적으세요(하이픈 유무 무관).`;
+
+    const userMsg = convo.map((m: any) => `${m.role === 'user' ? '손님' : '상담원'}: ${m.content}`).join('\n');
+
+    let text: string | null;
+    try {
+      text = await callLLMText(sys, userMsg, 500);
+    } catch (e: any) {
+      console.error('[reservation/agent] llm', e?.message);
+      return res.status(502).json({ error: 'AI_CALL_FAILED', reply: '죄송해요, 잠시 통화가 어려워요. 잠시 후 다시 시도해 주세요.' });
+    }
+    if (text === null) return res.status(503).json({ error: 'AI_NOT_CONFIGURED' }); // 키 미설정
+    if (!text.trim()) {
+      // 호출은 됐으나 빈 응답 — 손님이 방금 말한 정보를 무시한 듯한 '더 알려주세요' 대신 재시도 유도
+      return res.status(502).json({ error: 'AI_EMPTY_RESPONSE', reply: '죄송해요, 잘 못 들었어요. 다시 한 번 말씀해 주시겠어요?' });
+    }
+
+    const ext = parseLooseJson(text) || {};
+    const intent = {
+      date: /^\d{4}-\d{2}-\d{2}$/.test(ext.date || '') ? ext.date : undefined,
+      time: /^\d{2}:\d{2}$/.test(ext.time || '') ? ext.time : undefined,
+      partySize: Number(ext.partySize) > 0 ? Math.min(99, Math.floor(Number(ext.partySize))) : undefined,
+      customerName: ext.customerName ? String(ext.customerName).slice(0, 40) : undefined,
+      customerPhone: ext.customerPhone ? String(ext.customerPhone).replace(/[^\d+]/g, '').slice(0, 20) : undefined,
+    };
+    const haveAll = intent.date && intent.time && intent.partySize && intent.customerName && intent.customerPhone;
+    const askReply = (typeof ext.reply === 'string' && ext.reply.trim()) ? ext.reply.trim() : '예약 정보를 조금만 더 알려주세요.';
+
+    // 정보가 아직 부족 → 다음 질문(LLM 문구) 반환
+    if (!haveAll) {
+      return res.json({ reply: askReply, intent, done: false });
+    }
+
+    // 모든 정보 수집됨 → 서버가 결정론적으로 예약 시도
+    const result = await tryBookReservation(fs, owner, storeId, intent as BookInput, durationMin);
+    if (result.status === 'ok') {
+      const r = result.reservation;
+      return res.json({
+        reply: `예약이 확정됐어요! ${r.date} ${r.time}, ${r.partySize}명, ${r.customerName}님 — ${r.tableNumber}번 테이블로 모실게요. 감사합니다 😊`,
+        intent, booked: true, reservation: r, done: true,
+      });
+    }
+    if (result.status === 'duplicate') {
+      // 같은 시간대 중복 — 변경/추가는 서버가 처리 못 하므로(엔드포인트 없음) 거짓 약속 대신 매장 안내로 종료.
+      const e = result.existing;
+      return res.json({
+        reply: `같은 번호로 ${e.date} ${e.time} 예약이 이미 있어요. 변경이나 추가 예약은 매장으로 직접 전화 주시면 도와드릴게요. 감사합니다.`,
+        intent, done: true, reason: 'duplicate', existing: e,
+      });
+    }
+    if (result.status === 'too_large') {
+      // 인원이 최대 테이블 수용을 넘음 — 어떤 시간/날짜로도 불가하니 무의미한 대안 대신 명확히 안내하고 종료.
+      return res.json({
+        reply: `죄송해요, ${intent.partySize}명을 한 테이블로는 모시기 어려워요(최대 ${result.maxSeats}명). 단체석은 매장으로 직접 문의 부탁드려요.`,
+        intent, done: true, reason: 'too_large', maxSeats: result.maxSeats,
+      });
+    }
+    if (result.status === 'closed') {
+      return res.json({ reply: `${intent.date} ${intent.time}은 영업시간이 아니에요. 다른 시간은 어떠세요?`, intent, done: false, reason: 'closed' });
+    }
+    // 만석 → 같은 날 대안 시간 제시 (하루 데이터 1회만 로드 후 메모리상 검사 — N+1 읽기 제거)
+    const alts: string[] = [];
+    const { tables: dayTables, reservations: dayRes } = await loadStoreDay(fs, storeId, intent.date!);
+    for (const delta of [30, -30, 60, -60, 90, -90, 120, -120]) {
+      const alt = minToHm(hmToMin(intent.time!) + delta);
+      if (isStoreOpenAt(owner, intent.date!, alt) && pickFreeTable(dayTables, dayRes, alt, intent.partySize!, durationMin)) {
+        alts.push(alt);
+        if (alts.length >= 3) break;
+      }
+    }
+    const reply = alts.length
+      ? `${intent.time}은 자리가 다 찼어요. ${alts.join(', ')} 중에는 가능한데, 어느 시간이 좋으세요?`
+      : `${intent.date}은 예약이 가득 찼어요. 다른 날짜는 어떠세요?`;
+    return res.json({ reply, intent, done: false, reason: 'full', alternatives: alts });
+  } catch (e: any) {
+    console.error('[reservation/agent]', e?.message);
+    res.status(500).json({ error: e?.message ?? 'agent failed' });
+  }
+});
+
+// ============================================================
+// Retell 어댑터 — Retell custom function 형식({ args })을 받아 예약 로직에 연결.
+// storeId 는 Retell "Query Parameters"(가게별 고정값)로 받아 LLM 이 못 건드린다.
+// 사업 결과(closed/full/duplicate/too_large)는 200 + ok/available:false 로 돌려줘
+// Retell LLM 이 에러가 아닌 정상 도구 응답으로 읽고 손님에게 안내하게 한다.
+// ============================================================
+function retellArgs(req: any): any {
+  const b = req.body ?? {};
+  return b && typeof b.args === 'object' && b.args ? b.args : b; // { args } 형식 우선, flat 도 허용
+}
+
+app.post('/api/retell/availability', async (req, res) => {
+  try {
+    if (!checkAiReservationAuth(req, res)) return;
+    const adminApp = getFirebaseAdmin();
+    if (!adminApp) return res.status(503).json({ error: 'FIREBASE_ADMIN_NOT_CONFIGURED' });
+    const storeId = String(req.query.storeId || '');
+    if (!isValidStoreId(storeId)) return res.status(400).json({ error: 'storeId(query) required' });
+    const a = retellArgs(req);
+    const date = String(a.date || '');
+    const time = String(a.time || '');
+    const size = Math.max(1, Math.min(99, Number(a.partySize) || 1));
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time)) {
+      return res.json({ available: false, message: '날짜(YYYY-MM-DD)와 시간(HH:MM) 형식이 필요해요.' });
+    }
+    const fs = adminApp.firestore();
+    const ownerSnap = await fs.collection('users').doc(storeId).get();
+    if (!ownerSnap.exists) return res.status(404).json({ error: 'store not found' });
+    const owner = ownerSnap.data();
+    const { enabled, durationMin } = aiReservationConfig(owner);
+    if (!enabled) return res.status(403).json({ error: 'ai_disabled' });
+    if (!isStoreOpenAt(owner, date, time)) return res.json({ available: false, reason: 'closed' });
+    const table = await findFreeTable(fs, storeId, date, time, size, durationMin);
+    if (table) return res.json({ available: true, tableNumber: table.number });
+    const { tables, reservations } = await loadStoreDay(fs, storeId, date);
+    const alternatives: string[] = [];
+    for (const delta of [30, -30, 60, -60, 90, -90, 120, -120]) {
+      const alt = minToHm(hmToMin(time) + delta);
+      if (isStoreOpenAt(owner, date, alt) && pickFreeTable(tables, reservations, alt, size, durationMin)) {
+        alternatives.push(alt);
+        if (alternatives.length >= 3) break;
+      }
+    }
+    return res.json({ available: false, reason: 'full', alternatives });
+  } catch (e: any) { console.error('[retell/availability]', e?.message); res.status(500).json({ error: e?.message ?? 'failed' }); }
+});
+
+app.post('/api/retell/slots', async (req, res) => {
+  try {
+    if (!checkAiReservationAuth(req, res)) return;
+    const adminApp = getFirebaseAdmin();
+    if (!adminApp) return res.status(503).json({ error: 'FIREBASE_ADMIN_NOT_CONFIGURED' });
+    const storeId = String(req.query.storeId || '');
+    if (!isValidStoreId(storeId)) return res.status(400).json({ error: 'storeId(query) required' });
+    const a = retellArgs(req);
+    const date = String(a.date || '');
+    const size = Math.max(1, Math.min(99, Number(a.partySize) || 1));
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.json({ slots: [], message: '날짜(YYYY-MM-DD)가 필요해요.' });
+    const fs = adminApp.firestore();
+    const ownerSnap = await fs.collection('users').doc(storeId).get();
+    if (!ownerSnap.exists) return res.status(404).json({ error: 'store not found' });
+    const owner = ownerSnap.data();
+    const { enabled, durationMin } = aiReservationConfig(owner);
+    if (!enabled) return res.status(403).json({ error: 'ai_disabled' });
+    const { tables, reservations } = await loadStoreDay(fs, storeId, date);
+    const slots: string[] = [];
+    for (let m = 0; m < 1440 && slots.length < 20; m += 30) {
+      const time = minToHm(m);
+      if (isStoreOpenAt(owner, date, time) && pickFreeTable(tables, reservations, time, size, durationMin)) slots.push(time);
+    }
+    return res.json({ date, slots });
+  } catch (e: any) { console.error('[retell/slots]', e?.message); res.status(500).json({ error: e?.message ?? 'failed' }); }
+});
+
+app.post('/api/retell/book', async (req, res) => {
+  try {
+    if (!checkAiReservationAuth(req, res)) return;
+    const adminApp = getFirebaseAdmin();
+    if (!adminApp) return res.status(503).json({ error: 'FIREBASE_ADMIN_NOT_CONFIGURED' });
+    const storeId = String(req.query.storeId || '');
+    if (!isValidStoreId(storeId)) return res.status(400).json({ error: 'storeId(query) required' });
+    const a = retellArgs(req);
+    const date = String(a.date || '');
+    const time = String(a.time || '');
+    const size = Math.max(1, Math.min(99, Number(a.partySize) || 1));
+    const customerName = String(a.customerName || '').trim();
+    const customerPhone = String(a.customerPhone || '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time) || !customerName || !customerPhone) {
+      return res.json({ ok: false, error: 'missing', message: '날짜·시간·인원·성함·연락처가 모두 필요해요.' });
+    }
+    const fs = adminApp.firestore();
+    const ownerSnap = await fs.collection('users').doc(storeId).get();
+    if (!ownerSnap.exists) return res.status(404).json({ error: 'store not found' });
+    const owner = ownerSnap.data();
+    const { enabled, durationMin } = aiReservationConfig(owner);
+    if (!enabled) return res.status(403).json({ error: 'ai_disabled' });
+    const result = await tryBookReservation(fs, owner, storeId, { date, time, partySize: size, customerName, customerPhone }, durationMin);
+    if (result.status === 'ok') return res.json({ ok: true, date, time, partySize: size, tableNumber: result.reservation.tableNumber, customerName });
+    if (result.status === 'duplicate') return res.json({ ok: false, error: 'duplicate', existing: result.existing });
+    if (result.status === 'too_large') return res.json({ ok: false, error: 'too_large', maxSeats: result.maxSeats });
+    if (result.status === 'closed') return res.json({ ok: false, error: 'closed' });
+    return res.json({ ok: false, error: 'full' });
+  } catch (e: any) { console.error('[retell/book]', e?.message); res.status(500).json({ error: e?.message ?? 'failed' }); }
+});
+
+// ============================================================
+// 마케팅 자율 에이전트 — 콘텐츠 생성 (TODO 7-2)
+// 매장 마케팅 프로필(톤·타깃·키워드·금지어)을 반영해 게시물/응대 초안 텍스트를 생성한다.
+// 서버는 '텍스트만' 만들고, 실제 초안 저장은 클라이언트가 addMarketingDraft(source:'agent')로
+// 'draft' 상태로 넣는다 → 승인 게이트 유지. 금지어 포함 시 bannedHit 로 알려 승인 전에 검토하게 한다.
+// ============================================================
+app.post('/api/marketing/generate', async (req, res) => {
+  try {
+    const adminApp = getFirebaseAdmin();
+    if (!adminApp) return res.status(503).json({ error: 'FIREBASE_ADMIN_NOT_CONFIGURED' });
+    const { storeId, channel, kind, topic, reviewText, rating } = req.body ?? {};
+    if (!isValidStoreId(storeId)) return res.status(400).json({ error: 'storeId required' });
+    // 매장당 분당 10회 (storeId 기준 — 인증 없는 엔드포인트라도 매장 단위로 LLM 비용을 묶음)
+    if (!checkMarketingRate(storeId)) {
+      return res.status(429).json({ error: '잠시 후 다시 시도해 주세요. (분당 10회 제한)' });
+    }
+    const ch: string = ['instagram', 'naverPlace', 'general'].includes(channel) ? channel : 'instagram';
+    const kd: string = kind === 'reply' ? 'reply' : 'post';
+
+    const fs = adminApp.firestore();
+    const ownerSnap = await fs.collection('users').doc(storeId).get();
+    if (!ownerSnap.exists) return res.status(404).json({ error: 'store not found' });
+    const owner = ownerSnap.data() as any;
+    const m = owner?.storeConfig?.marketingAgent ?? {};
+    if (m.enabled !== true) return res.status(403).json({ error: 'marketing_disabled' });
+
+    const storeName = owner?.restaurantName || '우리 가게';
+    const industry = owner?.storeConfig?.industry || 'general';
+    const channelLabel = ch === 'instagram' ? '인스타그램' : ch === 'naverPlace' ? '네이버플레이스' : '일반 SNS';
+    const banned = String(m.bannedWords || '').split(',').map((s: string) => s.trim()).filter(Boolean);
+
+    const sys = `당신은 한국 소상공인 매장 "${storeName}"(업종: ${industry})의 SNS 마케팅 카피라이터입니다.
+아래 매장 프로필을 반영해 ${channelLabel}용 ${kd === 'post' ? '홍보 게시물' : '리뷰/문의 응대'} 초안을 작성하세요.
+- 말투/톤: ${m.tone || '친근하고 따뜻하게'}
+- 타깃 고객: ${m.target || '동네 손님'}
+- 강조 키워드: ${m.keywords || '(없음)'}
+- 절대 사용 금지어: ${banned.length ? banned.join(', ') : '(없음)'}
+규칙: 자연스러운 한국어. 과장·허위·의학적 효능 주장 금지. 금지어는 절대 쓰지 마세요. 길이는 ${kd === 'post' ? '2~4문장 + 해시태그 5개 내외' : '2~3문장'}.
+반드시 아래 JSON 하나만 출력(설명·코드펜스 금지): {"title":"짧은 제목","content":"본문","hashtags":["태그",...]}`;
+    let userMsg: string;
+    if (kd === 'reply' && reviewText && String(reviewText).trim()) {
+      // 리뷰 응대 초안 (7-5) — 실제 손님 리뷰에 답하는 초안
+      const stars = Number(rating) >= 1 && Number(rating) <= 5 ? `${Math.round(Number(rating))}점` : '평점 없음';
+      userMsg = `아래 손님 리뷰에 대한 사장님 답글 초안을 작성해 주세요. 감사 인사 + 구체적 내용 공감 + (낮은 평점이면) 정중한 사과·개선 약속. 변명·논쟁 금지.\n[별점] ${stars}\n[리뷰] ${String(reviewText).trim().slice(0, 600)}`;
+    } else if (topic && String(topic).trim()) {
+      userMsg = `주제/소재: ${String(topic).trim().slice(0, 200)}`;
+    } else {
+      userMsg = kd === 'post' ? '오늘 올릴 만한 홍보 게시물 초안을 만들어 주세요.' : '손님 리뷰/문의에 대한 정중한 응대 초안을 만들어 주세요.';
+    }
+
+    let text: string | null;
+    try {
+      text = await callLLMText(sys, userMsg, 700);
+    } catch (e: any) {
+      console.error('[marketing/generate] llm', e?.message);
+      return res.status(502).json({ error: 'AI_CALL_FAILED' });
+    }
+    if (text === null) return res.status(503).json({ error: 'AI_NOT_CONFIGURED' });
+
+    const parsed = parseLooseJson(text) || {};
+    const parsedOk = parsed && typeof parsed.content === 'string' && parsed.content.trim().length > 0;
+    // 파싱 성공 시 content 사용. 실패 시 원문에서 코드펜스/JSON 래퍼 잔재를 걷어내 그대로 노출(승인 게이트가 있어 즉시 발행은 안 됨).
+    let content = parsedOk
+      ? String(parsed.content).trim()
+      : String(text || '').replace(/```(?:json)?/gi, '').replace(/```/g, '').trim();
+    const tags = Array.isArray(parsed.hashtags)
+      ? parsed.hashtags.filter((tg: any) => typeof tg === 'string').slice(0, 10)
+      : [];
+    if (kd === 'post' && tags.length) {
+      content += '\n\n' + tags.map((tg: string) => (tg.startsWith('#') ? tg : `#${tg.replace(/\s+/g, '')}`)).join(' ');
+    }
+    content = content.slice(0, 2000);
+    const title = parsed.title ? String(parsed.title).slice(0, 80) : undefined;
+    // 금지어 가드(7-7) — 자동 제거 대신 표시해 승인 전 사람이 검토하도록.
+    // 본문 + 원시 해시태그(공백 제거 전)를 함께 검사해, 공백 포함 금지어가 해시태그 가공으로 누락되는 것을 방지.
+    const bannedHit = banned.filter((b: string) => content.includes(b) || tags.some((tg: string) => tg.includes(b)));
+    return res.json({ title, content, channel: ch, kind: kd, bannedHit, parseFallback: !parsedOk });
+  } catch (e: any) {
+    console.error('[marketing/generate]', e?.message);
+    res.status(500).json({ error: e?.message ?? 'generate failed' });
   }
 });
 

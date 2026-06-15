@@ -176,6 +176,40 @@ function mix(base: string, target: [number, number, number], ratio: number) {
 const WHITE: [number, number, number] = [255, 255, 255];
 const BLACK: [number, number, number] = [17, 18, 28];
 
+/** WCAG 상대휘도 */
+function relLum([r, g, b]: [number, number, number]) {
+  const f = (c: number) => {
+    const s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  };
+  return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+}
+/** 배경색(hex) 위에 올릴 전경색 — 흰색/잉크 중 대비가 더 큰 쪽. 밝은 accent 위 흰 글씨 가독성 붕괴 방지. */
+function bestOn(hex: string): string {
+  const L = relLum(hexToRgb(hex));
+  const cWhite = 1.05 / (L + 0.05);
+  const cInk = (L + 0.05) / (relLum(BLACK) + 0.05);
+  return cInk > cWhite ? rgbToHex(...BLACK) : "#ffffff";
+}
+/** hex 배경 위 흰 텍스트의 대비비 */
+function contrastWithWhite(hex: string) {
+  return 1.05 / (relLum(hexToRgb(hex)) + 0.05);
+}
+/**
+ * primary 앵커가 너무 밝아 흰 텍스트 대비가 AA(4.5:1) 미만이면, 만족할 때까지 한 톤씩 어둡게 보정.
+ * navy-700 배경 + 흰 텍스트 패턴이 앱 전반 50곳+ 에 쓰이므로, 앵커 하나만 보정해 전 사용처를 한 번에 안전화한다.
+ * (베이커리 크림·선셋 오렌지처럼 밝은 추천색만 살짝 어두워지고 나머지 테마는 그대로.)
+ */
+function ensureReadableOnWhiteText(hex: string, min = 4.5): string {
+  let c = hex;
+  let guard = 0;
+  while (contrastWithWhite(c) < min && guard < 16) {
+    c = mix(c, BLACK, 0.06);
+    guard++;
+  }
+  return c;
+}
+
 /** primary(=navy 자리) 50~900 스케일. 700 단계가 앵커(base). */
 function primaryScale(base: string): Record<string, string> {
   return {
@@ -209,12 +243,17 @@ const MANAGED_VARS = [
   ...Object.keys(primaryScale("#000000")),
   ...Object.keys(accentScale("#000000")),
   "--color-bg", "--color-bg-alt", "--shadow-navy", "--shadow-mint",
+  "--color-on-primary", "--color-on-accent",
 ];
 
 const LS_THEME = "gyeol:theme";
 
-/** 테마를 :root 에 적용. 기본 테마는 오버라이드를 제거해 index.css 원본을 복원. */
-export function applyTheme(themeId?: string | null) {
+/**
+ * 테마를 :root 에 적용. 기본 테마는 오버라이드를 제거해 index.css 원본을 복원.
+ * persist=true 일 때만 localStorage 에 영속화한다 — 미리보기(휘발성)가 캐시를 오염시키지 않도록
+ * '적용'과 '영속화'를 분리. 저장 확정·부팅·컨텍스트 적용에서만 persist:true 를 넘긴다.
+ */
+export function applyTheme(themeId?: string | null, opts?: { persist?: boolean }) {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
   const theme = getTheme(themeId);
@@ -222,18 +261,26 @@ export function applyTheme(themeId?: string | null) {
   // 먼저 관리 변수 초기화 (이전 테마 잔여 제거)
   MANAGED_VARS.forEach((v) => root.style.removeProperty(v));
 
-  try { localStorage.setItem(LS_THEME, theme.id); } catch { /* 무시 */ }
+  if (opts?.persist) {
+    try { localStorage.setItem(LS_THEME, theme.id); } catch { /* 무시 */ }
+  }
 
   if (theme.id === DEFAULT_THEME_ID) return; // 기본은 index.css 그대로
 
-  const vars = { ...primaryScale(theme.primary), ...accentScale(theme.accent) };
+  // 밝은 primary 는 흰 텍스트 AA 를 만족하도록 자동으로 살짝 어둡게 (navy-700+흰글씨 패턴 전역 보정).
+  const primaryBase = ensureReadableOnWhiteText(theme.primary);
+  const vars = { ...primaryScale(primaryBase), ...accentScale(theme.accent) };
   Object.entries(vars).forEach(([k, val]) => root.style.setProperty(k, val));
 
   if (theme.bg) {
     root.style.setProperty("--color-bg", theme.bg);
     root.style.setProperty("--color-bg-alt", mix(theme.bg, BLACK, 0.04));
   }
-  const [pr, pg, pb] = hexToRgb(theme.primary);
+  // primary/accent 위에 올릴 전경색 — 밝은 테마에서 흰 텍스트가 묻히지 않도록 명도로 자동 선택.
+  // 컴포넌트는 text-[var(--color-on-accent,white)] 처럼 fallback 흰색을 두므로 기본 테마는 영향 없음.
+  root.style.setProperty("--color-on-primary", bestOn(primaryBase));
+  root.style.setProperty("--color-on-accent", bestOn(theme.accent));
+  const [pr, pg, pb] = hexToRgb(primaryBase);
   const [ar, ag, ab] = hexToRgb(theme.accent);
   root.style.setProperty("--shadow-navy", `0 8px 24px rgba(${pr}, ${pg}, ${pb}, 0.30)`);
   root.style.setProperty("--shadow-mint", `0 8px 24px rgba(${ar}, ${ag}, ${ab}, 0.26)`);
@@ -244,6 +291,6 @@ export function bootstrapTheme() {
   if (typeof window === "undefined") return;
   try {
     const cached = localStorage.getItem(LS_THEME);
-    if (cached) applyTheme(cached);
+    if (cached) applyTheme(cached, { persist: true });
   } catch { /* 무시 */ }
 }
