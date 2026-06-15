@@ -73,6 +73,7 @@ const dict: Record<string, string> = {
   "pay.unpaid": "未付款",
 
   "coupons.title": "我的优惠券",
+  "coupons.arrived": "🎁 您收到了新优惠券！",
   "coupons.empty": "暂无优惠券。",
   "coupons.pending": "等待审核",
   "coupons.used": "已使用",

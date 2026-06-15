@@ -73,6 +73,7 @@ const dict: Record<string, string> = {
   "pay.unpaid": "Chưa thanh toán",
 
   "coupons.title": "Phiếu của bạn",
+  "coupons.arrived": "🎁 Bạn vừa nhận được phiếu giảm giá mới!",
   "coupons.empty": "Bạn chưa có phiếu nào.",
   "coupons.pending": "Đang chờ duyệt",
   "coupons.used": "Đã dùng",

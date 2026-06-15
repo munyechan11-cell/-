@@ -73,6 +73,7 @@ const dict: Record<string, string> = {
   "pay.unpaid": "Unpaid",
 
   "coupons.title": "Your coupons",
+  "coupons.arrived": "🎁 You've got a new coupon!",
   "coupons.empty": "No coupons yet.",
   "coupons.pending": "Awaiting approval",
   "coupons.used": "Used",

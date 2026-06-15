@@ -140,6 +140,31 @@ export default function CustomerDashboard() {
       .sort((a, b) => new Date(b.issuedAt).getTime() - new Date(a.issuedAt).getTime()),
     [coupons, currentUser?.id, storeId]
   );
+
+  // 8-6: 새 쿠폰 도착 알림 — 고객 FCM 푸시가 없어 인앱 실시간 알림(토스트 + 탭 뱃지)으로.
+  //  · localStorage 의 '본 쿠폰' 집합과 비교해, 지난 세션 후/실시간으로 새로 온 쿠폰만 알림.
+  //  · 24h 이내 발급분만 알려 옛 쿠폰·첫 로드 오탐을 방지.
+  const [unseenCoupons, setUnseenCoupons] = useState(0);
+  useEffect(() => {
+    const uid = currentUser?.id;
+    if (!uid || !storeId) return;
+    const key = `gyeol:coupons-seen:${storeId}:${uid}`;
+    let stored: Set<string>;
+    try { stored = new Set<string>(JSON.parse(localStorage.getItem(key) || "[]")); } catch { stored = new Set(); }
+    const avail = myCoupons.filter((c) => c.status !== "used");
+    const recentFresh = avail.filter(
+      (c) => !stored.has(c.id) && Date.now() - new Date(c.issuedAt).getTime() < 24 * 60 * 60_000
+    );
+    if (recentFresh.length) {
+      showToast(t("coupons.arrived", lang), "success");
+      setUnseenCoupons((n) => n + recentFresh.length);
+    }
+    if (avail.length) {
+      avail.forEach((c) => stored.add(c.id)); // 현재 사용가능 쿠폰을 '본 것'으로 기록(빈 배열로는 덮어쓰지 않음)
+      localStorage.setItem(key, JSON.stringify([...stored]));
+    }
+  }, [myCoupons, currentUser?.id, storeId, lang]);
+  useEffect(() => { if (tab === "coupons") setUnseenCoupons(0); }, [tab]);
   const myTable = useMemo(
     () => tables.find((t) => t.currentCustomerId === currentUser?.id && t.storeId === storeId),
     [tables, currentUser?.id, storeId]
@@ -338,7 +363,7 @@ export default function CustomerDashboard() {
 
   return (
     <MobileShell
-      bottomNav={<BottomNav tab={tab} setTab={setTab} />}
+      bottomNav={<BottomNav tab={tab} setTab={setTab} couponBadge={unseenCoupons} />}
     >
       <TopBar
         title={owner?.restaurantName ?? t("common.store", lang)}
@@ -1368,7 +1393,7 @@ function ReviewModal({
   );
 }
 
-function BottomNav({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
+function BottomNav({ tab, setTab, couponBadge = 0 }: { tab: Tab; setTab: (t: Tab) => void; couponBadge?: number }) {
   const lang = useLanguage();
   const items: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: "home", label: t("nav.home", lang), icon: <HomeIcon className="w-5 h-5" /> },
@@ -1387,7 +1412,14 @@ function BottomNav({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
             tab === it.id ? "text-[var(--color-navy-700)]" : "text-[var(--color-ink-500)]"
           )}
         >
-          {it.icon}
+          <span className="relative">
+            {it.icon}
+            {it.id === "coupons" && couponBadge > 0 && (
+              <span className="absolute -top-1.5 -right-2 min-w-[16px] h-4 px-1 rounded-full bg-[var(--color-danger)] text-white text-[10px] font-extrabold flex items-center justify-center tabular-nums">
+                {couponBadge > 9 ? "9+" : couponBadge}
+              </span>
+            )}
+          </span>
           <span className="text-[12px] font-bold tracking-tight">{it.label}</span>
         </button>
       ))}

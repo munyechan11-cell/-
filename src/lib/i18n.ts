@@ -160,6 +160,7 @@ const ko: Dict = {
 
   // 쿠폰
   "coupons.title": "보유 쿠폰",
+  "coupons.arrived": "🎁 새 쿠폰이 도착했어요!",
   "coupons.empty": "보유한 쿠폰이 없습니다.",
   "coupons.pending": "승인 대기",
   "coupons.used": "사용 완료",
