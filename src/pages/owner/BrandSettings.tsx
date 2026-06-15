@@ -97,6 +97,12 @@ export default function BrandSettings() {
   const [radius, setRadius] = useState(String(cfg?.allowedRadius ?? 100));
   const [tossKey, setTossKey] = useState(cfg?.tossClientKey ?? "");
   const [tossSecret, setTossSecret] = useState(""); // write-only — 보안상 화면에 표시하지 않음
+  // 토스플레이스(오프라인 토스 POS) 매출 연동 — merchantId 만 표시값, 키는 write-only
+  const [tpMerchantId, setTpMerchantId] = useState(currentUser?.tossPlace?.merchantId ?? "");
+  const [tpAccessKey, setTpAccessKey] = useState("");
+  const [tpSecretKey, setTpSecretKey] = useState("");
+  const [tpWebhookSecret, setTpWebhookSecret] = useState("");
+  const [tpBusy, setTpBusy] = useState(false);
   const [kioskEnabled, setKioskEnabled] = useState(!!cfg?.kioskEnabled);
   const [theme, setTheme] = useState(cfg?.theme ?? defaultThemeForIndustry(cfg?.industry));
   // AI 전화 예약 — 가게마다 전화번호·인사말이 다르므로 매장별 설정
@@ -187,6 +193,67 @@ export default function BrandSettings() {
       showToast(t("obs.geo.fail", lang, { msg: e?.message ?? "" }), "error");
     }
   };
+
+  // 토스플레이스 연동 정보 저장 — 키는 store_secrets(서버 전용)로. 저장 후 키 입력칸은 비움.
+  const saveTossPlace = async () => {
+    if (!tpMerchantId.trim()) {
+      showToast(t("obs.tp.needMerchant", lang), "error");
+      return;
+    }
+    setTpBusy(true);
+    try {
+      const idToken = await auth?.currentUser?.getIdToken();
+      const res = await fetch(api("/api/store/tossplace-config"), {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${idToken ?? ""}` },
+        body: JSON.stringify({
+          storeId,
+          merchantId: tpMerchantId.trim(),
+          accessKey: tpAccessKey.trim() || undefined,
+          secretKey: tpSecretKey.trim() || undefined,
+          webhookSecret: tpWebhookSecret.trim() || undefined,
+        }),
+      });
+      if (res.ok) {
+        setTpAccessKey("");
+        setTpSecretKey("");
+        setTpWebhookSecret("");
+        showToast(t("obs.tp.saved", lang), "success");
+      } else {
+        showToast(t("obs.tp.saveFail", lang), "error");
+      }
+    } catch {
+      showToast(t("obs.tp.saveFail", lang), "error");
+    } finally {
+      setTpBusy(false);
+    }
+  };
+
+  // 웹훅 누락분 수동 동기화/보정 — 오늘 결제를 조회해 매출에 채워넣음.
+  const syncTossPlace = async () => {
+    setTpBusy(true);
+    try {
+      const idToken = await auth?.currentUser?.getIdToken();
+      const res = await fetch(api("/api/store/tossplace-sync"), {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${idToken ?? ""}` },
+        body: JSON.stringify({ storeId }),
+      });
+      const data = await res.json().catch(() => ({} as any));
+      if (res.ok) showToast(t("obs.tp.syncOk", lang, { n: data.recorded ?? 0 }), "success");
+      else showToast(t("obs.tp.syncFail", lang, { msg: data.error ?? "" }), "error");
+    } catch (e: any) {
+      showToast(t("obs.tp.syncFail", lang, { msg: e?.message ?? "" }), "error");
+    } finally {
+      setTpBusy(false);
+    }
+  };
+
+  // 토스플레이스 콘솔에 등록할 웹훅 수신 주소 (VITE_API_URL 미설정 시 현재 출처 기준)
+  const tossPlaceWebhookUrl = (() => {
+    const u = api("/api/tossplace/webhook");
+    return u.startsWith("http") ? u : `${window.location.origin}${u}`;
+  })();
 
   return (
     <OwnerShell title={t("obs.title", lang)} width="narrow">
@@ -520,6 +587,80 @@ export default function BrandSettings() {
           <p className="text-[12px] text-[var(--color-ink-500)] mt-1 leading-relaxed">
             {t("obs.payment.tossSecretHelp", lang)}
           </p>
+        </Sec>
+
+        <Sec title={t("obs.sec.tossplace", lang)}>
+          <div className="flex items-start gap-2 p-3.5 rounded-[14px] bg-[var(--color-navy-50)] border border-[var(--color-navy-200)]">
+            <Info className="w-4 h-4 text-[var(--color-navy-700)] mt-0.5 shrink-0" />
+            <p className="text-[12px] text-[var(--color-navy-700)] font-semibold leading-relaxed">
+              {t("obs.tp.desc", lang)}
+            </p>
+          </div>
+
+          {currentUser.tossPlace?.connectedAt && (
+            <div className="flex items-center gap-2 p-3 rounded-[12px] bg-[var(--color-mint-50)] border border-[var(--color-mint-200)]">
+              <CheckCircle2 className="w-4 h-4 text-[var(--color-mint-700)] shrink-0" />
+              <p className="text-[12px] text-[var(--color-mint-700)] font-bold">
+                {t("obs.tp.connected", lang, { id: currentUser.tossPlace.merchantId ?? "" })}
+              </p>
+            </div>
+          )}
+
+          <Input
+            label={t("obs.tp.merchantId", lang)}
+            value={tpMerchantId}
+            onChange={(e) => setTpMerchantId(e.target.value)}
+            placeholder="merchant_..."
+            leftSlot={<KeyRound className="w-4 h-4" />}
+          />
+          <Input
+            label={t("obs.tp.accessKey", lang)}
+            value={tpAccessKey}
+            onChange={(e) => setTpAccessKey(e.target.value)}
+            placeholder={t("obs.tp.changeOnly", lang)}
+          />
+          <Input
+            label={t("obs.tp.secretKey", lang)}
+            type="password"
+            value={tpSecretKey}
+            onChange={(e) => setTpSecretKey(e.target.value)}
+            placeholder={t("obs.tp.changeOnly", lang)}
+          />
+          <Input
+            label={t("obs.tp.webhookSecret", lang)}
+            type="password"
+            value={tpWebhookSecret}
+            onChange={(e) => setTpWebhookSecret(e.target.value)}
+            placeholder={t("obs.tp.changeOnly", lang)}
+          />
+
+          <div>
+            <label className="block text-[13px] font-semibold text-[var(--color-navy-800)] mb-1">
+              {t("obs.tp.webhookUrl", lang)}
+            </label>
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard?.writeText(tossPlaceWebhookUrl);
+                showToast(t("obs.tp.copied", lang), "info");
+              }}
+              className="w-full text-left px-3 py-2.5 rounded-[12px] bg-[var(--color-ink-50)] border border-[var(--color-line)] text-[12px] font-mono text-[var(--color-ink-700)] break-all active:scale-[0.99] transition-transform"
+            >
+              {tossPlaceWebhookUrl}
+            </button>
+            <p className="text-[11.5px] text-[var(--color-ink-500)] mt-1 leading-relaxed">
+              {t("obs.tp.webhookHelp", lang)}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <Button onClick={saveTossPlace} loading={tpBusy} leftIcon={<Save className="w-4 h-4" />}>
+              {t("obs.tp.save", lang)}
+            </Button>
+            <Button variant="outline" onClick={syncTossPlace} loading={tpBusy} leftIcon={<Plug className="w-4 h-4" />}>
+              {t("obs.tp.syncNow", lang)}
+            </Button>
+          </div>
         </Sec>
 
         <Sec title={t("obs.sec.kiosk", lang)}>

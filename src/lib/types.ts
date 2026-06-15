@@ -97,6 +97,9 @@ export interface User {
   posVendor?: string;
   /** POS API Key 또는 매장 코드 (벤더별로 의미 다름). 비어 있으면 영수증 인쇄 폴백 */
   posApiKey?: string;
+  /** 토스플레이스(오프라인 토스 POS) 매출 연동 — 비밀 키는 store_secrets(서버 전용)에 저장하고
+   *  여기엔 비밀 아닌 표시용 정보만 둔다. */
+  tossPlace?: { merchantId?: string; connectedAt?: string };
   /** 영수증 인쇄 브릿지 사용 의도 (사장님 토글). PC 트레이 앱이 페어링되면 자동으로 큐 발행 */
   printBridgeEnabled?: boolean;
   /** 매장 영업 시간 — 요일별 (다음 turn 에 풀 구현 예정). 미설정 시 항상 영업 중으로 간주 */
@@ -334,6 +337,8 @@ export interface Order {
   paymentStatus?: "unpaid" | "requested" | "paid" | "refunded";
   /** 결제수단 — 카드(토스)/현금(수동승인). 매출장부 분리용. */
   paymentMethod?: "card" | "cash";
+  /** 주문 출처 — app(앱 주문·기본) / tossplace(오프라인 토스 POS 웹훅 유입). 매출엔 함께 잡히되 주방·테이블 흐름에선 제외. */
+  source?: "app" | "tossplace";
   createdAt: string;
 }
 

@@ -71,6 +71,11 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // 토스플레이스 merchantId → storeId 역매핑 — 서버(Admin SDK) 전용(웹훅 매장 식별용).
+    match /merchant_map/{merchantId} {
+      allow read, write: if false;
+    }
+
     // ============================================================
     // 직원 등급(staffLevel) 서버단 보안 — Custom Token 전환 시 활성화
     //
