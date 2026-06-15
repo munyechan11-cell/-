@@ -1950,6 +1950,10 @@ app.post('/api/marketing/generate', async (req, res) => {
           c += '\n\n' + tags.map((tg: string) => (tg.startsWith('#') ? tg : `#${tg.replace(/\s+/g, '')}`)).join(' ');
         }
         content = c;
+      } else {
+        // JSON.parse 실패(본문에 줄바꿈 등)해도 원문 JSON 노출 방지 — content 필드 값을 관대하게 추출
+        const mm = content.match(/"content"\s*:\s*"([\s\S]*?)"\s*[,}]/);
+        if (mm) content = mm[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\t/g, ' ').trim();
       }
     }
     // 모델이 캡션을 따옴표로 감싸는 경우 양끝 제거
