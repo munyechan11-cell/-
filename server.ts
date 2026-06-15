@@ -3,6 +3,7 @@ import admin from 'firebase-admin';
 import dotenv from 'dotenv';
 import path from 'path';
 import cors from 'cors';
+import { randomUUID } from 'node:crypto';
 
 dotenv.config();
 
@@ -1897,52 +1898,69 @@ app.post('/api/marketing/generate', async (req, res) => {
     const channelLabel = ch === 'instagram' ? '인스타그램' : ch === 'naverPlace' ? '네이버플레이스' : '일반 SNS';
     const banned = String(m.bannedWords || '').split(',').map((s: string) => s.trim()).filter(Boolean);
 
-    const sys = `당신은 한국 소상공인 매장 "${storeName}"(업종: ${industry})의 SNS 마케팅 카피라이터입니다.
-아래 매장 프로필을 반영해 ${channelLabel}용 ${kd === 'post' ? '홍보 게시물' : '리뷰/문의 응대'} 초안을 작성하세요.
-- 말투/톤: ${m.tone || '친근하고 따뜻하게'}
-- 타깃 고객: ${m.target || '동네 손님'}
-- 강조 키워드: ${m.keywords || '(없음)'}
-- 절대 사용 금지어: ${banned.length ? banned.join(', ') : '(없음)'}
-규칙: 자연스러운 한국어. 과장·허위·의학적 효능 주장 금지. 금지어는 절대 쓰지 마세요. 길이는 ${kd === 'post' ? '2~4문장 + 해시태그 5개 내외' : '2~3문장'}.
-반드시 아래 JSON 하나만 출력(설명·코드펜스 금지): {"title":"짧은 제목","content":"본문","hashtags":["태그",...]}`;
+    const toneLine = m.tone || '친근하고 따뜻하게';
+    const targetLine = m.target || '동네 손님';
+    const kwLine = m.keywords || '(없음)';
+    const banLine = banned.length ? banned.join(', ') : '(없음)';
+    // 평문 캡션 출력(JSON 강제 X) — LLM 이 자연스럽게 쓰게 해 품질↑, JSON 파싱 실패로 원문 노출되는 사고 방지.
+    const sys = kd === 'post'
+      ? `당신은 한국 동네 상권을 가장 잘 아는 SNS 마케팅 전문가입니다. 매장 "${storeName}"(업종: ${industry})의 ${channelLabel} 홍보 게시물 캡션을 씁니다.
+목표: 읽는 사람이 "가보고 싶다 / 주문하고 싶다"는 마음이 들어 실제 방문·주문으로 이어지게.
+[작성 구조]
+1) 첫 줄: 시선을 확 끄는 후킹 한 문장 (질문·공감·한정·강렬한 감각 묘사 중 하나).
+2) 본문: 메뉴·분위기·혜택을 오감(맛·향·식감·온도·소리)과 구체적 디테일로 생생하게. 2~4문장.
+3) 마무리: 명확한 행동 유도(방문·주문·예약·저장) + 넛지 1가지(영업시간·한정 수량·위치 등).
+4) 해시태그: 한 줄 띄우고 8~12개. 브랜드 + 동네/지역 + 업종/메뉴 + 상황(데이트·혼밥·점심 등) 섞어서.
+[반영] 말투/톤: ${toneLine} · 타깃: ${targetLine} · 강조 키워드: ${kwLine}
+[금지어(절대 사용 금지)]: ${banLine}
+[규칙] 자연스러운 한국어. 이모지는 1~4개만 자연스럽게. 줄바꿈으로 읽기 쉽게. 과장·허위·의학적 효능 주장 금지.
+출력은 게시물 캡션 본문만 — 설명·머리말·따옴표·코드펜스·JSON 절대 금지.`
+      : `당신은 매장 "${storeName}"(업종: ${industry}) 사장님을 대신해 손님 리뷰/문의에 답하는 전문가입니다.
+따뜻하고 진심 어리되 전문적인 답글을 쓰세요: 감사 인사 + 리뷰의 구체적 내용에 공감/언급 + (낮은 평점이면) 정중한 사과와 구체적 개선 약속 + 재방문 초대. 2~4문장.
+변명·논쟁·복붙 느낌 금지. 말투/톤: ${toneLine}. 금지어(절대 금지): ${banLine}.
+출력은 답글 본문만 — 설명·따옴표·코드펜스·JSON 절대 금지.`;
     let userMsg: string;
     if (kd === 'reply' && reviewText && String(reviewText).trim()) {
       // 리뷰 응대 초안 (7-5) — 실제 손님 리뷰에 답하는 초안
       const stars = Number(rating) >= 1 && Number(rating) <= 5 ? `${Math.round(Number(rating))}점` : '평점 없음';
-      userMsg = `아래 손님 리뷰에 대한 사장님 답글 초안을 작성해 주세요. 감사 인사 + 구체적 내용 공감 + (낮은 평점이면) 정중한 사과·개선 약속. 변명·논쟁 금지.\n[별점] ${stars}\n[리뷰] ${String(reviewText).trim().slice(0, 600)}`;
+      userMsg = `아래 손님 리뷰에 답하는 사장님 답글을 작성해 주세요.\n[별점] ${stars}\n[리뷰] ${String(reviewText).trim().slice(0, 600)}`;
     } else if (topic && String(topic).trim()) {
-      userMsg = `주제/소재: ${String(topic).trim().slice(0, 200)}`;
+      userMsg = `이번 게시물 주제/소재: ${String(topic).trim().slice(0, 200)}`;
     } else {
-      userMsg = kd === 'post' ? '오늘 올릴 만한 홍보 게시물 초안을 만들어 주세요.' : '손님 리뷰/문의에 대한 정중한 응대 초안을 만들어 주세요.';
+      userMsg = kd === 'post' ? '오늘 올릴 만한, 매력적인 홍보 게시물 캡션을 만들어 주세요.' : '손님 리뷰/문의에 대한 정중한 응대 초안을 만들어 주세요.';
     }
 
     let text: string | null;
     try {
-      text = await callLLMText(sys, userMsg, 700);
+      text = await callLLMText(sys, userMsg, 900);
     } catch (e: any) {
       console.error('[marketing/generate] llm', e?.message);
       return res.status(502).json({ error: 'AI_CALL_FAILED' });
     }
     if (text === null) return res.status(503).json({ error: 'AI_NOT_CONFIGURED' });
 
-    const parsed = parseLooseJson(text) || {};
-    const parsedOk = parsed && typeof parsed.content === 'string' && parsed.content.trim().length > 0;
-    // 파싱 성공 시 content 사용. 실패 시 원문에서 코드펜스/JSON 래퍼 잔재를 걷어내 그대로 노출(승인 게이트가 있어 즉시 발행은 안 됨).
-    let content = parsedOk
-      ? String(parsed.content).trim()
-      : String(text || '').replace(/```(?:json)?/gi, '').replace(/```/g, '').trim();
-    const tags = Array.isArray(parsed.hashtags)
-      ? parsed.hashtags.filter((tg: any) => typeof tg === 'string').slice(0, 10)
-      : [];
-    if (kd === 'post' && tags.length) {
-      content += '\n\n' + tags.map((tg: string) => (tg.startsWith('#') ? tg : `#${tg.replace(/\s+/g, '')}`)).join(' ');
+    // 기대: 평문 캡션. 혹시 JSON/코드펜스로 감싸 오면 견고하게 content 추출(원문 JSON 노출 사고 방지).
+    let content = String(text || '').replace(/```(?:json)?/gi, '').replace(/```/g, '').trim();
+    if (content.startsWith('{')) {
+      const parsed = parseLooseJson(content);
+      if (parsed && typeof parsed.content === 'string' && parsed.content.trim()) {
+        let c = String(parsed.content).trim();
+        const tags = Array.isArray(parsed.hashtags) ? parsed.hashtags.filter((tg: any) => typeof tg === 'string') : [];
+        if (kd === 'post' && tags.length && !/#/.test(c)) {
+          c += '\n\n' + tags.map((tg: string) => (tg.startsWith('#') ? tg : `#${tg.replace(/\s+/g, '')}`)).join(' ');
+        }
+        content = c;
+      }
     }
-    content = content.slice(0, 2000);
-    const title = parsed.title ? String(parsed.title).slice(0, 80) : undefined;
+    // 모델이 캡션을 따옴표로 감싸는 경우 양끝 제거
+    content = content.replace(/^["'“”]+/, '').replace(/["'“”]+$/, '').trim().slice(0, 2000);
+    if (!content) return res.status(502).json({ error: 'AI_EMPTY' });
+    // 제목 = 첫 의미있는 줄(해시태그/기호 제외)에서 추출, 목록 표시용.
+    const firstLine = content.split('\n').map((s) => s.trim()).find((s) => s && !s.startsWith('#')) || content;
+    const title = firstLine.replace(/[#*_`>]/g, '').trim().slice(0, 40) || undefined;
     // 금지어 가드(7-7) — 자동 제거 대신 표시해 승인 전 사람이 검토하도록.
-    // 본문 + 원시 해시태그(공백 제거 전)를 함께 검사해, 공백 포함 금지어가 해시태그 가공으로 누락되는 것을 방지.
-    const bannedHit = banned.filter((b: string) => content.includes(b) || tags.some((tg: string) => tg.includes(b)));
-    return res.json({ title, content, channel: ch, kind: kd, bannedHit, parseFallback: !parsedOk });
+    const bannedHit = banned.filter((b: string) => content.includes(b));
+    return res.json({ title, content, channel: ch, kind: kd, bannedHit });
   } catch (e: any) {
     console.error('[marketing/generate]', e?.message);
     res.status(500).json({ error: e?.message ?? 'generate failed' });
@@ -1974,22 +1992,26 @@ function connectedChannels(owner: any): Array<{ platform: string; accountId: str
   return out;
 }
 
-async function zernioPublish(content: string, imageUrl: string, platforms: Array<{ platform: string; accountId: string }>): Promise<{ ok: boolean; error?: string; data?: any }> {
+type MediaItem = { type: 'image' | 'video'; url: string };
+async function zernioPublish(content: string, mediaItems: MediaItem[], platforms: Array<{ platform: string; accountId: string }>): Promise<{ ok: boolean; error?: string; data?: any; status?: number }> {
   const key = process.env.ZERNIO_API_KEY;
   if (!key) return { ok: false, error: 'ZERNIO_NOT_CONFIGURED' };
   if (!platforms.length) return { ok: false, error: 'no_channels' };
+  if (!mediaItems.length) return { ok: false, error: 'image_required' };
   const r = await fetchWithTimeout('https://zernio.com/api/v1/posts', {
     method: 'POST',
-    headers: { 'content-type': 'application/json', authorization: `Bearer ${key}` },
+    // x-request-id: 매 호출 새 UUID — ~5분 재시도 멱등성. 24h 내 동일 콘텐츠 재발행은 Zernio 가 409.
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${key}`, 'x-request-id': randomUUID() },
     body: JSON.stringify({
       content: content.slice(0, 2200), // 인스타 캡션 최대 2200자
-      mediaItems: [{ type: 'image', url: imageUrl }],
-      platforms, // [{platform:'instagram',accountId}, {platform:'googlebusiness',accountId}] — 한 번에 여러 채널 발행
+      // 1개=단일 / 2~10개=캐러셀(자동, 별도 flag 불필요) / [{type:'video'}]=릴스(세로 9:16 자동 릴스)
+      mediaItems,
+      platforms, // [{platform:'instagram',accountId}, ...] — 한 번에 여러 채널 발행
       publishNow: true,
     }),
   }, 30000);
   const data: any = await r.json().catch(() => ({}));
-  if (!r.ok) return { ok: false, error: data?.error || data?.message || `zernio ${r.status}`, data };
+  if (!r.ok) return { ok: false, error: data?.error || data?.message || `zernio ${r.status}`, data, status: r.status };
   return { ok: true, data };
 }
 
@@ -1997,7 +2019,7 @@ app.post('/api/marketing/publish', async (req, res) => {
   try {
     const adminApp = getFirebaseAdmin();
     if (!adminApp) return res.status(503).json({ error: 'FIREBASE_ADMIN_NOT_CONFIGURED' });
-    const { storeId, content, imageUrl, photoId, platforms } = req.body ?? {};
+    const { storeId, content, imageUrl, photoId, photoIds, videoUrl, platforms } = req.body ?? {};
     if (!isValidStoreId(storeId)) return res.status(400).json({ error: 'storeId required' });
     if (!checkMarketingRate(storeId)) return res.status(429).json({ error: '잠시 후 다시 시도해 주세요. (분당 10회 제한)' });
     if (!content || !String(content).trim()) return res.status(400).json({ error: 'content_required' });
@@ -2013,17 +2035,30 @@ app.post('/api/marketing/publish', async (req, res) => {
       targets = targets.filter((t) => want.has(t.platform));
     }
     if (!targets.length) return res.status(400).json({ error: 'no_channel_connected' });
-    // photoId 가 오면 우리 서버가 그 매장 사진을 공개 이미지로 서빙하는 URL 을 만든다(base64 → 공개 URL).
-    let finalImageUrl = String(imageUrl || '');
-    if (photoId && typeof photoId === 'string' && isValidStoreId(photoId)) {
-      const proto = String(req.headers['x-forwarded-proto'] || req.protocol || 'https').split(',')[0];
-      finalImageUrl = `${proto}://${req.get('host')}/api/marketing/image/${encodeURIComponent(photoId)}`;
+    // 미디어 구성: 영상(릴스) > 사진 여러 장(캐러셀) > 사진 1장 / imageUrl(호환).
+    // photoId/photoIds 는 우리 서버가 그 매장 사진을 공개 이미지로 서빙하는 URL(base64 → 공개 URL).
+    const proto = String(req.headers['x-forwarded-proto'] || req.protocol || 'https').split(',')[0];
+    const toImgUrl = (id: string) => `${proto}://${req.get('host')}/api/marketing/image/${encodeURIComponent(id)}`;
+    let mediaItems: MediaItem[] = [];
+    if (videoUrl && /^https:\/\/.+/i.test(String(videoUrl))) {
+      mediaItems = [{ type: 'video', url: String(videoUrl) }]; // 릴스 — 공개 HTTPS 영상 URL (Zernio 가 직접 fetch)
+    } else if (Array.isArray(photoIds) && photoIds.length) {
+      const ids = [...new Set(photoIds.filter((id: any) => typeof id === 'string' && isValidStoreId(id)))].slice(0, 10); // 중복 제거 후 인스타 캐러셀 최대 10장
+      mediaItems = ids.map((id: string) => ({ type: 'image' as const, url: toImgUrl(id) }));
+    } else if (photoId && typeof photoId === 'string' && isValidStoreId(photoId)) {
+      mediaItems = [{ type: 'image', url: toImgUrl(photoId) }]; // 단일(기존 호환)
+    } else if (imageUrl && /^https:\/\/.+/i.test(String(imageUrl))) {
+      mediaItems = [{ type: 'image', url: String(imageUrl) }]; // 단일 URL(기존 호환, 공개 HTTPS만)
     }
-    if (!finalImageUrl || !/^https?:\/\/.+/.test(finalImageUrl)) return res.status(400).json({ error: 'image_required' });
-    const r = await zernioPublish(String(content), finalImageUrl, targets.map((t) => ({ platform: t.platform, accountId: t.accountId })));
+    if (!mediaItems.length) return res.status(400).json({ error: 'image_required' });
+    // 캐러셀(여러 장)·릴스(영상)는 인스타만 — 구글 비즈니스는 1장·영상 미지원.
+    const isVideo = mediaItems.some((m) => m.type === 'video');
+    if (isVideo || mediaItems.length > 1) targets = targets.filter((t) => t.platform === 'instagram');
+    if (!targets.length) return res.status(400).json({ error: isVideo ? 'reel_needs_instagram' : 'carousel_needs_instagram' });
+    const r = await zernioPublish(String(content), mediaItems, targets.map((t) => ({ platform: t.platform, accountId: t.accountId })));
     if (!r.ok) {
-      const code = r.error === 'ZERNIO_NOT_CONFIGURED' ? 503 : 502;
-      return res.status(code).json({ error: r.error || 'publish_failed' });
+      const code = r.error === 'ZERNIO_NOT_CONFIGURED' ? 503 : r.status === 409 ? 409 : 502;
+      return res.status(code).json({ error: r.status === 409 ? 'duplicate' : (r.error || 'publish_failed') });
     }
     return res.json({ ok: true, result: r.data, channels: targets.map((t) => t.platform) });
   } catch (e: any) { console.error('[marketing/publish]', e?.message); res.status(500).json({ error: e?.message ?? 'publish failed' }); }
@@ -2084,7 +2119,7 @@ app.post('/api/marketing/connect-url', async (req, res) => {
   try {
     const adminApp = getFirebaseAdmin();
     if (!adminApp) return res.status(503).json({ error: 'FIREBASE_ADMIN_NOT_CONFIGURED' });
-    const { storeId, platform } = req.body ?? {};
+    const { storeId, platform, redirectUrl } = req.body ?? {};
     if (!isValidStoreId(storeId)) return res.status(400).json({ error: 'storeId required' });
     if (!SUPPORTED_PLATFORMS.includes(String(platform))) return res.status(400).json({ error: 'unsupported_platform' });
     if (!checkMarketingRate(storeId)) return res.status(429).json({ error: '잠시 후 다시 시도해 주세요.' });
@@ -2108,7 +2143,12 @@ app.post('/api/marketing/connect-url', async (req, res) => {
       if (!created.ok || !profileId) return res.status(502).json({ error: 'profile_create_failed' });
       await savePublishing(fs, storeId, { zernioProfileId: profileId });
     }
-    const conn = await zernioApi('GET', `/connect/${platform}?profileId=${encodeURIComponent(profileId)}`);
+    // redirect_url: OAuth 완료 후 Zernio 대시보드(로그인 벽) 대신 우리 앱으로 복귀 → ?connected={platform}&accountId=...&username=...
+    let connectPath = `/connect/${platform}?profileId=${encodeURIComponent(profileId)}`;
+    if (redirectUrl && /^https:\/\/.+/i.test(String(redirectUrl)) && String(redirectUrl).length < 500) {
+      connectPath += `&redirect_url=${encodeURIComponent(String(redirectUrl))}`;
+    }
+    const conn = await zernioApi('GET', connectPath);
     const authUrl = conn.data?.authUrl || conn.data?.url;
     if (!conn.ok || !authUrl) return res.status(502).json({ error: 'connect_url_failed' });
     return res.json({ authUrl });

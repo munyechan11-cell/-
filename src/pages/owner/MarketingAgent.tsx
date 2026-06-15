@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Sparkles, Check, X, Send, Pencil, Trash2, ChevronDown, ChevronUp, ShieldCheck, Loader2, BarChart3 } from "lucide-react";
 import { OwnerShell } from "../../components/layout/OwnerShell";
 import { useStore } from "../../store/store";
@@ -63,14 +63,45 @@ export default function OwnerMarketingAgent() {
     p === "instagram" ? channels.instagram?.username || pub?.instagramUsername || "" : channels[p]?.username || "";
   const anyChannelConnected = PLATFORMS.some((p) => isChannelConnected(p.key));
   const [busyPlat, setBusyPlat] = useState<string | null>(null);
-  const [pendingPlat, setPendingPlat] = useState<string | null>(null); // authUrl 연 뒤 '연결 완료 확인' 대기
+  const [pendingPlat, setPendingPlat] = useState<string | null>(null); // authUrl 연 뒤 연결 완료 자동 감지 중
+  const pollRef = useRef<string | null>(null); // 자동 폴링 중인 platform (취소/해제 시 중단)
 
+  // 서버에 "이 매장 프로필에 그 채널이 연결됐는지" 물어 우리 DB(channels)에 저장. 연결 여부 반환.
+  const detectConnected = async (platform: string): Promise<{ connected: boolean; username?: string }> => {
+    try {
+      const res = await fetch(api("/api/marketing/connect-finish"), {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ storeId, platform }),
+      });
+      const d = await res.json().catch(() => ({} as any));
+      return { connected: !!(res.ok && d.connected), username: d.username };
+    } catch {
+      return { connected: false };
+    }
+  };
+  // OAuth 새 탭이 끝나길 기다리며 자동 감지(최대 ~2분). 사장님이 Zernio 대시보드로 튕겨도, 돌아와 버튼 안 눌러도 자동 저장.
+  const startConnectPoll = async (platform: string) => {
+    pollRef.current = platform;
+    for (let i = 0; i < 40 && pollRef.current === platform; i++) {
+      await new Promise((r) => setTimeout(r, 4000));
+      if (pollRef.current !== platform) return;
+      const { connected, username } = await detectConnected(platform);
+      if (connected) {
+        pollRef.current = null;
+        setPendingPlat((cur) => (cur === platform ? null : cur));
+        showToast(t("magent.igConnected", lang, { name: username || "" }), "success"); // storeConfig 는 onSnapshot 으로 갱신
+        return;
+      }
+    }
+  };
   const connectChannel = async (platform: string) => {
     if (busyPlat) return;
     setBusyPlat(platform);
+    let authUrl = "";
     try {
       const res = await fetch(api("/api/marketing/connect-url"), {
-        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ storeId, platform }),
+        method: "POST", headers: { "content-type": "application/json" },
+        // redirect_url: OAuth 후 Zernio 대시보드 대신 이 페이지로 복귀(?connected=...)
+        body: JSON.stringify({ storeId, platform, redirectUrl: window.location.href.split("?")[0] }),
       });
       const d = await res.json().catch(() => ({} as any));
       if (res.status === 402 && d?.error === "upgrade_required") {
@@ -81,36 +112,41 @@ export default function OwnerMarketingAgent() {
         showToast(d?.error === "ZERNIO_NOT_CONFIGURED" ? t("magent.igNotConfigured", lang) : t("magent.igConnectFail", lang), "error");
         return;
       }
-      window.open(d.authUrl, "_blank", "noopener");
-      setPendingPlat(platform); // 사장님이 인증 후 '연결 완료 확인'을 누르게
+      authUrl = d.authUrl;
     } catch {
       showToast(t("magent.igConnectFail", lang), "error");
     } finally {
       setBusyPlat(null);
     }
+    if (!authUrl) return;
+    window.open(authUrl, "_blank", "noopener");
+    setPendingPlat(platform);
+    void startConnectPoll(platform); // 자동 감지 시작(논블로킹)
   };
+  // 수동 '연결 완료 확인' — 자동 감지를 못 기다린 경우 즉시 확인.
   const finishChannel = async (platform: string) => {
     if (busyPlat) return;
     setBusyPlat(platform);
     try {
-      const res = await fetch(api("/api/marketing/connect-finish"), {
-        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ storeId, platform }),
-      });
-      const d = await res.json().catch(() => ({} as any));
-      if (res.ok && d.connected) {
+      const { connected, username } = await detectConnected(platform);
+      if (connected) {
+        pollRef.current = null;
         setPendingPlat(null);
-        showToast(t("magent.igConnected", lang, { name: d.username || "" }), "success"); // storeConfig 는 onSnapshot 으로 갱신
+        showToast(t("magent.igConnected", lang, { name: username || "" }), "success");
       } else {
         showToast(t("magent.igConnectPendingHint", lang), "info");
       }
-    } catch {
-      showToast(t("magent.igConnectFail", lang), "error");
     } finally {
       setBusyPlat(null);
     }
   };
+  const cancelPending = (platform: string) => {
+    if (pollRef.current === platform) pollRef.current = null;
+    setPendingPlat((cur) => (cur === platform ? null : cur));
+  };
   const disconnectChannel = async (platform: string) => {
     if (busyPlat || !window.confirm(t("magent.igDisconnectConfirm", lang))) return;
+    pollRef.current = null;
     setBusyPlat(platform);
     try {
       await fetch(api("/api/marketing/disconnect"), {
@@ -123,6 +159,23 @@ export default function OwnerMarketingAgent() {
       setBusyPlat(null);
     }
   };
+
+  // OAuth 후 Zernio 가 ?connected={platform}&accountId=... 로 이 페이지에 복귀시킴 → 우리 DB 에 저장(detectConnected) + URL 정리.
+  const connectHandled = useRef(false);
+  useEffect(() => {
+    if (connectHandled.current || !storeId) return;
+    const search = window.location.search || (window.location.hash.includes("?") ? "?" + window.location.hash.split("?")[1] : "");
+    const connected = new URLSearchParams(search).get("connected");
+    if (!connected) return;
+    connectHandled.current = true;
+    if (PLATFORMS.some((p) => p.key === connected)) {
+      detectConnected(connected).then(({ connected: ok, username }) => {
+        if (ok) showToast(t("magent.igConnected", lang, { name: username || "" }), "success");
+      });
+    }
+    window.history.replaceState({}, "", window.location.href.split("?")[0]); // 새로고침 시 재실행 방지
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeId]);
 
   // 금지어 목록 (가드레일) — 콘텐츠에 들어가면 안 되는 표현. 승인·발행 전 검사.
   const bannedList = useMemo(
@@ -276,7 +329,10 @@ export default function OwnerMarketingAgent() {
   );
   const publishLimit = cfg?.dailyPublishLimit ?? 0; // 0 = 무제한
   const publishingRef = useRef(0); // 진행 중 발행 수 — 연타 시 onSnapshot 왕복 전이라도 한도 정확 판정
-  const [publishTarget, setPublishTarget] = useState<MarketingDraft | null>(null); // 사진 선택 대기 중인 게시물 초안
+  const [publishTarget, setPublishTarget] = useState<MarketingDraft | null>(null); // 사진/영상 선택 대기 중인 게시물 초안
+  const [pubMode, setPubMode] = useState<"photo" | "reel">("photo"); // 발행 모달 탭: 사진(단일/캐러셀) vs 릴스(영상)
+  const [selectedPhotoIds, setSelectedPhotoIds] = useState<string[]>([]); // 캐러셀용 다중선택 (1장=단일, 2~10장=캐러셀)
+  const [reelUrl, setReelUrl] = useState(""); // 릴스 영상 공개 URL
 
   // 발행에 쓸 매장 사진(메뉴·리뷰 등 imageData 있는 것). 인스타는 이미지 필수라 여기서 골라 게시.
   const storePhotos = useMemo(
@@ -284,20 +340,28 @@ export default function OwnerMarketingAgent() {
     [photos, storeId]
   );
 
-  // 발행 — ① 게시물(post) + 인스타 연결됨 → 사진 선택 모달 ② 응대(reply)/미연결 → 바로 published.
+  // 발행 — ① 게시물(post): 채널 연결돼야만 사진/영상 모달 → 실제 발행. 미연결이면 "채널 먼저 연결" 안내(가짜 발행 금지).
+  //        ② 응대(reply): 실제 동작(해당 리뷰에 사장님 답글 기록) → published.
   const handlePublish = async (d: MarketingDraft) => {
     if (publishLimit > 0 && publishedLast24h + publishingRef.current >= publishLimit) {
       showToast(t("magent.limitReached", lang, { n: publishLimit }), "error");
       return;
     }
-    if (d.kind === "post" && anyChannelConnected) {
-      setPublishTarget(d); // 사진 선택 모달 → doPublishWithPhoto (연결된 모든 채널에 발행)
+    if (d.kind === "post") {
+      if (!anyChannelConnected) {
+        // 발행 채널이 없으면 어디에도 안 올라간다 — "발행됨"으로 속이지 말고 연결을 요구.
+        showToast(t("magent.connectFirst", lang), "error");
+        return;
+      }
+      setPubMode("photo"); setSelectedPhotoIds([]); setReelUrl(""); // 모달 상태 초기화
+      setPublishTarget(d); // 사진/영상 선택 모달 → doPublish (연결된 모든 채널에 발행)
       return;
     }
+    // kind === "reply" — 리뷰 답글 기록(실제 동작)
     publishingRef.current += 1;
     try {
       await reviewMarketingDraft(d.id, "publish");
-      if (d.kind === "reply" && d.targetId) {
+      if (d.targetId) {
         await updatePhoto(d.targetId, { ownerReply: { text: d.content, repliedAt: new Date().toISOString() } });
       }
       showToast(t("magent.publishDone", lang), "success");
@@ -308,22 +372,31 @@ export default function OwnerMarketingAgent() {
     }
   };
 
-  // 사진 선택 후 실제 인스타 발행 — 서버가 그 사진을 공개 URL로 서빙 → Zernio로 게시.
-  const doPublishWithPhoto = async (photoId: string) => {
+  // 실제 발행 — 단일/캐러셀(photoIds)·릴스(videoUrl). 서버가 사진을 공개 URL로 서빙 → Zernio로 게시.
+  const doPublish = async (payload: { photoIds?: string[]; videoUrl?: string }) => {
     const d = publishTarget;
     if (!d) return;
+    // 모달을 연 뒤 한도에 도달했을 수 있어 발행 직전 재검증(가드레일 우회 방지)
+    if (publishLimit > 0 && publishedLast24h + publishingRef.current >= publishLimit) {
+      showToast(t("magent.limitReached", lang, { n: publishLimit }), "error");
+      setPublishTarget(null);
+      return;
+    }
     setPublishTarget(null);
     publishingRef.current += 1;
     try {
       const res = await fetch(api("/api/marketing/publish"), {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ storeId, content: d.content, photoId }),
+        body: JSON.stringify({ storeId, content: d.content, ...payload }),
       });
       if (!res.ok) {
         const e = await res.json().catch(() => ({} as any));
         const msg = e?.error === "no_channel_connected" ? t("magent.igNotConnected", lang)
           : e?.error === "image_required" ? t("magent.imageInvalid", lang)
+          : e?.error === "reel_needs_instagram" ? t("magent.reelGoogleSkip", lang)
+          : e?.error === "carousel_needs_instagram" ? t("magent.carouselGoogleSkip", lang)
+          : e?.error === "duplicate" ? t("magent.duplicate409", lang)
           : e?.error === "ZERNIO_NOT_CONFIGURED" ? t("magent.igNotConfigured", lang)
           : t("magent.publishFail", lang);
         showToast(msg, "error");
@@ -493,11 +566,11 @@ export default function OwnerMarketingAgent() {
                         <button onClick={() => finishChannel(p.key)} disabled={busy} className="h-9 px-3 rounded-lg bg-[var(--color-navy-700)] text-[var(--color-on-primary,white)] text-[12.5px] font-bold inline-flex items-center gap-1.5 disabled:opacity-60">
                           {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}{t("magent.igConnectConfirm", lang)}
                         </button>
-                        <button onClick={() => setPendingPlat(null)} className="h-9 px-3 rounded-lg bg-[var(--color-bg)] text-[var(--color-ink-600)] text-[12.5px] font-bold">{t("magent.cancel", lang)}</button>
+                        <button onClick={() => cancelPending(p.key)} className="h-9 px-3 rounded-lg bg-[var(--color-bg)] text-[var(--color-ink-600)] text-[12.5px] font-bold">{t("magent.cancel", lang)}</button>
                       </div>
                     ) : (
                       <button onClick={() => connectChannel(p.key)} disabled={busy} className="h-9 px-3 rounded-lg bg-[var(--color-navy-700)] text-[var(--color-on-primary,white)] text-[12.5px] font-bold inline-flex items-center gap-1.5 disabled:opacity-60">
-                        {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}{t("magent.igConnectBtn", lang)}
+                        {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}{t("magent.connectBtn", lang, { ch: t(p.labelKey, lang) })}
                       </button>
                     )}
                   </div>
@@ -672,7 +745,7 @@ export default function OwnerMarketingAgent() {
         )}
       </div>
 
-      {/* 인스타 발행 — 매장 사진 선택 모달 */}
+      {/* 발행 — 사진(단일/캐러셀) / 릴스(영상) 선택 모달 */}
       {publishTarget && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center sm:p-4" onClick={() => setPublishTarget(null)}>
           <div
@@ -682,25 +755,82 @@ export default function OwnerMarketingAgent() {
             aria-label={t("magent.pickPhoto", lang)}
             className="w-full max-w-[480px] bg-white rounded-t-[24px] sm:rounded-2xl p-5 pb-[max(env(safe-area-inset-bottom),20px)] max-h-[88vh] overflow-y-auto"
           >
-            <h2 className="text-[16px] font-extrabold text-[var(--color-navy-900)] mb-1">{t("magent.pickPhoto", lang)}</h2>
-            <p className="text-[12px] text-[var(--color-ink-500)] mb-3 leading-relaxed">{t("magent.pickPhotoHint", lang)}</p>
-            {storePhotos.length === 0 ? (
-              <p className="text-[13px] text-[var(--color-ink-500)] text-center py-8">{t("magent.noPhotos", lang)}</p>
+            <h2 className="text-[16px] font-extrabold text-[var(--color-navy-900)] mb-3">{t("magent.pickPhoto", lang)}</h2>
+            {/* 사진 / 릴스 탭 */}
+            <div className="flex gap-1.5 mb-3 p-1 bg-[var(--color-bg)] rounded-xl">
+              {(["photo", "reel"] as const).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setPubMode(m)}
+                  className={`flex-1 h-9 rounded-lg text-[13px] font-bold transition-colors ${pubMode === m ? "bg-white text-[var(--color-navy-900)] shadow-sm" : "text-[var(--color-ink-500)]"}`}
+                >
+                  {t(m === "photo" ? "magent.tabPhoto" : "magent.tabReel", lang)}
+                </button>
+              ))}
+            </div>
+            {pubMode === "photo" ? (
+              <>
+                <p className="text-[12px] text-[var(--color-ink-500)] mb-3 leading-relaxed">{t("magent.pickPhotosHint", lang)}</p>
+                {storePhotos.length === 0 ? (
+                  <p className="text-[13px] text-[var(--color-ink-500)] text-center py-8">{t("magent.noPhotos", lang)}</p>
+                ) : (
+                  <div className="grid grid-cols-3 gap-2">
+                    {storePhotos.map((p) => {
+                      const idx = selectedPhotoIds.indexOf(p.id);
+                      const sel = idx >= 0;
+                      return (
+                        <button
+                          key={p.id}
+                          onClick={() =>
+                            setSelectedPhotoIds((cur) =>
+                              cur.includes(p.id) ? cur.filter((x) => x !== p.id) : cur.length >= 10 ? cur : [...cur, p.id]
+                            )
+                          }
+                          aria-pressed={sel}
+                          className={`relative aspect-square rounded-xl overflow-hidden border transition-shadow ${sel ? "ring-2 ring-[var(--color-navy-700)] border-[var(--color-navy-700)]" : "border-[var(--color-line)]"}`}
+                          aria-label={t("magent.pickPhoto", lang)}
+                        >
+                          <img src={p.imageData} alt="" className="w-full h-full object-cover" />
+                          {sel && (
+                            <span className="absolute top-1 right-1 w-5 h-5 rounded-full bg-[var(--color-navy-700)] text-white text-[11px] font-bold flex items-center justify-center">{idx + 1}</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+                {selectedPhotoIds.length > 1 && (
+                  <p className="text-[11px] text-[var(--color-ink-500)] mt-2 leading-relaxed">{t("magent.carouselGoogleSkip", lang)}</p>
+                )}
+                <button
+                  disabled={selectedPhotoIds.length === 0}
+                  onClick={() => doPublish({ photoIds: selectedPhotoIds })}
+                  className="mt-3 h-11 w-full rounded-xl bg-[var(--color-navy-700)] text-[var(--color-on-primary,white)] font-bold disabled:opacity-50"
+                >
+                  {selectedPhotoIds.length > 1 ? t("magent.publishCarousel", lang, { n: selectedPhotoIds.length }) : t("magent.publishBtn", lang)}
+                </button>
+              </>
             ) : (
-              <div className="grid grid-cols-3 gap-2">
-                {storePhotos.map((p) => (
-                  <button
-                    key={p.id}
-                    onClick={() => doPublishWithPhoto(p.id)}
-                    className="aspect-square rounded-xl overflow-hidden border border-[var(--color-line)] hover:ring-2 hover:ring-[var(--color-navy-700)] transition-shadow"
-                    aria-label={t("magent.pickPhoto", lang)}
-                  >
-                    <img src={p.imageData} alt="" className="w-full h-full object-cover" />
-                  </button>
-                ))}
-              </div>
+              <>
+                <p className="text-[12px] text-[var(--color-ink-500)] mb-2 leading-relaxed">{t("magent.reelUrlHint", lang)}</p>
+                <input
+                  value={reelUrl}
+                  onChange={(e) => setReelUrl(e.target.value)}
+                  placeholder="https://....mp4"
+                  inputMode="url"
+                  className="w-full h-11 px-3 rounded-xl border border-[var(--color-line)] bg-white text-[14px] outline-none focus:border-[var(--color-navy-700)]"
+                />
+                <p className="text-[11px] text-[var(--color-ink-500)] mt-2 leading-relaxed">{t("magent.reelGoogleSkip", lang)}</p>
+                <button
+                  disabled={!/^https:\/\/.+/.test(reelUrl.trim())}
+                  onClick={() => doPublish({ videoUrl: reelUrl.trim() })}
+                  className="mt-3 h-11 w-full rounded-xl bg-[var(--color-navy-700)] text-[var(--color-on-primary,white)] font-bold disabled:opacity-50"
+                >
+                  {t("magent.publishReel", lang)}
+                </button>
+              </>
             )}
-            <button onClick={() => setPublishTarget(null)} className="mt-3 h-10 w-full rounded-xl bg-[var(--color-bg)] text-[var(--color-ink-600)] font-bold">
+            <button onClick={() => setPublishTarget(null)} className="mt-2 h-10 w-full rounded-xl bg-[var(--color-bg)] text-[var(--color-ink-600)] font-bold">
               {t("magent.cancel", lang)}
             </button>
           </div>
