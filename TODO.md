@@ -70,7 +70,10 @@
 - [~] **7-4. 채널 연동** — 인스타그램 발행 ✅ (Zernio 대행 API — Meta 앱 심사 우회). server /api/marketing/publish + 매장별 storeConfig.publishing.instagramAccountId + 마케팅 비서 발행 버튼→이미지 URL→실제 게시. ZERNIO_API_KEY(플랫폼 공용). 인스타 이미지 필수.
   - 셀프 연결 ✅ — 사장님이 마케팅 비서 "인스타그램 연결" 버튼 → 자기 인스타 OAuth → 결이 매장별 Zernio 프로필·계정id 자동 저장(connect-url/finish/disconnect). 사장님은 Zernio·계정id 안 봐도 됨.
   - 설정(플랫폼 1회): Render에 ZERNIO_API_KEY(sk_...)만. (무료 2계정, 초과 시 계정당 과금)
-  - 남은 것: 이미지 자동(현재 URL 수동 입력) — 사진 picker/AI 이미지. 예약 발행 스케줄러. 네이버플레이스(공개 API 없음 → 수동).
+  - 이미지 ✅ — 발행 시 매장 사진(메뉴·리뷰) 선택 모달. server가 base64 사진을 공개 이미지로 서빙(/api/marketing/image/:photoId)해 Zernio가 fetch. URL 수동입력 폴백 제거.
+  - 멀티채널 ✅ — 인스타 + **구글 비즈니스 프로필** 동시 발행(Zernio platform `googlebusiness`). storeConfig.publishing.channels{platform→{accountId,username}} 맵. 발행은 연결된 모든 채널에 한 번에(zernioPublish platforms[]). 셀프 연결 엔드포인트 일반화(connect-url/connect-finish/disconnect + platform 파라미터). 구 instagramAccountId 호환 fallback 유지.
+  - 요금제 게이트 ✅ — free=채널 1개, **2번째 채널부터 Pro 월 ₩10,000**(storeConfig.plan). connect-url 에서 402 upgrade_required 차단. PLAN_PRO_PRICE_KRW=10000. **결제 수금 방식 미정**(수동 플래그 vs 토스 정기결제) — 결정 필요.
+  - 남은 것: 결제 수금(plan='pro' 부여 수단). 캐러셀(여러 사진 한 게시물) — 쉬움. 릴스(영상) — 영상 소스 필요(사장 업로드 or 슬라이드쇼 자동생성, 큰 작업). 예약 발행 스케줄러. AI 이미지 생성. 네이버(공개 API 없음 → 수동).
 - [x] **7-5. 리뷰 응대 초안** ✅ — 마케팅 비서 페이지 "리뷰 응대 초안": 아직 답글 없는 리뷰(photos/review) 목록 → "AI 답글 초안" → generate(kind:reply, reviewText·rating) → 승인 큐(kind:reply, targetId=리뷰). 승인·발행 시 그 리뷰의 ownerReply 로 자동 기록(updatePhoto). 큐에서 원본 리뷰 컨텍스트 표시.
   - 남은 것: DM 응대(외부 채널 연동 7-4 필요), 실제 LLM 키로 품질 검증.
 - [x] **7-6. 주간 성과 요약** ✅ — 마케팅 비서 페이지 "이번 주 성과": 주간 매출·예약·새 리뷰(평균별점)·발행 콘텐츠 수를 기존 컬렉션에서 집계 + "AI 주간 요약 받기"(기존 askInsight/buildContext·/api/ai/insight 재사용) → 성과 요약 + 다음 주 콘텐츠 아이디어 2개 제안(생성기로 이어지는 루프). 새 env·규칙 불필요(LLM 키만).

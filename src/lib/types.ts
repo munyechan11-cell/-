@@ -55,13 +55,16 @@ export interface StoreConfig {
   };
   /** 외부 채널 발행 설정 (TODO 7-4) — Zernio 등 소셜 발행 대행 계정 매핑. 가게마다 자기 계정. */
   publishing?: {
-    /** 이 매장 전용 Zernio 프로필 id — 사장님이 자기 인스타를 이 프로필에 OAuth 연결. */
+    /** 이 매장 전용 Zernio 프로필 id — 사장님이 자기 소셜을 이 프로필에 OAuth 연결. */
     zernioProfileId?: string;
-    /** 연결된 인스타 계정 id (Zernio account _id). 발행 시 이 계정으로 게시. */
+    /** 연결된 채널들 — platform 키('instagram'|'googlebusiness') → { accountId, username }. */
+    channels?: Record<string, { accountId: string; username?: string }>;
+    /** (구) 단일 인스타 필드 — 호환용. 신규는 channels 사용. */
     instagramAccountId?: string;
-    /** 연결된 인스타 사용자명 — 화면 표시용. */
     instagramUsername?: string;
   };
+  /** 결 요금제 — free(채널 1개) / pro(채널 여러 개, 월 ₩10,000). 미설정=free. */
+  plan?: "free" | "pro";
 }
 
 export interface User {

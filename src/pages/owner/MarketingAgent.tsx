@@ -49,42 +49,56 @@ export default function OwnerMarketingAgent() {
   const [dailyLimit, setDailyLimit] = useState(String(cfg?.dailyPublishLimit ?? 0));
   const [savingProfile, setSavingProfile] = useState(false);
 
-  // 인스타 셀프 연결 — 연결 상태는 storeConfig.publishing 에서 (서버가 관리)
-  const igConnected = !!currentUser?.storeConfig?.publishing?.instagramAccountId;
-  const igUsername = currentUser?.storeConfig?.publishing?.instagramUsername ?? "";
-  const [igBusy, setIgBusy] = useState(false);
-  const [igPending, setIgPending] = useState(false); // authUrl 연 뒤 '연결 완료 확인' 대기
+  // 소셜 채널 셀프 연결 (인스타 + 구글 비즈니스) — 연결 상태는 storeConfig.publishing.channels 에서 (서버가 관리)
+  const PLATFORMS: { key: "instagram" | "googlebusiness"; labelKey: string }[] = [
+    { key: "instagram", labelKey: "magent.chInstagram" },
+    { key: "googlebusiness", labelKey: "magent.chGoogle" },
+  ];
+  const pub = currentUser?.storeConfig?.publishing;
+  const channels = pub?.channels ?? {};
+  const plan = currentUser?.storeConfig?.plan === "pro" ? "pro" : "free";
+  const isChannelConnected = (p: string) =>
+    p === "instagram" ? !!(channels.instagram?.accountId || pub?.instagramAccountId) : !!channels[p]?.accountId;
+  const channelUsername = (p: string) =>
+    p === "instagram" ? channels.instagram?.username || pub?.instagramUsername || "" : channels[p]?.username || "";
+  const anyChannelConnected = PLATFORMS.some((p) => isChannelConnected(p.key));
+  const [busyPlat, setBusyPlat] = useState<string | null>(null);
+  const [pendingPlat, setPendingPlat] = useState<string | null>(null); // authUrl 연 뒤 '연결 완료 확인' 대기
 
-  const connectInstagram = async () => {
-    if (igBusy) return;
-    setIgBusy(true);
+  const connectChannel = async (platform: string) => {
+    if (busyPlat) return;
+    setBusyPlat(platform);
     try {
-      const res = await fetch(api("/api/marketing/instagram/connect-url"), {
-        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ storeId }),
+      const res = await fetch(api("/api/marketing/connect-url"), {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ storeId, platform }),
       });
       const d = await res.json().catch(() => ({} as any));
+      if (res.status === 402 && d?.error === "upgrade_required") {
+        showToast(t("magent.upgradeNeeded", lang, { price: (d.priceKrw ?? 10000).toLocaleString() }), "error");
+        return;
+      }
       if (!res.ok || !d.authUrl) {
         showToast(d?.error === "ZERNIO_NOT_CONFIGURED" ? t("magent.igNotConfigured", lang) : t("magent.igConnectFail", lang), "error");
         return;
       }
       window.open(d.authUrl, "_blank", "noopener");
-      setIgPending(true); // 사장님이 인스타 인증 후 '연결 완료 확인'을 누르게
+      setPendingPlat(platform); // 사장님이 인증 후 '연결 완료 확인'을 누르게
     } catch {
       showToast(t("magent.igConnectFail", lang), "error");
     } finally {
-      setIgBusy(false);
+      setBusyPlat(null);
     }
   };
-  const finishInstagram = async () => {
-    if (igBusy) return;
-    setIgBusy(true);
+  const finishChannel = async (platform: string) => {
+    if (busyPlat) return;
+    setBusyPlat(platform);
     try {
-      const res = await fetch(api("/api/marketing/instagram/finish"), {
-        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ storeId }),
+      const res = await fetch(api("/api/marketing/connect-finish"), {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ storeId, platform }),
       });
       const d = await res.json().catch(() => ({} as any));
       if (res.ok && d.connected) {
-        setIgPending(false);
+        setPendingPlat(null);
         showToast(t("magent.igConnected", lang, { name: d.username || "" }), "success"); // storeConfig 는 onSnapshot 으로 갱신
       } else {
         showToast(t("magent.igConnectPendingHint", lang), "info");
@@ -92,21 +106,21 @@ export default function OwnerMarketingAgent() {
     } catch {
       showToast(t("magent.igConnectFail", lang), "error");
     } finally {
-      setIgBusy(false);
+      setBusyPlat(null);
     }
   };
-  const disconnectInstagram = async () => {
-    if (igBusy || !window.confirm(t("magent.igDisconnectConfirm", lang))) return;
-    setIgBusy(true);
+  const disconnectChannel = async (platform: string) => {
+    if (busyPlat || !window.confirm(t("magent.igDisconnectConfirm", lang))) return;
+    setBusyPlat(platform);
     try {
-      await fetch(api("/api/marketing/instagram/disconnect"), {
-        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ storeId }),
+      await fetch(api("/api/marketing/disconnect"), {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ storeId, platform }),
       });
       showToast(t("magent.igDisconnected", lang), "info");
     } catch {
       showToast(t("magent.igConnectFail", lang), "error");
     } finally {
-      setIgBusy(false);
+      setBusyPlat(null);
     }
   };
 
@@ -276,8 +290,8 @@ export default function OwnerMarketingAgent() {
       showToast(t("magent.limitReached", lang, { n: publishLimit }), "error");
       return;
     }
-    if (d.kind === "post" && igConnected) {
-      setPublishTarget(d); // 사진 선택 모달 → doPublishWithPhoto
+    if (d.kind === "post" && anyChannelConnected) {
+      setPublishTarget(d); // 사진 선택 모달 → doPublishWithPhoto (연결된 모든 채널에 발행)
       return;
     }
     publishingRef.current += 1;
@@ -308,7 +322,7 @@ export default function OwnerMarketingAgent() {
       });
       if (!res.ok) {
         const e = await res.json().catch(() => ({} as any));
-        const msg = e?.error === "ig_not_connected" ? t("magent.igNotConnected", lang)
+        const msg = e?.error === "no_channel_connected" ? t("magent.igNotConnected", lang)
           : e?.error === "image_required" ? t("magent.imageInvalid", lang)
           : e?.error === "ZERNIO_NOT_CONFIGURED" ? t("magent.igNotConfigured", lang)
           : t("magent.publishFail", lang);
@@ -453,36 +467,46 @@ export default function OwnerMarketingAgent() {
             </div>
           </div>
 
-          {/* 인스타그램 연결 (셀프) */}
+          {/* 소셜 채널 연결 (셀프) — 인스타 + 구글 비즈니스 */}
           <div className="mt-4 pt-4 border-t border-[var(--color-line-soft)]">
-            <label className="text-[12px] font-bold text-[var(--color-ink-600)] mb-1 block">{t("magent.igAccount", lang)}</label>
-            {igConnected ? (
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-[var(--color-mint-50)] text-[var(--color-mint-700)] text-[12.5px] font-bold">
-                  <Check className="w-4 h-4" />{igUsername ? `@${igUsername}` : t("magent.igConnectedShort", lang)}
-                </span>
-                <button onClick={disconnectInstagram} disabled={igBusy} className="h-9 px-3 rounded-lg bg-[var(--color-bg)] text-[var(--color-ink-600)] text-[12.5px] font-bold disabled:opacity-50">
-                  {t("magent.igDisconnect", lang)}
-                </button>
-              </div>
-            ) : igPending ? (
-              <div>
-                <p className="text-[12px] text-[var(--color-ink-600)] mb-2 leading-relaxed">{t("magent.igConnectPendingHint", lang)}</p>
-                <div className="flex gap-2">
-                  <button onClick={finishInstagram} disabled={igBusy} className="h-10 px-4 rounded-xl bg-[var(--color-navy-700)] text-[var(--color-on-primary,white)] font-bold inline-flex items-center gap-2 disabled:opacity-60">
-                    {igBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}{t("magent.igConnectConfirm", lang)}
-                  </button>
-                  <button onClick={() => setIgPending(false)} className="h-10 px-3 rounded-xl bg-[var(--color-bg)] text-[var(--color-ink-600)] font-bold">{t("magent.cancel", lang)}</button>
-                </div>
-              </div>
-            ) : (
-              <>
-                <button onClick={connectInstagram} disabled={igBusy} className="h-10 px-4 rounded-xl bg-[var(--color-navy-700)] text-[var(--color-on-primary,white)] font-bold inline-flex items-center gap-2 disabled:opacity-60">
-                  {igBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}{t("magent.igConnectBtn", lang)}
-                </button>
-                <p className="text-[11px] text-[var(--color-ink-500)] mt-1.5 leading-relaxed">{t("magent.igConnectHint", lang)}</p>
-              </>
-            )}
+            <label className="text-[12px] font-bold text-[var(--color-ink-600)] mb-2 block">{t("magent.channels", lang)}</label>
+            <div className="space-y-2.5">
+              {PLATFORMS.map((p) => {
+                const connected = isChannelConnected(p.key);
+                const uname = channelUsername(p.key);
+                const busy = busyPlat === p.key;
+                const pending = pendingPlat === p.key;
+                return (
+                  <div key={p.key} className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[12.5px] font-bold text-[var(--color-ink-700)] w-[116px] shrink-0">{t(p.labelKey, lang)}</span>
+                    {connected ? (
+                      <>
+                        <span className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-[var(--color-mint-50)] text-[var(--color-mint-700)] text-[12.5px] font-bold">
+                          <Check className="w-4 h-4" />{uname ? `@${uname}` : t("magent.igConnectedShort", lang)}
+                        </span>
+                        <button onClick={() => disconnectChannel(p.key)} disabled={busy} className="h-9 px-3 rounded-lg bg-[var(--color-bg)] text-[var(--color-ink-600)] text-[12.5px] font-bold disabled:opacity-50">
+                          {t("magent.igDisconnect", lang)}
+                        </button>
+                      </>
+                    ) : pending ? (
+                      <div className="flex gap-2 flex-wrap">
+                        <button onClick={() => finishChannel(p.key)} disabled={busy} className="h-9 px-3 rounded-lg bg-[var(--color-navy-700)] text-[var(--color-on-primary,white)] text-[12.5px] font-bold inline-flex items-center gap-1.5 disabled:opacity-60">
+                          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}{t("magent.igConnectConfirm", lang)}
+                        </button>
+                        <button onClick={() => setPendingPlat(null)} className="h-9 px-3 rounded-lg bg-[var(--color-bg)] text-[var(--color-ink-600)] text-[12.5px] font-bold">{t("magent.cancel", lang)}</button>
+                      </div>
+                    ) : (
+                      <button onClick={() => connectChannel(p.key)} disabled={busy} className="h-9 px-3 rounded-lg bg-[var(--color-navy-700)] text-[var(--color-on-primary,white)] text-[12.5px] font-bold inline-flex items-center gap-1.5 disabled:opacity-60">
+                        {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}{t("magent.igConnectBtn", lang)}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <p className="text-[11px] text-[var(--color-ink-500)] mt-2.5 leading-relaxed">
+              {plan === "pro" ? t("magent.planPro", lang) : t("magent.planHint", lang, { price: (10000).toLocaleString() })}
+            </p>
           </div>
           <button
             onClick={saveProfile}
