@@ -1997,6 +1997,95 @@ app.post('/api/marketing/publish', async (req, res) => {
   } catch (e: any) { console.error('[marketing/publish]', e?.message); res.status(500).json({ error: e?.message ?? 'publish failed' }); }
 });
 
+// ============================================================
+// 인스타그램 셀프 연결 (TODO 7-4) — 각 사장님이 결 안에서 자기 인스타를 직접 연결.
+//  1) connect-url: 매장 전용 Zernio 프로필 확보 → OAuth authUrl 반환(사장님이 자기 인스타 로그인·허용)
+//  2) finish: OAuth 후 그 프로필의 연결 계정 id 를 storeConfig.publishing 에 자동 저장
+//  3) disconnect: 연결 해제(우리 쪽 매핑 제거)
+// 사장님은 Zernio 대시보드/계정id 를 볼 필요 없음.
+// ============================================================
+async function zernioApi(method: string, path: string, body?: any): Promise<{ ok: boolean; status: number; data: any }> {
+  const key = process.env.ZERNIO_API_KEY;
+  if (!key) return { ok: false, status: 503, data: { error: 'ZERNIO_NOT_CONFIGURED' } };
+  const r = await fetchWithTimeout(`https://zernio.com/api/v1${path}`, {
+    method,
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${key}` },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  }, 30000);
+  const data = await r.json().catch(() => ({}));
+  return { ok: r.ok, status: r.status, data };
+}
+// storeConfig.publishing.* 만 안전하게 갱신 (Admin set merge — 다른 storeConfig 필드 보존)
+async function savePublishing(fs: any, storeId: string, patch: Record<string, any>) {
+  await fs.collection('users').doc(storeId).set({ storeConfig: { publishing: patch } }, { merge: true });
+}
+
+app.post('/api/marketing/instagram/connect-url', async (req, res) => {
+  try {
+    const adminApp = getFirebaseAdmin();
+    if (!adminApp) return res.status(503).json({ error: 'FIREBASE_ADMIN_NOT_CONFIGURED' });
+    const { storeId } = req.body ?? {};
+    if (!isValidStoreId(storeId)) return res.status(400).json({ error: 'storeId required' });
+    if (!checkMarketingRate(storeId)) return res.status(429).json({ error: '잠시 후 다시 시도해 주세요.' });
+    if (!process.env.ZERNIO_API_KEY) return res.status(503).json({ error: 'ZERNIO_NOT_CONFIGURED' });
+    const fs = adminApp.firestore();
+    const ownerSnap = await fs.collection('users').doc(storeId).get();
+    if (!ownerSnap.exists) return res.status(404).json({ error: 'store not found' });
+    const owner = ownerSnap.data() as any;
+    let profileId = owner?.storeConfig?.publishing?.zernioProfileId;
+    if (!profileId) {
+      // 매장 전용 프로필 생성 (각 가게의 소셜 계정을 묶는 단위)
+      const created = await zernioApi('POST', '/profiles', { name: String(owner?.restaurantName || storeId).slice(0, 60), description: `gyeol:${storeId}` });
+      profileId = created.data?._id || created.data?.profile?._id || created.data?.id;
+      if (!created.ok || !profileId) return res.status(502).json({ error: 'profile_create_failed' });
+      await savePublishing(fs, storeId, { zernioProfileId: profileId });
+    }
+    const conn = await zernioApi('GET', `/connect/instagram?profileId=${encodeURIComponent(profileId)}`);
+    const authUrl = conn.data?.authUrl || conn.data?.url;
+    if (!conn.ok || !authUrl) return res.status(502).json({ error: 'connect_url_failed' });
+    return res.json({ authUrl });
+  } catch (e: any) { console.error('[ig/connect-url]', e?.message); res.status(500).json({ error: e?.message ?? 'failed' }); }
+});
+
+app.post('/api/marketing/instagram/finish', async (req, res) => {
+  try {
+    const adminApp = getFirebaseAdmin();
+    if (!adminApp) return res.status(503).json({ error: 'FIREBASE_ADMIN_NOT_CONFIGURED' });
+    const { storeId } = req.body ?? {};
+    if (!isValidStoreId(storeId)) return res.status(400).json({ error: 'storeId required' });
+    if (!process.env.ZERNIO_API_KEY) return res.status(503).json({ error: 'ZERNIO_NOT_CONFIGURED' });
+    const fs = adminApp.firestore();
+    const ownerSnap = await fs.collection('users').doc(storeId).get();
+    if (!ownerSnap.exists) return res.status(404).json({ error: 'store not found' });
+    const owner = ownerSnap.data() as any;
+    const profileId = owner?.storeConfig?.publishing?.zernioProfileId;
+    if (!profileId) return res.status(400).json({ error: 'no_profile' });
+    const list = await zernioApi('GET', '/accounts');
+    if (!list.ok) return res.status(502).json({ error: 'accounts_failed' });
+    const accounts: any[] = Array.isArray(list.data?.accounts) ? list.data.accounts : [];
+    const igAcc = accounts
+      .filter((a) => a.platform === 'instagram' && (a.profileId?._id === profileId || a.profileId === profileId))
+      .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))[0];
+    if (!igAcc) return res.json({ connected: false }); // 아직 OAuth 미완료
+    const username = igAcc?.metadata?.profileData?.username || igAcc?.displayName || '';
+    await savePublishing(fs, storeId, { instagramAccountId: igAcc._id, instagramUsername: username });
+    return res.json({ connected: true, username, accountId: igAcc._id });
+  } catch (e: any) { console.error('[ig/finish]', e?.message); res.status(500).json({ error: e?.message ?? 'failed' }); }
+});
+
+app.post('/api/marketing/instagram/disconnect', async (req, res) => {
+  try {
+    const adminApp = getFirebaseAdmin();
+    if (!adminApp) return res.status(503).json({ error: 'FIREBASE_ADMIN_NOT_CONFIGURED' });
+    const { storeId } = req.body ?? {};
+    if (!isValidStoreId(storeId)) return res.status(400).json({ error: 'storeId required' });
+    const fs = adminApp.firestore();
+    const del = admin.firestore.FieldValue.delete();
+    await fs.collection('users').doc(storeId).set({ storeConfig: { publishing: { instagramAccountId: del, instagramUsername: del } } }, { merge: true });
+    return res.json({ ok: true });
+  } catch (e: any) { console.error('[ig/disconnect]', e?.message); res.status(500).json({ error: e?.message ?? 'failed' }); }
+});
+
 // --- ORDER STATUS WEBHOOK (from Foodtech or internal) ---
 app.post('/api/webhook/order-status', async (req, res) => {
   const { orderId, status, timestamp } = req.body;

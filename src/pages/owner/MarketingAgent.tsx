@@ -47,8 +47,68 @@ export default function OwnerMarketingAgent() {
   const [keywords, setKeywords] = useState(cfg?.keywords ?? "");
   const [banned, setBanned] = useState(cfg?.bannedWords ?? "");
   const [dailyLimit, setDailyLimit] = useState(String(cfg?.dailyPublishLimit ?? 0));
-  const [igAccountId, setIgAccountId] = useState(currentUser?.storeConfig?.publishing?.instagramAccountId ?? "");
   const [savingProfile, setSavingProfile] = useState(false);
+
+  // 인스타 셀프 연결 — 연결 상태는 storeConfig.publishing 에서 (서버가 관리)
+  const igConnected = !!currentUser?.storeConfig?.publishing?.instagramAccountId;
+  const igUsername = currentUser?.storeConfig?.publishing?.instagramUsername ?? "";
+  const [igBusy, setIgBusy] = useState(false);
+  const [igPending, setIgPending] = useState(false); // authUrl 연 뒤 '연결 완료 확인' 대기
+
+  const connectInstagram = async () => {
+    if (igBusy) return;
+    setIgBusy(true);
+    try {
+      const res = await fetch(api("/api/marketing/instagram/connect-url"), {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ storeId }),
+      });
+      const d = await res.json().catch(() => ({} as any));
+      if (!res.ok || !d.authUrl) {
+        showToast(d?.error === "ZERNIO_NOT_CONFIGURED" ? t("magent.igNotConfigured", lang) : t("magent.igConnectFail", lang), "error");
+        return;
+      }
+      window.open(d.authUrl, "_blank", "noopener");
+      setIgPending(true); // 사장님이 인스타 인증 후 '연결 완료 확인'을 누르게
+    } catch {
+      showToast(t("magent.igConnectFail", lang), "error");
+    } finally {
+      setIgBusy(false);
+    }
+  };
+  const finishInstagram = async () => {
+    if (igBusy) return;
+    setIgBusy(true);
+    try {
+      const res = await fetch(api("/api/marketing/instagram/finish"), {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ storeId }),
+      });
+      const d = await res.json().catch(() => ({} as any));
+      if (res.ok && d.connected) {
+        setIgPending(false);
+        showToast(t("magent.igConnected", lang, { name: d.username || "" }), "success"); // storeConfig 는 onSnapshot 으로 갱신
+      } else {
+        showToast(t("magent.igConnectPendingHint", lang), "info");
+      }
+    } catch {
+      showToast(t("magent.igConnectFail", lang), "error");
+    } finally {
+      setIgBusy(false);
+    }
+  };
+  const disconnectInstagram = async () => {
+    if (igBusy || !window.confirm(t("magent.igDisconnectConfirm", lang))) return;
+    setIgBusy(true);
+    try {
+      await fetch(api("/api/marketing/instagram/disconnect"), {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ storeId }),
+      });
+      showToast(t("magent.igDisconnected", lang), "info");
+    } catch {
+      showToast(t("magent.igConnectFail", lang), "error");
+    } finally {
+      setIgBusy(false);
+    }
+  };
 
   // 금지어 목록 (가드레일) — 콘텐츠에 들어가면 안 되는 표현. 승인·발행 전 검사.
   const bannedList = useMemo(
@@ -70,7 +130,6 @@ export default function OwnerMarketingAgent() {
           autoPublish: false, // 골격 단계 — 자동 발행은 항상 막음(승인 필수)
           dailyPublishLimit: Math.max(0, Math.min(100, Number(dailyLimit) || 0)),
         },
-        publishing: { instagramAccountId: igAccountId.trim() },
       });
       showToast(t("magent.saved", lang), "success");
     } catch (e: any) {
@@ -211,8 +270,8 @@ export default function OwnerMarketingAgent() {
       showToast(t("magent.limitReached", lang, { n: publishLimit }), "error");
       return;
     }
-    // 게시물 + Zernio 인스타 계정 연결 → 이미지 URL 입력받아 실제 발행 (인스타는 이미지 필수)
-    const igPublish = d.kind === "post" && !!igAccountId.trim();
+    // 게시물 + 인스타 연결됨 → 이미지 URL 입력받아 실제 발행 (인스타는 이미지 필수)
+    const igPublish = d.kind === "post" && igConnected;
     let imageUrl = "";
     if (igPublish) {
       const input = window.prompt(t("magent.imagePrompt", lang));
@@ -379,16 +438,38 @@ export default function OwnerMarketingAgent() {
               />
               <p className="text-[11px] text-[var(--color-ink-500)] mt-1">{t("magent.dailyLimitHint", lang)}</p>
             </div>
-            <div>
-              <label className="text-[12px] font-bold text-[var(--color-ink-600)] mb-1 block">{t("magent.igAccount", lang)}</label>
-              <input
-                value={igAccountId}
-                onChange={(e) => setIgAccountId(e.target.value)}
-                placeholder="Zernio account id"
-                className={field}
-              />
-              <p className="text-[11px] text-[var(--color-ink-500)] mt-1 leading-relaxed">{t("magent.igAccountHint", lang)}</p>
-            </div>
+          </div>
+
+          {/* 인스타그램 연결 (셀프) */}
+          <div className="mt-4 pt-4 border-t border-[var(--color-line-soft)]">
+            <label className="text-[12px] font-bold text-[var(--color-ink-600)] mb-1 block">{t("magent.igAccount", lang)}</label>
+            {igConnected ? (
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-[var(--color-mint-50)] text-[var(--color-mint-700)] text-[12.5px] font-bold">
+                  <Check className="w-4 h-4" />{igUsername ? `@${igUsername}` : t("magent.igConnectedShort", lang)}
+                </span>
+                <button onClick={disconnectInstagram} disabled={igBusy} className="h-9 px-3 rounded-lg bg-[var(--color-bg)] text-[var(--color-ink-600)] text-[12.5px] font-bold disabled:opacity-50">
+                  {t("magent.igDisconnect", lang)}
+                </button>
+              </div>
+            ) : igPending ? (
+              <div>
+                <p className="text-[12px] text-[var(--color-ink-600)] mb-2 leading-relaxed">{t("magent.igConnectPendingHint", lang)}</p>
+                <div className="flex gap-2">
+                  <button onClick={finishInstagram} disabled={igBusy} className="h-10 px-4 rounded-xl bg-[var(--color-navy-700)] text-[var(--color-on-primary,white)] font-bold inline-flex items-center gap-2 disabled:opacity-60">
+                    {igBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}{t("magent.igConnectConfirm", lang)}
+                  </button>
+                  <button onClick={() => setIgPending(false)} className="h-10 px-3 rounded-xl bg-[var(--color-bg)] text-[var(--color-ink-600)] font-bold">{t("magent.cancel", lang)}</button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <button onClick={connectInstagram} disabled={igBusy} className="h-10 px-4 rounded-xl bg-[var(--color-navy-700)] text-[var(--color-on-primary,white)] font-bold inline-flex items-center gap-2 disabled:opacity-60">
+                  {igBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}{t("magent.igConnectBtn", lang)}
+                </button>
+                <p className="text-[11px] text-[var(--color-ink-500)] mt-1.5 leading-relaxed">{t("magent.igConnectHint", lang)}</p>
+              </>
+            )}
           </div>
           <button
             onClick={saveProfile}

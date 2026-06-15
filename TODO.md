@@ -67,7 +67,9 @@
 - [x] **7-2. 콘텐츠 생성 엔진** ✅ — `POST /api/marketing/generate`(callLLMText 재사용): 매장 프로필(톤·타깃·키워드·금지어)+업종+채널 반영해 게시물/응대 초안+해시태그 생성. 마케팅 비서 페이지 "AI로 초안 생성"(주제 입력) → addMarketingDraft(source:'agent')로 승인 큐 추가. 금지어 포함 시 bannedHit 경고(7-7 가드 일부). 서버는 텍스트만 생성, 저장은 항상 'draft'(승인 게이트 유지). rate-limit(분당 10회).
   - 남은 것: 실제 LLM 키로 생성 품질 검증, 업종별 템플릿 다양화.
 - [x] **7-3. 승인 큐 + 로깅 골격** ✅ — MarketingDraft 타입·marketingDrafts 컬렉션·store CRUD(addMarketingDraft/reviewMarketingDraft/updateMarketingDraftContent/deleteMarketingDraft). 모든 초안은 'draft'로만 생성→승인/거절/수정/발행, 전 상태전이 audit 로깅. 마케팅 비서 페이지(/biz/owner/marketing-agent, 사장 전용)에 승인 대기 큐+활동 로그. 자동 발행 차단(autoPublish 항상 false).
-- [ ] **7-4. 채널 연동** — 인스타그램 Graph API, 네이버플레이스(가능 범위 확인). 예약 발행 스케줄러.
+- [~] **7-4. 채널 연동** — 인스타그램 발행 ✅ (Zernio 대행 API — Meta 앱 심사 우회). server /api/marketing/publish + 매장별 storeConfig.publishing.instagramAccountId + 마케팅 비서 발행 버튼→이미지 URL→실제 게시. ZERNIO_API_KEY(플랫폼 공용). 인스타 이미지 필수.
+  - 설정: Render에 ZERNIO_API_KEY(sk_...) + 파일럿 매장 프로필에 Zernio 계정 id(@gyeol.app = 6a2f84235f7d1751abb86c69).
+  - 남은 것: 이미지 자동(현재 URL 수동 입력) — 사진 picker/AI 이미지. 예약 발행 스케줄러. 네이버플레이스(공개 API 없음 → 수동).
 - [x] **7-5. 리뷰 응대 초안** ✅ — 마케팅 비서 페이지 "리뷰 응대 초안": 아직 답글 없는 리뷰(photos/review) 목록 → "AI 답글 초안" → generate(kind:reply, reviewText·rating) → 승인 큐(kind:reply, targetId=리뷰). 승인·발행 시 그 리뷰의 ownerReply 로 자동 기록(updatePhoto). 큐에서 원본 리뷰 컨텍스트 표시.
   - 남은 것: DM 응대(외부 채널 연동 7-4 필요), 실제 LLM 키로 품질 검증.
 - [x] **7-6. 주간 성과 요약** ✅ — 마케팅 비서 페이지 "이번 주 성과": 주간 매출·예약·새 리뷰(평균별점)·발행 콘텐츠 수를 기존 컬렉션에서 집계 + "AI 주간 요약 받기"(기존 askInsight/buildContext·/api/ai/insight 재사용) → 성과 요약 + 다음 주 콘텐츠 아이디어 2개 제안(생성기로 이어지는 루프). 새 env·규칙 불필요(LLM 키만).
