@@ -53,6 +53,11 @@ export interface StoreConfig {
     /** 하루 발행 한도 (가드레일 7-7). 0/미설정 = 무제한. 최근 24시간 발행 수가 이 값 이상이면 발행 차단. */
     dailyPublishLimit?: number;
   };
+  /** 외부 채널 발행 설정 (TODO 7-4) — Zernio 등 소셜 발행 대행 계정 매핑. 가게마다 자기 계정. */
+  publishing?: {
+    /** 이 매장 글을 올릴 Zernio 인스타 계정 id (Zernio 대시보드 연결 계정의 _id). */
+    instagramAccountId?: string;
+  };
 }
 
 export interface User {

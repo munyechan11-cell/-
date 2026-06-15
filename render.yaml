@@ -48,6 +48,8 @@ services:
         sync: false
       - key: AI_RESERVATION_KEY
         sync: false                  # ← AI 전화 예약 두뇌 보호용 공유키 (.env 와 동일 값, 음성채널 x-ai-key)
+      - key: ZERNIO_API_KEY
+        sync: false                  # ← 마케팅 인스타 발행(Zernio) API 키 (sk_...). 결 플랫폼 공용
       - key: CRON_SECRET
         sync: false                  # ← 마케팅 크론 인증용 (Cron 서비스와 동일 값)
 

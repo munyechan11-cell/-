@@ -1949,6 +1949,54 @@ app.post('/api/marketing/generate', async (req, res) => {
   }
 });
 
+// ============================================================
+// 마케팅 채널 발행 (TODO 7-4) — Zernio 소셜 발행 대행 API로 인스타그램 게시.
+// 매장별 Zernio 계정(storeConfig.publishing.instagramAccountId)으로 발행. ZERNIO_API_KEY 는 결 플랫폼 공용.
+// 인스타는 미디어(이미지) 필수 — imageUrl(공개 URL) 없으면 거부. 승인된 초안만 클라이언트가 호출.
+// ============================================================
+async function zernioPublishInstagram(content: string, imageUrl: string, accountId: string): Promise<{ ok: boolean; error?: string; data?: any }> {
+  const key = process.env.ZERNIO_API_KEY;
+  if (!key) return { ok: false, error: 'ZERNIO_NOT_CONFIGURED' };
+  const r = await fetchWithTimeout('https://zernio.com/api/v1/posts', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${key}` },
+    body: JSON.stringify({
+      content: content.slice(0, 2200), // 인스타 캡션 최대 2200자
+      mediaItems: [{ type: 'image', url: imageUrl }],
+      platforms: [{ platform: 'instagram', accountId }],
+      publishNow: true,
+    }),
+  }, 30000);
+  const data: any = await r.json().catch(() => ({}));
+  if (!r.ok) return { ok: false, error: data?.error || data?.message || `zernio ${r.status}`, data };
+  return { ok: true, data };
+}
+
+app.post('/api/marketing/publish', async (req, res) => {
+  try {
+    const adminApp = getFirebaseAdmin();
+    if (!adminApp) return res.status(503).json({ error: 'FIREBASE_ADMIN_NOT_CONFIGURED' });
+    const { storeId, content, imageUrl } = req.body ?? {};
+    if (!isValidStoreId(storeId)) return res.status(400).json({ error: 'storeId required' });
+    if (!checkMarketingRate(storeId)) return res.status(429).json({ error: '잠시 후 다시 시도해 주세요. (분당 10회 제한)' });
+    if (!content || !String(content).trim()) return res.status(400).json({ error: 'content_required' });
+    if (!process.env.ZERNIO_API_KEY) return res.status(503).json({ error: 'ZERNIO_NOT_CONFIGURED' });
+    const fs = adminApp.firestore();
+    const ownerSnap = await fs.collection('users').doc(storeId).get();
+    if (!ownerSnap.exists) return res.status(404).json({ error: 'store not found' });
+    const owner = ownerSnap.data() as any;
+    const accountId = owner?.storeConfig?.publishing?.instagramAccountId;
+    if (!accountId) return res.status(400).json({ error: 'ig_not_connected' });
+    if (!imageUrl || !/^https?:\/\/.+/.test(String(imageUrl))) return res.status(400).json({ error: 'image_required' });
+    const r = await zernioPublishInstagram(String(content), String(imageUrl), String(accountId));
+    if (!r.ok) {
+      const code = r.error === 'ZERNIO_NOT_CONFIGURED' ? 503 : 502;
+      return res.status(code).json({ error: r.error || 'publish_failed' });
+    }
+    return res.json({ ok: true, result: r.data });
+  } catch (e: any) { console.error('[marketing/publish]', e?.message); res.status(500).json({ error: e?.message ?? 'publish failed' }); }
+});
+
 // --- ORDER STATUS WEBHOOK (from Foodtech or internal) ---
 app.post('/api/webhook/order-status', async (req, res) => {
   const { orderId, status, timestamp } = req.body;

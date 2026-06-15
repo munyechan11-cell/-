@@ -47,6 +47,7 @@ export default function OwnerMarketingAgent() {
   const [keywords, setKeywords] = useState(cfg?.keywords ?? "");
   const [banned, setBanned] = useState(cfg?.bannedWords ?? "");
   const [dailyLimit, setDailyLimit] = useState(String(cfg?.dailyPublishLimit ?? 0));
+  const [igAccountId, setIgAccountId] = useState(currentUser?.storeConfig?.publishing?.instagramAccountId ?? "");
   const [savingProfile, setSavingProfile] = useState(false);
 
   // 금지어 목록 (가드레일) — 콘텐츠에 들어가면 안 되는 표현. 승인·발행 전 검사.
@@ -69,6 +70,7 @@ export default function OwnerMarketingAgent() {
           autoPublish: false, // 골격 단계 — 자동 발행은 항상 막음(승인 필수)
           dailyPublishLimit: Math.max(0, Math.min(100, Number(dailyLimit) || 0)),
         },
+        publishing: { instagramAccountId: igAccountId.trim() },
       });
       showToast(t("magent.saved", lang), "success");
     } catch (e: any) {
@@ -202,21 +204,47 @@ export default function OwnerMarketingAgent() {
   const publishLimit = cfg?.dailyPublishLimit ?? 0; // 0 = 무제한
   const publishingRef = useRef(0); // 진행 중 발행 수 — 연타 시 onSnapshot 왕복 전이라도 한도 정확 판정
 
-  // 발행 — 응대(reply) 초안이 리뷰를 대상으로 하면 그 리뷰의 사장 답글(ownerReply)로 기록까지 한다.
+  // 발행 — ① 게시물(post) + 인스타 연결됨 → 이미지 받아 실제 인스타 게시(Zernio) ② 응대(reply) → 리뷰 답글 기록.
   const handlePublish = async (d: MarketingDraft) => {
     // 가드레일: 하루 발행 한도 초과 차단 (구독 지연 우회 방지로 진행 중 발행 수도 합산)
     if (publishLimit > 0 && publishedLast24h + publishingRef.current >= publishLimit) {
       showToast(t("magent.limitReached", lang, { n: publishLimit }), "error");
       return;
     }
+    // 게시물 + Zernio 인스타 계정 연결 → 이미지 URL 입력받아 실제 발행 (인스타는 이미지 필수)
+    const igPublish = d.kind === "post" && !!igAccountId.trim();
+    let imageUrl = "";
+    if (igPublish) {
+      const input = window.prompt(t("magent.imagePrompt", lang));
+      if (input === null) return; // 취소 (카운터 증가 전)
+      imageUrl = input.trim();
+      if (!/^https?:\/\/.+/.test(imageUrl)) { showToast(t("magent.imageInvalid", lang), "error"); return; }
+    }
     publishingRef.current += 1;
     try {
-      // 초안을 먼저 published 로 전이(단일 진실), 그 다음 리뷰 답글 기록 — 순서상 부분실패가 덜 해롭다.
+      // 인스타 게시를 먼저 — 실패 시 초안은 'approved'로 남겨 재시도 가능.
+      if (igPublish) {
+        const res = await fetch(api("/api/marketing/publish"), {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ storeId, content: d.content, imageUrl }),
+        });
+        if (!res.ok) {
+          const e = await res.json().catch(() => ({} as any));
+          const msg = e?.error === "ig_not_connected" ? t("magent.igNotConnected", lang)
+            : e?.error === "image_required" ? t("magent.imageInvalid", lang)
+            : e?.error === "ZERNIO_NOT_CONFIGURED" ? t("magent.igNotConfigured", lang)
+            : t("magent.publishFail", lang);
+          showToast(msg, "error");
+          return;
+        }
+      }
+      // 초안을 published 로 전이, 응대면 리뷰 답글까지 기록.
       await reviewMarketingDraft(d.id, "publish");
       if (d.kind === "reply" && d.targetId) {
         await updatePhoto(d.targetId, { ownerReply: { text: d.content, repliedAt: new Date().toISOString() } });
       }
-      showToast(t("magent.publishDone", lang), "success");
+      showToast(igPublish ? t("magent.igPublished", lang) : t("magent.publishDone", lang), "success");
     } catch (e: any) {
       showToast(e?.message ?? t("magent.genFail", lang), "error");
     } finally {
@@ -350,6 +378,16 @@ export default function OwnerMarketingAgent() {
                 className={field}
               />
               <p className="text-[11px] text-[var(--color-ink-500)] mt-1">{t("magent.dailyLimitHint", lang)}</p>
+            </div>
+            <div>
+              <label className="text-[12px] font-bold text-[var(--color-ink-600)] mb-1 block">{t("magent.igAccount", lang)}</label>
+              <input
+                value={igAccountId}
+                onChange={(e) => setIgAccountId(e.target.value)}
+                placeholder="Zernio account id"
+                className={field}
+              />
+              <p className="text-[11px] text-[var(--color-ink-500)] mt-1 leading-relaxed">{t("magent.igAccountHint", lang)}</p>
             </div>
           </div>
           <button
