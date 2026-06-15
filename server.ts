@@ -3,7 +3,7 @@ import admin from 'firebase-admin';
 import dotenv from 'dotenv';
 import path from 'path';
 import cors from 'cors';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHmac, timingSafeEqual } from 'node:crypto';
 
 dotenv.config();
 
@@ -30,7 +30,13 @@ app.use(cors({
   credentials: true,
 }));
 // AI 비전 요청용 이미지(base64 데이터 URL)는 100kb를 쉽게 넘어가므로 한도 상향
-app.use(express.json({ limit: '10mb' }));
+// verify: 웹훅 서명 검증을 위해 원본(raw) 바디를 보관 — 파싱 후엔 재구성이 불가.
+app.use(express.json({
+  limit: '10mb',
+  verify: (req, _res, buf) => {
+    (req as any).rawBody = buf;
+  },
+}));
 
 // Helper to get base URL
 const getBaseUrl = () => {
@@ -455,6 +461,203 @@ app.post('/api/store/toss-secret', async (req, res) => {
     res.json({ ok: true });
   } catch (e: any) {
     console.error('[toss-secret] failed', e?.message);
+    res.status(500).json({ error: e?.message });
+  }
+});
+
+// ============================================================
+// 토스플레이스(오프라인 토스 POS) 매출 연동 — Open API 웹훅 + 조회 보정
+//
+//   ※ 토스페이먼츠(PG)와 완전 별개 제품. 인증키도 따로다
+//      (x-access-key / x-secret-key + 웹훅 Secret). 토스페이먼츠 sk_ 로는 안 됨.
+//
+//   흐름: POS 결제 → 토스플레이스가 /api/tossplace/webhook 으로 POST
+//        → 서명검증(HMAC-SHA256) → merchantId→storeId 매핑
+//        → orders 컬렉션에 'paid' 주문으로 기록 → 사장님 대시보드/정산 매출에 자동 반영
+//          (클라이언트가 orders 를 storeId 로 구독하므로 별도 작업 불필요).
+//
+//   ⚠️ TODO(키 발급 후 실페이로드로 확정): 결제완료 이벤트 type 문자열, data 안의
+//      금액/결제ID/시각 필드명, 그리고 조회 API 의 정확한 base URL·경로·응답 형태.
+//      첫 수신 시 전체 페이로드를 로깅하니 그걸로 매핑을 확정한다.
+// ============================================================
+
+// TODO: 토스플레이스 Open API 실제 base URL 확인 (docs.tossplace.com).
+const TOSSPLACE_API_BASE = process.env.TOSSPLACE_API_BASE || 'https://openapi.tossplace.com';
+
+/** 토스플레이스 결제 1건을 orders 에 멱등 upsert. 문서 id = tossplace_<paymentId> 라 재수신·중복 안전. */
+async function upsertTossPlacePayment(
+  db: admin.firestore.Firestore,
+  storeId: string,
+  p: { paymentId: string; amount: number; method?: 'card' | 'cash'; paidAt?: string }
+): Promise<void> {
+  const orderId = `tossplace_${p.paymentId}`.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 120);
+  await db.collection('orders').doc(orderId).set(
+    {
+      storeId,
+      tableNumber: 0, // POS 외부결제 — 앱 테이블과 무관 (테이블 흐름에서 제외)
+      customerId: '',
+      items: [{ menuId: '', name: '토스 POS 결제', quantity: 1, price: p.amount }],
+      totalAmount: p.amount,
+      status: 'served', // 활성주문(주방/테이블)에서 빠지도록
+      paymentStatus: 'paid',
+      paymentMethod: p.method ?? 'card',
+      source: 'tossplace',
+      createdAt: p.paidAt ?? new Date().toISOString(),
+    },
+    { merge: true }
+  );
+}
+
+/** 페이로드/거래객체에서 결제 정보를 방어적으로 추출 (필드명이 문서상 미확정이라 폭넓게 매칭). */
+function extractTossPlacePayment(d: any): { paymentId?: string; amount: number; method: 'card' | 'cash'; paidAt?: string } {
+  const paymentId = d?.paymentId || d?.id || d?.transactionId;
+  const amount = Number(d?.amount?.total ?? d?.totalAmount ?? d?.amount ?? d?.approvedAmount ?? 0);
+  const method = /cash|현금/i.test(String(d?.method ?? d?.payMethod ?? '')) ? 'cash' : 'card';
+  const paidAt = d?.approvedAt || d?.paidAt || d?.completedAt || d?.createdAt;
+  return { paymentId, amount, method, paidAt };
+}
+
+// --- 토스플레이스 연동 설정 저장 (인증 필요) ---
+// 비밀 키는 store_secrets(서버 전용), merchantId→storeId 역매핑은 merchant_map(서버 전용),
+// 비밀 아닌 표시 정보(tossPlace)는 users 문서에 저장한다.
+app.post('/api/store/tossplace-config', async (req, res) => {
+  try {
+    const adminApp = getFirebaseAdmin();
+    if (!adminApp) return res.status(500).json({ error: 'admin-not-configured' });
+    const authHeader = req.headers.authorization || '';
+    const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    if (!idToken) return res.status(401).json({ error: 'unauthorized' });
+    try {
+      await adminApp.auth().verifyIdToken(idToken);
+    } catch {
+      return res.status(401).json({ error: 'invalid-token' });
+    }
+    const { storeId, merchantId, accessKey, secretKey, webhookSecret } = req.body ?? {};
+    if (!storeId) return res.status(400).json({ error: 'storeId required' });
+    if (!merchantId) return res.status(400).json({ error: 'merchantId required' });
+
+    const db = adminApp.firestore();
+    const now = new Date().toISOString();
+    const secretPatch: Record<string, any> = { tossPlaceMerchantId: String(merchantId), updatedAt: now };
+    if (accessKey) secretPatch.tossPlaceAccessKey = accessKey;
+    if (secretKey) secretPatch.tossPlaceSecretKey = secretKey;
+    if (webhookSecret) secretPatch.tossPlaceWebhookSecret = webhookSecret;
+    await db.collection('store_secrets').doc(storeId).set(secretPatch, { merge: true });
+    await db.collection('merchant_map').doc(String(merchantId)).set({ storeId, updatedAt: now }, { merge: true });
+    await db.collection('users').doc(storeId).set({ tossPlace: { merchantId: String(merchantId), connectedAt: now } }, { merge: true });
+    res.json({ ok: true });
+  } catch (e: any) {
+    console.error('[tossplace-config] failed', e?.message);
+    res.status(500).json({ error: e?.message });
+  }
+});
+
+// --- 토스플레이스 웹훅 수신 (인증 없음 — 서명으로 검증) ---
+app.post('/api/tossplace/webhook', async (req, res) => {
+  try {
+    const adminApp = getFirebaseAdmin();
+    if (!adminApp) return res.status(500).json({ error: 'admin-not-configured' });
+    const db = adminApp.firestore();
+
+    const body = req.body ?? {};
+    const merchantId = body.merchantId;
+    if (!merchantId) return res.status(400).json({ error: 'merchantId missing' });
+
+    // merchantId → storeId
+    const mapSnap = await db.collection('merchant_map').doc(String(merchantId)).get();
+    const storeId = mapSnap.data()?.storeId as string | undefined;
+    if (!storeId) {
+      console.warn('[tossplace webhook] unknown merchantId', merchantId);
+      return res.status(404).json({ error: 'merchant not mapped' });
+    }
+
+    // 서명검증 — HMAC-SHA256( `${timestamp}.${rawBody}` ), header x-toss-signature: "v1=<hex>"
+    const secret = (await db.collection('store_secrets').doc(storeId).get()).data()?.tossPlaceWebhookSecret as string | undefined;
+    const sigHeader = String(req.headers['x-toss-signature'] || '');
+    const timestamp = String(req.headers['x-toss-timestamp'] || '');
+    const raw: Buffer = (req as any).rawBody ?? Buffer.from(JSON.stringify(body), 'utf8');
+    if (secret) {
+      const expected = 'v1=' + createHmac('sha256', secret).update(`${timestamp}.${raw.toString('utf8')}`).digest('hex');
+      const a = Buffer.from(sigHeader);
+      const b = Buffer.from(expected);
+      const ok = a.length === b.length && timingSafeEqual(a, b);
+      if (!ok) {
+        console.warn('[tossplace webhook] signature mismatch', { merchantId });
+        return res.status(401).json({ error: 'invalid signature' });
+      }
+    } else {
+      console.warn('[tossplace webhook] no webhook secret set — skipping verify', { storeId });
+    }
+
+    // 첫 연동 시 형태 확인용 전체 로깅 — 이후 TODO 매핑 확정에 사용
+    const type = String(body.type || '');
+    console.log('[tossplace webhook]', type, JSON.stringify(body).slice(0, 1200));
+
+    // TODO: 결제완료 이벤트 type 확정 시 정확히 매칭. 현재는 'payment' 포함 이벤트만 처리.
+    if (/payment/i.test(type)) {
+      const { paymentId, amount, method, paidAt } = extractTossPlacePayment(body.data ?? body);
+      if (paymentId && amount > 0) {
+        await upsertTossPlacePayment(db, storeId, { paymentId: String(paymentId), amount, method, paidAt });
+        console.log('[tossplace webhook] recorded', { storeId, paymentId, amount });
+      }
+    }
+    res.json({ ok: true });
+  } catch (e: any) {
+    console.error('[tossplace webhook] failed', e?.message);
+    res.status(500).json({ error: e?.message });
+  }
+});
+
+// --- 토스플레이스 매출 수동 동기화/보정 (인증 필요) — 웹훅 누락분 백필 ---
+app.post('/api/store/tossplace-sync', async (req, res) => {
+  try {
+    const adminApp = getFirebaseAdmin();
+    if (!adminApp) return res.status(500).json({ error: 'admin-not-configured' });
+    const authHeader = req.headers.authorization || '';
+    const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    if (!idToken) return res.status(401).json({ error: 'unauthorized' });
+    try {
+      await adminApp.auth().verifyIdToken(idToken);
+    } catch {
+      return res.status(401).json({ error: 'invalid-token' });
+    }
+    const { storeId } = req.body ?? {};
+    if (!storeId) return res.status(400).json({ error: 'storeId required' });
+
+    const db = adminApp.firestore();
+    const sec = (await db.collection('store_secrets').doc(storeId).get()).data() ?? {};
+    const accessKey = sec.tossPlaceAccessKey;
+    const secretKey = sec.tossPlaceSecretKey;
+    const merchantId = sec.tossPlaceMerchantId;
+    if (!accessKey || !secretKey || !merchantId) {
+      return res.status(400).json({ error: 'tossplace-not-configured' });
+    }
+
+    // TODO: 실제 결제목록 조회 엔드포인트·쿼리·응답 필드 확정 필요(docs.tossplace.com Payment API).
+    const url = `${TOSSPLACE_API_BASE}/api-public/openapi/v1/merchants/${encodeURIComponent(merchantId)}/payment/payments?page=1&size=500&sortOrder=DESC`;
+    const r = await fetch(url, { headers: { 'x-access-key': accessKey, 'x-secret-key': secretKey } });
+    const text = await r.text();
+    if (!r.ok) {
+      console.error('[tossplace sync] api error', r.status, text.slice(0, 300));
+      return res.status(502).json({ error: 'tossplace-api-error', status: r.status, detail: text.slice(0, 300) });
+    }
+    let payload: any;
+    try {
+      payload = JSON.parse(text);
+    } catch {
+      return res.status(502).json({ error: 'parse-error' });
+    }
+    const list: any[] = payload.payments ?? payload.data ?? payload.content ?? (Array.isArray(payload) ? payload : []);
+    let recorded = 0;
+    for (const d of list) {
+      const { paymentId, amount, method, paidAt } = extractTossPlacePayment(d);
+      if (!paymentId || amount <= 0) continue;
+      await upsertTossPlacePayment(db, storeId, { paymentId: String(paymentId), amount, method, paidAt });
+      recorded++;
+    }
+    res.json({ ok: true, fetched: list.length, recorded });
+  } catch (e: any) {
+    console.error('[tossplace sync] failed', e?.message);
     res.status(500).json({ error: e?.message });
   }
 });
@@ -2086,6 +2289,77 @@ app.get('/api/marketing/image/:photoId', async (req, res) => {
     res.setHeader('Cache-Control', 'public, max-age=86400');
     return res.end(Buffer.from(m[2], 'base64'));
   } catch (e: any) { console.error('[marketing/image]', e?.message); res.status(500).end(); }
+});
+
+// ============================================================
+// 가게 공개 브랜드 사이트 데이터 (TODO 8-2) — 로그인 없이 고객이 보는 매장 사이트.
+// 서버가 "공개해도 되는 필드만" 선별해 반환(개인정보 최소화: 리뷰는 이름 첫 글자만, 연락처는 매장 대표번호만).
+// 이미지는 기존 공개 이미지 서빙(/api/marketing/image/:photoId) 재사용.
+// ============================================================
+app.get('/api/site/:storeId', async (req, res) => {
+  try {
+    const adminApp = getFirebaseAdmin();
+    if (!adminApp) return res.status(503).json({ error: 'FIREBASE_ADMIN_NOT_CONFIGURED' });
+    const storeId = String(req.params.storeId || '');
+    if (!isValidStoreId(storeId)) return res.status(400).json({ error: 'bad storeId' });
+    const fs = adminApp.firestore();
+    const ownerSnap = await fs.collection('users').doc(storeId).get();
+    if (!ownerSnap.exists) return res.status(404).json({ error: 'store not found' });
+    const owner = ownerSnap.data() as any;
+    if (owner?.role && owner.role !== 'owner') return res.status(404).json({ error: 'not a store' });
+    const cfg = owner?.storeConfig ?? {};
+
+    // 메뉴 — 판매중인 것만(최대 60). 카테고리 보존.
+    const menuSnap = await fs.collection('menus').where('storeId', '==', storeId).limit(150).get();
+    const menu = menuSnap.docs.map((d) => d.data() as any)
+      .filter((m) => m && m.isAvailable !== false && m.name)
+      .slice(0, 60)
+      .map((m) => ({
+        name: String(m.name).slice(0, 60),
+        price: Number(m.price) || 0,
+        category: String(m.category || '').slice(0, 30),
+        imageUrl: typeof m.imageUrl === 'string' ? m.imageUrl : '',
+        description: typeof m.description === 'string' ? m.description.slice(0, 200) : '',
+      }));
+
+    // 리뷰 + 갤러리 — photos 컬렉션.
+    const photoSnap = await fs.collection('photos').where('storeId', '==', storeId).limit(400).get();
+    const photos = photoSnap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+    const reviews = photos
+      .filter((p) => p.type === 'review' && typeof p.reviewText === 'string' && p.reviewText.trim())
+      .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
+      .slice(0, 8)
+      .map((p) => ({
+        rating: Number(p.rating) || 0,
+        text: String(p.reviewText).slice(0, 280),
+        name: (String(p.customerName || '').trim()[0] || '·') + '님', // 이름 첫 글자만 노출
+        date: String(p.createdAt || '').slice(0, 10),
+        photoId: typeof p.imageData === 'string' ? p.id : null,
+      }));
+    // 갤러리(히어로/배경) — imageData 있는 사진 id (최신 우선, 최대 8)
+    const gallery = photos
+      .filter((p) => typeof p.imageData === 'string')
+      .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
+      .slice(0, 8)
+      .map((p) => p.id);
+
+    const ch = cfg?.publishing?.channels ?? {};
+    return res.json({
+      store: {
+        name: String(owner?.restaurantName || '우리 가게').slice(0, 60),
+        industry: cfg?.industry || 'general',
+        theme: cfg?.theme || '',
+        // 개인 휴대폰은 노출하지 않음 — 매장 대표번호(AI 예약 회선)만.
+        phone: typeof cfg?.aiReservation?.phoneNumber === 'string' ? cfg.aiReservation.phoneNumber : '',
+        businessHours: owner?.businessHours || null,
+        temporarilyClosed: !!owner?.temporarilyClosed,
+        instagram: ch.instagram?.username || cfg?.publishing?.instagramUsername || '',
+      },
+      menu,
+      reviews,
+      gallery,
+    });
+  } catch (e: any) { console.error('[site]', e?.message); res.status(500).json({ error: e?.message ?? 'failed' }); }
 });
 
 // ============================================================

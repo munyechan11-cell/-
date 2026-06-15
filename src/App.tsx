@@ -14,6 +14,7 @@ import type { User } from "./lib/types";
 const Home = lazy(() => import("./pages/Home"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const Master = lazy(() => import("./pages/Master"));
+const StoreSite = lazy(() => import("./pages/StoreSite")); // 가게 공개 브랜드 사이트 (TODO 8-2)
 
 const CustomerLogin = lazy(() => import("./pages/customer/Login"));
 const CustomerHome = lazy(() => import("./pages/customer/Home"));
@@ -251,6 +252,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/master" element={<Master />} />
+          <Route path="/site/:storeId" element={<StoreSite />} />
           <Route path="/scan" element={<CustomerScanner />} />
           <Route path="/pay/success" element={<PaymentResult mode="success" />} />
           <Route path="/pay/fail" element={<PaymentResult mode="fail" />} />
