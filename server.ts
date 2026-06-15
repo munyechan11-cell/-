@@ -572,7 +572,10 @@ app.post('/api/tossplace/webhook', async (req, res) => {
     }
 
     // 서명검증 — HMAC-SHA256( `${timestamp}.${rawBody}` ), header x-toss-signature: "v1=<hex>"
-    const secret = (await db.collection('store_secrets').doc(storeId).get()).data()?.tossPlaceWebhookSecret as string | undefined;
+    // 웹훅 Secret: 매장별 저장값 우선, 없으면 앱 단위 환경변수(플랫폼 모델 — 결이 앱 1개로 다수 매장 수신).
+    const secret =
+      ((await db.collection('store_secrets').doc(storeId).get()).data()?.tossPlaceWebhookSecret as string | undefined) ??
+      process.env.TOSSPLACE_WEBHOOK_SECRET;
     const sigHeader = String(req.headers['x-toss-signature'] || '');
     const timestamp = String(req.headers['x-toss-timestamp'] || '');
     const raw: Buffer = (req as any).rawBody ?? Buffer.from(JSON.stringify(body), 'utf8');
@@ -626,8 +629,9 @@ app.post('/api/store/tossplace-sync', async (req, res) => {
 
     const db = adminApp.firestore();
     const sec = (await db.collection('store_secrets').doc(storeId).get()).data() ?? {};
-    const accessKey = sec.tossPlaceAccessKey;
-    const secretKey = sec.tossPlaceSecretKey;
+    // 키: 매장별 저장값 우선, 없으면 앱 단위 환경변수(플랫폼 모델). merchantId 는 매장 식별·API 경로용이라 항상 매장별.
+    const accessKey = sec.tossPlaceAccessKey ?? process.env.TOSSPLACE_ACCESS_KEY;
+    const secretKey = sec.tossPlaceSecretKey ?? process.env.TOSSPLACE_SECRET_KEY;
     const merchantId = sec.tossPlaceMerchantId;
     if (!accessKey || !secretKey || !merchantId) {
       return res.status(400).json({ error: 'tossplace-not-configured' });
@@ -1020,6 +1024,42 @@ const checkInsightRate = (ip: string): boolean => {
   b.count += 1;
   return true;
 };
+
+// ============================================================
+// 세무 AI (TODO 8-3) — 매출·지출 데이터로 절세 관점의 "과정→결과" 설명 생성.
+// 참고용 추정만 제공하고, 정확한 신고·절세는 세무사 상담을 권한다(면책 명시).
+// ============================================================
+app.post('/api/ai/tax', async (req, res) => {
+  const ip = String(req.ip || 'unknown').split(',')[0].trim();
+  if (!checkInsightRate(ip)) return res.status(429).json({ error: '잠시 후 다시 시도해 주세요. (분당 10회 제한)' });
+  const { storeName, bizType, period, revenue, orderCount, expenses } = req.body ?? {};
+  if (typeof revenue !== 'number' || revenue < 0) return res.status(400).json({ error: 'revenue required' });
+  const expSafe = expenses && typeof expenses === 'object' ? expenses : {};
+  const won = (n: any) => '₩' + (Number(n) || 0).toLocaleString('en-US');
+
+  const sys = `당신은 한국 소상공인을 돕는 친절한 세무 도우미입니다. 아래 매장 데이터로 절세·감세를 이해하도록 "과정을 단계별로" 보여주고 "결과(개략 추정)"까지 이어지게 설명하세요.
+[출력 구조 — 각 단계를 "1) 제목" 형식으로]
+1) 매출 정리 — 기간 매출의 의미(부가세 포함/별도 개념 간단히)
+2) 비용·공제 정리 — 카테고리별 지출을 경비처리 관점에서 짚기(임대료·인건비·재료비·공과금·광고비는 대표적 필요경비). 누락하기 쉬운 경비 환기
+3) 예상 세금(개략) — 부가가치세(일반/간이 구분이 있다는 점)와 종합소득세를 "대략 어떤 과정으로" 계산하는지 보여주고, 단정 없이 범위로 감 잡게(정확한 세율·공제는 사장님 상황마다 다름을 명시)
+4) 절세 포인트 3가지 — 이 데이터 기준 실천 가능한 것(적격증빙 수취, 사업용 카드·계좌 분리, 노란우산공제, 경비 누락 방지 등)
+5) 신고 준비 체크리스트 — 다음 신고 때 챙길 것 3~4개
+[규칙] 쉬운 한국어, 숫자는 천단위 콤마(₩). 마크다운 헤더(#) 금지(단계 제목은 "1) ..."). 확정적 세액 단정·과장 금지. 데이터가 적으면 솔직히 말하기.
+마지막 줄에 반드시: "※ 참고용 추정이에요. 정확한 신고·절세는 세무사나 홈택스 상담을 권해드려요."`;
+  const user = `매장명: ${String(storeName || '우리 가게').slice(0, 60)} / 업종: ${String(bizType || '일반')} / 기간: ${String(period || '이번 달')}
+매출(결제완료): ${won(revenue)} (주문 ${Number(orderCount) || 0}건)
+지출(카테고리별): ${Object.entries(expSafe).map(([k, v]) => `${k}=${won(v)}`).join(', ') || '없음'}
+위 데이터로 절세 관점의 과정→결과 설명을 작성해 주세요.`;
+
+  try {
+    const text = await callLLMText(sys, user, 1500);
+    if (text === null) return res.status(503).json({ error: 'AI_NOT_CONFIGURED' });
+    return res.json({ text });
+  } catch (e: any) {
+    console.error('[ai/tax]', e?.message);
+    return res.status(502).json({ error: 'AI_CALL_FAILED' });
+  }
+});
 
 app.post('/api/ai/insight', async (req, res) => {
   // Rate limit

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Plus, Trash2, ScanLine, Copy } from "lucide-react";
+import { Plus, Trash2, ScanLine, Copy, Sparkles } from "lucide-react";
 import { OwnerShell } from "../../components/layout/OwnerShell";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
@@ -125,6 +125,46 @@ export default function Settlement() {
 
   const netProfit = revenue - cost - expenseTotal - labor;
 
+  // 8-3: 세무 AI — 기간 매출·지출(카테고리별)+인건비로 절세 과정→결과 분석 생성.
+  const [taxBusy, setTaxBusy] = useState(false);
+  const [taxResult, setTaxResult] = useState<string | null>(null);
+  const CAT_KO: Record<ExpenseCategory, string> = { rent: "임대료", labor: "인건비", material: "재료비", utility: "공과금", marketing: "광고비", other: "기타" };
+  const runTaxAI = async () => {
+    if (taxBusy) return;
+    setTaxBusy(true);
+    setTaxResult(null);
+    try {
+      const byCat: Record<string, number> = {};
+      for (const e of periodExpenses) byCat[CAT_KO[e.category] ?? "기타"] = (byCat[CAT_KO[e.category] ?? "기타"] ?? 0) + e.amount;
+      if (labor > 0) byCat["인건비"] = (byCat["인건비"] ?? 0) + labor;
+      let orderCount = 0;
+      for (const o of orders) {
+        if (o.storeId === storeId && o.paymentStatus === "paid" && inRange(localDateStr(new Date(o.createdAt)))) orderCount++;
+      }
+      const owner = users.find((u) => u.id === storeId);
+      const res = await fetch(api("/api/ai/tax"), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          storeName: owner?.restaurantName ?? "",
+          bizType: owner?.storeConfig?.industry ?? "general",
+          period: t(`settle.period.${period}`, lang),
+          revenue, orderCount, expenses: byCat,
+        }),
+      });
+      const d = await res.json().catch(() => ({} as any));
+      if (!res.ok) {
+        showToast(d?.error === "AI_NOT_CONFIGURED" ? t("tax.notConfigured", lang) : t("tax.failed", lang), "error");
+        return;
+      }
+      setTaxResult(String(d.text || ""));
+    } catch {
+      showToast(t("tax.failed", lang), "error");
+    } finally {
+      setTaxBusy(false);
+    }
+  };
+
   return (
     <OwnerShell
       title={t("settle.title", lang)}
@@ -173,6 +213,27 @@ export default function Settlement() {
         <p className="text-[12px] text-[var(--color-ink-500)] mb-5 px-1">
           {t("settle.formula", lang)}
         </p>
+
+        {/* 세무 AI (8-3) — 절세 과정→결과 */}
+        <Card padding="md" className="mb-5">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[14px] font-extrabold text-[var(--color-navy-900)] inline-flex items-center gap-1.5">
+              <Sparkles className="w-4 h-4 text-[var(--color-mint-600)]" /> {t("tax.title", lang)}
+            </p>
+            <Button size="sm" onClick={runTaxAI} loading={taxBusy} leftIcon={<Sparkles className="w-4 h-4" />}>
+              {t("tax.run", lang)}
+            </Button>
+          </div>
+          <p className="text-[12px] text-[var(--color-ink-500)] leading-relaxed mt-1">{t("tax.desc", lang)}</p>
+          {taxResult && (
+            <>
+              <div className="mt-3 pt-3 border-t border-[var(--color-line-soft)] whitespace-pre-wrap text-[13.5px] text-[var(--color-ink-700)] leading-relaxed">
+                {taxResult}
+              </div>
+              <p className="text-[11px] text-[var(--color-ink-400)] mt-3 leading-relaxed">{t("tax.disclaimer", lang)}</p>
+            </>
+          )}
+        </Card>
 
         {/* 비용 내역 */}
         <Card padding="md">
