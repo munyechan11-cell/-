@@ -319,6 +319,7 @@ const dict: Record<string, string> = {
   "odash.tables.empty.desc": "Add tables that match your store in Table layout.",
   "odash.tables.empty.cta": "Add a table",
   "odash.quickMenu": "Quick menu",
+  "odash.newWaitOrder": "＋ New waiting order",
   "odash.view.list": "List",
   "odash.view.layout": "Layout",
   "odash.realtimeLayout": "Live layout (tap to edit)",

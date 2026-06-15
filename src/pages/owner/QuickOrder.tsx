@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Plus, Minus, ShoppingCart, ChevronUp, CreditCard, UserPlus, ArrowRightLeft } from "lucide-react";
 import { OwnerShell } from "../../components/layout/OwnerShell";
 import { useStore } from "../../store/store";
@@ -88,6 +89,17 @@ export default function QuickOrder() {
   };
   const newWait = () => selectTab((waitTabs.length ? Math.max(...waitTabs) : WAIT_BASE) + 1);
 
+  // 대시보드 등에서 ?newWait=1 로 진입하면 바로 새 대기 탭을 연다.
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get("newWait")) {
+      newWait();
+      searchParams.delete("newWait");
+      setSearchParams(searchParams, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const addToTab = async () => {
     if (activeTab == null || cartCount === 0 || busy) return;
     setBusy(true);
@@ -166,13 +178,15 @@ export default function QuickOrder() {
           </div>
 
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-ink-400)]">{t("quick.waiting", lang)}</p>
-              <button onClick={newWait} className="text-[12px] font-bold text-[var(--color-navy-700)] inline-flex items-center gap-1">
-                <UserPlus className="w-3.5 h-3.5" />
-                {t("quick.newWait", lang)}
-              </button>
-            </div>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-ink-400)] mb-2">{t("quick.waiting", lang)}</p>
+            {/* 대기 주문은 빠르게 받는 경우가 많아 큼직한 버튼으로 */}
+            <button
+              onClick={newWait}
+              className="w-full h-12 mb-2.5 rounded-xl bg-[var(--color-navy-700)] text-[var(--color-on-primary,white)] font-extrabold text-[14px] inline-flex items-center justify-center gap-2 active:scale-[0.98] transition-transform shadow-[var(--shadow-press)]"
+            >
+              <UserPlus className="w-5 h-5" />
+              {t("quick.newWait", lang)}
+            </button>
             {waitTabs.length === 0 ? (
               <p className="text-[12.5px] text-[var(--color-ink-500)]">{t("quick.noWaiting", lang)}</p>
             ) : (

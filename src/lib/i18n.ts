@@ -419,6 +419,7 @@ const ko: Dict = {
   "odash.tables.empty.desc": "테이블 편집에서 매장에 맞는 테이블을 추가해 주세요.",
   "odash.tables.empty.cta": "테이블 추가하기",
   "odash.quickMenu": "빠른 메뉴",
+  "odash.newWaitOrder": "＋ 새 대기 주문 받기",
   "odash.view.list": "리스트",
   "odash.view.layout": "배치도",
   "odash.realtimeLayout": "실시간 배치도 (탭하면 편집)",

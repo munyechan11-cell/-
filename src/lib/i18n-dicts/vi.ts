@@ -319,6 +319,7 @@ const dict: Record<string, string> = {
   "odash.tables.empty.desc": "Thêm bàn phù hợp trong phần Bố trí bàn.",
   "odash.tables.empty.cta": "Thêm bàn",
   "odash.quickMenu": "Truy cập nhanh",
+  "odash.newWaitOrder": "＋ Đơn chờ mới",
   "odash.view.list": "Danh sách",
   "odash.view.layout": "Bố trí",
   "odash.realtimeLayout": "Bố trí trực tiếp (chạm để sửa)",

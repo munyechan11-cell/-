@@ -6,6 +6,7 @@ import { Button } from "../../components/ui/Button";
 import { deleteField } from "firebase/firestore";
 import { useStore } from "../../store/store";
 import type { Photo } from "../../lib/types";
+import { unwrapAiContent } from "../../lib/aiText";
 import { showToast } from "../../lib/toast";
 import { useLanguage, t, getLocale } from "../../lib/i18n";
 
@@ -116,7 +117,7 @@ export default function OwnerPhotoVault() {
 
   const startReply = (r: Photo) => {
     setReplyEditingId(r.id);
-    setReplyDraft(r.ownerReply?.text ?? "");
+    setReplyDraft(unwrapAiContent(r.ownerReply?.text)); // 과거 JSON 오염 데이터도 본문만
   };
   const saveReply = async (r: Photo) => {
     const text = replyDraft.trim();
@@ -379,7 +380,7 @@ export default function OwnerPhotoVault() {
                           </span>
                         </div>
                         <p className="text-[13px] text-[var(--color-navy-900)] break-keep leading-relaxed whitespace-pre-wrap">
-                          {r.ownerReply.text}
+                          {unwrapAiContent(r.ownerReply.text)}
                         </p>
                         <div className="flex items-center gap-1.5 mt-2">
                           <button

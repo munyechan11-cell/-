@@ -7,6 +7,7 @@ import { showToast } from "../../lib/toast";
 import { api } from "../../lib/api";
 import { buildContext, askInsight } from "../../lib/aiInsight";
 import type { MarketingDraft } from "../../lib/types";
+import { unwrapAiContent } from "../../lib/aiText";
 
 /**
  * 마케팅 자율 에이전트 "사장님 비서" — 1단계 골격 (TODO 7-1 + 7-3).
@@ -362,7 +363,7 @@ export default function OwnerMarketingAgent() {
     try {
       await reviewMarketingDraft(d.id, "publish");
       if (d.targetId) {
-        await updatePhoto(d.targetId, { ownerReply: { text: d.content, repliedAt: new Date().toISOString() } });
+        await updatePhoto(d.targetId, { ownerReply: { text: unwrapAiContent(d.content), repliedAt: new Date().toISOString() } });
       }
       showToast(t("magent.publishDone", lang), "success");
     } catch (e: any) {
@@ -388,7 +389,7 @@ export default function OwnerMarketingAgent() {
       const res = await fetch(api("/api/marketing/publish"), {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ storeId, content: d.content, ...payload }),
+        body: JSON.stringify({ storeId, content: unwrapAiContent(d.content), ...payload }),
       });
       if (!res.ok) {
         const e = await res.json().catch(() => ({} as any));
@@ -876,13 +877,14 @@ function DraftCard({
   bannedWords: string[];
 }) {
   const lang = useLanguage();
+  const cleanContent = unwrapAiContent(draft.content); // 과거 JSON 오염 데이터도 본문만 표시/편집
   const [editing, setEditing] = useState(false);
-  const [editText, setEditText] = useState(draft.content);
+  const [editText, setEditText] = useState(cleanContent);
   const [showAudit, setShowAudit] = useState(false);
   const isDraft = draft.status === "draft";
   const isApproved = draft.status === "approved";
   // 가드레일: 콘텐츠에 금지어가 들어가 있으면 경고 + 승인/발행 시 명시적 확인 요구
-  const bannedHits = bannedWords.filter((w) => draft.content.includes(w));
+  const bannedHits = bannedWords.filter((w) => cleanContent.includes(w));
   const confirmIfBanned = () =>
     bannedHits.length === 0 || window.confirm(t("magent.bannedConfirm", lang, { words: bannedHits.join(", ") }));
 
@@ -919,7 +921,7 @@ function DraftCard({
         />
       ) : (
         <p className={`text-[13.5px] text-[var(--color-ink-700)] whitespace-pre-wrap leading-relaxed ${compact ? "line-clamp-2" : ""}`}>
-          {draft.content}
+          {cleanContent}
         </p>
       )}
 

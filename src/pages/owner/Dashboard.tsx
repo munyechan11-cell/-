@@ -18,6 +18,7 @@ import {
   Briefcase,
   List,
   Move,
+  UserPlus,
 } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { OwnerShell } from "../../components/layout/OwnerShell";
@@ -200,6 +201,14 @@ export default function OwnerDashboard() {
       {/* Tables + Quick links */}
       <div className="mt-6 lg:mt-8 grid grid-cols-1 lg:grid-cols-3 gap-5 lg:gap-6">
         <div className="lg:col-span-2">
+          {/* 대기 주문 — 빠르게 받는 경우가 많아 테이블 위에 큼직하게 (탭 → 빠른 주문의 새 대기 탭) */}
+          <Link
+            to="/biz/owner/quick-order?newWait=1"
+            className="flex items-center justify-center gap-2 h-12 mb-3 rounded-xl bg-[var(--color-navy-700)] text-white font-extrabold text-[14.5px] active:scale-[0.99] transition-transform shadow-[var(--shadow-navy)]"
+          >
+            <UserPlus className="w-5 h-5" />
+            {t("odash.newWaitOrder", lang)}
+          </Link>
           <div className="flex items-center justify-between mb-3 px-1 gap-2">
             <h2 className="headline-sub">{t("odash.tables.title", lang, { n: tables.length })}</h2>
             <div className="flex items-center gap-1.5">

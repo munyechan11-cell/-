@@ -319,6 +319,7 @@ const dict: Record<string, string> = {
   "odash.tables.empty.desc": "请在桌位布局中添加符合门店的桌位。",
   "odash.tables.empty.cta": "添加桌位",
   "odash.quickMenu": "快捷菜单",
+  "odash.newWaitOrder": "＋ 新建等位订单",
   "odash.view.list": "列表",
   "odash.view.layout": "布局",
   "odash.realtimeLayout": "实时布局 (点按编辑)",
