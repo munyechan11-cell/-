@@ -13,3 +13,6 @@ coverage/
 
 # PDF 변환 임시 폴더
 dist-guide/
+
+# 디자인 참고용(제3자 코드) — 복사 금지·커밋 금지. 감성 레퍼런스로만 사용.
+_caffiend-ref/
