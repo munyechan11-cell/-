@@ -93,6 +93,10 @@ export default function BrandSettings() {
   const [stampMax, setStampMax] = useState(String(cfg?.stampMax ?? 10));
   const [inactiveDays, setInactiveDays] = useState(String(cfg?.marketingTriggers?.inactiveDays ?? 30));
   const [birthdayCoupon, setBirthdayCoupon] = useState(!!cfg?.marketingTriggers?.birthdayCoupon);
+  // 8-5: 리뷰 작성 보상 쿠폰
+  const [reviewCouponOn, setReviewCouponOn] = useState(!!cfg?.reviewCoupon?.enabled);
+  const [reviewCouponAmount, setReviewCouponAmount] = useState(String(cfg?.reviewCoupon?.amount ?? ""));
+  const [reviewCouponDesc, setReviewCouponDesc] = useState(cfg?.reviewCoupon?.description ?? "");
   const [locationOnly, setLocationOnly] = useState(!!cfg?.locationAccessOnly);
   const [radius, setRadius] = useState(String(cfg?.allowedRadius ?? 100));
   const [tossKey, setTossKey] = useState(cfg?.tossClientKey ?? "");
@@ -148,6 +152,11 @@ export default function BrandSettings() {
       pointRate: rate,
       stampMax: stamps,
       marketingTriggers: { inactiveDays: inactive, birthdayCoupon },
+      reviewCoupon: {
+        enabled: reviewCouponOn,
+        amount: Math.max(0, Number(reviewCouponAmount) || 0),
+        description: reviewCouponDesc.trim(),
+      },
       locationAccessOnly: locationOnly,
       allowedRadius: r,
       tossClientKey: (tossKey || null) as any,
@@ -566,6 +575,28 @@ export default function BrandSettings() {
             inputMode="numeric"
           />
           <Toggle label={t("obs.marketing.birthday", lang)} value={birthdayCoupon} onChange={setBirthdayCoupon} />
+          {/* 8-5: 리뷰 작성 보상 쿠폰 */}
+          <div className="pt-3 mt-3 border-t border-[var(--color-line-soft)] space-y-2">
+            <Toggle label={t("obs.marketing.reviewCoupon", lang)} value={reviewCouponOn} onChange={setReviewCouponOn} />
+            {reviewCouponOn && (
+              <>
+                <Input
+                  label={t("obs.marketing.reviewCouponAmount", lang)}
+                  value={reviewCouponAmount}
+                  onChange={(e) => setReviewCouponAmount(e.target.value.replace(/\D/g, ""))}
+                  inputMode="numeric"
+                  placeholder="0"
+                />
+                <Input
+                  label={t("obs.marketing.reviewCouponDesc", lang)}
+                  value={reviewCouponDesc}
+                  onChange={(e) => setReviewCouponDesc(e.target.value)}
+                  placeholder={t("obs.marketing.reviewCouponDescPh", lang)}
+                />
+                <p className="text-[11px] text-[var(--color-ink-500)] leading-relaxed">{t("obs.marketing.reviewCouponHint", lang)}</p>
+              </>
+            )}
+          </div>
         </Sec>
 
         <Sec title={t("obs.sec.sms", lang)}>

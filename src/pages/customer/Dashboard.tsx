@@ -59,6 +59,7 @@ export default function CustomerDashboard() {
     deleteAccount,
     requestCouponUse,
     cancelCouponRequest,
+    issueCoupon,
     placeOrder,
     payTableSession,
     addPhoto,
@@ -317,17 +318,32 @@ export default function CustomerDashboard() {
     setReviewOpen(false);
     try {
       // 리뷰 내용이 하나라도 있으면 photos 컬렉션에 type="review"로 저장
-      if (review && (review.rating || review.reviewText?.trim() || review.imageData)) {
+      const hasReview = !!(review && (review.rating || review.reviewText?.trim() || review.imageData));
+      if (hasReview) {
         await addPhoto({
           storeId,
           type: "review",
-          ...(review.imageData ? { imageData: review.imageData } : {}),
-          ...(review.rating ? { rating: review.rating } : {}),
-          ...(review.reviewText?.trim() ? { reviewText: review.reviewText.trim() } : {}),
+          ...(review!.imageData ? { imageData: review!.imageData } : {}),
+          ...(review!.rating ? { rating: review!.rating } : {}),
+          ...(review!.reviewText?.trim() ? { reviewText: review!.reviewText.trim() } : {}),
           customerId: currentUser.id,
           customerName: currentUser.name,
           tableNumber: myTable.number,
         });
+        // 8-5: 리뷰 작성 보상 쿠폰 — 매장이 켰고 실제 리뷰(별점/글)면 자동 지급.
+        //  · 미사용 'review' 쿠폰이 이미 있으면 중복 지급 안 함(누적 방지). 도착 알림은 8-6이 처리.
+        const rc = owner?.storeConfig?.reviewCoupon;
+        const realReview = !!(review!.rating || review!.reviewText?.trim());
+        const alreadyHas = coupons.some(
+          (c) => c.customerId === currentUser.id && c.storeId === storeId && c.type === "review" && c.status === "available"
+        );
+        if (rc?.enabled && realReview && !alreadyHas) {
+          await issueCoupon(
+            currentUser.id, storeId, "review",
+            rc.description?.trim() || t("review.rewardDefault", lang),
+            Math.max(0, Number(rc.amount) || 0)
+          );
+        }
       }
       await payTableSession(currentUser.id, storeId, myTable.number);
     } catch {

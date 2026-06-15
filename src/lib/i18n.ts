@@ -224,6 +224,7 @@ const ko: Dict = {
   "review.submit": "리뷰 남기고 결제",
   "review.removePhoto": "사진 제거",
   "review.invalidImage": "이미지 파일만 선택할 수 있어요.",
+  "review.rewardDefault": "리뷰 감사 쿠폰",
   "review.imageFail": "이미지 처리에 실패했어요.",
 
   // QR 진입 (TableEntry)
@@ -926,6 +927,11 @@ const ko: Dict = {
   "obs.tier.rewardPh": "자동 보상 문구",
   "obs.marketing.inactive": "휴면 기준 (일)",
   "obs.marketing.birthday": "생일 자동 쿠폰 발급",
+  "obs.marketing.reviewCoupon": "리뷰 작성 보상 쿠폰",
+  "obs.marketing.reviewCouponAmount": "할인 금액 (원, 선택)",
+  "obs.marketing.reviewCouponDesc": "쿠폰 설명",
+  "obs.marketing.reviewCouponDescPh": "예: 리뷰 감사 5천원 할인",
+  "obs.marketing.reviewCouponHint": "손님이 결제 시 별점/리뷰를 남기면 자동으로 이 쿠폰을 지급해요. 금액을 넣으면 계산서에서 바로 차감되는 금액 쿠폰이 됩니다.",
   "obs.sms.aligoKey": "알리고 API Key",
   "obs.sms.aligoUserId": "알리고 USER ID",
   "obs.sms.sender": "발신번호",

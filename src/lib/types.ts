@@ -13,6 +13,8 @@ export interface StoreConfig {
   pointRate?: number;
   stampMax?: number;
   marketingTriggers?: { inactiveDays?: number; birthdayCoupon?: boolean };
+  /** 리뷰 작성 보상 쿠폰(8-5) — 켜면 손님이 결제 시 리뷰(별점/글)를 남기면 자동으로 쿠폰 지급. */
+  reviewCoupon?: { enabled?: boolean; amount?: number; description?: string };
   smsApiKey?: string;
   alimtalkSenderId?: string;
   defaultDashboardView?: "grid" | "map";
