@@ -876,6 +876,12 @@ const ko: Dict = {
   // BrandSettings 본체
   "obs.title": "브랜드 설정",
   "obs.sec.basic": "기본 정보",
+  "obs.group.basic": "기본 설정",
+  "obs.group.ops": "매장 운영",
+  "obs.group.design": "메뉴·디자인",
+  "obs.group.marketing": "고객·마케팅",
+  "obs.group.payment": "결제·연동",
+  "obs.group.extra": "부가 기능",
   "obs.sec.language": "언어",
   "obs.sec.pos": "POS 연동",
   "obs.sec.printerUsb": "영수증 프린터 (USB 직결)",

@@ -760,6 +760,12 @@ const dict: Record<string, string> = {
 
   "obs.title": "品牌设置",
   "obs.sec.basic": "基本信息",
+  "obs.group.basic": "基本设置",
+  "obs.group.ops": "门店运营",
+  "obs.group.design": "菜单与设计",
+  "obs.group.marketing": "客户与营销",
+  "obs.group.payment": "支付与对接",
+  "obs.group.extra": "更多功能",
   "obs.sec.language": "语言",
   "obs.sec.pos": "POS 对接",
   "obs.sec.printerUsb": "小票打印机 (USB 直连)",

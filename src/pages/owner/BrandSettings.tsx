@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { MapPin, Save, Receipt, KeyRound, Info, Printer, Plug, CheckCircle2, AlertCircle, Bell, BellOff, Smartphone, Clock, Languages } from "lucide-react";
+import { MapPin, Save, Receipt, KeyRound, Info, Printer, Plug, CheckCircle2, AlertCircle, Bell, BellOff, Smartphone, Clock, Languages, ChevronDown } from "lucide-react";
 import { LANGS, useLanguage, setLanguage, t, getLocale } from "../../lib/i18n";
 import { cn } from "../../lib/cn";
 import { OwnerShell } from "../../components/layout/OwnerShell";
@@ -267,11 +267,11 @@ export default function BrandSettings() {
   return (
     <OwnerShell title={t("obs.title", lang)} width="narrow">
       <div className="pb-12">
-        <Sec title={t("obs.sec.basic", lang)}>
+        <Sec title={t("obs.sec.basic", lang)} group={t("obs.group.basic", lang)}>
           <Input label={t("obs.field.storeName", lang)} value={restaurantName} onChange={(e) => setRestaurantName(e.target.value)} />
         </Sec>
 
-        <Sec title={t("obs.sec.language", lang)}>
+        <Sec title={t("obs.sec.language", lang)} defaultOpen={false}>
           <div className="flex items-start gap-3">
             <div className="w-10 h-10 rounded-xl bg-[var(--color-navy-50)] inline-flex items-center justify-center flex-shrink-0">
               <Languages className="w-5 h-5 text-[var(--color-navy-700)]" />
@@ -301,7 +301,7 @@ export default function BrandSettings() {
           </div>
         </Sec>
 
-        <Sec title={t("obs.sec.pos", lang)}>
+        <Sec title={t("obs.sec.pos", lang)} group={t("obs.group.ops", lang)} defaultOpen={false}>
           <div>
             <label className="block text-[13px] font-semibold text-[var(--color-navy-800)] mb-2">
               {t("obs.pos.using", lang)}
@@ -353,7 +353,7 @@ export default function BrandSettings() {
         </Sec>
 
         {/* ===== USB 영수증 프린터 직결 ===== */}
-        <Sec title={t("obs.sec.printerUsb", lang)}>
+        <Sec title={t("obs.sec.printerUsb", lang)} defaultOpen={false}>
           {!isWebUsbSupported() ? (
             <div className="flex items-start gap-2 p-3.5 rounded-[14px] bg-[#fef2f2] border border-[var(--color-danger)]/30">
               <AlertCircle className="w-4 h-4 text-[var(--color-danger)] mt-0.5 shrink-0" />
@@ -456,7 +456,7 @@ export default function BrandSettings() {
           }}
         />
 
-        <Sec title={t("obs.sec.industry", lang)}>
+        <Sec title={t("obs.sec.industry", lang)} group={t("obs.group.design", lang)}>
           <div className="grid grid-cols-4 gap-2">
             {(["cafe", "meat", "bakery", "general"] as Industry[]).map((i) => (
               <Pill key={i} active={industry === i} onClick={() => setIndustry(i)}>
@@ -543,7 +543,7 @@ export default function BrandSettings() {
           </p>
         </Sec>
 
-        <Sec title={t("obs.sec.tierCustom", lang)}>
+        <Sec title={t("obs.sec.tierCustom", lang)} group={t("obs.group.marketing", lang)} defaultOpen={false}>
           <div className="space-y-2">
             {TIER_ORDER.map((tier) => (
               <Card key={tier} padding="sm">
@@ -599,14 +599,14 @@ export default function BrandSettings() {
           </div>
         </Sec>
 
-        <Sec title={t("obs.sec.sms", lang)}>
+        <Sec title={t("obs.sec.sms", lang)} defaultOpen={false}>
           <Input label={t("obs.sms.aligoKey", lang)} value={aligoKey} onChange={(e) => setAligoKey(e.target.value)} />
           <Input label={t("obs.sms.aligoUserId", lang)} value={aligoUserId} onChange={(e) => setAligoUserId(e.target.value)} />
           <Input label={t("obs.sms.sender", lang)} value={aligoSender} onChange={(e) => setAligoSender(e.target.value)} />
           <Input label={t("obs.sms.gateway", lang)} value={smsGatewayUrl} onChange={(e) => setSmsGatewayUrl(e.target.value)} />
         </Sec>
 
-        <Sec title={t("obs.sec.payment", lang)}>
+        <Sec title={t("obs.sec.payment", lang)} group={t("obs.group.payment", lang)} defaultOpen={false}>
           <Input label={t("obs.payment.toss", lang)} value={tossKey} onChange={(e) => setTossKey(e.target.value)} />
           <Input
             label={t("obs.payment.tossSecret", lang)}
@@ -620,7 +620,7 @@ export default function BrandSettings() {
           </p>
         </Sec>
 
-        <Sec title={t("obs.sec.tossplace", lang)}>
+        <Sec title={t("obs.sec.tossplace", lang)} defaultOpen={false}>
           <div className="flex items-start gap-2 p-3.5 rounded-[14px] bg-[var(--color-navy-50)] border border-[var(--color-navy-200)]">
             <Info className="w-4 h-4 text-[var(--color-navy-700)] mt-0.5 shrink-0" />
             <p className="text-[12px] text-[var(--color-navy-700)] font-semibold leading-relaxed">
@@ -694,12 +694,12 @@ export default function BrandSettings() {
           </div>
         </Sec>
 
-        <Sec title={t("obs.sec.kiosk", lang)}>
+        <Sec title={t("obs.sec.kiosk", lang)} group={t("obs.group.extra", lang)} defaultOpen={false}>
           <Toggle label={t("obs.kiosk.enable", lang)} value={kioskEnabled} onChange={setKioskEnabled} />
           <p className="text-[12px] text-[var(--color-ink-500)] mt-2 leading-relaxed">{t("obs.kiosk.desc", lang)}</p>
         </Sec>
 
-        <Sec title={t("obs.sec.aiPhone", lang)}>
+        <Sec title={t("obs.sec.aiPhone", lang)} defaultOpen={false}>
           <Toggle label={t("obs.aiPhone.enable", lang)} value={aiResEnabled} onChange={setAiResEnabled} />
           <p className="text-[12px] text-[var(--color-ink-500)] mt-2 mb-3 leading-relaxed">{t("obs.aiPhone.desc", lang)}</p>
           {aiResEnabled && (
@@ -722,7 +722,7 @@ export default function BrandSettings() {
           )}
         </Sec>
 
-        <Sec title={t("obs.sec.geo", lang)}>
+        <Sec title={t("obs.sec.geo", lang)} defaultOpen={false}>
           <Toggle label={t("obs.geo.only", lang)} value={locationOnly} onChange={setLocationOnly} />
           <Input
             label={t("obs.geo.radius", lang)}
@@ -753,12 +753,37 @@ export default function BrandSettings() {
   );
 }
 
-function Sec({ title, children }: { title: string; children: React.ReactNode }) {
+// 8-10: 접기 카드 + 선택적 그룹 헤더. defaultOpen 기본 true(기존 호환). group 주면 위에 그룹 제목.
+function Sec({
+  title,
+  children,
+  defaultOpen = true,
+  group,
+}: {
+  title: string;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+  group?: string;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="mt-5">
-      <h2 className="text-[13px] font-bold text-[var(--color-ink-500)] uppercase tracking-wide px-1 mb-2">{title}</h2>
-      <div className="space-y-3">{children}</div>
-    </div>
+    <>
+      {group && (
+        <h3 className="text-[12px] font-extrabold text-[var(--color-navy-700)] tracking-wide px-1 mt-7 mb-1">{group}</h3>
+      )}
+      <div className="mt-2.5 rounded-2xl border border-[var(--color-line)] bg-white overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          className="w-full flex items-center justify-between gap-2 px-4 h-12 text-left active:bg-[var(--color-bg)]"
+        >
+          <span className="text-[13.5px] font-bold text-[var(--color-navy-900)]">{title}</span>
+          <ChevronDown className={`w-4 h-4 text-[var(--color-ink-400)] shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
+        </button>
+        {open && <div className="px-4 pb-4 pt-2 space-y-3 border-t border-[var(--color-line-soft)]">{children}</div>}
+      </div>
+    </>
   );
 }
 

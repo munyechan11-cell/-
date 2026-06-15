@@ -760,6 +760,12 @@ const dict: Record<string, string> = {
 
   "obs.title": "Cài đặt thương hiệu",
   "obs.sec.basic": "Cơ bản",
+  "obs.group.basic": "Cơ bản",
+  "obs.group.ops": "Vận hành",
+  "obs.group.design": "Menu & Thiết kế",
+  "obs.group.marketing": "Khách & Marketing",
+  "obs.group.payment": "Thanh toán & Tích hợp",
+  "obs.group.extra": "Khác",
   "obs.sec.language": "Ngôn ngữ",
   "obs.sec.pos": "Kết nối POS",
   "obs.sec.printerUsb": "Máy in hoá đơn (USB)",

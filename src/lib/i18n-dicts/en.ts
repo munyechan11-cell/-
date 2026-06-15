@@ -760,6 +760,12 @@ const dict: Record<string, string> = {
 
   "obs.title": "Brand settings",
   "obs.sec.basic": "Basics",
+  "obs.group.basic": "Basics",
+  "obs.group.ops": "Operations",
+  "obs.group.design": "Menu & Design",
+  "obs.group.marketing": "Customers & Marketing",
+  "obs.group.payment": "Payments & Integrations",
+  "obs.group.extra": "More",
   "obs.sec.language": "Language",
   "obs.sec.pos": "POS integration",
   "obs.sec.printerUsb": "Receipt printer (USB)",
