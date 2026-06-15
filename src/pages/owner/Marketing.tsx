@@ -394,8 +394,19 @@ function BulkBtn({ count, onClick }: { count: number; onClick: () => void }) {
   );
 }
 
+// 8-8: 쿠폰 발송 추천 템플릿 — 칩으로 종류·설명·금액을 한 번에 채움(이후 수정 가능).
+// key = 칩 라벨이자 채워질 쿠폰 설명(i18n), amount = 추천 할인액(원, 0=일반 쿠폰).
+const COUPON_PRESETS: { key: string; type: string; amount: number }[] = [
+  { key: "mkt.preset.welcome", type: "welcome", amount: 0 },
+  { key: "mkt.preset.birthday", type: "birthday", amount: 5000 },
+  { key: "mkt.preset.winback", type: "winback", amount: 3000 },
+  { key: "mkt.preset.dormant", type: "slipping", amount: 5000 },
+  { key: "mkt.preset.review", type: "review", amount: 2000 },
+  { key: "mkt.preset.vip", type: "vip", amount: 10000 },
+];
+
 // ============================================================
-// BulkCouponModal — 쿠폰 종류/설명 입력 모달
+// BulkCouponModal — 쿠폰 종류/설명/금액 입력 + 추천 템플릿 모달
 // ============================================================
 function BulkCouponModal({
   bucket,
@@ -452,6 +463,33 @@ function BulkCouponModal({
             .join(", ")}
           {customers.length > 5 ? ` +${customers.length - 5}` : ""}
         </p>
+        {/* 8-8: 추천 템플릿 — 탭/칩으로 종류·설명·금액 한 번에 채움 (이후 수정 가능) */}
+        <div className="mb-3">
+          <p className="text-[11px] font-bold text-[var(--color-ink-500)] mb-1.5">{t("mkt.coupon.presets", lang)}</p>
+          <div className="flex flex-wrap gap-1.5">
+            {COUPON_PRESETS.map((p) => {
+              const active = type === p.type;
+              return (
+                <button
+                  key={p.key}
+                  type="button"
+                  onClick={() => {
+                    setType(p.type);
+                    setDesc(t(p.key, lang));
+                    setAmount(p.amount ? String(p.amount) : "");
+                  }}
+                  className={`h-8 px-3 rounded-full text-[12px] font-bold border transition-colors ${
+                    active
+                      ? "bg-[var(--color-navy-700)] text-[var(--color-on-primary,white)] border-[var(--color-navy-700)]"
+                      : "bg-white text-[var(--color-ink-700)] border-[var(--color-line)]"
+                  }`}
+                >
+                  {t(p.key, lang)}
+                </button>
+              );
+            })}
+          </div>
+        </div>
         <div className="space-y-3">
           <Input
             label={t("mkt.coupon.type", lang)}
