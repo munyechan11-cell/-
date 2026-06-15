@@ -36,7 +36,8 @@ import { getEffectiveTier, getNextTier, TIER_BADGE } from "../../lib/tier";
 import { cn } from "../../lib/cn";
 import { showToast } from "../../lib/toast";
 import { startCardPayment } from "../../lib/tossPayments";
-import type { Order } from "../../lib/types";
+import type { Order, Industry } from "../../lib/types";
+import { cookingNowLabel } from "../../lib/cookingLabels";
 import { getStoreOpenStatus, summarizeStatus } from "../../lib/businessHours";
 
 type Tab = "home" | "menu" | "coupons" | "profile";
@@ -479,7 +480,7 @@ export default function CustomerDashboard() {
               </div>
 
               {myActiveOrder && myActiveOrder.status !== "cancelled" && (
-                <OrderProgress status={myActiveOrder.status} />
+                <OrderProgress status={myActiveOrder.status} industry={owner?.storeConfig?.industry} />
               )}
               {myActiveOrder && myActiveOrder.status === "cancelled" && (
                 <div className="mb-3 px-3 py-2 rounded-xl bg-[#fef2f2] text-[var(--color-danger)] text-[13px] font-bold text-center">
@@ -1122,12 +1123,12 @@ function QtyStepper({ value, onChange }: { value: number; onChange: (v: number) 
   );
 }
 
-function OrderProgress({ status }: { status: "pending" | "accepted" | "cooking" | "served" }) {
+function OrderProgress({ status, industry }: { status: "pending" | "accepted" | "cooking" | "served"; industry?: Industry }) {
   const lang = useLanguage();
   const steps = [
     { key: "pending", label: t("order.status.pending", lang), Icon: Hourglass, eta: 5 },
     { key: "accepted", label: t("order.status.accepted", lang), Icon: ClipboardCheck, eta: 5 },
-    { key: "cooking", label: t("order.status.cooking", lang), Icon: ChefHat, eta: 10 },
+    { key: "cooking", label: cookingNowLabel(industry, lang), Icon: ChefHat, eta: 10 }, // 8-9: 업종별
     { key: "served", label: t("order.status.served", lang), Icon: PartyPopper, eta: 0 },
   ] as const;
   const currentIdx = Math.max(0, steps.findIndex((s) => s.key === status));

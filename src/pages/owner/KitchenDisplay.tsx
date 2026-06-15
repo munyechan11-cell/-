@@ -4,6 +4,7 @@ import { X, Clock } from "lucide-react";
 import { useStore } from "../../store/store";
 import { useLanguage, t, getLocale } from "../../lib/i18n";
 import type { OrderStatus } from "../../lib/types";
+import { cookStartLabel, cookingNowLabel } from "../../lib/cookingLabels";
 
 const localDateStr = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -16,7 +17,7 @@ const ACTIVE: OrderStatus[] = ["pending", "accepted", "cooking"];
  * served/cancelled 는 화면에서 사라짐. 30초마다 경과시간 갱신.
  */
 export default function KitchenDisplay() {
-  const { orders, updateOrderStatus, currentUser } = useStore();
+  const { orders, updateOrderStatus, currentUser, users } = useStore();
   const lang = useLanguage();
   const nav = useNavigate();
   const [now, setNow] = useState(() => Date.now());
@@ -28,6 +29,10 @@ export default function KitchenDisplay() {
 
   const storeId =
     currentUser?.role === "staff" ? currentUser.employerStoreId ?? "" : currentUser?.id ?? "";
+  // 8-9: 업종별 조리 라벨 — 매장 owner 의 storeConfig.industry 기준
+  const industry =
+    (currentUser?.role === "owner" ? currentUser.storeConfig?.industry : undefined) ??
+    users.find((u) => u.id === storeId && u.role === "owner")?.storeConfig?.industry;
   const today = localDateStr(new Date());
 
   const active = useMemo(
@@ -102,7 +107,7 @@ export default function KitchenDisplay() {
                 </div>
                 {cooking && (
                   <span className="self-start mt-1.5 text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#fff4d6] text-[#9a7700]">
-                    {t("kds.cooking", lang)}
+                    {cookingNowLabel(industry, lang)}
                   </span>
                 )}
                 <ul className="text-[16px] my-3 space-y-1 flex-1">
@@ -121,7 +126,7 @@ export default function KitchenDisplay() {
                       : "bg-[var(--color-navy-700)] hover:bg-[var(--color-navy-800)]"
                   }`}
                 >
-                  {cooking ? t("kds.done", lang) : t("kds.startCooking", lang)}
+                  {cooking ? t("kds.done", lang) : cookStartLabel(industry, lang)}
                 </button>
               </div>
             );
