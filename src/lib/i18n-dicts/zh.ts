@@ -1537,6 +1537,7 @@ const dict: Record<string, string> = {
   "magent.chGoogle": "谷歌商家",
   "magent.planHint": "1 个渠道免费。连接 2 个及以上需要 Pro 套餐（每月 ₩{price}）。",
   "magent.planPro": "正在使用 Pro 套餐 — 可多渠道发布 ✓",
+  "magent.planBeta": "🎉 测试期 — 可免费连接并发布到所有渠道。",
   "magent.upgradeNeeded": "连接第二个渠道需要 Pro 套餐（每月 ₩{price}）。",
   "magent.igConnectPendingHint": "在新窗口完成登录与授权后，请点击下方“确认连接”。",
   "magent.igConnectConfirm": "确认连接",

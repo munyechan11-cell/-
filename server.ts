@@ -1954,7 +1954,9 @@ app.post('/api/marketing/generate', async (req, res) => {
 // 매장별 Zernio 계정(storeConfig.publishing.instagramAccountId)으로 발행. ZERNIO_API_KEY 는 결 플랫폼 공용.
 // 인스타는 미디어(이미지) 필수 — imageUrl(공개 URL) 없으면 거부. 승인된 초안만 클라이언트가 호출.
 // ============================================================
-// 결 요금제: free = 채널 1개 무료, pro = 채널 여러 개(월 ₩10,000). 2번째 채널 연결부터 pro 필요.
+// 결 요금제(향후): 채널 무료 1개 / ₩10,000=3개 / 그 이상 구독제 · 자동홍보 프로 ₩25,000(3개)·맥스 ₩40,000(무제한).
+// 베타 기간에는 전부 무료 — 과금 게이트는 MARKETING_BILLING='on' 일 때만 적용(기본 off).
+const MARKETING_BILLING_ENFORCED = process.env.MARKETING_BILLING === 'on';
 const PLAN_PRO_PRICE_KRW = 10000;
 const FREE_CHANNEL_LIMIT = 1;
 const SUPPORTED_PLATFORMS = ['instagram', 'googlebusiness'];
@@ -2091,11 +2093,11 @@ app.post('/api/marketing/connect-url', async (req, res) => {
     const ownerSnap = await fs.collection('users').doc(storeId).get();
     if (!ownerSnap.exists) return res.status(404).json({ error: 'store not found' });
     const owner = ownerSnap.data() as any;
-    // 요금제 게이트: 이미 연결된 다른 채널이 있고(=2번째 채널) free 면 Pro 필요
+    // 요금제 게이트(베타엔 off): 이미 연결된 다른 채널이 있고(=2번째 채널) free 면 Pro 필요
     const plan = owner?.storeConfig?.plan === 'pro' ? 'pro' : 'free';
     const existing = connectedChannels(owner);
     const already = existing.some((c) => c.platform === platform);
-    if (!already && existing.length >= FREE_CHANNEL_LIMIT && plan !== 'pro') {
+    if (MARKETING_BILLING_ENFORCED && !already && existing.length >= FREE_CHANNEL_LIMIT && plan !== 'pro') {
       return res.status(402).json({ error: 'upgrade_required', plan, priceKrw: PLAN_PRO_PRICE_KRW, freeLimit: FREE_CHANNEL_LIMIT });
     }
     let profileId = owner?.storeConfig?.publishing?.zernioProfileId;

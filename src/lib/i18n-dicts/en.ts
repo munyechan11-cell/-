@@ -1537,6 +1537,7 @@ const dict: Record<string, string> = {
   "magent.chGoogle": "Google Business",
   "magent.planHint": "One channel is free. Connecting 2 or more requires the Pro plan (₩{price}/month).",
   "magent.planPro": "On the Pro plan — multi-channel publishing enabled ✓",
+  "magent.planBeta": "🎉 Beta period — connect and publish to all channels for free.",
   "magent.upgradeNeeded": "Connecting a second channel requires the Pro plan (₩{price}/month).",
   "magent.igConnectPendingHint": "After you finish login & approval in the new window, click 'Confirm connection' below.",
   "magent.igConnectConfirm": "Confirm connection",

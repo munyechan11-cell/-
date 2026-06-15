@@ -1674,6 +1674,7 @@ const ko: Dict = {
   "magent.chGoogle": "구글 비즈니스",
   "magent.planHint": "채널 1개는 무료예요. 2개 이상 연결하려면 Pro 요금제(월 ₩{price})가 필요해요.",
   "magent.planPro": "Pro 요금제 이용 중 — 여러 채널 발행 가능 ✓",
+  "magent.planBeta": "🎉 베타 기간 — 모든 채널을 무료로 연결·발행할 수 있어요.",
   "magent.upgradeNeeded": "두 번째 채널부터는 Pro 요금제(월 ₩{price})가 필요해요.",
   "magent.igConnectPendingHint": "새 창에서 인스타 로그인·허용을 마쳤으면 아래 '연결 완료 확인'을 눌러주세요.",
   "magent.igConnectConfirm": "연결 완료 확인",

@@ -505,7 +505,7 @@ export default function OwnerMarketingAgent() {
               })}
             </div>
             <p className="text-[11px] text-[var(--color-ink-500)] mt-2.5 leading-relaxed">
-              {plan === "pro" ? t("magent.planPro", lang) : t("magent.planHint", lang, { price: (10000).toLocaleString() })}
+              {plan === "pro" ? t("magent.planPro", lang) : t("magent.planBeta", lang)}
             </p>
           </div>
           <button
