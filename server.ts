@@ -1976,7 +1976,7 @@ app.post('/api/marketing/publish', async (req, res) => {
   try {
     const adminApp = getFirebaseAdmin();
     if (!adminApp) return res.status(503).json({ error: 'FIREBASE_ADMIN_NOT_CONFIGURED' });
-    const { storeId, content, imageUrl } = req.body ?? {};
+    const { storeId, content, imageUrl, photoId } = req.body ?? {};
     if (!isValidStoreId(storeId)) return res.status(400).json({ error: 'storeId required' });
     if (!checkMarketingRate(storeId)) return res.status(429).json({ error: '잠시 후 다시 시도해 주세요. (분당 10회 제한)' });
     if (!content || !String(content).trim()) return res.status(400).json({ error: 'content_required' });
@@ -1987,14 +1987,40 @@ app.post('/api/marketing/publish', async (req, res) => {
     const owner = ownerSnap.data() as any;
     const accountId = owner?.storeConfig?.publishing?.instagramAccountId;
     if (!accountId) return res.status(400).json({ error: 'ig_not_connected' });
-    if (!imageUrl || !/^https?:\/\/.+/.test(String(imageUrl))) return res.status(400).json({ error: 'image_required' });
-    const r = await zernioPublishInstagram(String(content), String(imageUrl), String(accountId));
+    // photoId 가 오면 우리 서버가 그 매장 사진을 공개 이미지로 서빙하는 URL 을 만든다(base64 → 공개 URL).
+    let finalImageUrl = String(imageUrl || '');
+    if (photoId && typeof photoId === 'string' && isValidStoreId(photoId)) {
+      const proto = String(req.headers['x-forwarded-proto'] || req.protocol || 'https').split(',')[0];
+      finalImageUrl = `${proto}://${req.get('host')}/api/marketing/image/${encodeURIComponent(photoId)}`;
+    }
+    if (!finalImageUrl || !/^https?:\/\/.+/.test(finalImageUrl)) return res.status(400).json({ error: 'image_required' });
+    const r = await zernioPublishInstagram(String(content), finalImageUrl, String(accountId));
     if (!r.ok) {
       const code = r.error === 'ZERNIO_NOT_CONFIGURED' ? 503 : 502;
       return res.status(code).json({ error: r.error || 'publish_failed' });
     }
     return res.json({ ok: true, result: r.data });
   } catch (e: any) { console.error('[marketing/publish]', e?.message); res.status(500).json({ error: e?.message ?? 'publish failed' }); }
+});
+
+// 매장 사진(photos.imageData base64)을 공개 이미지 바이트로 서빙 — Zernio 가 인스타 발행 시 이 URL 을 fetch.
+// (base64 data URL 은 Zernio 가 못 가져오므로, 우리 서버가 실제 이미지로 변환해 공개 URL 제공.)
+app.get('/api/marketing/image/:photoId', async (req, res) => {
+  try {
+    const adminApp = getFirebaseAdmin();
+    if (!adminApp) return res.status(503).end();
+    const photoId = String(req.params.photoId || '');
+    if (!isValidStoreId(photoId)) return res.status(400).end();
+    const snap = await adminApp.firestore().collection('photos').doc(photoId).get();
+    if (!snap.exists) return res.status(404).end();
+    const img = (snap.data() as any)?.imageData;
+    if (typeof img !== 'string') return res.status(404).end();
+    const m = img.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
+    if (!m) return res.status(404).end();
+    res.setHeader('Content-Type', m[1]);
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    return res.end(Buffer.from(m[2], 'base64'));
+  } catch (e: any) { console.error('[marketing/image]', e?.message); res.status(500).end(); }
 });
 
 // ============================================================

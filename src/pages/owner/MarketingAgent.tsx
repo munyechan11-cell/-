@@ -262,50 +262,63 @@ export default function OwnerMarketingAgent() {
   );
   const publishLimit = cfg?.dailyPublishLimit ?? 0; // 0 = 무제한
   const publishingRef = useRef(0); // 진행 중 발행 수 — 연타 시 onSnapshot 왕복 전이라도 한도 정확 판정
+  const [publishTarget, setPublishTarget] = useState<MarketingDraft | null>(null); // 사진 선택 대기 중인 게시물 초안
 
-  // 발행 — ① 게시물(post) + 인스타 연결됨 → 이미지 받아 실제 인스타 게시(Zernio) ② 응대(reply) → 리뷰 답글 기록.
+  // 발행에 쓸 매장 사진(메뉴·리뷰 등 imageData 있는 것). 인스타는 이미지 필수라 여기서 골라 게시.
+  const storePhotos = useMemo(
+    () => photos.filter((p) => p.storeId === storeId && !!p.imageData).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 30),
+    [photos, storeId]
+  );
+
+  // 발행 — ① 게시물(post) + 인스타 연결됨 → 사진 선택 모달 ② 응대(reply)/미연결 → 바로 published.
   const handlePublish = async (d: MarketingDraft) => {
-    // 가드레일: 하루 발행 한도 초과 차단 (구독 지연 우회 방지로 진행 중 발행 수도 합산)
     if (publishLimit > 0 && publishedLast24h + publishingRef.current >= publishLimit) {
       showToast(t("magent.limitReached", lang, { n: publishLimit }), "error");
       return;
     }
-    // 게시물 + 인스타 연결됨 → 이미지 URL 입력받아 실제 발행 (인스타는 이미지 필수)
-    const igPublish = d.kind === "post" && igConnected;
-    let imageUrl = "";
-    if (igPublish) {
-      const input = window.prompt(t("magent.imagePrompt", lang));
-      if (input === null) return; // 취소 (카운터 증가 전)
-      imageUrl = input.trim();
-      if (!/^https?:\/\/.+/.test(imageUrl)) { showToast(t("magent.imageInvalid", lang), "error"); return; }
+    if (d.kind === "post" && igConnected) {
+      setPublishTarget(d); // 사진 선택 모달 → doPublishWithPhoto
+      return;
     }
     publishingRef.current += 1;
     try {
-      // 인스타 게시를 먼저 — 실패 시 초안은 'approved'로 남겨 재시도 가능.
-      if (igPublish) {
-        const res = await fetch(api("/api/marketing/publish"), {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ storeId, content: d.content, imageUrl }),
-        });
-        if (!res.ok) {
-          const e = await res.json().catch(() => ({} as any));
-          const msg = e?.error === "ig_not_connected" ? t("magent.igNotConnected", lang)
-            : e?.error === "image_required" ? t("magent.imageInvalid", lang)
-            : e?.error === "ZERNIO_NOT_CONFIGURED" ? t("magent.igNotConfigured", lang)
-            : t("magent.publishFail", lang);
-          showToast(msg, "error");
-          return;
-        }
-      }
-      // 초안을 published 로 전이, 응대면 리뷰 답글까지 기록.
       await reviewMarketingDraft(d.id, "publish");
       if (d.kind === "reply" && d.targetId) {
         await updatePhoto(d.targetId, { ownerReply: { text: d.content, repliedAt: new Date().toISOString() } });
       }
-      showToast(igPublish ? t("magent.igPublished", lang) : t("magent.publishDone", lang), "success");
+      showToast(t("magent.publishDone", lang), "success");
     } catch (e: any) {
       showToast(e?.message ?? t("magent.genFail", lang), "error");
+    } finally {
+      publishingRef.current -= 1;
+    }
+  };
+
+  // 사진 선택 후 실제 인스타 발행 — 서버가 그 사진을 공개 URL로 서빙 → Zernio로 게시.
+  const doPublishWithPhoto = async (photoId: string) => {
+    const d = publishTarget;
+    if (!d) return;
+    setPublishTarget(null);
+    publishingRef.current += 1;
+    try {
+      const res = await fetch(api("/api/marketing/publish"), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ storeId, content: d.content, photoId }),
+      });
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({} as any));
+        const msg = e?.error === "ig_not_connected" ? t("magent.igNotConnected", lang)
+          : e?.error === "image_required" ? t("magent.imageInvalid", lang)
+          : e?.error === "ZERNIO_NOT_CONFIGURED" ? t("magent.igNotConfigured", lang)
+          : t("magent.publishFail", lang);
+        showToast(msg, "error");
+        return; // 초안은 approved 로 남겨 재시도 가능
+      }
+      await reviewMarketingDraft(d.id, "publish");
+      showToast(t("magent.igPublished", lang), "success");
+    } catch (e: any) {
+      showToast(e?.message ?? t("magent.publishFail", lang), "error");
     } finally {
       publishingRef.current -= 1;
     }
@@ -634,6 +647,41 @@ export default function OwnerMarketingAgent() {
           </section>
         )}
       </div>
+
+      {/* 인스타 발행 — 매장 사진 선택 모달 */}
+      {publishTarget && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center sm:p-4" onClick={() => setPublishTarget(null)}>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label={t("magent.pickPhoto", lang)}
+            className="w-full max-w-[480px] bg-white rounded-t-[24px] sm:rounded-2xl p-5 pb-[max(env(safe-area-inset-bottom),20px)] max-h-[88vh] overflow-y-auto"
+          >
+            <h2 className="text-[16px] font-extrabold text-[var(--color-navy-900)] mb-1">{t("magent.pickPhoto", lang)}</h2>
+            <p className="text-[12px] text-[var(--color-ink-500)] mb-3 leading-relaxed">{t("magent.pickPhotoHint", lang)}</p>
+            {storePhotos.length === 0 ? (
+              <p className="text-[13px] text-[var(--color-ink-500)] text-center py-8">{t("magent.noPhotos", lang)}</p>
+            ) : (
+              <div className="grid grid-cols-3 gap-2">
+                {storePhotos.map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => doPublishWithPhoto(p.id)}
+                    className="aspect-square rounded-xl overflow-hidden border border-[var(--color-line)] hover:ring-2 hover:ring-[var(--color-navy-700)] transition-shadow"
+                    aria-label={t("magent.pickPhoto", lang)}
+                  >
+                    <img src={p.imageData} alt="" className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
+            <button onClick={() => setPublishTarget(null)} className="mt-3 h-10 w-full rounded-xl bg-[var(--color-bg)] text-[var(--color-ink-600)] font-bold">
+              {t("magent.cancel", lang)}
+            </button>
+          </div>
+        </div>
+      )}
     </OwnerShell>
   );
 }
