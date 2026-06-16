@@ -57,6 +57,46 @@ export const SITE_FONTS: SiteFont[] = [
     display: `"Cormorant Garamond","Noto Serif KR",serif`,
     body: `"Noto Sans KR",system-ui,sans-serif`,
   },
+  {
+    // 임팩트 포스터 — 초고대비 콘덴스드 + 초굵은 한글 (분식·치킨·포차·이벤트)
+    id: "impact",
+    nameKey: "font.impact",
+    google: "Anton&family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;600&family=Noto+Sans+KR:wght@400;700",
+    display: `"Anton","Black Han Sans","Noto Sans KR",sans-serif`,
+    body: `"IBM Plex Sans KR","Noto Sans KR",system-ui,sans-serif`,
+  },
+  {
+    // 빈티지 레트로 — 옛 간판 붓글씨 + 묵직한 세리프 (LP바·로스터리·위스키바)
+    id: "retro",
+    nameKey: "font.retro",
+    google: "Gugi&family=Hahmlet:wght@400;500;700&family=Noto+Serif+KR:wght@400;600",
+    display: `"Gugi","Noto Serif KR",serif`,
+    body: `"Hahmlet","Noto Serif KR",serif`,
+  },
+  {
+    // 따뜻한 손글씨 — 펜글씨 제목 + 또박또박 휴머니스트 산세 (작은 카페·공방)
+    id: "handwritten",
+    nameKey: "font.handwritten",
+    google: "Nanum+Pen+Script&family=Gowun+Dodum&family=Noto+Sans+KR:wght@400;500",
+    display: `"Nanum Pen Script","Gowun Dodum","Noto Sans KR",cursive`,
+    body: `"Gowun Dodum","Noto Sans KR",system-ui,sans-serif`,
+  },
+  {
+    // 파리 비스트로 — 올드스타일 세리프 + 우아한 한글 바탕 (카페·베이커리·브런치)
+    id: "bistro",
+    nameKey: "font.bistro",
+    google: "EB+Garamond:wght@500;600;700&family=Gowun+Batang:wght@400;700&family=Noto+Serif+KR:wght@400;600",
+    display: `"EB Garamond","Gowun Batang","Noto Serif KR",serif`,
+    body: `"Gowun Batang","Noto Serif KR",serif`,
+  },
+  {
+    // 모던 라운드 — 둥근 지오메트릭 영문 + 단단한 한글 디스플레이 (트렌디 디저트·뷰티)
+    id: "friendly",
+    nameKey: "font.friendly",
+    google: "Montserrat:wght@500;600;700&family=Do+Hyeon&family=Noto+Sans+KR:wght@400;500;700",
+    display: `"Montserrat","Do Hyeon","Noto Sans KR",sans-serif`,
+    body: `"Noto Sans KR",system-ui,sans-serif`,
+  },
 ];
 
 export const getSiteFont = (id?: string): SiteFont =>
