@@ -20,6 +20,8 @@ const dict: Record<string, string> = {
   "home.greeting": "您好,{name}",
   "home.nextTier": "再来 {n} 次即可升到 {tier}",
   "home.topTier": "您已达到最高等级。",
+  "home.storeSite": "门店品牌网站",
+  "home.storeSiteDesc": "菜单·评价·介绍一目了然",
   "home.stat.visits": "到访",
   "home.stat.coupons": "优惠券",
   "home.stat.points": "积分",

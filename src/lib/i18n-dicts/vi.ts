@@ -20,6 +20,8 @@ const dict: Record<string, string> = {
   "home.greeting": "Xin chào, {name}",
   "home.nextTier": "Còn {n} lần ghé nữa để lên {tier}",
   "home.topTier": "Bạn đã đạt hạng cao nhất.",
+  "home.storeSite": "Trang thương hiệu cửa hàng",
+  "home.storeSiteDesc": "Menu, đánh giá & giới thiệu",
   "home.stat.visits": "Lượt ghé",
   "home.stat.coupons": "Phiếu",
   "home.stat.points": "Điểm",

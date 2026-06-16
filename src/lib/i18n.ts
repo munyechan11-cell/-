@@ -102,6 +102,8 @@ const ko: Dict = {
   "home.greeting": "{name}님",
   "home.nextTier": "{tier}까지 {n}회 더 방문",
   "home.topTier": "최고 등급에 도달하셨습니다.",
+  "home.storeSite": "가게 브랜드 사이트",
+  "home.storeSiteDesc": "메뉴·리뷰·소개를 한눈에",
   "home.stat.visits": "방문",
   "home.stat.coupons": "보유 쿠폰",
   "home.stat.points": "포인트",

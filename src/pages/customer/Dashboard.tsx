@@ -23,6 +23,8 @@ import {
   ClipboardCheck,
   ChefHat,
   PartyPopper,
+  Store,
+  ChevronRight,
 } from "lucide-react";
 import { resizeImage } from "../owner/PhotoVault";
 import { LANGS, useLanguage, setLanguage, t, fmtKRW, getLocale } from "../../lib/i18n";
@@ -433,6 +435,23 @@ export default function CustomerDashboard() {
             <SmallStat label={t("home.stat.coupons", lang)} value={`${myCoupons.filter((c) => c.status !== "used").length}${t("home.unit.coupon", lang)}`} />
             <SmallStat label={t("home.stat.points", lang)} value={`${(currentUser.rewardBalance ?? 0).toLocaleString()}`} />
           </div>
+
+          {/* 8-2: 가게 브랜드 사이트 — 메뉴·리뷰·소개를 예쁜 페이지로 (주문 후 자연히 노출) */}
+          <Link
+            to={`/site/${storeId}`}
+            className="flex items-center justify-between gap-3 rounded-2xl bg-white border border-[var(--color-line)] p-4 active:scale-[0.99] transition-transform"
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-xl bg-[var(--color-mint-100)] text-[var(--color-mint-700)] inline-flex items-center justify-center shrink-0">
+                <Store className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[14px] font-extrabold text-[var(--color-navy-900)] truncate">{t("home.storeSite", lang)}</p>
+                <p className="text-[12px] text-[var(--color-ink-500)] truncate">{t("home.storeSiteDesc", lang)}</p>
+              </div>
+            </div>
+            <ChevronRight className="w-5 h-5 text-[var(--color-ink-300)] shrink-0" />
+          </Link>
 
           {/* Active table HUD */}
           {myTable && (

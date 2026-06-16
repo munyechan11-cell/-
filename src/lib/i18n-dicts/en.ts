@@ -20,6 +20,8 @@ const dict: Record<string, string> = {
   "home.greeting": "Hello, {name}",
   "home.nextTier": "{n} more visits to reach {tier}",
   "home.topTier": "You've reached the top tier.",
+  "home.storeSite": "Store brand site",
+  "home.storeSiteDesc": "Menu, reviews & more",
   "home.stat.visits": "Visits",
   "home.stat.coupons": "Coupons",
   "home.stat.points": "Points",
