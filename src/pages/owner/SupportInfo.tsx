@@ -45,17 +45,20 @@ export default function SupportInfo() {
         body: JSON.stringify({
           storeName: owner?.restaurantName ?? "",
           bizType: owner?.storeConfig?.industry ?? "general",
-          region: "",
+          region: (owner?.storeConfig?.address ?? "").trim(), // #7: 주소로 지역 맞춤
+          lang, // #3: 사장님 언어로 응답
         }),
       });
       const d = await res.json().catch(() => ({} as any));
       if (!res.ok) {
-        showToast(d?.error === "AI_NOT_CONFIGURED" ? t("tax.notConfigured", lang) : t("tax.failed", lang), "error");
+        showToast(d?.error === "AI_NOT_CONFIGURED" ? t("ai.notConfigured", lang) : t("ai.failed", lang), "error");
         return;
       }
-      setResult(String(d.text || ""));
+      const text = String(d.text || "").trim();
+      if (!text) { showToast(t("ai.failed", lang), "error"); return; } // #15: 빈 응답도 실패 처리
+      setResult(text);
     } catch {
-      showToast(t("tax.failed", lang), "error");
+      showToast(t("ai.failed", lang), "error");
     } finally {
       setBusy(false);
     }

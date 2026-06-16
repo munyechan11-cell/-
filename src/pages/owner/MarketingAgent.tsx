@@ -177,6 +177,8 @@ export default function OwnerMarketingAgent() {
     window.history.replaceState({}, "", window.location.href.split("?")[0]); // 새로고침 시 재실행 방지
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storeId]);
+  // 페이지 이탈 시 OAuth 자동감지 폴링 중단(언마운트 후 백그라운드 fetch·토스트 방지)
+  useEffect(() => () => { pollRef.current = null; }, []);
 
   // 금지어 목록 (가드레일) — 콘텐츠에 들어가면 안 되는 표현. 승인·발행 전 검사.
   const bannedList = useMemo(
@@ -223,7 +225,7 @@ export default function OwnerMarketingAgent() {
       const res = await fetch(api("/api/marketing/generate"), {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ storeId, channel: draftChannel, kind: draftKind, topic: aiTopic.trim() || undefined }),
+        body: JSON.stringify({ storeId, channel: draftChannel, kind: draftKind, topic: aiTopic.trim() || undefined, lang }),
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({} as any));
@@ -293,7 +295,7 @@ export default function OwnerMarketingAgent() {
       const res = await fetch(api("/api/marketing/generate"), {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ storeId, channel: "general", kind: "reply", reviewText: review.reviewText, rating: review.rating }),
+        body: JSON.stringify({ storeId, channel: "general", kind: "reply", reviewText: review.reviewText, rating: review.rating, lang }),
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({} as any));
@@ -446,6 +448,7 @@ export default function OwnerMarketingAgent() {
         question:
           "이번 주 우리 가게 성과를 사장님이 이해하기 쉽게 3~4줄로 요약하고, 다음 주에 SNS에 올리면 좋을 마케팅 콘텐츠 아이디어 2가지를 제안해줘.",
         context,
+        lang,
       });
       setSummary(answer);
     } catch (e: any) {
@@ -939,7 +942,7 @@ function DraftCard({
             <button onClick={() => { onEdit(editText); setEditing(false); }} className="h-8 px-3 rounded-lg bg-[var(--color-navy-700)] text-[var(--color-on-primary,white)] text-[12px] font-bold">
               {t("magent.saveEdit", lang)}
             </button>
-            <button onClick={() => { setEditText(draft.content); setEditing(false); }} className="h-8 px-3 rounded-lg bg-[var(--color-bg)] text-[var(--color-ink-600)] text-[12px] font-bold">
+            <button onClick={() => { setEditText(cleanContent); setEditing(false); }} className="h-8 px-3 rounded-lg bg-[var(--color-bg)] text-[var(--color-ink-600)] text-[12px] font-bold">
               {t("magent.cancel", lang)}
             </button>
           </>
@@ -953,7 +956,7 @@ function DraftCard({
                 <button onClick={() => { const r = window.prompt(t("magent.rejectReason", lang)); if (r !== null) onReject(r); }} className="h-8 px-3 rounded-lg bg-[#fdecea] text-[#c0392b] text-[12px] font-bold inline-flex items-center gap-1">
                   <X className="w-3.5 h-3.5" />{t("magent.reject", lang)}
                 </button>
-                <button onClick={() => { setEditText(draft.content); setEditing(true); }} className="h-8 px-3 rounded-lg bg-[var(--color-bg)] text-[var(--color-ink-700)] text-[12px] font-bold inline-flex items-center gap-1">
+                <button onClick={() => { setEditText(cleanContent); setEditing(true); }} className="h-8 px-3 rounded-lg bg-[var(--color-bg)] text-[var(--color-ink-700)] text-[12px] font-bold inline-flex items-center gap-1">
                   <Pencil className="w-3.5 h-3.5" />{t("magent.edit", lang)}
                 </button>
               </>

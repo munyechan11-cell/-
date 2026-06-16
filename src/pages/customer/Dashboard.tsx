@@ -347,7 +347,8 @@ export default function CustomerDashboard() {
         const alreadyHas = coupons.some(
           (c) =>
             c.customerId === currentUser.id && c.storeId === storeId && c.type === "review" &&
-            c.status !== "used" && (!sessionStart || (c.issuedAt ?? "") >= sessionStart)
+            // status 무관 — 이번 세션(sessionStart 이후) 발급분이 하나라도 있으면 재발급 차단(used 로 만든 뒤 재오픈 악용 방지)
+            (!sessionStart || (c.issuedAt ?? "") >= sessionStart)
         );
         if (rc?.enabled && realReview && !alreadyHas) {
           await issueCoupon(
@@ -1053,7 +1054,7 @@ function CouponRow({
       <p className="text-[15px] font-bold text-[var(--color-navy-900)] mt-2">{coupon.descKey ? t(coupon.descKey, lang) : coupon.description}</p>
       {(coupon.amount ?? 0) > 0 && (
         <p className="text-[18px] font-extrabold text-[var(--color-mint-700)] mt-0.5 tabular-nums">
-          {t("coupons.amountOff", lang, { amount: (coupon.amount as number).toLocaleString("ko-KR") })}
+          {t("coupons.amountOff", lang, { amount: (coupon.amount as number).toLocaleString(getLocale(lang)) })}
         </p>
       )}
       {coupon.status === "available" && (

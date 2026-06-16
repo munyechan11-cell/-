@@ -1025,6 +1025,11 @@ const checkInsightRate = (ip: string): boolean => {
   return true;
 };
 
+// AI 출력 언어 — 사장님 UI 언어로 답하도록(4개국어 앱). 미지정 시 한국어.
+const LANG_NAME: Record<string, string> = { ko: '한국어', en: 'English', vi: 'Tiếng Việt', zh: '中文' };
+const langName = (l: any) => LANG_NAME[String(l)] || '한국어';
+const langDirective = (l: any) => `\n[출력 언어] 위 지시와 무관하게 응답 전체를 반드시 ${langName(l)}로만 작성하세요(면책 문구도 그 언어로 번역). 숫자 천단위 콤마·₩ 표기는 유지.`;
+
 // ============================================================
 // 세무 AI (TODO 8-3) — 매출·지출 데이터로 절세 관점의 "과정→결과" 설명 생성.
 // 참고용 추정만 제공하고, 정확한 신고·절세는 세무사 상담을 권한다(면책 명시).
@@ -1032,7 +1037,7 @@ const checkInsightRate = (ip: string): boolean => {
 app.post('/api/ai/tax', async (req, res) => {
   const ip = String(req.ip || 'unknown').split(',')[0].trim();
   if (!checkInsightRate(ip)) return res.status(429).json({ error: '잠시 후 다시 시도해 주세요. (분당 10회 제한)' });
-  const { storeName, bizType, period, revenue, orderCount, expenses } = req.body ?? {};
+  const { storeName, bizType, period, revenue, orderCount, expenses, lang } = req.body ?? {};
   if (typeof revenue !== 'number' || revenue < 0) return res.status(400).json({ error: 'revenue required' });
   const expSafe = expenses && typeof expenses === 'object' ? expenses : {};
   const won = (n: any) => '₩' + (Number(n) || 0).toLocaleString('en-US');
@@ -1052,8 +1057,9 @@ app.post('/api/ai/tax', async (req, res) => {
 위 데이터로 절세 관점의 과정→결과 설명을 작성해 주세요.`;
 
   try {
-    const text = await callLLMText(sys, user, 1500);
+    const text = await callLLMText(sys + langDirective(lang), user, 1500);
     if (text === null) return res.status(503).json({ error: 'AI_NOT_CONFIGURED' });
+    if (!text.trim()) return res.status(502).json({ error: 'AI_EMPTY' }); // 빈 응답(안전필터·조기종료) → 실패 처리
     return res.json({ text });
   } catch (e: any) {
     console.error('[ai/tax]', e?.message);
@@ -1068,7 +1074,7 @@ app.post('/api/ai/tax', async (req, res) => {
 app.post('/api/ai/support', async (req, res) => {
   const ip = String(req.ip || 'unknown').split(',')[0].trim();
   if (!checkInsightRate(ip)) return res.status(429).json({ error: '잠시 후 다시 시도해 주세요. (분당 10회 제한)' });
-  const { storeName, bizType, region } = req.body ?? {};
+  const { storeName, bizType, region, lang } = req.body ?? {};
   const sys = `당신은 한국 소상공인 지원제도 안내 도우미입니다. 아래 매장 정보를 보고 지금 신청해볼 만한 정부·지자체·공공 지원제도를 "맞춤"으로 추천하세요.
 [출력] 3~5개를 "• 제도명 — 한 줄 설명 — 누구에게 좋은지/어떻게 신청" 형식으로. 업종·지역 특성을 반영.
 대표 상시 제도(소상공인 정책자금=저금리 융자, 노란우산공제=폐업·노후 대비+소득공제, 두루누리 사회보험료 지원, 카드수수료 우대(영세가맹점), 1인 소상공인 고용보험료 지원, 온누리·지역화폐 가맹, 지자체 소상공인 지원) 중 적합한 것 + 업종 특화가 있으면 함께.
@@ -1076,8 +1082,9 @@ app.post('/api/ai/support', async (req, res) => {
 마지막 줄에 반드시: "※ 공고·자격은 수시로 바뀌어요. 신청 전 소상공인24(sbiz24.kr)·기업마당(bizinfo.go.kr)에서 꼭 확인하세요."`;
   const user = `매장명: ${String(storeName || '우리 가게').slice(0, 60)} / 업종: ${String(bizType || '일반')} / 지역: ${String(region || '미상').slice(0, 40)}`;
   try {
-    const text = await callLLMText(sys, user, 1100);
+    const text = await callLLMText(sys + langDirective(lang), user, 1100);
     if (text === null) return res.status(503).json({ error: 'AI_NOT_CONFIGURED' });
+    if (!text.trim()) return res.status(502).json({ error: 'AI_EMPTY' });
     return res.json({ text });
   } catch (e: any) {
     console.error('[ai/support]', e?.message);
@@ -1118,7 +1125,7 @@ app.post('/api/ai/insight', async (req, res) => {
 7. 친근한 어조 ('~네요', '~을 추천드려요').
 8. 절대 마크다운 헤더(#) 사용 금지. 일반 줄바꿈만.
 9. 이모지는 답변 시작에 1개만 (예: 📈 / ⭐ / 💔).
-`.trim();
+`.trim() + langDirective((req.body as any)?.lang);
 
   const userMsg = `매장명: ${input.context.storeName ?? '매장'}
 기간: ${input.context.period ?? '최근'}
@@ -2144,7 +2151,7 @@ app.post('/api/marketing/generate', async (req, res) => {
   try {
     const adminApp = getFirebaseAdmin();
     if (!adminApp) return res.status(503).json({ error: 'FIREBASE_ADMIN_NOT_CONFIGURED' });
-    const { storeId, channel, kind, topic, reviewText, rating } = req.body ?? {};
+    const { storeId, channel, kind, topic, reviewText, rating, lang } = req.body ?? {};
     if (!isValidStoreId(storeId)) return res.status(400).json({ error: 'storeId required' });
     // 매장당 분당 10회 (storeId 기준 — 인증 없는 엔드포인트라도 매장 단위로 LLM 비용을 묶음)
     if (!checkMarketingRate(storeId)) {
@@ -2199,7 +2206,7 @@ app.post('/api/marketing/generate', async (req, res) => {
 
     let text: string | null;
     try {
-      text = await callLLMText(sys, userMsg, 900);
+      text = await callLLMText(sys + langDirective(lang), userMsg, 900);
     } catch (e: any) {
       console.error('[marketing/generate] llm', e?.message);
       return res.status(502).json({ error: 'AI_CALL_FAILED' });
@@ -2381,13 +2388,17 @@ app.get('/api/site/:storeId', async (req, res) => {
     const menu = menuSnap.docs.map((d) => d.data() as any)
       .filter((m) => m && m.isAvailable !== false && m.name)
       .slice(0, 60)
-      .map((m) => ({
-        name: String(m.name).slice(0, 60),
-        price: Number(m.price) || 0,
-        category: String(m.category || '').slice(0, 30),
-        imageUrl: typeof m.imageUrl === 'string' ? m.imageUrl : '',
-        description: typeof m.description === 'string' ? m.description.slice(0, 200) : '',
-      }));
+      .map((m) => {
+        // 메뉴 사진이 인라인 base64 data URL 이면 응답에서 제외 — 공개 JSON 폭증·egress·LCP 방지(갤러리처럼 별도 서빙 전까지 안전장치). http(s) URL 만 통과.
+        const raw = typeof m.imageUrl === 'string' ? m.imageUrl : '';
+        return {
+          name: String(m.name).slice(0, 60),
+          price: Number(m.price) || 0,
+          category: String(m.category || '').slice(0, 30),
+          imageUrl: raw.startsWith('data:') || raw.length > 2048 ? '' : raw,
+          description: typeof m.description === 'string' ? m.description.slice(0, 200) : '',
+        };
+      });
 
     // 리뷰 + 갤러리 — photos 컬렉션.
     const photoSnap = await fs.collection('photos').where('storeId', '==', storeId).limit(400).get();
@@ -2414,13 +2425,11 @@ app.get('/api/site/:storeId', async (req, res) => {
     return res.json({
       store: {
         name: String(owner?.restaurantName || '우리 가게').slice(0, 60),
-        industry: cfg?.industry || 'general',
-        theme: cfg?.theme || '',
         fontTheme: typeof cfg?.fontTheme === 'string' ? cfg.fontTheme : '', // 8-1 글꼴 프리셋
         tagline: typeof cfg?.tagline === 'string' ? cfg.tagline.slice(0, 80) : '', // 사이트 부제(선택)
         address: typeof cfg?.address === 'string' ? cfg.address.slice(0, 120) : '', // 사이트 주소(선택)
-        // 개인 휴대폰은 노출하지 않음 — 매장 대표번호(AI 예약 회선)만.
-        phone: typeof cfg?.aiReservation?.phoneNumber === 'string' ? cfg.aiReservation.phoneNumber : '',
+        // 개인 휴대폰은 노출하지 않음 — AI 예약을 켠 매장의 대표번호만(끄면 비노출).
+        phone: cfg?.aiReservation?.enabled === true && typeof cfg?.aiReservation?.phoneNumber === 'string' ? cfg.aiReservation.phoneNumber : '',
         businessHours: owner?.businessHours || null,
         temporarilyClosed: !!owner?.temporarilyClosed,
         instagram: ch.instagram?.username || cfg?.publishing?.instagramUsername || '',

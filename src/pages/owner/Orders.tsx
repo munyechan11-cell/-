@@ -329,7 +329,7 @@ export default function OwnerOrders() {
                     <p className="text-[14px] font-bold text-[var(--color-navy-900)] mb-1">{c.description}</p>
                     {(c.amount ?? 0) > 0 && (
                       <p className="text-[15px] font-extrabold text-[var(--color-mint-700)] mb-3 tabular-nums">
-                        {t("coupons.amountOff", lang, { amount: (c.amount as number).toLocaleString("ko-KR") })} · {t("oorders.pendingCoupons.autoApply", lang)}
+                        {t("coupons.amountOff", lang, { amount: (c.amount as number).toLocaleString(getLocale(lang)) })} · {t("oorders.pendingCoupons.autoApply", lang)}
                       </p>
                     )}
                     <div className="grid grid-cols-2 gap-2">

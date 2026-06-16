@@ -1667,6 +1667,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         targets.forEach((o) =>
           batch.set(doc(db!, "orders", o.id), { paymentStatus: "paid", paymentMethod: "card" }, { merge: true })
         );
+        // 현금 승인(approvePayment)과 동일하게 테이블도 'paid'(정리 대기)로 — 카드결제 후에도 사장님 테이블맵에 정리 신호가 뜨도록.
+        const tableId = `${params.storeId}_${params.tableNumber}`;
+        if (tablesRef.current.some((t) => t.id === tableId)) {
+          batch.set(doc(db!, "tables", tableId), { status: "paid" }, { merge: true });
+        }
         await batch.commit();
       }
 

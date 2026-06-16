@@ -223,6 +223,7 @@ export async function askInsight(input: {
   storeId: string;
   question: string;
   context: InsightContext;
+  lang?: string; // #3: 사장님 언어로 응답
 }): Promise<string> {
   const res = await fetch(api("/api/ai/insight"), {
     method: "POST",

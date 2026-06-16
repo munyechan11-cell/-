@@ -31,7 +31,7 @@ import {
 } from "../../lib/pushNotifications";
 import type { Industry, RewardType } from "../../lib/types";
 import { THEMES, applyTheme, defaultThemeForIndustry } from "../../lib/themes";
-import { SITE_FONTS } from "../../lib/siteFonts";
+import { SITE_FONTS, googleFontsHref } from "../../lib/siteFonts";
 
 export default function BrandSettings() {
   const { currentUser, updateBrandSettings, updateStoreConfig, updateStoreLocation } = useStore();
@@ -114,15 +114,18 @@ export default function BrandSettings() {
   const [fontTheme, setFontTheme] = useState(cfg?.fontTheme ?? "editorial");
   const [tagline, setTagline] = useState(cfg?.tagline ?? "");
   const [address, setAddress] = useState(cfg?.address ?? "");
-  // 글꼴 프리셋 미리보기용 — 모든 프리셋 폰트를 1회 로드
+  // 글꼴 프리셋 미리보기용 — 모든 프리셋 폰트를 1회 로드, 화면 떠날 때 제거(무거운 폰트 잔류 방지)
   useEffect(() => {
     const id = "gyeol-font-preview";
-    if (document.getElementById(id)) return;
-    const link = document.createElement("link");
-    link.id = id;
-    link.rel = "stylesheet";
-    link.href = `https://fonts.googleapis.com/css2?family=${SITE_FONTS.map((f) => f.google).join("&family=")}&display=swap`;
-    document.head.appendChild(link);
+    let link = document.getElementById(id) as HTMLLinkElement | null;
+    if (!link) {
+      link = document.createElement("link");
+      link.id = id;
+      link.rel = "stylesheet";
+      link.href = googleFontsHref(SITE_FONTS.map((f) => f.google));
+      document.head.appendChild(link);
+    }
+    return () => { document.getElementById(id)?.remove(); };
   }, []);
   // AI 전화 예약 — 가게마다 전화번호·인사말이 다르므로 매장별 설정
   const [aiResEnabled, setAiResEnabled] = useState(!!cfg?.aiReservation?.enabled);

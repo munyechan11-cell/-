@@ -150,16 +150,19 @@ export default function Settlement() {
           bizType: owner?.storeConfig?.industry ?? "general",
           period: t(`settle.period.${period}`, lang),
           revenue, orderCount, expenses: byCat,
+          lang, // #3: 사장님 언어로 응답
         }),
       });
       const d = await res.json().catch(() => ({} as any));
       if (!res.ok) {
-        showToast(d?.error === "AI_NOT_CONFIGURED" ? t("tax.notConfigured", lang) : t("tax.failed", lang), "error");
+        showToast(d?.error === "AI_NOT_CONFIGURED" ? t("ai.notConfigured", lang) : t("ai.failed", lang), "error");
         return;
       }
-      setTaxResult(String(d.text || ""));
+      const text = String(d.text || "").trim();
+      if (!text) { showToast(t("ai.failed", lang), "error"); return; } // #9/#15: 빈 응답 실패 처리
+      setTaxResult(text);
     } catch {
-      showToast(t("tax.failed", lang), "error");
+      showToast(t("ai.failed", lang), "error");
     } finally {
       setTaxBusy(false);
     }
