@@ -2416,6 +2416,9 @@ app.get('/api/site/:storeId', async (req, res) => {
         name: String(owner?.restaurantName || '우리 가게').slice(0, 60),
         industry: cfg?.industry || 'general',
         theme: cfg?.theme || '',
+        fontTheme: typeof cfg?.fontTheme === 'string' ? cfg.fontTheme : '', // 8-1 글꼴 프리셋
+        tagline: typeof cfg?.tagline === 'string' ? cfg.tagline.slice(0, 80) : '', // 사이트 부제(선택)
+        address: typeof cfg?.address === 'string' ? cfg.address.slice(0, 120) : '', // 사이트 주소(선택)
         // 개인 휴대폰은 노출하지 않음 — 매장 대표번호(AI 예약 회선)만.
         phone: typeof cfg?.aiReservation?.phoneNumber === 'string' ? cfg.aiReservation.phoneNumber : '',
         businessHours: owner?.businessHours || null,

@@ -28,6 +28,12 @@ export interface StoreConfig {
   inventoryMode?: "full" | "simple" | "ai";
   /** 매장 색 테마 id (src/lib/themes.ts). 미설정 시 업종 기본 테마로 폴백 */
   theme?: string;
+  /** 가게 공개 사이트 글꼴 프리셋 id (src/lib/siteFonts.ts, TODO 8-1). 미설정 시 editorial. */
+  fontTheme?: string;
+  /** 사이트 부제/한줄 소개 (예: "눈꽃빙수·수플레"). 공개 사이트 Hero·헤더에 표시. */
+  tagline?: string;
+  /** 매장 주소 (공개 사이트 '찾아오시는 길'에 표시·지도 링크). */
+  address?: string;
   /** AI 전화 예약 설정 — 가게마다 전화번호·인사말이 다르므로 매장별 설정. 서버 예약 두뇌(server.ts)가 참조. */
   aiReservation?: {
     /** 이 매장에서 AI 전화 예약을 켰는지 */

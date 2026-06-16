@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { api } from "../lib/api";
+import { getSiteFont } from "../lib/siteFonts";
 
 /**
  * 가게 공개 브랜드 사이트 (TODO 8-2).
@@ -15,6 +16,9 @@ type SiteData = {
     name: string;
     industry: string;
     theme: string;
+    fontTheme: string;
+    tagline: string;
+    address: string;
     phone: string;
     businessHours: { weekly?: Array<{ open?: string; close?: string; closed?: boolean }>; open24h?: boolean } | null;
     temporarilyClosed: boolean;
@@ -45,6 +49,20 @@ export default function StoreSite() {
       .catch(() => { if (alive) setState("error"); });
     return () => { alive = false; };
   }, [storeId]);
+
+  // 8-1: 선택된 글꼴 프리셋의 Google Fonts 를 head 에 로드(프리셋 바뀌면 href 갱신)
+  const siteFont = getSiteFont(data?.store?.fontTheme);
+  useEffect(() => {
+    const id = "gyeol-site-font";
+    let link = document.getElementById(id) as HTMLLinkElement | null;
+    if (!link) {
+      link = document.createElement("link");
+      link.id = id;
+      link.rel = "stylesheet";
+      document.head.appendChild(link);
+    }
+    link.href = `https://fonts.googleapis.com/css2?family=${siteFont.google}&display=swap`;
+  }, [siteFont.google]);
 
   const categories = useMemo(() => {
     if (!data) return [];
@@ -77,12 +95,16 @@ export default function StoreSite() {
   const orderHref = `/customer/store/${encodeURIComponent(storeId)}`;
   const avgRating = reviews.length ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length : 0;
 
+  const displayStyle = { fontFamily: "var(--site-display)" };
   return (
-    <div className="min-h-screen bg-[#faf7f2] text-[#2b2622] antialiased">
+    <div
+      className="min-h-screen bg-[#faf7f2] text-[#2b2622] antialiased"
+      style={{ ["--site-display" as any]: siteFont.display, ["--site-body" as any]: siteFont.body, fontFamily: "var(--site-body)" }}
+    >
       {/* ===== 상단 바 (스티키) ===== */}
       <nav className="sticky top-0 z-30 bg-[#faf7f2]/85 backdrop-blur border-b border-[#ece4d8]">
         <div className="max-w-[1080px] mx-auto px-5 h-14 flex items-center justify-between">
-          <span className="font-serif text-[18px] tracking-tight text-[#2b2622]">{store.name}</span>
+          <span className="text-[18px] tracking-tight text-[#2b2622]" style={displayStyle}>{store.name}</span>
           <div className="hidden sm:flex items-center gap-6 text-[13px] font-semibold text-[#6b6055]">
             <a href="#menu" className="hover:text-[#9a6b43] transition-colors">메뉴</a>
             {reviews.length > 0 && <a href="#reviews" className="hover:text-[#9a6b43] transition-colors">리뷰</a>}
@@ -105,7 +127,8 @@ export default function StoreSite() {
           <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/15 to-black/30" />
           <div className="relative h-full max-w-[1080px] mx-auto px-6 flex flex-col items-center justify-center text-center text-white">
             <p className="text-[12px] tracking-[0.35em] uppercase opacity-80 mb-4">Welcome</p>
-            <h1 className="font-serif text-[40px] sm:text-[64px] leading-[1.05] tracking-tight drop-shadow-sm">{store.name}</h1>
+            <h1 className="text-[40px] sm:text-[64px] leading-[1.05] tracking-tight drop-shadow-sm" style={displayStyle}>{store.name}</h1>
+            {store.tagline && <p className="mt-3 text-[15px] sm:text-[17px] text-white/90 font-medium tracking-wide">{store.tagline}</p>}
             {store.temporarilyClosed ? (
               <span className="mt-5 px-4 py-1.5 rounded-full bg-white/90 text-[#9a3b2f] text-[13px] font-bold">오늘은 임시 휴무예요</span>
             ) : (
@@ -132,7 +155,7 @@ export default function StoreSite() {
           <div className="space-y-16 mt-12">
             {categories.map(([cat, items]) => (
               <div key={cat}>
-                <h3 className="font-serif text-[24px] text-[#2b2622] mb-6 pb-2 border-b border-[#e8ddcd]">{cat}</h3>
+                <h3 className="text-[24px] text-[#2b2622] mb-6 pb-2 border-b border-[#e8ddcd]" style={displayStyle}>{cat}</h3>
                 <div className="grid grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-7">
                   {items.map((m, i) => (
                     <article key={i} className="group">
@@ -140,7 +163,7 @@ export default function StoreSite() {
                         {m.imageUrl ? (
                           <img src={m.imageUrl} alt={m.name} className="w-full h-full object-cover group-hover:scale-[1.04] transition-transform duration-500" />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center text-[#c3b49d] font-serif text-[28px]">{m.name[0]}</div>
+                          <div className="w-full h-full flex items-center justify-center text-[#c3b49d] text-[28px]" style={displayStyle}>{m.name[0]}</div>
                         )}
                       </div>
                       <div className="flex items-baseline justify-between gap-2">
@@ -186,7 +209,7 @@ export default function StoreSite() {
         <SectionTitle eyebrow="Visit Us" title="방문 안내" />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mt-12">
           <div>
-            <h3 className="font-serif text-[20px] mb-4">영업 시간</h3>
+            <h3 className="text-[20px] mb-4" style={displayStyle}>영업 시간</h3>
             {store.businessHours?.open24h ? (
               <p className="text-[15px] font-bold text-[#9a6b43]">연중무휴 24시간</p>
             ) : store.businessHours?.weekly?.length ? (
@@ -205,7 +228,12 @@ export default function StoreSite() {
             )}
           </div>
           <div className="space-y-5">
-            <h3 className="font-serif text-[20px] mb-1">연락 · 채널</h3>
+            <h3 className="text-[20px] mb-1" style={displayStyle}>연락 · 찾아오는 길</h3>
+            {store.address && (
+              <a href={`https://map.kakao.com/?q=${encodeURIComponent(store.address)}`} target="_blank" rel="noopener noreferrer" className="block text-[14px] text-[#3d3630] leading-relaxed hover:text-[#9a6b43]">
+                📍 {store.address}
+              </a>
+            )}
             {store.phone && (
               <a href={`tel:${store.phone}`} className="block text-[15px] font-bold text-[#9a6b43]">{store.phone}</a>
             )}
@@ -224,7 +252,7 @@ export default function StoreSite() {
       {/* ===== 푸터 ===== */}
       <footer className="bg-[#2b2622] text-[#cabfae] py-12">
         <div className="max-w-[1080px] mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <span className="font-serif text-[18px] text-white">{store.name}</span>
+          <span className="text-[18px] text-white" style={displayStyle}>{store.name}</span>
           <span className="text-[12px] text-[#8c8170]">
             결(Gyeol)로 만든 가게 사이트
           </span>
@@ -238,7 +266,7 @@ function SectionTitle({ eyebrow, title }: { eyebrow: string; title: string }) {
   return (
     <div className="text-center">
       <p className="text-[11px] tracking-[0.3em] uppercase text-[#b08e63] font-bold mb-3">{eyebrow}</p>
-      <h2 className="font-serif text-[30px] sm:text-[40px] text-[#2b2622] tracking-tight">{title}</h2>
+      <h2 className="text-[30px] sm:text-[40px] text-[#2b2622] tracking-tight" style={{ fontFamily: "var(--site-display)" }}>{title}</h2>
     </div>
   );
 }

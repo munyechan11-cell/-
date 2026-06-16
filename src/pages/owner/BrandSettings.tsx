@@ -31,6 +31,7 @@ import {
 } from "../../lib/pushNotifications";
 import type { Industry, RewardType } from "../../lib/types";
 import { THEMES, applyTheme, defaultThemeForIndustry } from "../../lib/themes";
+import { SITE_FONTS } from "../../lib/siteFonts";
 
 export default function BrandSettings() {
   const { currentUser, updateBrandSettings, updateStoreConfig, updateStoreLocation } = useStore();
@@ -109,6 +110,20 @@ export default function BrandSettings() {
   const [tpBusy, setTpBusy] = useState(false);
   const [kioskEnabled, setKioskEnabled] = useState(!!cfg?.kioskEnabled);
   const [theme, setTheme] = useState(cfg?.theme ?? defaultThemeForIndustry(cfg?.industry));
+  // 8-1 / 사이트 — 공개 사이트 글꼴 프리셋 + 부제·주소
+  const [fontTheme, setFontTheme] = useState(cfg?.fontTheme ?? "editorial");
+  const [tagline, setTagline] = useState(cfg?.tagline ?? "");
+  const [address, setAddress] = useState(cfg?.address ?? "");
+  // 글꼴 프리셋 미리보기용 — 모든 프리셋 폰트를 1회 로드
+  useEffect(() => {
+    const id = "gyeol-font-preview";
+    if (document.getElementById(id)) return;
+    const link = document.createElement("link");
+    link.id = id;
+    link.rel = "stylesheet";
+    link.href = `https://fonts.googleapis.com/css2?family=${SITE_FONTS.map((f) => f.google).join("&family=")}&display=swap`;
+    document.head.appendChild(link);
+  }, []);
   // AI 전화 예약 — 가게마다 전화번호·인사말이 다르므로 매장별 설정
   const [aiResEnabled, setAiResEnabled] = useState(!!cfg?.aiReservation?.enabled);
   const [aiResPhone, setAiResPhone] = useState(cfg?.aiReservation?.phoneNumber ?? "");
@@ -162,6 +177,9 @@ export default function BrandSettings() {
       tossClientKey: (tossKey || null) as any,
       kioskEnabled,
       theme,
+      fontTheme,
+      tagline: tagline.trim(),
+      address: address.trim(),
       aiReservation: {
         enabled: aiResEnabled,
         phoneNumber: aiResPhone.replace(/[^\d+]/g, ""), // 숫자·+ 만 — number→storeId 매핑 일관성
@@ -541,6 +559,32 @@ export default function BrandSettings() {
           <p className="text-[11px] text-[var(--color-ink-400)] font-medium mt-1">
             {t("obs.theme.saveHint", lang)}
           </p>
+        </Sec>
+
+        <Sec title={t("obs.sec.siteBrand", lang)}>
+          {/* 8-1: 공개 사이트 글꼴 프리셋 */}
+          <div>
+            <label className="text-[12px] font-bold text-[var(--color-ink-600)] mb-1.5 block">{t("obs.font.label", lang)}</label>
+            <div className="grid grid-cols-2 gap-2">
+              {SITE_FONTS.map((f) => {
+                const active = fontTheme === f.id;
+                return (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => setFontTheme(f.id)}
+                    className={`rounded-xl border p-3 text-left transition-colors ${active ? "border-[var(--color-navy-700)] bg-[var(--color-navy-50)] ring-1 ring-[var(--color-navy-700)]" : "border-[var(--color-line)] bg-white"}`}
+                  >
+                    <p className="text-[20px] text-[var(--color-navy-900)] leading-none" style={{ fontFamily: f.display }}>{t("obs.font.sample", lang)}</p>
+                    <p className="text-[11.5px] text-[var(--color-ink-500)] mt-1.5">{t(f.nameKey, lang)}</p>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-[11px] text-[var(--color-ink-400)] mt-1.5 leading-relaxed">{t("obs.font.hint", lang)}</p>
+          </div>
+          <Input label={t("obs.site.tagline", lang)} value={tagline} onChange={(e) => setTagline(e.target.value)} placeholder={t("obs.site.taglinePh", lang)} />
+          <Input label={t("obs.site.address", lang)} value={address} onChange={(e) => setAddress(e.target.value)} placeholder={t("obs.site.addressPh", lang)} />
         </Sec>
 
         <Sec title={t("obs.sec.tierCustom", lang)} group={t("obs.group.marketing", lang)} defaultOpen={false}>
