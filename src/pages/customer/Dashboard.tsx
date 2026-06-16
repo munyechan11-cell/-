@@ -351,11 +351,13 @@ export default function CustomerDashboard() {
             (!sessionStart || (c.issuedAt ?? "") >= sessionStart)
         );
         if (rc?.enabled && realReview && !alreadyHas) {
+          const custom = rc.description?.trim();
           await issueCoupon(
             currentUser.id, storeId, "review",
-            rc.description?.trim() || t("review.rewardDefault", lang),
+            custom || t("review.rewardDefault", "ko"),
             Math.max(0, Number(rc.amount) || 0),
-            { silent: true } // 손님 화면에 '발급됨'(사장 시점) 토스트 억제 — 도착 알림으로 일원화
+            // silent: 발급 토스트 억제(도착 알림으로 일원화). custom 없으면 descKey 저장 → 손님 언어로 번역 표시(#20)
+            { silent: true, ...(custom ? {} : { descKey: "review.rewardDefault" }) }
           );
         }
       }
@@ -655,6 +657,14 @@ export default function CustomerDashboard() {
 
       {tab === "menu" && (
         <div className="px-5 pt-3" style={{ paddingBottom: "calc(64px + env(safe-area-inset-bottom) + 88px)" }}>
+          {/* #19: 사이트/홈에서 들어와 테이블이 없으면 주문 버튼이 막히므로, 어떻게 자리를 잡는지 안내 */}
+          {!myTable && (
+            <Card padding="md" className="mt-2 mb-3 border-[1.5px] border-[var(--color-mint-300)] bg-[var(--color-mint-50)]">
+              <p className="text-[13.5px] font-extrabold text-[var(--color-navy-900)]">{t("menu.needTableTitle", lang)}</p>
+              <p className="text-[12px] text-[var(--color-ink-600)] mt-0.5 leading-relaxed">{t("menu.needTableHint", lang)}</p>
+              <Link to="/scan" className="inline-flex items-center justify-center gap-1 mt-2.5 h-10 px-5 rounded-full bg-[var(--color-navy-700)] text-white text-[12.5px] font-bold">{t("menu.needTableCta", lang)}</Link>
+            </Card>
+          )}
           {storeMenus.length === 0 ? (
             <Card padding="lg" className="text-center mt-2">
               <UtensilsCrossed className="w-8 h-8 text-[var(--color-ink-300)] mx-auto mb-2" />

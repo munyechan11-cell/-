@@ -256,13 +256,14 @@ export default function OwnerMarketing() {
           customers={bulkModal.customers}
           storeId={storeId}
           onClose={() => setBulkModal(null)}
-          onConfirm={async (type, desc, amount) => {
+          onConfirm={async (type, desc, amount, descKey) => {
             await bulkIssueCoupon(
               bulkModal.customers.map((u) => u.id),
               storeId,
               type,
               desc,
-              amount
+              amount,
+              descKey
             );
             setBulkModal(null);
           }}
@@ -418,7 +419,7 @@ function BulkCouponModal({
   customers: User[];
   storeId: string;
   onClose: () => void;
-  onConfirm: (type: string, desc: string, amount?: number) => Promise<void> | void;
+  onConfirm: (type: string, desc: string, amount?: number, descKey?: string) => Promise<void> | void;
 }) {
   const lang = useLanguage();
   // busy 중엔 onClose 가 차단되므로 useModalChrome 의 ESC 도 안전.
@@ -433,6 +434,7 @@ function BulkCouponModal({
         : t("mkt.coupon.descPh.tier", lang);
   const [type, setType] = useState(defaultType);
   const [desc, setDesc] = useState(defaultDesc);
+  const [descKey, setDescKey] = useState<string | undefined>(undefined); // 프리셋 선택 시 i18n 키 추적(직접 수정하면 해제) #8
   const [amount, setAmount] = useState(""); // 금액 쿠폰(8-7) — 비우면 일반 쿠폰
   const [busy, setBusy] = useState(false);
 
@@ -440,7 +442,7 @@ function BulkCouponModal({
     if (busy || !desc.trim()) return;
     setBusy(true);
     try {
-      await onConfirm(type.trim() || defaultType, desc.trim(), Math.max(0, Number(amount) || 0));
+      await onConfirm(type.trim() || defaultType, desc.trim(), Math.max(0, Number(amount) || 0), descKey);
     } finally {
       setBusy(false);
     }
@@ -476,6 +478,7 @@ function BulkCouponModal({
                   onClick={() => {
                     setType(p.type);
                     setDesc(t(p.key, lang));
+                    setDescKey(p.key); // 프리셋 → 손님 언어로 번역 표시(#8)
                     setAmount(p.amount ? String(p.amount) : "");
                   }}
                   className={`h-8 px-3 rounded-full text-[12px] font-bold border transition-colors ${
@@ -499,7 +502,7 @@ function BulkCouponModal({
           <Input
             label={t("mkt.coupon.desc", lang)}
             value={desc}
-            onChange={(e) => setDesc(e.target.value)}
+            onChange={(e) => { setDesc(e.target.value); setDescKey(undefined); }} // 직접 수정하면 번역 키 해제(자유 문구 보존) #8
           />
           <div>
             <Input

@@ -74,6 +74,9 @@ const dict: Record<string, string> = {
   "store.closedDesc": "Vui lòng quay lại trong giờ mở cửa, hoặc liên hệ chủ quán.",
 
   "menu.empty": "Chưa có món nào.",
+  "menu.needTableTitle": "Hãy chọn bàn trước",
+  "menu.needTableHint": "Quét QR bàn hoặc nhờ nhân viên xếp chỗ. Bạn có thể đặt món sau khi đã có bàn.",
+  "menu.needTableCta": "Quét QR",
   "menu.orderToTable": "Đặt cho bàn {n}",
   "menu.needTable": "Phải nhận bàn trước khi đặt",
   "menu.add": "Thêm",

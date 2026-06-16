@@ -74,6 +74,9 @@ const dict: Record<string, string> = {
   "store.closedDesc": "Please come back during business hours, or contact the owner directly.",
 
   "menu.empty": "No menu items yet.",
+  "menu.needTableTitle": "Grab a table first",
+  "menu.needTableHint": "Scan the table QR or ask staff to seat you. You can order once you're seated.",
+  "menu.needTableCta": "Scan QR",
   "menu.orderToTable": "Order to table {n}",
   "menu.needTable": "Seat at a table first to order",
   "menu.add": "Add",

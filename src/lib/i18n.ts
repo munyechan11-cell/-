@@ -158,6 +158,9 @@ const ko: Dict = {
 
   // 메뉴
   "menu.empty": "등록된 메뉴가 없습니다.",
+  "menu.needTableTitle": "먼저 테이블을 잡아주세요",
+  "menu.needTableHint": "테이블 QR을 스캔하거나 직원에게 자리 배정을 요청하세요. 자리를 잡아야 주문할 수 있어요.",
+  "menu.needTableCta": "QR 스캔하기",
   "menu.orderToTable": "테이블 {n}에 주문",
   "menu.needTable": "테이블 이용 후 주문 가능",
   "menu.add": "담기",

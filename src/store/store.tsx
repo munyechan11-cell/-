@@ -116,7 +116,7 @@ interface StoreState {
   }) => Promise<void>;
   /** 사장님 측 — 손님 강제 퇴장 (미결제 주문은 cancelled 로) */
   evictTable: (tableNumber: number, storeId: string) => Promise<void>;
-  issueCoupon: (customerId: string, storeId: string, type: string, description: string, amount?: number, opts?: { silent?: boolean }) => Promise<void>;
+  issueCoupon: (customerId: string, storeId: string, type: string, description: string, amount?: number, opts?: { silent?: boolean; descKey?: string }) => Promise<void>;
   requestCouponUse: (couponId: string, tableNumber?: number) => Promise<void>;
   cancelCouponRequest: (couponId: string) => Promise<void>;
   approveCouponUse: (couponId: string) => Promise<void>;
@@ -207,7 +207,7 @@ interface StoreState {
   /** 직원 개별 추가 권한(extraPerms 경로 목록) 지정 — 등급 기본을 넘어 개방. */
   setStaffPerms: (userId: string, perms: string[]) => Promise<void>;
   setCustomerTier: (customerId: string, storeId: string, tier: Tier | "auto") => Promise<void>;
-  bulkIssueCoupon: (customerIds: string[], storeId: string, type: string, description: string, amount?: number) => Promise<void>;
+  bulkIssueCoupon: (customerIds: string[], storeId: string, type: string, description: string, amount?: number, descKey?: string) => Promise<void>;
   updateBrandSettings: (storeId: string, data: Partial<User>) => Promise<void>;
   updateStoreConfig: (storeId: string, partial: Partial<NonNullable<User["storeConfig"]>>) => Promise<void>;
   updateStoreLocation: (storeId: string, lat: number, lng: number) => Promise<void>;
@@ -1106,7 +1106,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   // ============ COUPONS ============
   const issueCoupon = useCallback(
-    async (customerId: string, storeId: string, type: string, description: string, amount?: number, opts?: { silent?: boolean }) => {
+    async (customerId: string, storeId: string, type: string, description: string, amount?: number, opts?: { silent?: boolean; descKey?: string }) => {
       const amt = Math.max(0, Math.round(Number(amount) || 0));
       const c: Coupon = {
         id: generateId(),
@@ -1115,6 +1115,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         type,
         description,
         ...(amt > 0 ? { amount: amt } : {}), // 금액 쿠폰(8-7)
+        ...(opts?.descKey ? { descKey: opts.descKey } : {}), // i18n 키 — 손님 언어로 번역 표시(#8/#20)
         status: "available",
         issuedAt: new Date().toISOString(),
       };
@@ -1923,7 +1924,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   );
 
   const bulkIssueCoupon = useCallback(
-    async (customerIds: string[], storeId: string, type: string, description: string, amount?: number) => {
+    async (customerIds: string[], storeId: string, type: string, description: string, amount?: number, descKey?: string) => {
       if (!db) return;
       const amt = Math.max(0, Math.round(Number(amount) || 0)); // 금액 쿠폰(8-7)
       // 이미 같은 종류의 미사용 쿠폰을 보유한 손님은 제외 — 재방문/연타 시 중복 발급 방지
@@ -1956,6 +1957,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             type,
             description,
             ...(amt > 0 ? { amount: amt } : {}),
+            ...(descKey ? { descKey } : {}), // i18n 키 — 손님 언어로 번역 표시(#8)
             status: "available",
             issuedAt: now,
           });

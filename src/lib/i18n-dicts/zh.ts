@@ -74,6 +74,9 @@ const dict: Record<string, string> = {
   "store.closedDesc": "请在营业时间内再来,或直接联系店主。",
 
   "menu.empty": "暂无菜单。",
+  "menu.needTableTitle": "请先就座",
+  "menu.needTableHint": "扫描桌台二维码或请店员安排座位。就座后即可点单。",
+  "menu.needTableCta": "扫码",
   "menu.orderToTable": "下单到 {n} 号桌",
   "menu.needTable": "需先就座才能下单",
   "menu.add": "加入",
