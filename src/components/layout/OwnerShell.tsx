@@ -22,6 +22,7 @@ import {
   Megaphone,
   Package,
   Wallet,
+  Landmark,
   Monitor,
   Tablet,
   Zap,
@@ -79,6 +80,7 @@ const NAV: NavItem[] = [
   { to: "/biz/owner/inventory", labelKey: "ownerNav.inventory", icon: Package, group: "management" },
   { to: "/biz/owner/statistics", labelKey: "ownerNav.statistics", icon: BarChart3, group: "management" },
   { to: "/biz/owner/settlement", labelKey: "ownerNav.settlement", icon: Wallet, group: "management" },
+  { to: "/biz/owner/support", labelKey: "ownerNav.support", icon: Landmark, group: "management" },
   { to: "/biz/owner/staff", labelKey: "ownerNav.staff", icon: Briefcase, group: "management" },
   // 설정
   { to: "/biz/owner/qr-print", labelKey: "ownerNav.qrPrint", icon: QrCode, group: "settings" },
