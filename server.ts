@@ -2309,7 +2309,7 @@ app.post('/api/marketing/publish', async (req, res) => {
     // 미디어 구성: 영상(릴스) > 사진 여러 장(캐러셀) > 사진 1장 / imageUrl(호환).
     // photoId/photoIds 는 우리 서버가 그 매장 사진을 공개 이미지로 서빙하는 URL(base64 → 공개 URL).
     const proto = String(req.headers['x-forwarded-proto'] || req.protocol || 'https').split(',')[0];
-    const toImgUrl = (id: string) => `${proto}://${req.get('host')}/api/marketing/image/${encodeURIComponent(id)}`;
+    const toImgUrl = (id: string) => `${proto}://${req.get('host')}/api/marketing/image/${encodeURIComponent(id)}?storeId=${encodeURIComponent(storeId)}`;
     let mediaItems: MediaItem[] = [];
     if (videoUrl && /^https:\/\/.+/i.test(String(videoUrl))) {
       mediaItems = [{ type: 'video', url: String(videoUrl) }]; // 릴스 — 공개 HTTPS 영상 URL (Zernio 가 직접 fetch)
@@ -2342,10 +2342,13 @@ app.get('/api/marketing/image/:photoId', async (req, res) => {
     const adminApp = getFirebaseAdmin();
     if (!adminApp) return res.status(503).end();
     const photoId = String(req.params.photoId || '');
-    if (!isValidStoreId(photoId)) return res.status(400).end();
+    const storeId = String(req.query.storeId || '');
+    if (!isValidStoreId(photoId) || !isValidStoreId(storeId)) return res.status(400).end();
     const snap = await adminApp.firestore().collection('photos').doc(photoId).get();
     if (!snap.exists) return res.status(404).end();
-    const img = (snap.data() as any)?.imageData;
+    const pdata = snap.data() as any;
+    if (pdata?.storeId !== storeId) return res.status(404).end(); // 매장 경계 강제 — 타매장 사진 IDOR 차단
+    const img = pdata?.imageData;
     if (typeof img !== 'string') return res.status(404).end();
     const m = img.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
     if (!m) return res.status(404).end();
@@ -2370,7 +2373,7 @@ app.get('/api/site/:storeId', async (req, res) => {
     const ownerSnap = await fs.collection('users').doc(storeId).get();
     if (!ownerSnap.exists) return res.status(404).json({ error: 'store not found' });
     const owner = ownerSnap.data() as any;
-    if (owner?.role && owner.role !== 'owner') return res.status(404).json({ error: 'not a store' });
+    if (owner?.role !== 'owner') return res.status(404).json({ error: 'not a store' }); // 명시적 owner만(fail-closed)
     const cfg = owner?.storeConfig ?? {};
 
     // 메뉴 — 판매중인 것만(최대 60). 카테고리 보존.
@@ -2398,11 +2401,11 @@ app.get('/api/site/:storeId', async (req, res) => {
         text: String(p.reviewText).slice(0, 280),
         name: (String(p.customerName || '').trim()[0] || '·') + '님', // 이름 첫 글자만 노출
         date: String(p.createdAt || '').slice(0, 10),
-        photoId: typeof p.imageData === 'string' ? p.id : null,
+        photoId: null, // 손님 리뷰 사진은 공개 동의 절차 전까지 미노출(개인정보 — 얼굴 등 가능)
       }));
-    // 갤러리(히어로/배경) — imageData 있는 사진 id (최신 우선, 최대 8)
+    // 갤러리(히어로/배경) — 매장 소유 '메뉴' 사진만(손님·리뷰 사진 제외: 동의 없는 개인정보 노출 방지)
     const gallery = photos
-      .filter((p) => typeof p.imageData === 'string')
+      .filter((p) => p.type === 'menu' && typeof p.imageData === 'string')
       .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
       .slice(0, 8)
       .map((p) => p.id);

@@ -26,7 +26,9 @@ type SiteData = {
 };
 
 const DAY_KO = ["일", "월", "화", "수", "목", "금", "토"]; // weekly[0]=일요일 (getDay 규약)
-const imgUrl = (photoId: string) => api(`/api/marketing/image/${encodeURIComponent(photoId)}`);
+// 이미지 서빙은 매장 경계 검증을 위해 ?storeId= 필수 (타매장 사진 IDOR 차단)
+const imgUrl = (photoId: string, storeId: string) =>
+  api(`/api/marketing/image/${encodeURIComponent(photoId)}?storeId=${encodeURIComponent(storeId)}`);
 const won = (n: number) => "₩" + (n || 0).toLocaleString("ko-KR");
 
 export default function StoreSite() {
@@ -96,7 +98,7 @@ export default function StoreSite() {
       <header className="relative">
         <div className="relative h-[78vh] min-h-[460px] w-full overflow-hidden">
           {hero ? (
-            <img src={imgUrl(hero)} alt="" className="absolute inset-0 w-full h-full object-cover" />
+            <img src={imgUrl(hero, storeId)} alt="" className="absolute inset-0 w-full h-full object-cover" />
           ) : (
             <div className="absolute inset-0 bg-gradient-to-br from-[#e9ddcb] to-[#cbb79a]" />
           )}
@@ -166,7 +168,7 @@ export default function StoreSite() {
                   <div className="text-[#f0a82e] text-[15px] mb-3">{"★".repeat(Math.max(1, Math.min(5, r.rating)))}<span className="text-[#e0d6c6]">{"★".repeat(5 - Math.max(1, Math.min(5, r.rating)))}</span></div>
                   <blockquote className="text-[14px] text-[#3d3630] leading-relaxed flex-1">"{r.text}"</blockquote>
                   {r.photoId && (
-                    <img src={imgUrl(r.photoId)} alt="" className="mt-4 rounded-xl w-full h-36 object-cover" />
+                    <img src={imgUrl(r.photoId, storeId)} alt="" className="mt-4 rounded-xl w-full h-36 object-cover" />
                   )}
                   <figcaption className="mt-4 text-[12px] text-[#8a7f74] flex items-center justify-between">
                     <span className="font-bold text-[#6b6055]">{r.name}</span>

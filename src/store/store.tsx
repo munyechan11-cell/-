@@ -116,7 +116,7 @@ interface StoreState {
   }) => Promise<void>;
   /** 사장님 측 — 손님 강제 퇴장 (미결제 주문은 cancelled 로) */
   evictTable: (tableNumber: number, storeId: string) => Promise<void>;
-  issueCoupon: (customerId: string, storeId: string, type: string, description: string, amount?: number) => Promise<void>;
+  issueCoupon: (customerId: string, storeId: string, type: string, description: string, amount?: number, opts?: { silent?: boolean }) => Promise<void>;
   requestCouponUse: (couponId: string, tableNumber?: number) => Promise<void>;
   cancelCouponRequest: (couponId: string) => Promise<void>;
   approveCouponUse: (couponId: string) => Promise<void>;
@@ -1106,7 +1106,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   // ============ COUPONS ============
   const issueCoupon = useCallback(
-    async (customerId: string, storeId: string, type: string, description: string, amount?: number) => {
+    async (customerId: string, storeId: string, type: string, description: string, amount?: number, opts?: { silent?: boolean }) => {
       const amt = Math.max(0, Math.round(Number(amount) || 0));
       const c: Coupon = {
         id: generateId(),
@@ -1119,7 +1119,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         issuedAt: new Date().toISOString(),
       };
       await updateFirestoreDoc("coupons", c.id, c);
-      showToast(t("store.coupon.issued"), "success");
+      // 자동 보상(손님 기기)에선 발급자 시점 토스트 억제 — 도착 알림(coupons.arrived)으로 일원화
+      if (!opts?.silent) showToast(t("store.coupon.issued"), "success");
     },
     []
   );
@@ -1170,7 +1171,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       const discountOrder: Order = {
-        id: generateId(),
+        // 쿠폰 기반 결정적 id — 더블클릭·다중 디바이스 동시 승인 시 같은 문서를 덮어써(merge) 할인 라인 중복 생성 원천 차단
+        id: `COUPONDISC_${couponId}`,
         storeId: c.storeId,
         tableNumber: c.usedAtTable,
         customerId: c.customerId,

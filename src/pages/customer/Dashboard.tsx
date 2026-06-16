@@ -153,18 +153,23 @@ export default function CustomerDashboard() {
     const uid = currentUser?.id;
     if (!uid || !storeId) return;
     const key = `gyeol:coupons-seen:${storeId}:${uid}`;
-    let stored: Set<string>;
-    try { stored = new Set<string>(JSON.parse(localStorage.getItem(key) || "[]")); } catch { stored = new Set(); }
+    const raw = localStorage.getItem(key);
     const avail = myCoupons.filter((c) => c.status !== "used");
-    const recentFresh = avail.filter(
-      (c) => !stored.has(c.id) && Date.now() - new Date(c.issuedAt).getTime() < 24 * 60 * 60_000
-    );
-    if (recentFresh.length) {
+    // 최초 진입(키 없음)이면: 기존 쿠폰을 조용히 baseline 으로만 기록(토스트·뱃지 X). 첫 로드 오탐 방지.
+    if (raw === null) {
+      if (avail.length) localStorage.setItem(key, JSON.stringify(avail.map((c) => c.id)));
+      return;
+    }
+    let stored: Set<string>;
+    try { stored = new Set<string>(JSON.parse(raw)); } catch { stored = new Set(); }
+    // baseline 이후 새로 온(seen 에 없는) 쿠폰은 24h 컷 없이 알림 — 오래 안 들어온 손님도 도착 알림 수신
+    const fresh = avail.filter((c) => !stored.has(c.id));
+    if (fresh.length) {
       showToast(t("coupons.arrived", lang), "success");
-      setUnseenCoupons((n) => n + recentFresh.length);
+      setUnseenCoupons((n) => n + fresh.length);
     }
     if (avail.length) {
-      avail.forEach((c) => stored.add(c.id)); // 현재 사용가능 쿠폰을 '본 것'으로 기록(빈 배열로는 덮어쓰지 않음)
+      avail.forEach((c) => stored.add(c.id));
       localStorage.setItem(key, JSON.stringify([...stored]));
     }
   }, [myCoupons, currentUser?.id, storeId, lang]);
@@ -333,18 +338,23 @@ export default function CustomerDashboard() {
           customerName: currentUser.name,
           tableNumber: myTable.number,
         });
-        // 8-5: 리뷰 작성 보상 쿠폰 — 매장이 켰고 실제 리뷰(별점/글)면 자동 지급.
-        //  · 미사용 'review' 쿠폰이 이미 있으면 중복 지급 안 함(누적 방지). 도착 알림은 8-6이 처리.
+        // 8-5: 리뷰 작성 보상 쿠폰 — 매장이 켰고 실제 리뷰(별점/글)면 자동 지급. 도착 알림은 8-6이 처리.
+        //  · 이번 방문(세션)에 이미 'review' 쿠폰을 받았으면 중복 지급 안 함. used 만 검사하면
+        //    쿠폰을 pending/used 로 만든 뒤 모달 재오픈으로 누적 발급되는 악용이 가능해, 세션 기준으로 차단.
         const rc = owner?.storeConfig?.reviewCoupon;
         const realReview = !!(review!.rating || review!.reviewText?.trim());
+        const sessionStart = myTable.sessionStartTime ?? "";
         const alreadyHas = coupons.some(
-          (c) => c.customerId === currentUser.id && c.storeId === storeId && c.type === "review" && c.status === "available"
+          (c) =>
+            c.customerId === currentUser.id && c.storeId === storeId && c.type === "review" &&
+            c.status !== "used" && (!sessionStart || (c.issuedAt ?? "") >= sessionStart)
         );
         if (rc?.enabled && realReview && !alreadyHas) {
           await issueCoupon(
             currentUser.id, storeId, "review",
             rc.description?.trim() || t("review.rewardDefault", lang),
-            Math.max(0, Number(rc.amount) || 0)
+            Math.max(0, Number(rc.amount) || 0),
+            { silent: true } // 손님 화면에 '발급됨'(사장 시점) 토스트 억제 — 도착 알림으로 일원화
           );
         }
       }
