@@ -1156,13 +1156,17 @@ app.post('/api/ai/tax', async (req, res) => {
 app.post('/api/ai/support', async (req, res) => {
   const ip = String(req.ip || 'unknown').split(',')[0].trim();
   if (!checkInsightRate(ip)) return res.status(429).json({ error: '잠시 후 다시 시도해 주세요. (분당 10회 제한)' });
-  const { storeName, bizType, region, lang } = req.body ?? {};
+  const { storeName, bizType, region, lang, employeeCount, monthlyRevenue } = req.body ?? {};
   const sys = `당신은 한국 소상공인 지원제도 안내 도우미입니다. 아래 매장 정보를 보고 지금 신청해볼 만한 정부·지자체·공공 지원제도를 "맞춤"으로 추천하세요.
-[출력] 3~5개를 "• 제도명 — 한 줄 설명 — 누구에게 좋은지/어떻게 신청" 형식으로. 업종·지역 특성을 반영.
+[출력] 3~5개를 "• 제도명 — 한 줄 설명 — 누구에게 좋은지/어떻게 신청" 형식으로. 업종·지역·직원수·매출 규모를 반영(예: 직원 있으면 두루누리, 1인이면 1인 소상공인 고용보험, 매출 적으면 카드수수료 우대). 자격은 공고마다 다르니 단정·과장 금지.
 대표 상시 제도(소상공인 정책자금=저금리 융자, 노란우산공제=폐업·노후 대비+소득공제, 두루누리 사회보험료 지원, 카드수수료 우대(영세가맹점), 1인 소상공인 고용보험료 지원, 온누리·지역화폐 가맹, 지자체 소상공인 지원) 중 적합한 것 + 업종 특화가 있으면 함께.
 규칙: 쉬운 한국어. "반드시 받는다"식 확정·과장 금지(자격·금액은 공고마다 다름 명시). 마크다운 헤더(#) 금지.
 마지막 줄에 반드시: "※ 공고·자격은 수시로 바뀌어요. 신청 전 소상공인24(sbiz24.kr)·기업마당(bizinfo.go.kr)에서 꼭 확인하세요."`;
-  const user = `매장명: ${String(storeName || '우리 가게').slice(0, 60)} / 업종: ${String(bizType || '일반')} / 지역: ${String(region || '미상').slice(0, 40)}`;
+  const staff = Number(employeeCount);
+  const rev = Number(monthlyRevenue);
+  const user = `매장명: ${String(storeName || '우리 가게').slice(0, 60)} / 업종: ${String(bizType || '일반')} / 지역: ${String(region || '미상').slice(0, 40)}`
+    + ` / 직원수: ${Number.isFinite(staff) && staff >= 0 ? staff + '명' : '미상'}`
+    + ` / 최근 월매출(대략): ${Number.isFinite(rev) && rev > 0 ? '약 ' + Math.round(rev).toLocaleString('ko-KR') + '원' : '미상'}`;
   try {
     const text = await callLLMText(sys + langDirective(lang), user, 1100);
     if (text === null) return res.status(503).json({ error: 'AI_NOT_CONFIGURED' });
@@ -1229,7 +1233,7 @@ ${JSON.stringify(input.context, null, 2)}
           body: JSON.stringify({
             systemInstruction: { parts: [{ text: systemPrompt }] },
             contents: [{ role: 'user', parts: [{ text: userMsg }] }],
-            generationConfig: { temperature: 0.4, maxOutputTokens: 800 },
+            generationConfig: { temperature: 0.4, maxOutputTokens: 800, thinkingConfig: { thinkingBudget: 0 } },
           }),
         },
         20000
@@ -1742,7 +1746,8 @@ async function callLLMText(systemPrompt: string, userMsg: string, maxTokens = 60
         { method: 'POST', headers: { 'content-type': 'application/json', 'x-goog-api-key': geminiKey }, body: JSON.stringify({
           systemInstruction: { parts: [{ text: systemPrompt }] },
           contents: [{ role: 'user', parts: [{ text: userMsg }] }],
-          generationConfig: { temperature: 0.3, maxOutputTokens: maxTokens },
+          // thinking 끔 — 2.5-flash 는 기본 thinking 이 출력 토큰을 먹어 본문이 잘리고 느려짐. 텍스트 생성엔 불필요.
+          generationConfig: { temperature: 0.3, maxOutputTokens: maxTokens, thinkingConfig: { thinkingBudget: 0 } },
         }) }, 20000);
       if (!r.ok) throw new Error(`Gemini ${r.status}`);
       const d: any = await r.json();

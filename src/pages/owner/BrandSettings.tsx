@@ -800,11 +800,11 @@ export default function BrandSettings() {
   );
 }
 
-// 8-10: 접기 카드 + 선택적 그룹 헤더. defaultOpen 기본 true(기존 호환). group 주면 위에 그룹 제목.
+// 8-10: 접기 카드 + 선택적 그룹 헤더. defaultOpen 기본 false(처음엔 모두 접힘). group 주면 위에 그룹 제목.
 function Sec({
   title,
   children,
-  defaultOpen = true,
+  defaultOpen = false,
   group,
 }: {
   title: string;

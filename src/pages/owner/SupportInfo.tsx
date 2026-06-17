@@ -25,11 +25,41 @@ const PROGRAMS: { title: string; desc: string; link: string }[] = [
   { title: "지자체 소상공인 지원", desc: "지자체별 임대료·간판·방역·교육 등 수시 지원. 우리 지역 공고를 확인하세요.", link: "https://www.gov.kr" },
 ];
 
+// AI 응답의 가벼운 마크다운(•/* 글머리, **굵게**)을 깔끔히 렌더 — 평문에 별표가 그대로 보이던 문제 해결
+function renderSupport(text: string) {
+  return text.split("\n").map((raw, i) => {
+    const line = raw.trim();
+    if (!line) return <div key={i} className="h-1.5" />;
+    const isBullet = /^[*\-•·]\s+/.test(line);
+    const body = line.replace(/^[*\-•·]\s+/, "");
+    const nodes = body.split(/(\*\*[^*]+\*\*)/g).map((p, j) =>
+      /^\*\*[^*]+\*\*$/.test(p) ? (
+        <strong key={j} className="font-bold text-[var(--color-navy-900)]">{p.slice(2, -2)}</strong>
+      ) : (
+        <span key={j}>{p}</span>
+      )
+    );
+    return isBullet ? (
+      <p key={i} className="flex gap-1.5">
+        <span className="text-[var(--color-mint-600)] flex-shrink-0">•</span>
+        <span className="flex-1">{nodes}</span>
+      </p>
+    ) : (
+      <p key={i}>{nodes}</p>
+    );
+  });
+}
+
 export default function SupportInfo() {
-  const { currentUser, users, effectiveStoreId } = useStore();
+  const { currentUser, users, effectiveStoreId, orders } = useStore();
   const lang = useLanguage();
   const storeId = effectiveStoreId;
   const owner = users.find((u) => u.id === storeId) ?? currentUser;
+  // 맞춤화용 가게 데이터 — 직원 수 + 최근 30일 결제완료 매출(대략)
+  const staffCount = users.filter((u) => u.employerStoreId === storeId).length;
+  const monthlyRevenue = orders
+    .filter((o) => o.storeId === storeId && o.paymentStatus === "paid" && Date.now() - new Date(o.createdAt).getTime() <= 30 * 86400000)
+    .reduce((s, o) => s + (o.totalAmount || 0), 0);
 
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string | null>(null);
@@ -46,6 +76,8 @@ export default function SupportInfo() {
           storeName: owner?.restaurantName ?? "",
           bizType: owner?.storeConfig?.industry ?? "general",
           region: (owner?.storeConfig?.address ?? "").trim(), // #7: 주소로 지역 맞춤
+          employeeCount: staffCount, // 맞춤화: 직원 수
+          monthlyRevenue, // 맞춤화: 최근 월매출(대략)
           lang, // #3: 사장님 언어로 응답
         }),
       });
@@ -81,8 +113,8 @@ export default function SupportInfo() {
           </div>
           {result && (
             <>
-              <div className="mt-3 pt-3 border-t border-[var(--color-line-soft)] whitespace-pre-wrap text-[13.5px] text-[var(--color-ink-700)] leading-relaxed">
-                {result}
+              <div className="mt-3 pt-3 border-t border-[var(--color-line-soft)] text-[13.5px] text-[var(--color-ink-700)] leading-relaxed space-y-1">
+                {renderSupport(result)}
               </div>
               <p className="text-[11px] text-[var(--color-ink-400)] mt-3 leading-relaxed">{t("support.disclaimer", lang)}</p>
             </>
