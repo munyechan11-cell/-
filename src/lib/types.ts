@@ -281,6 +281,23 @@ export interface TierOverride {
   tier: Tier | "auto";
 }
 
+/** 메뉴 옵션 1개 (모디파이어) — 예: "아이스", "곱빼기" */
+export interface MenuOption {
+  id: string;          // 그룹 내 고유 (예: "ice")
+  name: string;        // 표시 라벨 (예: "아이스")
+  priceDelta: number;  // 기본가 대비 가감액(KRW). 0=무료, 음수=할인 허용
+  /** 이 옵션 선택 시 추가로 차감되는 원재료(예: 곱빼기 = 면 +1). 미설정 시 재고 영향 없음 */
+  recipe?: { ingredientId: string; quantity: number }[];
+}
+/** 옵션 그룹 — 예: "온도"(아이스/핫), "양"(보통/곱빼기 +1000) */
+export interface OptionGroup {
+  id: string;           // 메뉴 내 고유 (예: "temp")
+  name: string;         // 그룹명 (예: "온도")
+  required: boolean;    // 필수 선택 여부 (단일=정확히 1, 복수=최소 1)
+  multiSelect: boolean; // false=정확히 1개(라디오), true=0..N(체크박스)
+  options: MenuOption[];
+}
+
 export interface Menu {
   id: string;
   storeId: string;
@@ -293,6 +310,8 @@ export interface Menu {
   posProductCode?: string;
   /** 메뉴 1인분에 소요되는 원재료 목록 — 판매 시 자동 차감 + 원가 계산 */
   recipe?: { ingredientId: string; quantity: number }[];
+  /** 옵션 그룹(모디파이어) — 미설정 시 옵션 없는 기존 메뉴와 동일 동작 */
+  optionGroups?: OptionGroup[];
 }
 
 /** 원재료 — 매장에 보관하는 식자재/물품. */
@@ -330,11 +349,21 @@ export interface Expense {
 }
 
 export type OrderStatus = "pending" | "accepted" | "cooking" | "served" | "cancelled";
+/** 주문 항목에 선택된 옵션 — 라벨을 비정규화 저장(나중에 옵션명이 바뀌어도 과거 영수증/주방표는 그대로) */
+export interface SelectedOption {
+  groupId: string;
+  groupName: string;
+  optionId: string;
+  optionName: string;
+  priceDelta: number;
+}
 export interface OrderItem {
   menuId: string;
   name: string;
   quantity: number;
-  price: number;
+  price: number; // 단가 = 기본가 + Σ(선택옵션 priceDelta). 옵션 반영 단가라 모든 합계·표시 로직 그대로 동작
+  /** 선택된 옵션들 — 옵션 없는 항목엔 없음(하위호환) */
+  selectedOptions?: SelectedOption[];
 }
 export interface Order {
   id: string;

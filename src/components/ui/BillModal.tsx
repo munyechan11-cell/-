@@ -117,6 +117,11 @@ export function BillModal({
                         <span className="text-[var(--color-ink-700)] font-medium min-w-0 break-keep">
                           {it.name}{" "}
                           <span className="text-[var(--color-ink-600)] font-normal">×{it.quantity}</span>
+                          {it.selectedOptions?.length ? (
+                            <span className="block text-[11px] font-normal text-[var(--color-ink-500)]">
+                              {it.selectedOptions.map((o) => o.optionName).join(" · ")}
+                            </span>
+                          ) : null}
                         </span>
                         <span className="tabular-nums text-[var(--color-navy-900)] font-bold shrink-0">
                           {fmtKRW(it.price * it.quantity)}

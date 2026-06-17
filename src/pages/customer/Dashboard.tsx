@@ -33,16 +33,28 @@ import { TopBar } from "../../components/ui/TopBar";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
 import { BillModal } from "../../components/ui/BillModal";
+import { OptionPickerModal } from "../../components/order/OptionPickerModal";
 import { useStore } from "../../store/store";
 import { getEffectiveTier, getNextTier, TIER_BADGE } from "../../lib/tier";
 import { cn } from "../../lib/cn";
 import { showToast } from "../../lib/toast";
 import { startCardPayment } from "../../lib/tossPayments";
-import type { Order, Industry } from "../../lib/types";
+import type { Order, Industry, Menu, SelectedOption } from "../../lib/types";
 import { cookingNowLabel } from "../../lib/cookingLabels";
 import { getStoreOpenStatus, summarizeStatus } from "../../lib/businessHours";
 
 type Tab = "home" | "menu" | "coupons" | "profile";
+
+interface CartLine {
+  menuId: string;
+  qty: number;
+  selectedOptions: SelectedOption[];
+  unitPrice: number; // 옵션 반영 단가
+}
+// 같은 메뉴라도 옵션이 다르면 다른 라인. 옵션 없으면 키=menuId (기존 +/- 동작 유지)
+const lineKey = (menuId: string, opts: SelectedOption[]) =>
+  opts.length === 0 ? menuId : `${menuId}|${opts.map((o) => o.optionId).slice().sort().join(",")}`;
+const optSummary = (opts: SelectedOption[]) => opts.map((o) => o.optionName).join(" · ");
 
 export default function CustomerDashboard() {
   const { storeId: paramStoreId } = useParams();
@@ -71,7 +83,9 @@ export default function CustomerDashboard() {
     leaveTable,
   } = useStore();
   const [tab, setTab] = useState<Tab>("home");
-  const [cart, setCart] = useState<Record<string, number>>({});
+  const [cart, setCart] = useState<Record<string, CartLine>>({});
+  const [picker, setPicker] = useState<Menu | null>(null);
+  const [cartOpen, setCartOpen] = useState(false);
   const [billOpen, setBillOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   // 언어 변경 시 상위 리렌더 — 프로필 탭의 언어 선택 버튼에서 사용
@@ -250,35 +264,36 @@ export default function CustomerDashboard() {
   const unpaidTotal = unpaidOrders.reduce((s, o) => s + o.totalAmount, 0);
 
   const cartItems = Object.entries(cart)
-    .map(([id, qty]) => {
-      const m = storeMenus.find((x) => x.id === id);
+    .map(([key, line]) => {
+      const m = storeMenus.find((x) => x.id === line.menuId);
       // 메뉴가 사라졌거나(삭제) isAvailable=false 면 카트에서 제외
       if (!m || m.isAvailable === false) return null;
-      return { menu: m, qty };
+      return { key, menu: m, qty: line.qty, selectedOptions: line.selectedOptions, unitPrice: line.unitPrice };
     })
-    .filter(Boolean) as { menu: (typeof storeMenus)[number]; qty: number }[];
-  const cartTotal = cartItems.reduce((s, c) => s + c.menu.price * c.qty, 0);
+    .filter(Boolean) as { key: string; menu: (typeof storeMenus)[number]; qty: number; selectedOptions: SelectedOption[]; unitPrice: number }[];
+  const cartTotal = cartItems.reduce((s, c) => s + c.unitPrice * c.qty, 0);
+  const cartCount = cartItems.reduce((s, c) => s + c.qty, 0);
+  const menuInCart = (menuId: string) => cartItems.filter((c) => c.menu.id === menuId).reduce((s, c) => s + c.qty, 0);
 
   // 사장님이 메뉴를 품절/삭제한 항목이 있으면 알림 후 cart 정리.
   // useRef 로 1회만 알림 — 매 렌더 토스트 폭주 방지.
   const removedCartIdsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
-    const cartIds = Object.keys(cart);
-    const aliveIds = new Set(cartItems.map((c) => c.menu.id));
-    const removed = cartIds.filter((id) => !aliveIds.has(id) && !removedCartIdsRef.current.has(id));
+    const aliveMenuIds = new Set(cartItems.map((c) => c.menu.id));
+    const removed = Object.entries(cart).filter(([key, line]) => !aliveMenuIds.has(line.menuId) && !removedCartIdsRef.current.has(key));
     if (removed.length > 0) {
-      removed.forEach((id) => removedCartIdsRef.current.add(id));
+      removed.forEach(([key]) => removedCartIdsRef.current.add(key));
       showToast(t("home.cart.soldOut", lang), "info");
       // cart 에서도 제거 — 다음 submitOrder 시 0건이 되지 않게
       setCart((c) => {
         const next = { ...c };
-        for (const id of removed) delete next[id];
+        for (const [key] of removed) delete next[key];
         return next;
       });
     }
-  // cartItems 는 매 렌더 새 array — id 의 set 만 비교
+  // cartItems 는 매 렌더 새 array — 라인 key 의 set 만 비교
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [Object.keys(cart).join(","), cartItems.map((c) => c.menu.id).join(",")]);
+  }, [Object.keys(cart).join(","), cartItems.map((c) => c.key).join(",")]);
 
   const submitOrder = async () => {
     if (!currentUser || !myTable || cartItems.length === 0) return;
@@ -297,7 +312,8 @@ export default function CustomerDashboard() {
           menuId: c.menu.id,
           name: c.menu.name,
           quantity: c.qty,
-          price: c.menu.price,
+          price: c.unitPrice,
+          ...(c.selectedOptions.length ? { selectedOptions: c.selectedOptions } : {}),
         })),
       });
     } catch (e: any) {
@@ -309,8 +325,29 @@ export default function CustomerDashboard() {
       return;
     }
     setCart({});
+    setCartOpen(false);
     setTab("home");
   };
+
+  // 옵션 라인 추가/병합 — 같은 메뉴+같은 옵션이면 수량+1
+  const onPickerConfirm = (opts: SelectedOption[], unitPrice: number) => {
+    if (!picker) return;
+    const key = lineKey(picker.id, opts);
+    const menuId = picker.id;
+    setCart((c) => {
+      const existing = c[key];
+      return { ...c, [key]: existing ? { ...existing, qty: existing.qty + 1 } : { menuId, qty: 1, selectedOptions: opts, unitPrice } };
+    });
+    setPicker(null);
+    showToast(t("cart.added", lang), "success");
+  };
+  const setLineQty = (key: string, v: number) =>
+    setCart((c) => {
+      const next = { ...c };
+      if (v <= 0) delete next[key];
+      else if (next[key]) next[key] = { ...next[key], qty: v };
+      return next;
+    });
 
   const handlePay = () => {
     if (!currentUser || !myTable) return;
@@ -542,7 +579,7 @@ export default function CustomerDashboard() {
                         )}
                       </div>
                       <p className="text-[13px] text-[var(--color-ink-700)] break-keep line-clamp-2">
-                        {o.items.map((it) => `${it.name}×${it.quantity}`).join(", ")}
+                        {o.items.map((it) => `${it.name}${it.selectedOptions?.length ? `(${it.selectedOptions.map((op) => op.optionName).join("·")})` : ""}×${it.quantity}`).join(", ")}
                       </p>
                     </div>
                     <span className="text-[13px] font-bold text-[var(--color-navy-900)] tabular-nums shrink-0">
@@ -690,17 +727,33 @@ export default function CustomerDashboard() {
                           {fmtKRW(m.price, lang)}
                         </p>
                       </div>
-                      <QtyStepper
-                        value={cart[m.id] ?? 0}
-                        onChange={(v) =>
-                          setCart((c) => {
-                            const next = { ...c };
-                            if (v <= 0) delete next[m.id];
-                            else next[m.id] = v;
-                            return next;
-                          })
-                        }
-                      />
+                      {m.optionGroups?.length ? (
+                        <button
+                          type="button"
+                          onClick={() => setPicker(m)}
+                          className="h-9 px-3.5 rounded-full bg-[var(--color-navy-700)] text-white text-[13px] font-bold inline-flex items-center gap-1 flex-shrink-0"
+                        >
+                          <Plus className="w-4 h-4" />
+                          {t("opt.pick", lang)}
+                          {menuInCart(m.id) > 0 && (
+                            <span className="ml-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-white/25 text-[11px] inline-flex items-center justify-center">
+                              {menuInCart(m.id)}
+                            </span>
+                          )}
+                        </button>
+                      ) : (
+                        <QtyStepper
+                          value={cart[m.id]?.qty ?? 0}
+                          onChange={(v) =>
+                            setCart((c) => {
+                              const next = { ...c };
+                              if (v <= 0) delete next[m.id];
+                              else next[m.id] = { menuId: m.id, qty: v, selectedOptions: [], unitPrice: m.price };
+                              return next;
+                            })
+                          }
+                        />
+                      )}
                     </Card>
                   ))}
                 </div>
@@ -714,13 +767,12 @@ export default function CustomerDashboard() {
               style={{ bottom: "calc(64px + env(safe-area-inset-bottom) + 8px)" }}
             >
               <button
-                onClick={submitOrder}
-                disabled={!myTable}
-                className="w-full h-14 rounded-[18px] bg-[var(--color-navy-700)] text-white font-bold shadow-[var(--shadow-navy)] flex items-center justify-between px-5 disabled:opacity-50 active:scale-[0.98] transition-transform"
+                onClick={() => setCartOpen(true)}
+                className="w-full h-14 rounded-[18px] bg-[var(--color-navy-700)] text-white font-bold shadow-[var(--shadow-navy)] flex items-center justify-between px-5 active:scale-[0.98] transition-transform"
               >
                 <span className="inline-flex items-center gap-2">
                   <ShoppingBag className="w-4 h-4" />
-                  {myTable ? t("menu.orderToTable", lang, { n: myTable.number }) : t("menu.needTable", lang)}
+                  {t("cart.view", lang, { n: cartCount })}
                 </span>
                 <span>{fmtKRW(cartTotal, lang)}</span>
               </button>
@@ -728,6 +780,49 @@ export default function CustomerDashboard() {
           )}
         </div>
       )}
+
+      {/* 장바구니 시트 — 옵션 라인 확인·수량·삭제 후 주문 */}
+      {cartOpen && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center sm:p-4" onClick={() => setCartOpen(false)}>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-[480px] mx-auto bg-white rounded-t-[28px] sm:rounded-[28px] p-5 sm:p-6 pb-[max(env(safe-area-inset-bottom),20px)] sm:pb-6 max-h-[88vh] flex flex-col"
+          >
+            <div className="w-12 h-1.5 rounded-full bg-[var(--color-ink-100)] mx-auto mb-4 sm:hidden" />
+            <h2 className="text-[18px] font-extrabold text-[var(--color-navy-900)] mb-3">{t("cart.title", lang)}</h2>
+            {cartItems.length === 0 ? (
+              <p className="text-[14px] text-[var(--color-ink-500)] py-10 text-center">{t("cart.empty", lang)}</p>
+            ) : (
+              <div className="flex-1 overflow-y-auto -mx-1 px-1 space-y-2.5">
+                {cartItems.map((c) => (
+                  <div key={c.key} className="flex items-start gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[14px] font-bold text-[var(--color-navy-900)] break-keep">{c.menu.name}</p>
+                      {c.selectedOptions.length > 0 && (
+                        <p className="text-[12px] text-[var(--color-ink-500)] break-keep">{optSummary(c.selectedOptions)}</p>
+                      )}
+                      <p className="text-[12.5px] font-semibold text-[var(--color-navy-700)] mt-0.5">{fmtKRW(c.unitPrice * c.qty, lang)}</p>
+                    </div>
+                    <QtyStepper value={c.qty} onChange={(v) => setLineQty(c.key, v)} />
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex items-center justify-between mt-4 mb-3">
+              <span className="text-[14px] font-bold text-[var(--color-ink-600)]">{t("cart.total", lang)}</span>
+              <span className="text-[17px] font-extrabold text-[var(--color-navy-900)]">{fmtKRW(cartTotal, lang)}</span>
+            </div>
+            <button
+              onClick={submitOrder}
+              disabled={!myTable || cartItems.length === 0}
+              className="h-[52px] rounded-[18px] bg-[var(--color-navy-700)] text-white font-bold text-[15px] inline-flex items-center justify-center shadow-[var(--shadow-navy)] disabled:opacity-50"
+            >
+              {myTable ? t("cart.submit", lang) : t("menu.needTable", lang)}
+            </button>
+          </div>
+        </div>
+      )}
+      {picker && <OptionPickerModal menu={picker} onConfirm={onPickerConfirm} onClose={() => setPicker(null)} />}
 
       {tab === "coupons" && (
         <div className="px-5 pt-3 space-y-3">
@@ -998,7 +1093,7 @@ function PastVisitsCard({ visits, storeName }: { visits: PastVisitGroup[]; store
                       <ul className="space-y-0.5">
                         {o.items.map((it, i) => (
                           <li key={i} className="flex justify-between text-[var(--color-navy-900)]">
-                            <span className="truncate mr-2">{it.name} × {it.quantity}</span>
+                            <span className="truncate mr-2">{it.name}{it.selectedOptions?.length ? ` (${it.selectedOptions.map((op) => op.optionName).join(" · ")})` : ""} × {it.quantity}</span>
                             <span className="font-semibold tabular-nums text-[var(--color-ink-600)]">
                               {fmtKRW(it.price * it.quantity, lang)}
                             </span>

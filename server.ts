@@ -987,6 +987,85 @@ JSON 만 출력. 스키마:
 });
 
 // ============================================================
+// AI MENU BOARD — 메뉴판 사진 한 장에서 메뉴 일괄 추출 + 자동 분류
+// 사장님이 메뉴판/입간판/인쇄 메뉴 사진을 올리면 모든 메뉴를 {이름,가격,분류} 로 뽑아,
+// 검토 화면에서 확인 후 한 번에 등록한다. (receipt 핸들러와 동일 구조 — 프롬프트/추출기만 다름)
+// ============================================================
+app.post('/api/ai/menu-board', async (req, res) => {
+  const ip = String(req.ip || 'unknown').split(',')[0].trim();
+  const rl = checkAiRateLimit(ip);
+  if (!rl.ok) {
+    return res.status(429).json({
+      error: rl.reason === 'minute'
+        ? '잠시 후 다시 시도해 주세요 (분당 4회 제한).'
+        : '요청이 너무 빠릅니다. 10초 후 다시 시도해 주세요.',
+    });
+  }
+  const { image } = req.body ?? {};
+  if (!image || typeof image !== 'string' || !image.startsWith('data:image/')) {
+    return res.status(400).json({ error: 'image (data URL) is required' });
+  }
+  const MAX_IMG_BYTES = 8 * 1024 * 1024;
+  const b64Body = image.split(',')[1] ?? '';
+  if (Math.floor((b64Body.length * 3) / 4) > MAX_IMG_BYTES) {
+    return res.status(413).json({ error: '메뉴판 이미지가 너무 큽니다. 8MB 이하로 줄여 주세요.' });
+  }
+  const geminiKey = process.env.GEMINI_API_KEY;
+  if (!geminiKey) return res.status(503).json({ error: 'AI_NOT_CONFIGURED' });
+  const m = image.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
+  if (!m) return res.status(400).json({ error: 'invalid image data URL' });
+  const mediaType = m[1];
+  const ALLOWED = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
+  if (!ALLOWED.has(mediaType)) {
+    return res.status(400).json({ error: `unsupported image type: ${mediaType}` });
+  }
+  const b64 = m[2];
+  const systemPrompt = `당신은 한국 식당·카페의 메뉴판(메뉴 보드, 입간판, 인쇄 메뉴, 손글씨 메뉴 포함) 사진에서 판매 메뉴를 빠짐없이 추출합니다. JSON 만 출력합니다.
+스키마: { "items": [ { "name": "메뉴 이름", "price": 숫자, "category": "분류" } ] }
+규칙:
+- 사진에 보이는 모든 개별 메뉴를 한 항목씩 추출한다. 사이즈/옵션(HOT/ICE, R/L)이 한 줄에 묶여 있으면 대표 1개로 만들고 가장 잘 보이는 가격을 price 로 쓴다.
+- name: 메뉴 이름만. 가격·단위·설명은 넣지 않는다.
+- price: 숫자만. 콤마·₩·"원"·".-" 등은 제거한다. 가격이 안 보이면 0. 보이지 않는 자릿수를 추측해 만들지 않는다.
+- category: 메뉴판에 인쇄된 분류 머리글(예: COFFEE, 논커피, 디저트, 브런치)이 있으면 그 이름을 그대로(한글 우선) 사용한다. 머리글이 없으면 메뉴 성격으로 추론한다(라떼·아메리카노→"커피", 에이드·스무디→"논커피", 케이크·쿠키→"디저트"). 같은 묶음 메뉴는 같은 category 문자열을 쓴다.
+- 분류가 도저히 불명확하면 category="기타".
+- 메뉴가 아닌 문구(가게 이름, 영업시간, 전화번호, 와이파이, 인사말)는 제외한다.
+- 확실한 메뉴만 넣고, 없는 메뉴를 지어내지 않는다.`;
+  try {
+    const apiRes = await fetchWithTimeout(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: systemPrompt }] },
+          contents: [
+            {
+              role: 'user',
+              parts: [
+                { inlineData: { mimeType: mediaType, data: b64 } },
+                { text: '이 메뉴판 사진에서 모든 메뉴를 위 스키마 JSON 으로 추출하세요.' },
+              ],
+            },
+          ],
+          generationConfig: { responseMimeType: 'application/json', temperature: 0.1, maxOutputTokens: 4096 },
+        }),
+      },
+      30000
+    );
+    if (!apiRes.ok) {
+      const t = await apiRes.text();
+      throw new Error(`Gemini ${apiRes.status}: ${t.slice(0, 200)}`);
+    }
+    const data: any = await apiRes.json();
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+    return res.json(extractMenuBoard(text));
+  } catch (e: any) {
+    console.error('[AI menu-board]', e?.message ?? e);
+    res.status(500).json({ error: e?.message ?? '메뉴판 분석 실패' });
+  }
+});
+
+// ============================================================
 // AI BUSINESS INSIGHT — 매장 데이터 자연어 분석
 // ============================================================
 // 사장님이 통계 페이지에서 미리 정의된 질문을 클릭 → 매장 요약 데이터 +
@@ -1262,6 +1341,42 @@ function extractReceipt(
   const vendor = typeof parsed?.vendor === 'string' ? parsed.vendor.trim().slice(0, 80) : '';
   const memo = typeof parsed?.memo === 'string' ? parsed.memo.trim().slice(0, 200) : '';
   return { amount, vendor, date, category, memo };
+}
+
+// 메뉴판 AI 응답 정규화 — 항상 { items: [{name, price, category}] } 로 가드.
+// 최상위가 배열일 수도, {items:[...]} 일 수도 있어 parseLooseJson(객체 전용) 대신 별도 처리.
+function extractMenuBoard(text: string): { items: { name: string; price: number; category: string }[] } {
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  const raw = fenced ? fenced[1] : text;
+  let parsed: any;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    // 배열([..]) 또는 객체({..}) 경계로 슬라이스 재시도 (maxOutputTokens 잘림 대비)
+    const s = raw.search(/[[{]/);
+    const e = Math.max(raw.lastIndexOf(']'), raw.lastIndexOf('}'));
+    if (s < 0 || e <= s) return { items: [] };
+    try { parsed = JSON.parse(raw.slice(s, e + 1)); }
+    catch { return { items: [] }; }
+  }
+  const arr = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.items) ? parsed.items : [];
+  const items: { name: string; price: number; category: string }[] = [];
+  for (const e of arr) {
+    const name = typeof e?.name === 'string' ? e.name.trim().slice(0, 80) : '';
+    if (!name) continue;
+    // price — 숫자/문자(₩·콤마·"원") 혼재 정상화 (extractReceipt amount 와 동일 로직)
+    let price = 0;
+    const p = e?.price;
+    if (typeof p === 'number' && isFinite(p)) price = Math.max(0, Math.round(p));
+    else if (typeof p === 'string') {
+      const n = Number(p.replace(/[^0-9.]/g, ''));
+      if (isFinite(n)) price = Math.max(0, Math.round(n));
+    }
+    const category = typeof e?.category === 'string' ? e.category.trim().slice(0, 40) : '';
+    items.push({ name, price, category });
+    if (items.length >= 60) break; // 과도한 항목 방어
+  }
+  return { items };
 }
 
 // ============================================================

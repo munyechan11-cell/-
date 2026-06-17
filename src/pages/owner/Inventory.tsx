@@ -34,7 +34,7 @@ import { useStore } from "../../store/store";
 import { showToast } from "../../lib/toast";
 import { useLanguage, t, fmtKRW } from "../../lib/i18n";
 import { useModalChrome } from "../../lib/useModalChrome";
-import type { Ingredient, Menu } from "../../lib/types";
+import type { Ingredient, Menu, OptionGroup } from "../../lib/types";
 
 type Tab = "list" | "recipe" | "cost";
 
@@ -122,9 +122,15 @@ export default function OwnerInventory() {
       if (o.paymentStatus !== "paid") continue;
       for (const it of o.items) {
         const menu = menuMap.get(it.menuId);
-        if (!menu?.recipe) continue;
+        if (!menu) continue;
+        const baseRecipe = menu.recipe ?? [];
+        // 선택된 옵션의 레시피 원가도 합산 (곱빼기 등)
+        const optRecipes = (it.selectedOptions ?? []).flatMap(
+          (so) => menu.optionGroups?.find((g) => g.id === so.groupId)?.options.find((oo) => oo.id === so.optionId)?.recipe ?? []
+        );
+        if (baseRecipe.length === 0 && optRecipes.length === 0) continue;
         let perServingCost = 0;
-        for (const r of menu.recipe) {
+        for (const r of [...baseRecipe, ...optRecipes]) {
           const ing = ingMap.get(r.ingredientId);
           if (!ing) continue;
           perServingCost += ing.unitCost * r.quantity;
@@ -431,8 +437,8 @@ export default function OwnerInventory() {
           menu={recipeMenu}
           ingredients={myIngredients}
           onClose={() => setRecipeMenu(null)}
-          onSave={async (recipe) => {
-            await updateMenuItem(recipeMenu.id, { recipe });
+          onSave={async (recipe, optionGroups) => {
+            await updateMenuItem(recipeMenu.id, optionGroups ? { recipe, optionGroups } : { recipe });
             showToast(t("inv.recipe.saveOk", lang), "success");
             setRecipeMenu(null);
           }}
@@ -531,7 +537,7 @@ function RecipeModal({
   menu: Menu;
   ingredients: Ingredient[];
   onClose: () => void;
-  onSave: (recipe: { ingredientId: string; quantity: number }[]) => Promise<void> | void;
+  onSave: (recipe: { ingredientId: string; quantity: number }[], optionGroups?: OptionGroup[]) => Promise<void> | void;
 }) {
   const lang = useLanguage();
   useModalChrome(true, onClose);
@@ -550,6 +556,40 @@ function RecipeModal({
     const next = ingredients.find((i) => !used.has(i.id));
     if (!next) return;
     setDraft((d) => [...d, { ingredientId: next.id, quantity: 0 }]);
+  };
+
+  // 옵션별 추가 레시피 (곱빼기 등) — optionId -> 재료 행
+  const hasOptions = (menu.optionGroups ?? []).some((g) => g.options.length > 0);
+  const [optDraft, setOptDraft] = useState<Record<string, { ingredientId: string; quantity: number }[]>>(() => {
+    const init: Record<string, { ingredientId: string; quantity: number }[]> = {};
+    for (const g of menu.optionGroups ?? []) for (const o of g.options) init[o.id] = o.recipe ? [...o.recipe] : [];
+    return init;
+  });
+  const updOptRow = (oid: string, idx: number, patch: Partial<{ ingredientId: string; quantity: number }>) =>
+    setOptDraft((d) => ({ ...d, [oid]: (d[oid] ?? []).map((r, i) => (i === idx ? { ...r, ...patch } : r)) }));
+  const remOptRow = (oid: string, idx: number) =>
+    setOptDraft((d) => ({ ...d, [oid]: (d[oid] ?? []).filter((_, i) => i !== idx) }));
+  const addOptRow = (oid: string) =>
+    setOptDraft((d) => {
+      const used = new Set((d[oid] ?? []).map((r) => r.ingredientId));
+      const next = ingredients.find((i) => !used.has(i.id));
+      if (!next) return d;
+      return { ...d, [oid]: [...(d[oid] ?? []), { ingredientId: next.id, quantity: 0 }] };
+    });
+  const saveAll = () => {
+    const recipe = draft.filter((r) => r.quantity > 0);
+    let optionGroups = menu.optionGroups;
+    if (optionGroups?.length) {
+      optionGroups = optionGroups.map((g) => ({
+        ...g,
+        options: g.options.map((o) => {
+          const { recipe: _omit, ...rest } = o;
+          const rec = (optDraft[o.id] ?? []).filter((r) => r.quantity > 0);
+          return rec.length ? { ...rest, recipe: rec } : rest;
+        }),
+      }));
+    }
+    onSave(recipe, optionGroups);
   };
 
   const cost = draft.reduce((s, r) => {
@@ -612,11 +652,58 @@ function RecipeModal({
           {t("inv.recipe.addItem", lang)}
         </button>
 
+        {hasOptions && ingredients.length > 0 && (
+          <div className="mt-5 pt-4 border-t border-[var(--color-line)]">
+            <p className="text-[13px] font-extrabold text-[var(--color-navy-900)] mb-1">{t("inv.recipe.optTitle", lang)}</p>
+            <p className="text-[11.5px] text-[var(--color-ink-400)] mb-3 leading-snug">{t("inv.recipe.optHint", lang)}</p>
+            {(menu.optionGroups ?? []).map((g) =>
+              g.options.map((o) => (
+                <div key={o.id} className="mb-3 rounded-[12px] bg-[var(--color-bg)] p-2.5">
+                  <p className="text-[12.5px] font-bold text-[var(--color-navy-700)] mb-1.5">{g.name} · {o.name}</p>
+                  <div className="space-y-1.5">
+                    {(optDraft[o.id] ?? []).map((r, idx) => (
+                      <div key={idx} className="flex items-center gap-2">
+                        <select
+                          value={r.ingredientId}
+                          onChange={(e) => updOptRow(o.id, idx, { ingredientId: e.target.value })}
+                          className="flex-1 h-10 px-2.5 rounded-[10px] border border-[var(--color-line)] bg-white text-[13px] font-bold"
+                        >
+                          {ingredients.map((i) => (
+                            <option key={i.id} value={i.id}>{i.name}</option>
+                          ))}
+                        </select>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={r.quantity}
+                          onChange={(e) => updOptRow(o.id, idx, { quantity: Number(e.target.value) || 0 })}
+                          className="w-20 h-10 px-2 rounded-[10px] border border-[var(--color-line)] bg-white text-[13px] font-bold tabular-nums text-right"
+                        />
+                        <span className="text-[12px] font-bold text-[var(--color-ink-600)] w-9">{ingMap.get(r.ingredientId)?.unit}</span>
+                        <button onClick={() => remOptRow(o.id, idx)} className="w-8 h-8 rounded-full hover:bg-[var(--color-danger)]/10 inline-flex items-center justify-center text-[var(--color-danger)]">
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => addOptRow(o.id)}
+                    disabled={(optDraft[o.id]?.length ?? 0) >= ingredients.length}
+                    className="mt-1.5 text-[12px] font-bold text-[var(--color-navy-700)] disabled:opacity-40"
+                  >
+                    {t("inv.recipe.addItem", lang)}
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-2 mt-5">
           <Button variant="ghost" onClick={onClose}>
             {t("inv.btn.cancel", lang)}
           </Button>
-          <Button onClick={() => onSave(draft.filter((r) => r.quantity > 0))}>
+          <Button onClick={saveAll}>
             {t("inv.btn.save", lang)}
           </Button>
         </div>

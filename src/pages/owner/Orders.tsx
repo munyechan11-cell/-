@@ -476,10 +476,15 @@ function OrderCard({
       <ul className="text-[14px] font-semibold text-[var(--color-navy-900)] space-y-0.5">
         {order.items.map((it, i) => (
           <li key={i} className="flex justify-between">
-            <span className="break-keep">
+            <span className="break-keep min-w-0">
               {it.name} <span className="text-[var(--color-ink-600)] font-medium">×{it.quantity}</span>
+              {it.selectedOptions?.length ? (
+                <span className="block text-[12px] font-normal text-[var(--color-ink-500)]">
+                  {it.selectedOptions.map((o) => o.optionName).join(" · ")}
+                </span>
+              ) : null}
             </span>
-            <span className="tabular-nums">{fmtKRW(it.price * it.quantity, lang)}</span>
+            <span className="tabular-nums shrink-0">{fmtKRW(it.price * it.quantity, lang)}</span>
           </li>
         ))}
       </ul>

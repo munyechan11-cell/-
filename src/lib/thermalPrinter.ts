@@ -235,6 +235,17 @@ function renderReceiptCanvas({ storeName, order, footer }: ReceiptInput): HTMLCa
       ctx.textAlign = "right";
       ctx.fillText((it.price * it.quantity).toLocaleString(), width, 0);
     });
+    // 선택 옵션 — 메뉴 줄 아래에 들여쓴 작은 회색 글씨로 ("아이스 · 곱빼기")
+    if (it.selectedOptions?.length) {
+      const optText = it.selectedOptions.map((o) => o.optionName).join(" · ");
+      addLine(() => {
+        ctx.font = "14px 'Malgun Gothic', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif";
+        ctx.textAlign = "left";
+        ctx.fillStyle = "#555";
+        ctx.fillText(truncate(ctx, "  " + optText, width - 20), 0, 0);
+        ctx.fillStyle = "black";
+      });
+    }
   }
 
   // separator

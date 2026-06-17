@@ -113,7 +113,14 @@ export default function KitchenDisplay() {
                 <ul className="text-[16px] my-3 space-y-1 flex-1">
                   {o.items.map((it, i) => (
                     <li key={i} className="flex justify-between gap-2">
-                      <span className="font-semibold break-keep">{it.name}</span>
+                      <span className="min-w-0 break-keep">
+                        <span className="font-semibold">{it.name}</span>
+                        {it.selectedOptions?.length ? (
+                          <span className="block text-[13px] font-medium text-[var(--color-ink-500)]">
+                            {it.selectedOptions.map((o) => o.optionName).join(" · ")}
+                          </span>
+                        ) : null}
+                      </span>
                       <span className="font-extrabold tabular-nums shrink-0">×{it.quantity}</span>
                     </li>
                   ))}

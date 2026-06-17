@@ -3,6 +3,13 @@ import { useNavigate, Navigate } from "react-router-dom";
 import { X, Plus, Minus, ShoppingCart, CheckCircle2, ChevronUp } from "lucide-react";
 import { useStore } from "../../store/store";
 import { useLanguage, t, fmtKRW } from "../../lib/i18n";
+import { OptionPickerModal } from "../../components/order/OptionPickerModal";
+import type { Menu, SelectedOption } from "../../lib/types";
+
+interface CartLine { menuId: string; qty: number; selectedOptions: SelectedOption[]; unitPrice: number; }
+const lineKey = (menuId: string, opts: SelectedOption[]) =>
+  opts.length === 0 ? menuId : `${menuId}|${opts.map((o) => o.optionId).slice().sort().join(",")}`;
+const optionSummary = (opts: SelectedOption[]) => opts.map((o) => o.optionName).join(" · ");
 
 /**
  * 손님 셀프 키오스크 — 매장 비치 태블릿용 풀스크린 주문.
@@ -16,7 +23,8 @@ export default function KioskMode() {
 
   const storeId = currentUser?.id ?? "";
   const [table, setTable] = useState<number | null>(null);
-  const [cart, setCart] = useState<Record<string, number>>({});
+  const [cart, setCart] = useState<Record<string, CartLine>>({});
+  const [picker, setPicker] = useState<Menu | null>(null);
   const [category, setCategory] = useState<string>("__all");
   const [cartOpen, setCartOpen] = useState(false);
   const [ordered, setOrdered] = useState(false);
@@ -34,20 +42,32 @@ export default function KioskMode() {
   const menuById = useMemo(() => new Map(storeMenus.map((m) => [m.id, m])), [storeMenus]);
 
   const cartLines = Object.entries(cart)
-    .map(([id, qty]) => {
-      const m = menuById.get(id);
-      return m ? { menu: m, qty } : null;
+    .map(([key, line]) => {
+      const m = menuById.get(line.menuId);
+      return m ? { key, menu: m, qty: line.qty, selectedOptions: line.selectedOptions, unitPrice: line.unitPrice } : null;
     })
-    .filter((x): x is { menu: (typeof storeMenus)[number]; qty: number } => x !== null);
-  const total = cartLines.reduce((s, l) => s + l.menu.price * l.qty, 0);
+    .filter((x): x is { key: string; menu: Menu; qty: number; selectedOptions: SelectedOption[]; unitPrice: number } => x !== null);
+  const total = cartLines.reduce((s, l) => s + l.unitPrice * l.qty, 0);
   const cartCount = cartLines.reduce((s, l) => s + l.qty, 0);
+  const menuInCart = (menuId: string) => cartLines.filter((l) => l.menu.id === menuId).reduce((s, l) => s + l.qty, 0);
 
-  const add = (id: string) => setCart((c) => ({ ...c, [id]: (c[id] ?? 0) + 1 }));
-  const dec = (id: string) =>
+  const addLine = (m: Menu, opts: SelectedOption[], unitPrice: number) =>
+    setCart((c) => {
+      const key = lineKey(m.id, opts);
+      const ex = c[key];
+      return { ...c, [key]: ex ? { ...ex, qty: ex.qty + 1 } : { menuId: m.id, qty: 1, selectedOptions: opts, unitPrice } };
+    });
+  const onMenuTap = (m: Menu) => (m.optionGroups?.length ? setPicker(m) : addLine(m, [], m.price));
+  const onPickerConfirm = (opts: SelectedOption[], unitPrice: number) => {
+    if (picker) addLine(picker, opts, unitPrice);
+    setPicker(null);
+  };
+  const incLine = (key: string) => setCart((c) => (c[key] ? { ...c, [key]: { ...c[key], qty: c[key].qty + 1 } } : c));
+  const decLine = (key: string) =>
     setCart((c) => {
       const n = { ...c };
-      if ((n[id] ?? 0) > 1) n[id] = n[id] - 1;
-      else delete n[id];
+      if ((n[key]?.qty ?? 0) > 1) n[key] = { ...n[key], qty: n[key].qty - 1 };
+      else delete n[key];
       return n;
     });
 
@@ -59,7 +79,8 @@ export default function KioskMode() {
         menuId: l.menu.id,
         name: l.menu.name,
         quantity: l.qty,
-        price: l.menu.price,
+        price: l.unitPrice,
+        ...(l.selectedOptions.length ? { selectedOptions: l.selectedOptions } : {}),
       }));
       await placeOrder({ storeId, tableNumber: table, customerId: `kiosk_T${table}`, items });
       setCart({});
@@ -154,7 +175,7 @@ export default function KioskMode() {
             {shown.map((m) => (
               <button
                 key={m.id}
-                onClick={() => add(m.id)}
+                onClick={() => onMenuTap(m)}
                 className="relative bg-white rounded-2xl border border-[var(--color-line)] overflow-hidden text-left active:scale-[0.98] transition-transform"
               >
                 {m.imageUrl ? (
@@ -165,10 +186,11 @@ export default function KioskMode() {
                 <div className="p-3">
                   <p className="text-[14.5px] font-bold text-[var(--color-navy-900)] break-keep leading-tight">{m.name}</p>
                   <p className="text-[14px] font-extrabold text-[var(--color-navy-700)] tabular-nums mt-1">{fmtKRW(m.price)}</p>
+                  {m.optionGroups?.length ? <p className="text-[11px] font-bold text-[var(--color-ink-400)] mt-0.5">{t("opt.has", lang)}</p> : null}
                 </div>
-                {cart[m.id] ? (
+                {menuInCart(m.id) ? (
                   <span className="absolute top-2 right-2 w-7 h-7 rounded-full bg-[var(--color-navy-700)] text-white text-[13px] font-extrabold inline-flex items-center justify-center tabular-nums">
-                    {cart[m.id]}
+                    {menuInCart(m.id)}
                   </span>
                 ) : null}
               </button>
@@ -187,20 +209,27 @@ export default function KioskMode() {
             <p className="text-[16px] font-extrabold text-[var(--color-navy-900)] mb-3">{t("kiosk.cart", lang)}</p>
             <div className="space-y-2">
               {cartLines.map((l) => (
-                <div key={l.menu.id} className="flex items-center gap-3">
-                  <span className="flex-1 text-[14px] font-semibold text-[var(--color-navy-900)] break-keep">{l.menu.name}</span>
+                <div key={l.key} className="flex items-center gap-3">
+                  <span className="flex-1 min-w-0 break-keep">
+                    <span className="text-[14px] font-semibold text-[var(--color-navy-900)]">{l.menu.name}</span>
+                    {l.selectedOptions.length > 0 && (
+                      <span className="block text-[12px] text-[var(--color-ink-500)]">{optionSummary(l.selectedOptions)}</span>
+                    )}
+                  </span>
                   <div className="flex items-center gap-2">
-                    <button onClick={() => dec(l.menu.id)} className="w-9 h-9 rounded-full bg-[var(--color-bg)] inline-flex items-center justify-center"><Minus className="w-4 h-4" /></button>
+                    <button onClick={() => decLine(l.key)} className="w-9 h-9 rounded-full bg-[var(--color-bg)] inline-flex items-center justify-center"><Minus className="w-4 h-4" /></button>
                     <span className="w-6 text-center text-[15px] font-bold tabular-nums">{l.qty}</span>
-                    <button onClick={() => add(l.menu.id)} className="w-9 h-9 rounded-full bg-[var(--color-bg)] inline-flex items-center justify-center"><Plus className="w-4 h-4" /></button>
+                    <button onClick={() => incLine(l.key)} className="w-9 h-9 rounded-full bg-[var(--color-bg)] inline-flex items-center justify-center"><Plus className="w-4 h-4" /></button>
                   </div>
-                  <span className="w-20 text-right text-[14px] font-bold tabular-nums text-[var(--color-navy-900)]">{fmtKRW(l.menu.price * l.qty)}</span>
+                  <span className="w-20 text-right text-[14px] font-bold tabular-nums text-[var(--color-navy-900)]">{fmtKRW(l.unitPrice * l.qty)}</span>
                 </div>
               ))}
             </div>
           </div>
         </div>
       )}
+
+      {picker && <OptionPickerModal menu={picker} lang={lang} onConfirm={onPickerConfirm} onClose={() => setPicker(null)} />}
 
       {/* 하단 주문 바 */}
       {cartCount > 0 && (

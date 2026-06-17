@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { QrCode, ArrowRight, Shield, ShieldCheck, Sparkles, Zap, User as UserIcon } from "lucide-react";
 import { useStore } from "../store/store";
 import { useLanguage, t } from "../lib/i18n";
+import { GyeolMark } from "../components/ui/GyeolMark";
 
 export default function Home() {
   const { currentUser } = useStore();
@@ -13,11 +14,9 @@ export default function Home() {
       {/* Top bar */}
       <header className="container-app flex items-center justify-between h-16 lg:h-20">
         <div className="flex items-center gap-2.5">
-          <span className="w-9 h-9 lg:w-10 lg:h-10 rounded-xl bg-[var(--color-navy-700)] text-white text-lg lg:text-xl font-extrabold flex items-center justify-center shadow-[var(--shadow-navy)]">
-            결
-          </span>
+          <GyeolMark className="w-9 h-9 lg:w-10 lg:h-10 rounded-xl shadow-[var(--shadow-navy)]" />
           <span className="text-[15px] font-bold text-[var(--color-navy-900)] tracking-tight">
-            Gyeol Cloud
+            Gyeol
           </span>
         </div>
         <Link

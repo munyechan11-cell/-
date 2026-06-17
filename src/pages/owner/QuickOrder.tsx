@@ -5,6 +5,14 @@ import { OwnerShell } from "../../components/layout/OwnerShell";
 import { useStore } from "../../store/store";
 import { useLanguage, t, fmtKRW } from "../../lib/i18n";
 import { showToast } from "../../lib/toast";
+import { OptionPickerModal } from "../../components/order/OptionPickerModal";
+import type { Menu, SelectedOption } from "../../lib/types";
+
+interface CartLine { menuId: string; qty: number; selectedOptions: SelectedOption[]; unitPrice: number; }
+// 같은 메뉴라도 옵션이 다르면 다른 라인. 옵션 없으면 키=menuId
+const lineKey = (menuId: string, opts: SelectedOption[]) =>
+  opts.length === 0 ? menuId : `${menuId}|${opts.map((o) => o.optionId).slice().sort().join(",")}`;
+const optionSummary = (opts: SelectedOption[]) => opts.map((o) => o.optionName).join(" · ");
 
 /**
  * 빠른 주문 + 테이블/대기 (사장 카운터 POS).
@@ -25,7 +33,8 @@ export default function QuickOrder() {
   const storeId = effectiveStoreId;
 
   const [activeTab, setActiveTab] = useState<number | null>(null);
-  const [cart, setCart] = useState<Record<string, number>>({});
+  const [cart, setCart] = useState<Record<string, CartLine>>({});
+  const [picker, setPicker] = useState<Menu | null>(null);
   const [category, setCategory] = useState("__all");
   const [cartOpen, setCartOpen] = useState(false);
   const [moving, setMoving] = useState(false);
@@ -65,20 +74,33 @@ export default function QuickOrder() {
   const tabTotal = tabItems.reduce((s, it) => s + it.price * it.quantity, 0);
 
   const cartLines = Object.entries(cart)
-    .map(([id, qty]) => {
-      const m = menuById.get(id);
-      return m ? { menu: m, qty } : null;
+    .map(([key, line]) => {
+      const m = menuById.get(line.menuId);
+      return m ? { key, menu: m, qty: line.qty, selectedOptions: line.selectedOptions, unitPrice: line.unitPrice } : null;
     })
-    .filter((x): x is { menu: (typeof storeMenus)[number]; qty: number } => x !== null);
-  const cartTotal = cartLines.reduce((s, l) => s + l.menu.price * l.qty, 0);
+    .filter((x): x is { key: string; menu: Menu; qty: number; selectedOptions: SelectedOption[]; unitPrice: number } => x !== null);
+  const cartTotal = cartLines.reduce((s, l) => s + l.unitPrice * l.qty, 0);
   const cartCount = cartLines.reduce((s, l) => s + l.qty, 0);
+  const menuInCart = (menuId: string) => cartLines.filter((l) => l.menu.id === menuId).reduce((s, l) => s + l.qty, 0);
 
-  const add = (id: string) => setCart((c) => ({ ...c, [id]: (c[id] ?? 0) + 1 }));
-  const dec = (id: string) =>
+  // 라인 추가/병합 — 같은 메뉴+같은 옵션이면 수량+1
+  const addLine = (m: Menu, opts: SelectedOption[], unitPrice: number) =>
+    setCart((c) => {
+      const key = lineKey(m.id, opts);
+      const ex = c[key];
+      return { ...c, [key]: ex ? { ...ex, qty: ex.qty + 1 } : { menuId: m.id, qty: 1, selectedOptions: opts, unitPrice } };
+    });
+  const onMenuTap = (m: Menu) => (m.optionGroups?.length ? setPicker(m) : addLine(m, [], m.price));
+  const onPickerConfirm = (opts: SelectedOption[], unitPrice: number) => {
+    if (picker) addLine(picker, opts, unitPrice);
+    setPicker(null);
+  };
+  const incLine = (key: string) => setCart((c) => (c[key] ? { ...c, [key]: { ...c[key], qty: c[key].qty + 1 } } : c));
+  const decLine = (key: string) =>
     setCart((c) => {
       const n = { ...c };
-      if ((n[id] ?? 0) > 1) n[id] = n[id] - 1;
-      else delete n[id];
+      if ((n[key]?.qty ?? 0) > 1) n[key] = { ...n[key], qty: n[key].qty - 1 };
+      else delete n[key];
       return n;
     });
 
@@ -104,7 +126,7 @@ export default function QuickOrder() {
     if (activeTab == null || cartCount === 0 || busy) return;
     setBusy(true);
     try {
-      const items = cartLines.map((l) => ({ menuId: l.menu.id, name: l.menu.name, quantity: l.qty, price: l.menu.price }));
+      const items = cartLines.map((l) => ({ menuId: l.menu.id, name: l.menu.name, quantity: l.qty, price: l.unitPrice, ...(l.selectedOptions.length ? { selectedOptions: l.selectedOptions } : {}) }));
       const cid = activeTab >= WAIT_BASE ? `walkin_W${activeTab}` : `pos_T${activeTab}`;
       await placeOrder({ storeId, tableNumber: activeTab, customerId: cid, items, manual: true });
       setCart({});
@@ -268,11 +290,14 @@ export default function QuickOrder() {
 
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 pb-28">
               {shown.map((m) => (
-                <button key={m.id} onClick={() => add(m.id)} className="relative bg-white rounded-xl border border-[var(--color-line)] p-3 text-left active:scale-[0.98] transition-transform">
+                <button key={m.id} onClick={() => onMenuTap(m)} className="relative bg-white rounded-xl border border-[var(--color-line)] p-3 text-left active:scale-[0.98] transition-transform">
                   <p className="text-[13.5px] font-bold text-[var(--color-navy-900)] break-keep leading-tight">{m.name}</p>
                   <p className="text-[13px] font-extrabold text-[var(--color-navy-700)] tabular-nums mt-1">{fmtKRW(m.price, lang)}</p>
-                  {cart[m.id] ? (
-                    <span className="absolute top-2 right-2 w-6 h-6 rounded-full bg-[var(--color-navy-700)] text-white text-[12px] font-bold inline-flex items-center justify-center tabular-nums">{cart[m.id]}</span>
+                  {m.optionGroups?.length ? (
+                    <p className="text-[10.5px] font-bold text-[var(--color-ink-400)] mt-0.5">{t("opt.has", lang)}</p>
+                  ) : null}
+                  {menuInCart(m.id) ? (
+                    <span className="absolute top-2 right-2 w-6 h-6 rounded-full bg-[var(--color-navy-700)] text-white text-[12px] font-bold inline-flex items-center justify-center tabular-nums">{menuInCart(m.id)}</span>
                   ) : null}
                 </button>
               ))}
@@ -325,17 +350,24 @@ export default function QuickOrder() {
             <p className="text-[16px] font-extrabold text-[var(--color-navy-900)] mb-3">{t("quick.cart", lang)}</p>
             <div className="space-y-2">
               {cartLines.map((l) => (
-                <div key={l.menu.id} className="flex items-center gap-3">
-                  <span className="flex-1 text-[14px] font-semibold text-[var(--color-navy-900)] break-keep">{l.menu.name}</span>
-                  <button onClick={() => dec(l.menu.id)} className="w-9 h-9 rounded-full bg-[var(--color-bg)] inline-flex items-center justify-center"><Minus className="w-4 h-4" /></button>
+                <div key={l.key} className="flex items-center gap-3">
+                  <span className="flex-1 min-w-0 break-keep">
+                    <span className="text-[14px] font-semibold text-[var(--color-navy-900)]">{l.menu.name}</span>
+                    {l.selectedOptions.length > 0 && (
+                      <span className="block text-[12px] text-[var(--color-ink-500)]">{optionSummary(l.selectedOptions)}</span>
+                    )}
+                  </span>
+                  <button onClick={() => decLine(l.key)} className="w-9 h-9 rounded-full bg-[var(--color-bg)] inline-flex items-center justify-center"><Minus className="w-4 h-4" /></button>
                   <span className="w-6 text-center text-[15px] font-bold tabular-nums">{l.qty}</span>
-                  <button onClick={() => add(l.menu.id)} className="w-9 h-9 rounded-full bg-[var(--color-bg)] inline-flex items-center justify-center"><Plus className="w-4 h-4" /></button>
+                  <button onClick={() => incLine(l.key)} className="w-9 h-9 rounded-full bg-[var(--color-bg)] inline-flex items-center justify-center"><Plus className="w-4 h-4" /></button>
                 </div>
               ))}
             </div>
           </div>
         </div>
       )}
+
+      {picker && <OptionPickerModal menu={picker} onConfirm={onPickerConfirm} onClose={() => setPicker(null)} />}
 
       {/* 하단 카트 바 */}
       {activeTab != null && cartCount > 0 && (

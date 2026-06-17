@@ -36,6 +36,7 @@ import { getStoreOpenStatus, summarizeStatus } from "../../lib/businessHours";
 import { useLanguage, t } from "../../lib/i18n";
 import { canStaffAccess } from "../../lib/staffAccess";
 import { PushOnboarding } from "../ui/PushOnboarding";
+import { GyeolMark } from "../ui/GyeolMark";
 
 interface Props {
   children: React.ReactNode;
@@ -154,9 +155,7 @@ export function OwnerShell({ children, title, headerRight, width = "default" }: 
       {/* ===== Desktop sidebar ===== */}
       <aside className="hidden lg:flex fixed inset-y-0 left-0 w-[260px] flex-col bg-white border-r border-[var(--color-line)] z-30">
         <Link to={isStaff ? "/biz/staff" : "/biz/owner"} className="flex items-center gap-2.5 px-6 h-[72px] border-b border-[var(--color-line-soft)]">
-          <span className="w-10 h-10 rounded-xl bg-[var(--color-navy-700)] text-white text-xl font-extrabold flex items-center justify-center shadow-[var(--shadow-navy)]">
-            결
-          </span>
+          <GyeolMark className="w-10 h-10 rounded-xl shadow-[var(--shadow-navy)]" />
           <div className="leading-tight">
             <p className="text-[15px] font-extrabold text-[var(--color-navy-900)]">
               {employerName}

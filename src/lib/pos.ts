@@ -29,7 +29,8 @@ export async function relayOrderToPos(
     totalAmount: order.totalAmount,
     items: order.items.map((it) => ({
       posCode: menuLookup(it.menuId),
-      name: it.name,
+      // 선택 옵션을 메뉴명 뒤에 붙여 외부 POS·주방 티켓에도 모디파이어가 보이게 함 (예: "라멘 (곱빼기, 매운맛)")
+      name: it.selectedOptions?.length ? `${it.name} (${it.selectedOptions.map((o) => o.optionName).join(", ")})` : it.name,
       quantity: it.quantity,
       price: it.price,
     })),

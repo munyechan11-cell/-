@@ -133,7 +133,7 @@ interface StoreState {
   deleteSection: (id: string) => Promise<void>;
 
   // menus
-  addMenuItem: (storeId: string, data: Omit<Menu, "id" | "storeId">) => Promise<void>;
+  addMenuItem: (storeId: string, data: Omit<Menu, "id" | "storeId">, silent?: boolean) => Promise<void>;
   updateMenuItem: (id: string, data: Partial<Menu>) => Promise<void>;
   deleteMenuItem: (id: string) => Promise<void>;
   addIngredient: (storeId: string, data: Omit<Ingredient, "id" | "storeId" | "updatedAt">) => Promise<void>;
@@ -1284,10 +1284,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, [tables]);
 
   // ============ MENUS ============
-  const addMenuItem = useCallback(async (storeId: string, data: Omit<Menu, "id" | "storeId">) => {
+  const addMenuItem = useCallback(async (storeId: string, data: Omit<Menu, "id" | "storeId">, silent?: boolean) => {
     const id = generateId();
     await updateFirestoreDoc("menus", id, { id, storeId, ...data });
-    showToast(t("store.menu.added"), "success");
+    if (!silent) showToast(t("store.menu.added"), "success"); // 메뉴판 일괄 등록은 silent 로 요약 토스트 1개만
   }, []);
 
   const updateMenuItem = useCallback(async (id: string, data: Partial<Menu>) => {
@@ -1429,8 +1429,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const deltaMap = new Map<string, number>();
       for (const it of items) {
         const menu = menusList.find((m) => m.id === it.menuId);
-        if (!menu?.recipe) continue;
-        for (const r of menu.recipe) {
+        if (!menu) continue;
+        // 기본 레시피 + 선택된 옵션의 레시피(곱빼기 등) 모두 차감
+        const recipes: { ingredientId: string; quantity: number }[] = [...(menu.recipe ?? [])];
+        if (it.selectedOptions?.length && menu.optionGroups) {
+          for (const so of it.selectedOptions) {
+            const opt = menu.optionGroups.find((g) => g.id === so.groupId)?.options.find((o) => o.id === so.optionId);
+            if (opt?.recipe) recipes.push(...opt.recipe);
+          }
+        }
+        for (const r of recipes) {
           const cur = deltaMap.get(r.ingredientId) ?? 0;
           deltaMap.set(r.ingredientId, cur + r.quantity * it.quantity * direction);
         }
