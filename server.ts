@@ -793,10 +793,10 @@ app.post('/api/ai/floor-plan', async (req, res) => {
 
       // gemini-2.5-flash는 무료 티어 포함, 비전 + JSON 응답 모두 지원
       const apiRes = await fetchWithTimeout(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`,
         {
           method: 'POST',
-          headers: { 'content-type': 'application/json' },
+          headers: { 'content-type': 'application/json', 'x-goog-api-key': geminiKey },
           body: JSON.stringify({
             systemInstruction: { parts: [{ text: systemPrompt }] },
             contents: [
@@ -953,10 +953,10 @@ JSON 만 출력. 스키마:
 - 안 보이는 값은 비우되 amount 는 최선 추정. 애매하면 category="other".`;
   try {
     const apiRes = await fetchWithTimeout(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`,
       {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', 'x-goog-api-key': geminiKey },
         body: JSON.stringify({
           systemInstruction: { parts: [{ text: systemPrompt }] },
           contents: [
@@ -1032,10 +1032,10 @@ app.post('/api/ai/menu-board', async (req, res) => {
 - 확실한 메뉴만 넣고, 없는 메뉴를 지어내지 않는다.`;
   try {
     const apiRes = await fetchWithTimeout(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`,
       {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', 'x-goog-api-key': geminiKey },
         body: JSON.stringify({
           systemInstruction: { parts: [{ text: systemPrompt }] },
           contents: [
@@ -1057,11 +1057,14 @@ app.post('/api/ai/menu-board', async (req, res) => {
       throw new Error(`Gemini ${apiRes.status}: ${t.slice(0, 200)}`);
     }
     const data: any = await apiRes.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    // 응답에 텍스트가 없으면(예: API 형식 오류) 빈 메뉴가 아니라 실패로 처리 → 클라가 "빈 메뉴"로 오인하지 않게
+    if (typeof text !== 'string') throw new Error('unexpected Gemini response shape');
     return res.json(extractMenuBoard(text));
   } catch (e: any) {
     console.error('[AI menu-board]', e?.message ?? e);
-    res.status(500).json({ error: e?.message ?? '메뉴판 분석 실패' });
+    // 내부 오류 메시지(Gemini 원문 등)를 클라이언트에 노출하지 않음 — 서버 로그로만
+    res.status(500).json({ error: '메뉴판 분석에 실패했어요. 잠시 후 다시 시도해 주세요.' });
   }
 });
 
@@ -1219,10 +1222,10 @@ ${JSON.stringify(input.context, null, 2)}
   try {
     if (geminiKey) {
       const apiRes = await fetchWithTimeout(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`,
         {
           method: 'POST',
-          headers: { 'content-type': 'application/json' },
+          headers: { 'content-type': 'application/json', 'x-goog-api-key': geminiKey },
           body: JSON.stringify({
             systemInstruction: { parts: [{ text: systemPrompt }] },
             contents: [{ role: 'user', parts: [{ text: userMsg }] }],
@@ -1735,8 +1738,8 @@ async function callLLMText(systemPrompt: string, userMsg: string, maxTokens = 60
   if (geminiKey) {
     try {
       const r = await fetchWithTimeout(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
-        { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`,
+        { method: 'POST', headers: { 'content-type': 'application/json', 'x-goog-api-key': geminiKey }, body: JSON.stringify({
           systemInstruction: { parts: [{ text: systemPrompt }] },
           contents: [{ role: 'user', parts: [{ text: userMsg }] }],
           generationConfig: { temperature: 0.3, maxOutputTokens: maxTokens },

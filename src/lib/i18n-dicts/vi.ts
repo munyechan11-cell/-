@@ -513,6 +513,7 @@ const dict: Record<string, string> = {
   "omenus.opt.removeOption": "Xóa tùy chọn",
   "omenus.opt.moveUp": "Lên",
   "omenus.opt.moveDown": "Xuống",
+  "omenus.opt.tooMany": "Tối đa 20 nhóm tùy chọn, mỗi nhóm 50 tùy chọn.",
   "opt.requiredBadge": "Bắt buộc",
   "opt.optionalBadge": "Tùy chọn",
   "opt.confirm": "Thêm",

@@ -1089,6 +1089,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           status: "dirty",
         }, { merge: true });
         await batch.commit();
+        // 취소된 미결제 주문의 재고 복구(+1) — placeOrder 에서 차감했으므로 반대로. 이미 취소된 건 제외(중복 방지).
+        const toRestore = unpaid.filter((o) => o.status !== "cancelled");
+        if (toRestore.length > 0) {
+          adjustStockForOrder(toRestore.flatMap((o) => o.items), +1).catch((e) => console.warn("[evictTable] stock restore failed", e?.message));
+        }
       } else {
         await updateFirestoreDoc("tables", tableId, {
           currentCustomerId: null,
@@ -1584,6 +1589,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   );
 
   const updateOrderStatus = useCallback(async (id: string, status: OrderStatus) => {
+    // 취소로 전환 시 주문 시점에 차감한 재고 복구(+1). 이미 취소된 주문은 중복 복구 방지.
+    if (status === "cancelled") {
+      const order = ordersRef.current.find((o) => o.id === id);
+      if (order && order.status !== "cancelled") {
+        adjustStockForOrder(order.items, +1).catch((e) => console.warn("[cancel] stock restore failed", e?.message));
+      }
+    }
     await updateFirestoreDoc("orders", id, { status });
   }, []);
 

@@ -620,6 +620,7 @@ const ko: Dict = {
   "omenus.opt.removeOption": "옵션 삭제",
   "omenus.opt.moveUp": "위로",
   "omenus.opt.moveDown": "아래로",
+  "omenus.opt.tooMany": "옵션 그룹은 최대 20개, 각 그룹 옵션은 50개까지예요.",
   // 옵션 선택(주문) + 장바구니
   "opt.requiredBadge": "필수",
   "opt.optionalBadge": "선택",

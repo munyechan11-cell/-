@@ -513,6 +513,7 @@ const dict: Record<string, string> = {
   "omenus.opt.removeOption": "Remove option",
   "omenus.opt.moveUp": "Move up",
   "omenus.opt.moveDown": "Move down",
+  "omenus.opt.tooMany": "Up to 20 option groups, and 50 options per group.",
   "opt.requiredBadge": "Required",
   "opt.optionalBadge": "Optional",
   "opt.confirm": "Add",

@@ -141,6 +141,11 @@ export default function OwnerMenus() {
       return;
     }
     const cleanedGroups = sanitizeOptionGroups(draft.optionGroups);
+    // 문서 크기 폭주 방지 — 옵션 그룹/옵션 수 상한 (Firestore 1MB 문서 한도 보호)
+    if (cleanedGroups.length > 20 || cleanedGroups.some((g) => g.options.length > 50)) {
+      showToast(t("omenus.opt.tooMany", lang), "error");
+      return;
+    }
     const data = {
       name: draft.name.trim(),
       price,

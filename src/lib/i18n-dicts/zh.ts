@@ -513,6 +513,7 @@ const dict: Record<string, string> = {
   "omenus.opt.removeOption": "删除选项",
   "omenus.opt.moveUp": "上移",
   "omenus.opt.moveDown": "下移",
+  "omenus.opt.tooMany": "选项组最多20个，每组选项最多50个。",
   "opt.requiredBadge": "必选",
   "opt.optionalBadge": "可选",
   "opt.confirm": "加入",
