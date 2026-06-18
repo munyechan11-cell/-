@@ -482,7 +482,8 @@ app.post('/api/store/toss-secret', async (req, res) => {
 // ============================================================
 
 // TODO: 토스플레이스 Open API 실제 base URL 확인 (docs.tossplace.com).
-const TOSSPLACE_API_BASE = process.env.TOSSPLACE_API_BASE || 'https://openapi.tossplace.com';
+// 실제 토스플레이스 Open API 호스트는 open-api (하이픈). openapi(하이픈X)는 DNS 미존재 → fetch failed.
+const TOSSPLACE_API_BASE = process.env.TOSSPLACE_API_BASE || 'https://open-api.tossplace.com';
 
 /** 토스플레이스 결제 1건을 orders 에 멱등 upsert. 문서 id = tossplace_<paymentId> 라 재수신·중복 안전. */
 async function upsertTossPlacePayment(
@@ -510,9 +511,9 @@ async function upsertTossPlacePayment(
 
 /** 페이로드/거래객체에서 결제 정보를 방어적으로 추출 (필드명이 문서상 미확정이라 폭넓게 매칭). */
 function extractTossPlacePayment(d: any): { paymentId?: string; amount: number; method: 'card' | 'cash'; paidAt?: string } {
-  const paymentId = d?.paymentId || d?.id || d?.transactionId;
-  const amount = Number(d?.amount?.total ?? d?.totalAmount ?? d?.amount ?? d?.approvedAmount ?? 0);
-  const method = /cash|현금/i.test(String(d?.method ?? d?.payMethod ?? '')) ? 'cash' : 'card';
+  const paymentId = d?.paymentId || d?.id || d?.orderId || d?.transactionId;
+  const amount = Number(d?.amount?.total ?? d?.totalAmount ?? d?.totalPrice ?? d?.paymentAmount ?? d?.approvedAmount ?? d?.amount ?? 0);
+  const method = /cash|현금/i.test(String(d?.method ?? d?.payMethod ?? d?.paymentMethod ?? '')) ? 'cash' : 'card';
   const paidAt = d?.approvedAt || d?.paidAt || d?.completedAt || d?.createdAt;
   return { paymentId, amount, method, paidAt };
 }
@@ -637,9 +638,9 @@ app.post('/api/store/tossplace-sync', async (req, res) => {
       return res.status(400).json({ error: 'tossplace-not-configured' });
     }
 
-    // TODO: 실제 결제목록 조회 엔드포인트·쿼리·응답 필드 확정 필요(docs.tossplace.com Payment API).
-    const url = `${TOSSPLACE_API_BASE}/api-public/openapi/v1/merchants/${encodeURIComponent(merchantId)}/payment/payments?page=1&size=500&sortOrder=DESC`;
-    const r = await fetch(url, { headers: { 'x-access-key': accessKey, 'x-secret-key': secretKey } });
+    // 가맹점 전체 "결제목록" API 는 없음(개별/주문별만) → 주문목록(Order API)으로 백필. 기본 COMPLETED+CANCELLED 조회.
+    const url = `${TOSSPLACE_API_BASE}/api-public/openapi/v1/merchants/${encodeURIComponent(merchantId)}/order/orders?page=1&size=500&sortOrder=DESC`;
+    const r = await fetch(url, { headers: { 'x-access-key': accessKey, 'x-secret-key': secretKey, 'content-type': 'application/json' } });
     const text = await r.text();
     if (!r.ok) {
       console.error('[tossplace sync] api error', r.status, text.slice(0, 300));
@@ -651,15 +652,20 @@ app.post('/api/store/tossplace-sync', async (req, res) => {
     } catch {
       return res.status(502).json({ error: 'parse-error' });
     }
-    const list: any[] = payload.payments ?? payload.data ?? payload.content ?? (Array.isArray(payload) ? payload : []);
+    // 공통 응답 봉투 해제: { resultType:"SUCCESS", success: <Order[] 또는 페이지객체> }
+    const root = payload?.success ?? payload;
+    const list: any[] = Array.isArray(root) ? root : (root?.content ?? root?.orders ?? root?.list ?? root?.data ?? []);
     let recorded = 0;
     for (const d of list) {
+      if (/CANCEL/i.test(String(d?.state ?? d?.orderState ?? d?.status ?? ''))) continue; // 취소 주문 제외
       const { paymentId, amount, method, paidAt } = extractTossPlacePayment(d);
       if (!paymentId || amount <= 0) continue;
       await upsertTossPlacePayment(db, storeId, { paymentId: String(paymentId), amount, method, paidAt });
       recorded++;
     }
-    res.json({ ok: true, fetched: list.length, recorded });
+    // fetched>0 인데 recorded=0 이면 필드명 추정이 틀린 것 → 진단용으로 첫 항목 '키 목록'만(값X) 회신
+    const sampleKeys = recorded === 0 && list[0] && typeof list[0] === 'object' ? Object.keys(list[0]).slice(0, 30) : undefined;
+    res.json({ ok: true, fetched: list.length, recorded, ...(sampleKeys ? { sampleKeys } : {}) });
   } catch (e: any) {
     console.error('[tossplace sync] failed', e?.message);
     res.status(500).json({ error: e?.message });
