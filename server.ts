@@ -641,7 +641,10 @@ app.post('/api/store/tossplace-sync', async (req, res) => {
     }
 
     // 가맹점 전체 "결제목록" API 는 없음(개별/주문별만) → 주문목록(Order API)으로 백필. 기본 COMPLETED+CANCELLED 조회.
-    const url = `${TOSSPLACE_API_BASE}/api-public/openapi/v1/merchants/${encodeURIComponent(merchantId)}/order/orders?page=1&size=500&sortOrder=DESC`;
+    // 날짜범위(from~to) 미지정 시 빈 배열로 오는 경우가 있어 최근 365일 범위를 ISO 8601 로 명시(어제 결제까지 포함).
+    const toTs = new Date().toISOString();
+    const fromTs = new Date(Date.now() - 365 * 86400000).toISOString();
+    const url = `${TOSSPLACE_API_BASE}/api-public/openapi/v1/merchants/${encodeURIComponent(merchantId)}/order/orders?page=1&size=500&sortOrder=DESC&from=${encodeURIComponent(fromTs)}&to=${encodeURIComponent(toTs)}`;
     const r = await fetch(url, { headers: { 'x-access-key': accessKey, 'x-secret-key': secretKey, 'content-type': 'application/json' } });
     const text = await r.text();
     if (!r.ok) {
