@@ -665,9 +665,18 @@ app.post('/api/store/tossplace-sync', async (req, res) => {
       await upsertTossPlacePayment(db, storeId, { paymentId: String(paymentId), amount, method, paidAt });
       recorded++;
     }
-    // fetched>0 인데 recorded=0 이면 필드명 추정이 틀린 것 → 진단용으로 첫 항목 '키 목록'만(값X) 회신
-    const sampleKeys = recorded === 0 && list[0] && typeof list[0] === 'object' ? Object.keys(list[0]).slice(0, 30) : undefined;
-    res.json({ ok: true, fetched: list.length, recorded, ...(sampleKeys ? { sampleKeys } : {}) });
+    // recorded=0 이면 원인 진단용 봉투 구조(값 아닌 '키/타입'만) 회신 — 주문0건인지 파싱미스인지 구분
+    let debug: any;
+    if (recorded === 0) {
+      const succ = payload?.success;
+      debug = {
+        topKeys: payload && typeof payload === 'object' ? Object.keys(payload).slice(0, 20) : typeof payload,
+        successType: Array.isArray(succ) ? `array(${succ.length})` : succ && typeof succ === 'object' ? 'object' : String(succ),
+        successKeys: succ && typeof succ === 'object' && !Array.isArray(succ) ? Object.keys(succ).slice(0, 20) : undefined,
+        itemKeys: list[0] && typeof list[0] === 'object' ? Object.keys(list[0]).slice(0, 30) : undefined,
+      };
+    }
+    res.json({ ok: true, fetched: list.length, recorded, ...(debug ? { debug } : {}) });
   } catch (e: any) {
     console.error('[tossplace sync] failed', e?.message);
     res.status(500).json({ error: e?.message });

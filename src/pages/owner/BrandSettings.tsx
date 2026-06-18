@@ -311,8 +311,14 @@ export default function BrandSettings() {
         body: JSON.stringify({ storeId }),
       });
       const data = await res.json().catch(() => ({} as any));
-      if (res.ok) showToast(t("obs.tp.syncOk", lang, { n: data.recorded ?? 0 }), "success");
-      else {
+      if (res.ok && (data.recorded ?? 0) > 0) {
+        showToast(t("obs.tp.syncOk", lang, { n: data.recorded }), "success");
+      } else if (res.ok) {
+        // 0건 진단: 조회수 + 응답 봉투 구조(키 목록)를 그대로 노출 → 주문0건 vs 파싱미스 판별
+        const d = data.debug ?? {};
+        const diag = `조회 ${data.fetched ?? 0}·기록 0 | top:${(d.topKeys || []).join(",")} | success:${d.successType ?? "?"}${d.successKeys ? "{" + d.successKeys.join(",") + "}" : ""}${d.itemKeys ? " | item:" + d.itemKeys.join(",") : ""}`;
+        showToast(diag, "info");
+      } else {
         // 진단: 토스 API 응답 status·detail 까지 노출해 실제 원인(401/403/400 + 메시지) 파악
         const detail = `${data.error ?? ""}${data.status ? ` [${data.status}]` : ""}${data.detail ? ` ${String(data.detail).slice(0, 180)}` : ""}`;
         showToast(t("obs.tp.syncFail", lang, { msg: detail }), "error");
