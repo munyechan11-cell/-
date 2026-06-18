@@ -312,7 +312,11 @@ export default function BrandSettings() {
       });
       const data = await res.json().catch(() => ({} as any));
       if (res.ok) showToast(t("obs.tp.syncOk", lang, { n: data.recorded ?? 0 }), "success");
-      else showToast(t("obs.tp.syncFail", lang, { msg: data.error ?? "" }), "error");
+      else {
+        // 진단: 토스 API 응답 status·detail 까지 노출해 실제 원인(401/403/400 + 메시지) 파악
+        const detail = `${data.error ?? ""}${data.status ? ` [${data.status}]` : ""}${data.detail ? ` ${String(data.detail).slice(0, 180)}` : ""}`;
+        showToast(t("obs.tp.syncFail", lang, { msg: detail }), "error");
+      }
     } catch (e: any) {
       showToast(t("obs.tp.syncFail", lang, { msg: e?.message ?? "" }), "error");
     } finally {
