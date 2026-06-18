@@ -346,8 +346,9 @@ export default function BrandSettings() {
         showToast("아직 도착한 웹훅이 없어요. 토스 웹훅에 '결제' 이벤트가 구독됐는지 확인 후, 결제하고 다시 눌러보세요.", "info");
         return;
       }
+      const sig = l.sigOk === true ? "OK" : l.sigOk === false ? "불일치" : "미검증";
       showToast(
-        `마지막 웹훅: ${String(l.receivedAt ?? "").slice(0, 19)} · type:${l.type || "(없음)"} · mId:${l.merchantId ?? "?"} · 결과:${l.outcome}${l.topKeys ? ` · keys:${(l.topKeys || []).join(",")}` : ""}`,
+        `마지막 웹훅: ${String(l.receivedAt ?? "").slice(0, 19)} · type:${l.type || "(없음)"} · mId:${l.merchantId ?? "?"} · 결과:${l.outcome} · 서명:${sig}${l.topKeys ? ` · keys:${(l.topKeys || []).join(",")}` : ""}`,
         "info"
       );
     } catch (e: any) {

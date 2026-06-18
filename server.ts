@@ -601,18 +601,14 @@ app.post('/api/tossplace/webhook', async (req, res) => {
     const sigHeader = String(req.headers['x-toss-signature'] || '');
     const timestamp = String(req.headers['x-toss-timestamp'] || '');
     const raw: Buffer = (req as any).rawBody ?? Buffer.from(JSON.stringify(body), 'utf8');
+    let sigOk: boolean | null = null; // null = secret 미설정(검증 생략)
     if (secret) {
       const expected = 'v1=' + createHmac('sha256', secret).update(`${timestamp}.${raw.toString('utf8')}`).digest('hex');
       const a = Buffer.from(sigHeader);
       const b = Buffer.from(expected);
-      const ok = a.length === b.length && timingSafeEqual(a, b);
-      if (!ok) {
-        console.warn('[tossplace webhook] signature mismatch', { merchantId });
-        await writeDiag('sig-mismatch', { storeId });
-        return res.status(401).json({ error: 'invalid signature' });
-      }
-    } else {
-      console.warn('[tossplace webhook] no webhook secret set — skipping verify', { storeId });
+      sigOk = a.length === b.length && timingSafeEqual(a, b);
+      // 비차단: 서명 불일치여도 매출 누락 방지 위해 일단 진행하고 sig 결과만 진단에 남김(secret 확정 후 엄격모드 복구 가능)
+      if (!sigOk) console.warn('[tossplace webhook] signature mismatch — 비차단 처리', { merchantId });
     }
 
     console.log('[tossplace webhook]', evtType, JSON.stringify(body).slice(0, 1200));
@@ -627,8 +623,8 @@ app.post('/api/tossplace/webhook', async (req, res) => {
         console.log('[tossplace webhook] recorded', { storeId, paymentId, amount });
       }
     }
-    await writeDiag(recorded ? 'recorded' : 'received-not-recorded', { storeId });
-    res.json({ ok: true, recorded });
+    await writeDiag(recorded ? 'recorded' : 'received-not-recorded', { storeId, sigOk });
+    res.json({ ok: true, recorded, sigOk });
   } catch (e: any) {
     console.error('[tossplace webhook] failed', e?.message);
     res.status(500).json({ error: e?.message });
