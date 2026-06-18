@@ -108,6 +108,13 @@ export default function BrandSettings() {
   const [tpSecretKey, setTpSecretKey] = useState("");
   const [tpWebhookSecret, setTpWebhookSecret] = useState("");
   const [tpBusy, setTpBusy] = useState(false);
+  // 저장된 merchantId 가 (비동기 로드/저장 후/재방문 시) 들어오면 입력칸에 반영 — 숫자가 사라지던 문제 해결.
+  // merchantId 는 비밀이 아니라 그대로 표시(키처럼 가리지 않음). deps 는 저장값뿐이라 타이핑 중엔 안 덮어씀.
+  useEffect(() => {
+    const saved = currentUser?.tossPlace?.merchantId;
+    if (saved) setTpMerchantId(saved);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.tossPlace?.merchantId]);
   const [kioskEnabled, setKioskEnabled] = useState(!!cfg?.kioskEnabled);
   const [theme, setTheme] = useState(cfg?.theme ?? defaultThemeForIndustry(cfg?.industry));
   // 8-1 / 사이트 — 공개 사이트 글꼴 프리셋 + 부제·주소
