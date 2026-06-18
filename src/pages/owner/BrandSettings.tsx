@@ -108,13 +108,6 @@ export default function BrandSettings() {
   const [tpSecretKey, setTpSecretKey] = useState("");
   const [tpWebhookSecret, setTpWebhookSecret] = useState("");
   const [tpBusy, setTpBusy] = useState(false);
-  // 저장된 merchantId 가 (비동기 로드/저장 후/재방문 시) 들어오면 입력칸에 반영 — 숫자가 사라지던 문제 해결.
-  // merchantId 는 비밀이 아니라 그대로 표시(키처럼 가리지 않음). deps 는 저장값뿐이라 타이핑 중엔 안 덮어씀.
-  useEffect(() => {
-    const saved = currentUser?.tossPlace?.merchantId;
-    if (saved) setTpMerchantId(saved);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser?.tossPlace?.merchantId]);
   const [kioskEnabled, setKioskEnabled] = useState(!!cfg?.kioskEnabled);
   const [theme, setTheme] = useState(cfg?.theme ?? defaultThemeForIndustry(cfg?.industry));
   // 8-1 / 사이트 — 공개 사이트 글꼴 프리셋 + 부제·주소
@@ -141,6 +134,47 @@ export default function BrandSettings() {
 
   const [tierNames, setTierNames] = useState<Record<string, string>>(currentUser?.tierNames ?? {});
   const [tierRewards, setTierRewards] = useState<Record<string, string>>(currentUser?.tierRewards ?? {});
+
+  // 저장값 재동기화 — 비동기 로드/매장 전환/재방문 시 폼이 빈 값·옛 값으로 남던 문제 해결(merchantId 외 전 필드).
+  // deps 는 currentUser?.id 뿐 → 같은 매장에서 타이핑/저장 중엔 안 덮어쓰고, 처음 로드되거나 매장이 바뀔 때만 채운다.
+  // (write-only 시크릿 입력칸은 의도적으로 제외)
+  useEffect(() => {
+    if (!currentUser) return;
+    const c = currentUser;
+    const cf = c.storeConfig;
+    setRestaurantName(c.restaurantName ?? "");
+    setPosVendor((c.posVendor as PosVendor) ?? "none");
+    setPosApiKey(c.posApiKey ?? "");
+    setFoodtech(c.foodtechStoreCode ?? "");
+    setAligoKey(c.aligoKey ?? "");
+    setAligoUserId(c.aligoUserId ?? "");
+    setAligoSender(c.aligoSender ?? "");
+    setSmsGatewayUrl(c.smsGatewayUrl ?? "");
+    setIndustry(cf?.industry ?? "general");
+    setRewardType(cf?.rewardType ?? "point");
+    setPointRate(String(cf?.pointRate ?? 0.05));
+    setStampMax(String(cf?.stampMax ?? 10));
+    setInactiveDays(String(cf?.marketingTriggers?.inactiveDays ?? 30));
+    setBirthdayCoupon(!!cf?.marketingTriggers?.birthdayCoupon);
+    setReviewCouponOn(!!cf?.reviewCoupon?.enabled);
+    setReviewCouponAmount(String(cf?.reviewCoupon?.amount ?? ""));
+    setReviewCouponDesc(cf?.reviewCoupon?.description ?? "");
+    setLocationOnly(!!cf?.locationAccessOnly);
+    setRadius(String(cf?.allowedRadius ?? 100));
+    setTossKey(cf?.tossClientKey ?? "");
+    setKioskEnabled(!!cf?.kioskEnabled);
+    setTheme(cf?.theme ?? defaultThemeForIndustry(cf?.industry));
+    setFontTheme(cf?.fontTheme ?? "editorial");
+    setTagline(cf?.tagline ?? "");
+    setAddress(cf?.address ?? "");
+    setAiResEnabled(!!cf?.aiReservation?.enabled);
+    setAiResPhone(cf?.aiReservation?.phoneNumber ?? "");
+    setAiResGreeting(cf?.aiReservation?.greeting ?? "");
+    setTierNames(c.tierNames ?? {});
+    setTierRewards(c.tierRewards ?? {});
+    setTpMerchantId(c.tossPlace?.merchantId ?? "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.id]);
 
   // 언어 설정 — localStorage 기반, 컴포넌트 단위 구독
   const lang = useLanguage();

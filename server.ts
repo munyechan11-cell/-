@@ -381,7 +381,8 @@ app.post('/api/order/relay-to-pos', async (req, res) => {
 
   } catch (error: any) {
     console.error('[Relay Error]', error.message);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: 'POS 전송에 실패했어요. 잠시 후 다시 시도해 주세요.' }); // 내부 오류 메시지 비노출
+
   }
 });
 
@@ -429,7 +430,8 @@ app.post('/api/payment/confirm', async (req, res) => {
     res.json({ success: true, payment: data });
   } catch (error: any) {
     console.error('[Toss Error]', error.message);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: '결제 확인에 실패했어요. 잠시 후 다시 시도해 주세요.' }); // 내부 오류 메시지 비노출
+
   }
 });
 
@@ -818,6 +820,7 @@ app.post('/api/ai/floor-plan', async (req, res) => {
               responseMimeType: 'application/json',
               temperature: 0.2,
               maxOutputTokens: 4000,
+              thinkingConfig: { thinkingBudget: 0 }, // thinking 끔 — 복잡 도면에서 출력 토큰 잘림·지연 방지
             },
           }),
         },
@@ -974,7 +977,7 @@ JSON 만 출력. 스키마:
               ],
             },
           ],
-          generationConfig: { responseMimeType: 'application/json', temperature: 0.1, maxOutputTokens: 800 },
+          generationConfig: { responseMimeType: 'application/json', temperature: 0.1, maxOutputTokens: 800, thinkingConfig: { thinkingBudget: 0 } },
         }),
       },
       30000
@@ -1053,7 +1056,7 @@ app.post('/api/ai/menu-board', async (req, res) => {
               ],
             },
           ],
-          generationConfig: { responseMimeType: 'application/json', temperature: 0.1, maxOutputTokens: 4096 },
+          generationConfig: { responseMimeType: 'application/json', temperature: 0.1, maxOutputTokens: 4096, thinkingConfig: { thinkingBudget: 0 } },
         }),
       },
       30000

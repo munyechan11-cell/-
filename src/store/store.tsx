@@ -1610,6 +1610,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         (o) =>
           o.customerId === customerId &&
           o.storeId === storeId &&
+          o.tableNumber === tableNumber && // 현재 테이블 주문만 — 다른 테이블 주문까지 결제되던 버그 방지
           o.status !== "cancelled" &&
           o.paymentStatus !== "paid"
       );

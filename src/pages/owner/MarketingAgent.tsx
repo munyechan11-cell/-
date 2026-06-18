@@ -50,6 +50,19 @@ export default function OwnerMarketingAgent() {
   const [dailyLimit, setDailyLimit] = useState(String(cfg?.dailyPublishLimit ?? 0));
   const [savingProfile, setSavingProfile] = useState(false);
 
+  // 저장값 재동기화 — 비동기 로드/매장 전환 시 프로필 폼이 빈 값·옛 값으로 남던 문제 해결.
+  // deps=currentUser?.id 뿐 → 타이핑/저장 중엔 안 덮어쓰고, 처음 로드되거나 매장 바뀔 때만 채운다.
+  useEffect(() => {
+    if (!cfg) return;
+    setEnabled(!!cfg.enabled);
+    setTone(cfg.tone ?? "");
+    setTarget(cfg.target ?? "");
+    setKeywords(cfg.keywords ?? "");
+    setBanned(cfg.bannedWords ?? "");
+    setDailyLimit(String(cfg.dailyPublishLimit ?? 0));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.id]);
+
   // 소셜 채널 셀프 연결 (인스타 + 구글 비즈니스) — 연결 상태는 storeConfig.publishing.channels 에서 (서버가 관리)
   const PLATFORMS: { key: "instagram" | "googlebusiness"; labelKey: string }[] = [
     { key: "instagram", labelKey: "magent.chInstagram" },
