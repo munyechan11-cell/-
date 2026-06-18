@@ -563,14 +563,33 @@ app.post('/api/tossplace/webhook', async (req, res) => {
     const db = adminApp.firestore();
 
     const body = req.body ?? {};
-    const merchantId = body.merchantId;
-    if (!merchantId) return res.status(400).json({ error: 'merchantId missing' });
+    // merchantId 위치가 payload 형태마다 다를 수 있어 여러 곳 탐색
+    const merchantId = body.merchantId ?? body.data?.merchantId ?? body.storeId ?? body.data?.storeId ?? body.mid ?? body.data?.mid;
+    const evtType = String(body?.type ?? body?.eventType ?? body?.event ?? '');
+    // 진단 기록 — 웹훅이 "도착했는지/형태/결과"를 앱에서 확인할 수 있게. 실패해도 웹훅 처리엔 영향 X.
+    const writeDiag = async (outcome: string, extra?: any) => {
+      try {
+        await db.collection('tossplace_diag').doc('last').set({
+          receivedAt: new Date().toISOString(),
+          merchantId: merchantId != null ? String(merchantId) : null,
+          type: evtType,
+          topKeys: body && typeof body === 'object' ? Object.keys(body).slice(0, 25) : [],
+          dataKeys: body?.data && typeof body.data === 'object' ? Object.keys(body.data).slice(0, 25) : [],
+          hasSig: !!req.headers['x-toss-signature'],
+          outcome,
+          ...(extra || {}),
+        });
+      } catch { /* diag 실패 무시 */ }
+    };
+
+    if (!merchantId) { await writeDiag('no-merchantId'); return res.status(400).json({ error: 'merchantId missing' }); }
 
     // merchantId → storeId
     const mapSnap = await db.collection('merchant_map').doc(String(merchantId)).get();
     const storeId = mapSnap.data()?.storeId as string | undefined;
     if (!storeId) {
       console.warn('[tossplace webhook] unknown merchantId', merchantId);
+      await writeDiag('not-mapped');
       return res.status(404).json({ error: 'merchant not mapped' });
     }
 
@@ -589,28 +608,47 @@ app.post('/api/tossplace/webhook', async (req, res) => {
       const ok = a.length === b.length && timingSafeEqual(a, b);
       if (!ok) {
         console.warn('[tossplace webhook] signature mismatch', { merchantId });
+        await writeDiag('sig-mismatch', { storeId });
         return res.status(401).json({ error: 'invalid signature' });
       }
     } else {
       console.warn('[tossplace webhook] no webhook secret set — skipping verify', { storeId });
     }
 
-    // 첫 연동 시 형태 확인용 전체 로깅 — 이후 TODO 매핑 확정에 사용
-    const type = String(body.type || '');
-    console.log('[tossplace webhook]', type, JSON.stringify(body).slice(0, 1200));
+    console.log('[tossplace webhook]', evtType, JSON.stringify(body).slice(0, 1200));
 
-    // TODO: 결제완료 이벤트 type 확정 시 정확히 매칭. 현재는 'payment' 포함 이벤트만 처리.
-    if (/payment/i.test(type)) {
+    // 결제/주문 완료 계열 이벤트면 매출 기록. type 이 미상이거나 결제/주문 계열이면 시도(amount>0 + 멱등 upsert 라 안전).
+    let recorded = false;
+    if (!evtType || /payment|order|결제|주문|sale|approv|paid|complete|done/i.test(evtType)) {
       const { paymentId, amount, method, paidAt } = extractTossPlacePayment(body.data ?? body);
       if (paymentId && amount > 0) {
         await upsertTossPlacePayment(db, storeId, { paymentId: String(paymentId), amount, method, paidAt });
+        recorded = true;
         console.log('[tossplace webhook] recorded', { storeId, paymentId, amount });
       }
     }
-    res.json({ ok: true });
+    await writeDiag(recorded ? 'recorded' : 'received-not-recorded', { storeId });
+    res.json({ ok: true, recorded });
   } catch (e: any) {
     console.error('[tossplace webhook] failed', e?.message);
     res.status(500).json({ error: e?.message });
+  }
+});
+
+// --- 토스플레이스 웹훅 진단 — 마지막 수신 웹훅(도착여부·형태·결과) 조회. "결제했는데 안 잡힘" 원인 파악용 ---
+app.post('/api/store/tossplace-diag', async (req, res) => {
+  try {
+    const adminApp = getFirebaseAdmin();
+    if (!adminApp) return res.status(500).json({ error: 'admin-not-configured' });
+    const authHeader = req.headers.authorization || '';
+    const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    if (!idToken) return res.status(401).json({ error: 'unauthorized' });
+    try { await adminApp.auth().verifyIdToken(idToken); } catch { return res.status(401).json({ error: 'invalid-token' }); }
+    const snap = await adminApp.firestore().collection('tossplace_diag').doc('last').get();
+    res.json({ ok: true, last: snap.exists ? snap.data() : null });
+  } catch (e: any) {
+    console.error('[tossplace-diag] failed', e?.message);
+    res.status(500).json({ error: 'diag failed' });
   }
 });
 

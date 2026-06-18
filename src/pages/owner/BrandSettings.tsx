@@ -330,6 +330,33 @@ export default function BrandSettings() {
     }
   };
 
+  // 웹훅 진단 — 마지막으로 도착한 토스 웹훅(도착여부·형태·결과)을 확인. "결제했는데 매출 안 늘어남" 원인 파악용.
+  const checkTossWebhook = async () => {
+    setTpBusy(true);
+    try {
+      const idToken = await auth?.currentUser?.getIdToken();
+      const res = await fetch(api("/api/store/tossplace-diag"), {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${idToken ?? ""}` },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json().catch(() => ({} as any));
+      const l = data.last;
+      if (!l) {
+        showToast("아직 도착한 웹훅이 없어요. 토스 웹훅에 '결제' 이벤트가 구독됐는지 확인 후, 결제하고 다시 눌러보세요.", "info");
+        return;
+      }
+      showToast(
+        `마지막 웹훅: ${String(l.receivedAt ?? "").slice(0, 19)} · type:${l.type || "(없음)"} · mId:${l.merchantId ?? "?"} · 결과:${l.outcome}${l.topKeys ? ` · keys:${(l.topKeys || []).join(",")}` : ""}`,
+        "info"
+      );
+    } catch (e: any) {
+      showToast("웹훅 진단 실패: " + (e?.message ?? ""), "error");
+    } finally {
+      setTpBusy(false);
+    }
+  };
+
   // 토스플레이스 콘솔에 등록할 웹훅 수신 주소 (VITE_API_URL 미설정 시 현재 출처 기준)
   const tossPlaceWebhookUrl = (() => {
     const u = api("/api/tossplace/webhook");
@@ -790,6 +817,9 @@ export default function BrandSettings() {
               {t("obs.tp.syncNow", lang)}
             </Button>
           </div>
+          <Button variant="ghost" onClick={checkTossWebhook} loading={tpBusy} className="w-full text-[12px] text-[var(--color-ink-600)]">
+            🔎 웹훅 수신 확인 (결제했는데 안 늘어날 때)
+          </Button>
         </Sec>
 
         <Sec title={t("obs.sec.kiosk", lang)} group={t("obs.group.extra", lang)} defaultOpen={false}>
