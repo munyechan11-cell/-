@@ -38,6 +38,15 @@ import { canStaffAccess } from "../../lib/staffAccess";
 import { PushOnboarding } from "../ui/PushOnboarding";
 import { GyeolMark } from "../ui/GyeolMark";
 
+// 사이드바 스크롤 위치 보존 — OwnerShell 이 페이지 이동마다 새로 마운트되어 nav 스크롤이 0으로
+// 초기화되던 문제 해결. 모듈 변수에 마지막 스크롤을 저장하고, 새 nav 마운트 시 그대로 복원한다.
+let savedNavScroll = 0;
+const preserveNavScroll = (el: HTMLElement | null) => {
+  if (!el) return;
+  el.scrollTop = savedNavScroll;
+  el.onscroll = () => { savedNavScroll = el.scrollTop; };
+};
+
 interface Props {
   children: React.ReactNode;
   title?: string;
@@ -166,7 +175,7 @@ export function OwnerShell({ children, title, headerRight, width = "default" }: 
           </div>
         </Link>
 
-        <nav className="flex-1 overflow-y-auto p-3 space-y-3">
+        <nav ref={preserveNavScroll} className="flex-1 overflow-y-auto p-3 space-y-3">
           {NAV_GROUPS.map((g) => {
             const items = navItems.filter((n) => n.group === g);
             if (items.length === 0) return null;
@@ -238,7 +247,7 @@ export function OwnerShell({ children, title, headerRight, width = "default" }: 
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <nav className="flex-1 overflow-y-auto p-3 space-y-3">
+            <nav ref={preserveNavScroll} className="flex-1 overflow-y-auto p-3 space-y-3">
               {NAV_GROUPS.map((g) => {
                 const items = navItems.filter((n) => n.group === g);
                 if (items.length === 0) return null;
