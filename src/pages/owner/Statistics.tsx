@@ -51,6 +51,7 @@ export default function OwnerStatistics() {
         storeId,
         question: q.question,
         context,
+        lang,
       });
       setInsightCache((c) => ({ ...c, [key]: answer }));
     } catch (e: any) {
@@ -111,6 +112,7 @@ export default function OwnerStatistics() {
     // menu ranking
     const menuCount: Record<string, { name: string; count: number; revenue: number }> = {};
     periodOrders.forEach((o) => {
+      if (o.source === "tossplace") return; // 외부 POS 결제는 메뉴 정보가 없어 메뉴 랭킹 제외(매출 합계엔 포함)
       o.items.forEach((it) => {
         menuCount[it.menuId] ??= { name: it.name, count: 0, revenue: 0 };
         menuCount[it.menuId].count += it.quantity;

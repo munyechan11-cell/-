@@ -2424,6 +2424,79 @@ app.post('/api/marketing/generate', async (req, res) => {
 });
 
 // ============================================================
+// 리뷰 SNS 공유 캡션 'AI 포장' (마케팅 비서 업그레이드)
+// 손님이 남긴 리뷰를 '손님 본인의 1인칭 SNS 후기' 캡션으로 다듬는다.
+// (마케팅 게시물 생성과 달리 손님 개인 공유용 → marketingAgent.enabled 게이트 없음.)
+// 클라이언트(src/lib/reviewShare.ts)는 실패/503 시 로컬 캡션으로 폴백한다. 응답: { caption }
+// ============================================================
+app.post('/api/marketing/polish-review', async (req, res) => {
+  try {
+    const { storeId, storeName, rating, reviewTitle, reviewText, tags, recommend, hashtags, lang } = req.body ?? {};
+    if (!isValidStoreId(storeId)) return res.status(400).json({ error: 'storeId required' });
+    // 매장당 분당 10회 — LLM 비용을 매장 단위로 묶음(인증 없는 손님 호출 보호)
+    if (!checkMarketingRate(storeId)) {
+      return res.status(429).json({ error: '잠시 후 다시 시도해 주세요. (분당 10회 제한)' });
+    }
+    const text = String(reviewText || '').trim().slice(0, 600);
+    const ratingNum = Number(rating);
+    const hasRating = ratingNum >= 1 && ratingNum <= 5;
+    if (!text && !hasRating) return res.status(400).json({ error: 'empty review' });
+
+    // 매장명/기본 해시태그는 body 우선, 비어 있으면 Firestore 폴백(가능할 때만).
+    let name = String(storeName || '').trim();
+    let tagSeed = String(hashtags || '').trim();
+    try {
+      const adminApp = getFirebaseAdmin();
+      if (adminApp && (!name || !tagSeed)) {
+        const snap = await adminApp.firestore().collection('users').doc(storeId).get();
+        if (snap.exists) {
+          const owner = snap.data() as any;
+          if (!name) name = String(owner?.restaurantName || '').trim();
+          if (!tagSeed) tagSeed = String(owner?.storeConfig?.reviewShare?.hashtags || '').trim();
+        }
+      }
+    } catch { /* Firestore 미구성/오류 — body 값으로 진행 */ }
+    if (!name) name = '이 가게';
+
+    const stars = hasRating ? '★'.repeat(Math.round(ratingNum)) : '';
+    const tagList = Array.isArray(tags) ? tags.filter((x: any) => typeof x === 'string').slice(0, 8) : [];
+    const recoLine = recommend === true ? '추천함' : recommend === false ? '아쉬웠음' : '';
+
+    const sys = `당신은 손님이 직접 쓴 듯 자연스러운 SNS 후기 캡션을 만드는 전문가입니다.
+매장 "${name}"을(를) 방문한 손님이 자기 인스타/구글에 올릴 1인칭 후기를 작성하세요.
+[규칙]
+- 철저히 손님 시점(1인칭). 솔직하고 생생한 "내돈내산" 톤. 사장님/홍보 말투 금지.
+- 손님이 준 별점·제목·내용·키워드를 자연스럽게 녹여 2~4문장.
+- 마지막 줄에 해시태그 6~10개(가게명·지역·메뉴·분위기 섞어서). 손님이 준 기본 해시태그가 있으면 포함.
+- 이모지는 1~4개만 자연스럽게. 과장·허위 금지.
+출력은 캡션 본문만 — 설명·머리말·따옴표·코드펜스·JSON 절대 금지.`;
+    const userMsg = `가게: ${name}` +
+      (stars ? `\n별점: ${stars} (${Math.round(ratingNum)}/5)` : '') +
+      (recoLine ? `\n추천여부: ${recoLine}` : '') +
+      (reviewTitle ? `\n제목: ${String(reviewTitle).trim().slice(0, 60)}` : '') +
+      (text ? `\n후기: ${text}` : '') +
+      (tagList.length ? `\n좋았던 점: ${tagList.join(', ')}` : '') +
+      (tagSeed ? `\n기본 해시태그: ${tagSeed}` : '');
+
+    let out: string | null;
+    try {
+      out = await callLLMText(sys + langDirective(lang), userMsg, 500);
+    } catch (e: any) {
+      console.error('[marketing/polish-review] llm', e?.message);
+      return res.status(502).json({ error: 'AI_CALL_FAILED' });
+    }
+    if (out === null) return res.status(503).json({ error: 'AI_NOT_CONFIGURED' });
+    let caption = String(out || '').replace(/```(?:json)?/gi, '').replace(/```/g, '').trim();
+    caption = caption.replace(/^["'“”]+/, '').replace(/["'“”]+$/, '').trim().slice(0, 1500);
+    if (!caption) return res.status(502).json({ error: 'AI_EMPTY' });
+    return res.json({ caption });
+  } catch (e: any) {
+    console.error('[marketing/polish-review]', e?.message);
+    res.status(500).json({ error: e?.message ?? 'polish failed' });
+  }
+});
+
+// ============================================================
 // 마케팅 채널 발행 (TODO 7-4) — Zernio 소셜 발행 대행 API로 인스타그램 게시.
 // 매장별 Zernio 계정(storeConfig.publishing.instagramAccountId)으로 발행. ZERNIO_API_KEY 는 결 플랫폼 공용.
 // 인스타는 미디어(이미지) 필수 — imageUrl(공개 URL) 없으면 거부. 승인된 초안만 클라이언트가 호출.

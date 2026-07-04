@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Sparkles, Check, X, Send, Pencil, Trash2, ChevronDown, ChevronUp, ShieldCheck, Loader2, BarChart3 } from "lucide-react";
+import { Sparkles, Check, X, Send, Pencil, Trash2, ChevronDown, ChevronUp, ShieldCheck, Loader2, BarChart3, Share2, Globe, Instagram } from "lucide-react";
 import { OwnerShell } from "../../components/layout/OwnerShell";
 import { useStore } from "../../store/store";
 import { useLanguage, t, fmtKRW } from "../../lib/i18n";
@@ -30,6 +30,7 @@ export default function OwnerMarketingAgent() {
     reviewMarketingDraft,
     updateMarketingDraftContent,
     deleteMarketingDraft,
+    reviewShares,
     photos,
     updatePhoto,
     orders,
@@ -62,6 +63,47 @@ export default function OwnerMarketingAgent() {
     setDailyLimit(String(cfg.dailyPublishLimit ?? 0));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser?.id]);
+
+  // ----- 리뷰 공유 설정 + 성과 (마케팅 비서 업그레이드) -----
+  const shareCfg = currentUser?.storeConfig?.reviewShare;
+  const [placeId, setPlaceId] = useState(shareCfg?.googlePlaceId ?? "");
+  const [shareHashtags, setShareHashtags] = useState(shareCfg?.hashtags ?? "");
+  const [savingShare, setSavingShare] = useState(false);
+  useEffect(() => {
+    setPlaceId(shareCfg?.googlePlaceId ?? "");
+    setShareHashtags(shareCfg?.hashtags ?? "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.id]);
+
+  const saveShareSettings = async () => {
+    if (savingShare) return;
+    setSavingShare(true);
+    try {
+      await updateStoreConfig(storeId, {
+        reviewShare: {
+          googlePlaceId: placeId.trim() || undefined,
+          hashtags: shareHashtags.trim() || undefined,
+        },
+      });
+      showToast(t("magent.share.saved", lang), "success");
+    } catch (e: any) {
+      showToast(e?.message ?? "save failed", "error");
+    } finally {
+      setSavingShare(false);
+    }
+  };
+
+  const shareStats = useMemo(() => {
+    const mine = reviewShares.filter((s) => s.storeId === storeId);
+    const last7 = mine.filter((s) => Date.now() - new Date(s.sharedAt).getTime() < 7 * 86_400_000).length;
+    return {
+      total: mine.length,
+      google: mine.filter((s) => s.platform === "google").length,
+      instagram: mine.filter((s) => s.platform === "instagram").length,
+      customers: new Set(mine.map((s) => s.customerId).filter(Boolean)).size,
+      last7,
+    };
+  }, [reviewShares, storeId]);
 
   // 소셜 채널 셀프 연결 (인스타 + 구글 비즈니스) — 연결 상태는 storeConfig.publishing.channels 에서 (서버가 관리)
   const PLATFORMS: { key: "instagram" | "googlebusiness"; labelKey: string }[] = [
@@ -514,6 +556,65 @@ export default function OwnerMarketingAgent() {
               {summary}
             </p>
           )}
+        </section>
+
+        {/* ===== 리뷰 공유 성과 + 공유 설정 (마케팅 비서 업그레이드) ===== */}
+        <section className="rounded-2xl bg-white border border-[var(--color-line)] p-5">
+          <h2 className="text-[16px] font-extrabold text-[var(--color-navy-900)] mb-1 inline-flex items-center gap-1.5">
+            <Share2 className="w-4 h-4 text-[var(--color-navy-700)]" />
+            {t("magent.shares.title", lang)}
+          </h2>
+          <p className="text-[12px] text-[var(--color-ink-500)] mb-3 leading-relaxed">{t("magent.shares.desc", lang)}</p>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-4">
+            <Metric label={t("magent.shares.total", lang)} value={String(shareStats.total)} />
+            <Metric label={t("magent.shares.google", lang)} value={String(shareStats.google)} />
+            <Metric label={t("magent.shares.instagram", lang)} value={String(shareStats.instagram)} />
+            <Metric label={t("magent.shares.customers", lang)} value={String(shareStats.customers)} />
+            <Metric label={t("magent.shares.last7", lang)} value={String(shareStats.last7)} />
+          </div>
+          {shareStats.total === 0 && (
+            <p className="text-[12px] text-[var(--color-ink-400)] mb-4">{t("magent.shares.empty", lang)}</p>
+          )}
+
+          <div className="border-t border-[var(--color-line)] pt-4">
+            <p className="text-[13px] font-bold text-[var(--color-navy-800)] mb-3">{t("magent.share.settings", lang)}</p>
+            <div className="space-y-3">
+              <div>
+                <label className="text-[12px] font-bold text-[var(--color-ink-600)] inline-flex items-center gap-1.5 mb-1">
+                  <Globe className="w-3.5 h-3.5" />
+                  {t("magent.share.placeId", lang)}
+                </label>
+                <input
+                  value={placeId}
+                  onChange={(e) => setPlaceId(e.target.value)}
+                  placeholder="ChIJ…"
+                  className={field}
+                />
+                <p className="text-[11px] text-[var(--color-ink-400)] mt-1 leading-relaxed">{t("magent.share.placeIdHint", lang)}</p>
+              </div>
+              <div>
+                <label className="text-[12px] font-bold text-[var(--color-ink-600)] inline-flex items-center gap-1.5 mb-1">
+                  <Instagram className="w-3.5 h-3.5" />
+                  {t("magent.share.hashtags", lang)}
+                </label>
+                <input
+                  value={shareHashtags}
+                  onChange={(e) => setShareHashtags(e.target.value)}
+                  placeholder="#포항맛집, #카페"
+                  className={field}
+                />
+                <p className="text-[11px] text-[var(--color-ink-400)] mt-1 leading-relaxed">{t("magent.share.hashtagsHint", lang)}</p>
+              </div>
+              <button
+                onClick={saveShareSettings}
+                disabled={savingShare}
+                className="h-10 px-4 rounded-xl bg-[var(--color-navy-700)] text-[var(--color-on-primary,white)] font-bold inline-flex items-center gap-2 disabled:opacity-60"
+              >
+                {savingShare ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                {t("magent.share.save", lang)}
+              </button>
+            </div>
+          </div>
         </section>
 
         {/* ===== 7-1 마케팅 프로필 ===== */}

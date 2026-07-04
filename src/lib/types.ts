@@ -73,6 +73,13 @@ export interface StoreConfig {
   };
   /** 결 요금제 — free(채널 1개) / pro(채널 여러 개, 월 ₩10,000). 미설정=free. */
   plan?: "free" | "pro";
+  /** 손님 리뷰 SNS 공유(마케팅 비서 업그레이드) — 손님이 AI로 포장한 리뷰를 자기 구글/인스타에 한 번에 올릴 때 사용. */
+  reviewShare?: {
+    /** 구글 비즈니스 프로필 Place ID — 손님 '구글에 올리기' 버튼이 이 매장 리뷰 작성창을 연다. 비우면 매장명으로 검색. */
+    googlePlaceId?: string;
+    /** 공유 캡션 끝에 자동으로 붙는 기본 해시태그 (쉼표/띄어쓰기 구분, # 생략 가능). */
+    hashtags?: string;
+  };
 }
 
 export interface User {
@@ -376,8 +383,10 @@ export interface Order {
   paymentStatus?: "unpaid" | "requested" | "paid" | "refunded";
   /** 결제수단 — 카드(토스)/현금(수동승인). 매출장부 분리용. */
   paymentMethod?: "card" | "cash";
-  /** 주문 출처 — app(앱 주문·기본) / tossplace(오프라인 토스 POS 웹훅 유입). 매출엔 함께 잡히되 주방·테이블 흐름에선 제외. */
-  source?: "app" | "tossplace";
+  /** 주문 출처 — app(앱 주문·기본) / tossplace(오프라인 토스 POS 웹훅 유입) / manual(영수증·현금 수동 매출 입력). 매출엔 함께 잡히되 주방·테이블 흐름에선 제외. */
+  source?: "app" | "tossplace" | "manual";
+  /** 수동 매출(source="manual") 메모 — 영수증 상호명·비고 등. 일반 주문엔 없음. */
+  memo?: string;
   createdAt: string;
 }
 
@@ -415,6 +424,12 @@ export interface Photo {
   rating?: number;
   /** 리뷰 본문 (선택). */
   reviewText?: string;
+  /** 리뷰 한 줄 제목 (삼성닷컴 스타일, 선택). */
+  reviewTitle?: string;
+  /** 추천 여부 — true="추천해요" / false="아쉬워요" / 미설정=선택 안 함. */
+  recommend?: boolean;
+  /** 키워드 태그 — 맛/친절/분위기 등 미리 정의된 태그 id 목록 (review.tag.* i18n 키). */
+  reviewTags?: string[];
   /** 사장님 답글 — 손님 리뷰에 대한 응답. 한 리뷰당 1개만. */
   ownerReply?: {
     text: string;
@@ -426,6 +441,29 @@ export interface Photo {
     blog?: { id?: string; syncedAt: string };
   };
   createdAt: string;
+}
+
+// ============================================================
+// 리뷰 SNS 공유 추적 (마케팅 비서 업그레이드)
+// 손님이 AI로 포장한 리뷰를 자기 구글/인스타에 올리려고 공유 버튼을 누른 기록.
+// "몇 명이 몇 번 올렸는지"를 사장님이 마케팅 비서에서 분석한다.
+// (플랫폼 정책상 무인 게시는 불가 — 버튼 클릭=공유 의도 시점에 1건 적재.)
+// ============================================================
+export type SharePlatform = "google" | "instagram" | "other";
+export interface ReviewShare {
+  id: string;
+  storeId: string;
+  /** 공유 대상 리뷰(photos) id. */
+  reviewId: string;
+  /** 공유한 손님 — 익명/비로그인 공유 대비 선택. */
+  customerId?: string;
+  customerName?: string;
+  /** 공유 채널 */
+  platform: SharePlatform;
+  /** 공유 시점 리뷰 별점 스냅샷 (분석용) */
+  rating?: number;
+  /** ISO 시각 */
+  sharedAt: string;
 }
 
 // ============================================================

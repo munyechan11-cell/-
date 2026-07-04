@@ -55,6 +55,7 @@ import type {
   Ingredient,
   Expense,
   MarketingDraft,
+  ReviewShare,
 } from "../lib/types";
 
 type FirebaseStatus = "connecting" | "ok" | "error" | "offline";
@@ -82,6 +83,8 @@ interface StoreState {
   ingredients: Ingredient[];
   expenses: Expense[];
   marketingDrafts: MarketingDraft[];
+  /** 손님이 AI로 포장한 리뷰를 자기 SNS에 올리려 공유 버튼을 누른 기록 (마케팅 비서 분석용). */
+  reviewShares: ReviewShare[];
 
   /** 현재 컨텍스트의 매장 id (사장님=자기 id, 직원=employerStoreId) */
   effectiveStoreId: string;
@@ -141,6 +144,13 @@ interface StoreState {
   deleteIngredient: (id: string) => Promise<void>;
   addExpense: (storeId: string, data: Omit<Expense, "id" | "storeId" | "createdAt">) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
+  /** 수동 매출(영수증·현금·비POS) — orders 에 source="manual" 합성 주문으로 기록. items 가 있으면 메뉴별 분석에도 반영. */
+  addManualSale: (
+    storeId: string,
+    data: { amount: number; date: string; method: "card" | "cash"; memo?: string; items?: OrderItem[] }
+  ) => Promise<void>;
+  /** 수동 매출 삭제 — source="manual" 주문만 대상 */
+  deleteManualSale: (id: string) => Promise<void>;
 
   // 마케팅 에이전트 초안 — 모두 '초안'으로 생성되어 사장 승인 후 발행. 전 상태전이 audit 로깅(TODO 7-3).
   addMarketingDraft: (
@@ -157,6 +167,8 @@ interface StoreState {
   /** 초안 본문 수정 — audit 에 edited 기록. */
   updateMarketingDraftContent: (id: string, content: string, title?: string) => Promise<void>;
   deleteMarketingDraft: (id: string) => Promise<void>;
+  /** 손님이 리뷰를 SNS에 공유(버튼 클릭)할 때 1건 적재 — 마케팅 비서 '리뷰 공유 성과' 분석용. */
+  recordReviewShare: (input: Omit<ReviewShare, "id" | "sharedAt">) => Promise<void>;
 
   // orders
   placeOrder: (input: {
@@ -309,6 +321,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const ingredientsRef = useRef<Ingredient[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [marketingDrafts, setMarketingDrafts] = useState<MarketingDraft[]>([]);
+  const [reviewShares, setReviewShares] = useState<ReviewShare[]>([]);
   useEffect(() => { ingredientsRef.current = ingredients; }, [ingredients]);
 
   const scopedUnsubsRef = useRef<Array<() => void>>([]);
@@ -513,6 +526,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       sub<Ingredient>("ingredients", setIngredients, "storeId", sid);
       sub<Expense>("expenses", setExpenses, "storeId", sid);
       sub<MarketingDraft>("marketingDrafts", setMarketingDrafts, "storeId", sid);
+      sub<ReviewShare>("reviewShares", setReviewShares, "storeId", sid);
     } else if (currentUser.role === "staff") {
       const sid = currentUser.employerStoreId;
       // 본인 근무 기록은 항상 구독 (승인 전에도 빈 배열)
@@ -1344,6 +1358,41 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     await updateFirestoreDoc("expenses", id, undefined, true);
   }, []);
 
+  // 수동 매출 — 영수증·현금처럼 POS 밖에서 발생한 매출을 합성 주문으로 기록.
+  // status="served"·tableNumber=0 으로 두어 주방(KDS)·활성주문·테이블 흐름에서 자동 제외(tossplace 와 동일 취급).
+  // 날짜만 있고 시각이 없으면 정오(12:00)로 두어 시간대별 차트의 중립 버킷에 들어가게 함.
+  const addManualSale = useCallback(
+    async (
+      storeId: string,
+      data: { amount: number; date: string; method: "card" | "cash"; memo?: string; items?: OrderItem[] }
+    ) => {
+      const id = generateId();
+      const today = new Date();
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+      // 오늘 입력이면 현재 시각, 과거 날짜면 정오로 — 시간대 버킷 안정화
+      const createdAt = data.date === todayStr ? today.toISOString() : new Date(`${data.date}T12:00:00`).toISOString();
+      const order: Order = {
+        id,
+        storeId,
+        tableNumber: 0,
+        customerId: "",
+        items: data.items ?? [],
+        totalAmount: data.amount,
+        status: "served",
+        paymentStatus: "paid",
+        paymentMethod: data.method,
+        source: "manual",
+        createdAt,
+        ...(data.memo ? { memo: data.memo } : {}),
+      };
+      await updateFirestoreDoc("orders", id, order);
+    },
+    []
+  );
+  const deleteManualSale = useCallback(async (id: string) => {
+    await updateFirestoreDoc("orders", id, undefined, true);
+  }, []);
+
   // ===== 마케팅 에이전트 초안 (TODO 7-3) — 승인 게이트 + 감사 로깅 =====
   const addMarketingDraft = useCallback(
     async (
@@ -1414,6 +1463,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, []);
   const deleteMarketingDraft = useCallback(async (id: string) => {
     await updateFirestoreDoc("marketingDrafts", id, undefined, true);
+  }, []);
+
+  // 손님이 리뷰를 SNS에 공유(버튼 클릭)할 때 호출 — 플랫폼 정책상 무인 게시는 불가하므로
+  // '공유 의도(버튼 클릭)' 시점에 1건 기록한다. 사장님 마케팅 비서 '리뷰 공유 성과'에서 집계.
+  const recordReviewShare = useCallback(async (input: Omit<ReviewShare, "id" | "sharedAt">) => {
+    const doc: ReviewShare = {
+      id: generateId(),
+      sharedAt: new Date().toISOString(),
+      ...input,
+    };
+    await updateFirestoreDoc("reviewShares", doc.id, doc);
   }, []);
 
   /**
@@ -2317,6 +2377,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       ingredients,
       expenses,
       marketingDrafts,
+      reviewShares,
       activeShift,
       effectiveStoreId,
       activeStoreId,
@@ -2378,10 +2439,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       deleteIngredient,
       addExpense,
       deleteExpense,
+      addManualSale,
+      deleteManualSale,
       addMarketingDraft,
       reviewMarketingDraft,
       updateMarketingDraftContent,
       deleteMarketingDraft,
+      recordReviewShare,
       requestJoinStore,
       cancelJoinRequest,
       approveStaff,
@@ -2412,6 +2476,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       ingredients,
       expenses,
       marketingDrafts,
+      reviewShares,
       activeShift,
       effectiveStoreId,
       activeStoreId,
@@ -2472,10 +2537,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       deleteIngredient,
       addExpense,
       deleteExpense,
+      addManualSale,
+      deleteManualSale,
       addMarketingDraft,
       reviewMarketingDraft,
       updateMarketingDraftContent,
       deleteMarketingDraft,
+      recordReviewShare,
       requestJoinStore,
       cancelJoinRequest,
       approveStaff,

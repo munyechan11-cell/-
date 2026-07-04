@@ -25,8 +25,20 @@ import {
   PartyPopper,
   Store,
   ChevronRight,
+  ThumbsUp,
+  Instagram,
+  Globe,
+  Copy as CopyIcon,
+  Loader2,
 } from "lucide-react";
 import { resizeImage } from "../owner/PhotoVault";
+import {
+  polishReviewCaption,
+  copyText,
+  openGoogleReview,
+  shareToInstagram,
+  type ReviewForShare,
+} from "../../lib/reviewShare";
 import { LANGS, useLanguage, setLanguage, t, fmtKRW, getLocale } from "../../lib/i18n";
 import { MobileShell } from "../../components/layout/MobileShell";
 import { TopBar } from "../../components/ui/TopBar";
@@ -56,6 +68,9 @@ const lineKey = (menuId: string, opts: SelectedOption[]) =>
   opts.length === 0 ? menuId : `${menuId}|${opts.map((o) => o.optionId).slice().sort().join(",")}`;
 const optSummary = (opts: SelectedOption[]) => opts.map((o) => o.optionName).join(" · ");
 
+// 삼성닷컴 스타일 리뷰 키워드 태그 — id 는 review.tag.<id> i18n 키와 1:1. 저장 시 id 만 보관.
+const REVIEW_TAG_IDS = ["taste", "kind", "mood", "clean", "value", "portion", "revisit"] as const;
+
 export default function CustomerDashboard() {
   const { storeId: paramStoreId } = useParams();
   const [searchParams] = useSearchParams();
@@ -78,6 +93,7 @@ export default function CustomerDashboard() {
     placeOrder,
     payTableSession,
     addPhoto,
+    recordReviewShare,
     setActiveStoreId,
     enterTable,
     leaveTable,
@@ -88,6 +104,11 @@ export default function CustomerDashboard() {
   const [cartOpen, setCartOpen] = useState(false);
   const [billOpen, setBillOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
+  // 리뷰 작성 후 'AI 포장 → SNS 공유' 시트. 작성된 리뷰(reviewId)와 공유용 데이터를 담는다.
+  const [shareCtx, setShareCtx] = useState<
+    | null
+    | { reviewId: string; review: ReviewForShare; imageData?: string }
+  >(null);
   // 언어 변경 시 상위 리렌더 — 프로필 탭의 언어 선택 버튼에서 사용
   const lang = useLanguage();
 
@@ -357,20 +378,31 @@ export default function CustomerDashboard() {
   };
 
   const submitPaymentWithReview = async (
-    review?: { rating?: number; reviewText?: string; imageData?: string }
+    review?: {
+      rating?: number;
+      reviewText?: string;
+      imageData?: string;
+      reviewTitle?: string;
+      recommend?: boolean;
+      reviewTags?: string[];
+    }
   ) => {
     if (!currentUser || !myTable) return;
     setReviewOpen(false);
     try {
       // 리뷰 내용이 하나라도 있으면 photos 컬렉션에 type="review"로 저장
-      const hasReview = !!(review && (review.rating || review.reviewText?.trim() || review.imageData));
+      const realReview = !!(review && (review.rating || review.reviewText?.trim()));
+      const hasReview = !!(review && (realReview || review.imageData));
       if (hasReview) {
-        await addPhoto({
+        const saved = await addPhoto({
           storeId,
           type: "review",
           ...(review!.imageData ? { imageData: review!.imageData } : {}),
           ...(review!.rating ? { rating: review!.rating } : {}),
           ...(review!.reviewText?.trim() ? { reviewText: review!.reviewText.trim() } : {}),
+          ...(review!.reviewTitle?.trim() ? { reviewTitle: review!.reviewTitle.trim() } : {}),
+          ...(review!.recommend !== undefined ? { recommend: review!.recommend } : {}),
+          ...(review!.reviewTags?.length ? { reviewTags: review!.reviewTags } : {}),
           customerId: currentUser.id,
           customerName: currentUser.name,
           tableNumber: myTable.number,
@@ -379,7 +411,6 @@ export default function CustomerDashboard() {
         //  · 이번 방문(세션)에 이미 'review' 쿠폰을 받았으면 중복 지급 안 함. used 만 검사하면
         //    쿠폰을 pending/used 로 만든 뒤 모달 재오픈으로 누적 발급되는 악용이 가능해, 세션 기준으로 차단.
         const rc = owner?.storeConfig?.reviewCoupon;
-        const realReview = !!(review!.rating || review!.reviewText?.trim());
         const sessionStart = myTable.sessionStartTime ?? "";
         const alreadyHas = coupons.some(
           (c) =>
@@ -396,6 +427,23 @@ export default function CustomerDashboard() {
             // silent: 발급 토스트 억제(도착 알림으로 일원화). custom 없으면 descKey 저장 → 손님 언어로 번역 표시(#20)
             { silent: true, ...(custom ? {} : { descKey: "review.rewardDefault" }) }
           );
+        }
+        // 마케팅 비서 업그레이드: 실제 리뷰면 'AI 포장 → SNS 공유' 시트를 띄움.
+        if (realReview) {
+          setShareCtx({
+            reviewId: saved.id,
+            imageData: review!.imageData,
+            review: {
+              storeName: owner?.restaurantName ?? t("common.store", lang),
+              rating: review!.rating,
+              title: review!.reviewTitle?.trim() || undefined,
+              text: review!.reviewText?.trim() || undefined,
+              tags: review!.reviewTags,
+              recommend: review!.recommend,
+              hashtags: owner?.storeConfig?.reviewShare?.hashtags,
+              lang,
+            },
+          });
         }
       }
       await payTableSession(currentUser.id, storeId, myTable.number);
@@ -959,6 +1007,26 @@ export default function CustomerDashboard() {
           }}
         />
       )}
+      {shareCtx && (
+        <ReviewShareSheet
+          ctx={shareCtx}
+          storeId={storeId}
+          customerId={currentUser?.id}
+          customerName={currentUser?.name}
+          placeId={owner?.storeConfig?.reviewShare?.googlePlaceId}
+          onShared={(platform) =>
+            recordReviewShare({
+              storeId,
+              reviewId: shareCtx.reviewId,
+              customerId: currentUser?.id,
+              customerName: currentUser?.name,
+              platform,
+              rating: shareCtx.review.rating,
+            })
+          }
+          onClose={() => setShareCtx(null)}
+        />
+      )}
     </MobileShell>
   );
 }
@@ -1383,13 +1451,26 @@ function ReviewModal({
 }: {
   unpaidTotal: number;
   onCancel: () => void;
-  onSubmit: (review?: { rating?: number; reviewText?: string; imageData?: string }) => void;
+  onSubmit: (review?: {
+    rating?: number;
+    reviewText?: string;
+    imageData?: string;
+    reviewTitle?: string;
+    recommend?: boolean;
+    reviewTags?: string[];
+  }) => void;
 }) {
   const [rating, setRating] = useState(0);
+  const [title, setTitle] = useState("");
   const [text, setText] = useState("");
   const [image, setImage] = useState<string>("");
+  const [recommend, setRecommend] = useState<boolean | undefined>(undefined);
+  const [tags, setTags] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const lang = useLanguage();
+
+  const toggleTag = (id: string) =>
+    setTags((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
   const onPickImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1415,6 +1496,9 @@ function ReviewModal({
       rating: rating > 0 ? rating : undefined,
       reviewText: text.trim() || undefined,
       imageData: image || undefined,
+      reviewTitle: title.trim() || undefined,
+      recommend,
+      reviewTags: tags.length ? tags : undefined,
     });
   };
 
@@ -1462,6 +1546,50 @@ function ReviewModal({
           </div>
         </div>
 
+        {/* 추천 여부 (삼성닷컴 스타일) */}
+        <div className="mb-4">
+          <p className="text-[12px] font-bold text-[var(--color-navy-800)] mb-2">{t("review.recommendLabel", lang)}</p>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setRecommend((v) => (v === true ? undefined : true))}
+              className={cn(
+                "h-10 rounded-[12px] border-[1.5px] inline-flex items-center justify-center gap-1.5 text-[13px] font-bold transition-colors",
+                recommend === true
+                  ? "border-[var(--color-navy-700)] bg-[var(--color-navy-50)] text-[var(--color-navy-800)]"
+                  : "border-[var(--color-line)] text-[var(--color-ink-500)]"
+              )}
+            >
+              <ThumbsUp className="w-4 h-4" />
+              {t("review.recommendYes", lang)}
+            </button>
+            <button
+              type="button"
+              onClick={() => setRecommend((v) => (v === false ? undefined : false))}
+              className={cn(
+                "h-10 rounded-[12px] border-[1.5px] inline-flex items-center justify-center gap-1.5 text-[13px] font-bold transition-colors",
+                recommend === false
+                  ? "border-[var(--color-ink-400)] bg-[var(--color-ink-50)] text-[var(--color-ink-700)]"
+                  : "border-[var(--color-line)] text-[var(--color-ink-500)]"
+              )}
+            >
+              <ThumbsUp className="w-4 h-4 rotate-180" />
+              {t("review.recommendNo", lang)}
+            </button>
+          </div>
+        </div>
+
+        {/* 한 줄 제목 */}
+        <div className="mb-4">
+          <p className="text-[12px] font-bold text-[var(--color-navy-800)] mb-2">{t("review.titleLabel", lang)}</p>
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value.slice(0, 40))}
+            placeholder={t("review.titlePlaceholder", lang)}
+            className="w-full px-3 py-2.5 rounded-[12px] border-[1.5px] border-[var(--color-line)] text-[14px] focus:border-[var(--color-navy-700)] focus:outline-none"
+          />
+        </div>
+
         {/* 글 */}
         <div className="mb-4">
           <p className="text-[12px] font-bold text-[var(--color-navy-800)] mb-2">{t("review.text", lang)}</p>
@@ -1473,6 +1601,31 @@ function ReviewModal({
             className="w-full px-3 py-2.5 rounded-[12px] border-[1.5px] border-[var(--color-line)] text-[14px] focus:border-[var(--color-navy-700)] focus:outline-none resize-none"
           />
           <p className="text-[10.5px] text-[var(--color-ink-400)] text-right mt-1">{text.length}/300</p>
+        </div>
+
+        {/* 키워드 태그 */}
+        <div className="mb-4">
+          <p className="text-[12px] font-bold text-[var(--color-navy-800)] mb-2">{t("review.tagsLabel", lang)}</p>
+          <div className="flex flex-wrap gap-1.5">
+            {REVIEW_TAG_IDS.map((id) => {
+              const on = tags.includes(id);
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => toggleTag(id)}
+                  className={cn(
+                    "h-8 px-3 rounded-full border-[1.5px] text-[12.5px] font-bold transition-colors",
+                    on
+                      ? "border-[var(--color-navy-700)] bg-[var(--color-navy-700)] text-[var(--color-on-primary,white)]"
+                      : "border-[var(--color-line)] text-[var(--color-ink-600)]"
+                  )}
+                >
+                  {t(`review.tag.${id}`, lang)}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* 사진 */}
@@ -1544,6 +1697,150 @@ function ReviewModal({
           <Button size="md" onClick={submit} disabled={busy}>
             {t("review.submit", lang)}
           </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// 리뷰 SNS 공유 시트 (마케팅 비서 업그레이드)
+// 리뷰 작성 직후 노출 — AI가 '포장'한 1인칭 캡션을 보여주고, 버튼 한 번에
+// 손님 자기 구글/인스타 작성창을 열어준다(캡션은 클립보드에 복사). 공유 시 1건 적재.
+// ============================================================
+function ReviewShareSheet({
+  ctx,
+  storeId,
+  placeId,
+  onShared,
+  onClose,
+}: {
+  ctx: { reviewId: string; review: ReviewForShare; imageData?: string };
+  storeId: string;
+  customerId?: string;
+  customerName?: string;
+  placeId?: string;
+  onShared: (platform: "google" | "instagram") => void;
+  onClose: () => void;
+}) {
+  const lang = useLanguage();
+  const [caption, setCaption] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [ai, setAi] = useState(false);
+
+  useEffect(() => {
+    const ctrl = new AbortController();
+    let alive = true;
+    (async () => {
+      const { caption: c, ai: isAi } = await polishReviewCaption(ctx.review, storeId, ctrl.signal);
+      if (!alive) return;
+      setCaption(c);
+      setAi(isAi);
+      setLoading(false);
+    })();
+    return () => {
+      alive = false;
+      ctrl.abort();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const onGoogle = async () => {
+    const ok = await copyText(caption);
+    openGoogleReview(placeId, ctx.review.storeName);
+    onShared("google");
+    showToast(ok ? t("share.openedGoogle", lang) : t("share.copyFail", lang), ok ? "success" : "info");
+  };
+
+  const onInstagram = async () => {
+    const result = await shareToInstagram(caption, ctx.imageData);
+    onShared("instagram");
+    if (result === "shared") {
+      showToast(t("share.shared", lang), "success");
+    } else {
+      await copyText(caption);
+      showToast(t("share.openedInstagram", lang), "success");
+    }
+  };
+
+  const onCopy = async () => {
+    const ok = await copyText(caption);
+    showToast(ok ? t("share.copied", lang) : t("share.copyFail", lang), ok ? "success" : "error");
+  };
+
+  return (
+    <div className="fixed inset-0 z-[70] bg-black/50 flex items-end sm:items-center justify-center sm:p-4" onClick={onClose}>
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-[480px] mx-auto bg-white rounded-t-[28px] sm:rounded-[28px] p-6 pb-[max(env(safe-area-inset-bottom),24px)] sm:pb-6 max-h-[88vh] overflow-y-auto"
+      >
+        <div className="w-12 h-1.5 rounded-full bg-[var(--color-ink-100)] mx-auto mb-5" />
+        <div className="flex items-center gap-2 mb-1">
+          <h2 className="text-[18px] font-extrabold text-[var(--color-navy-900)]">{t("share.title", lang)}</h2>
+          {ai && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[var(--color-navy-50)] text-[var(--color-navy-700)] text-[10.5px] font-bold">
+              <Sparkles className="w-3 h-3" />
+              {t("share.aiBadge", lang)}
+            </span>
+          )}
+        </div>
+        <p className="text-[12.5px] text-[var(--color-ink-500)] font-medium mb-4">{t("share.desc", lang)}</p>
+
+        {/* 포장된 캡션 (수정 가능) */}
+        <p className="text-[12px] font-bold text-[var(--color-navy-800)] mb-2">{t("share.captionLabel", lang)}</p>
+        {loading ? (
+          <div className="h-[120px] rounded-[12px] border-[1.5px] border-[var(--color-line)] flex items-center justify-center gap-2 text-[var(--color-ink-400)] text-[13px] mb-4">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            {t("share.generating", lang)}
+          </div>
+        ) : (
+          <textarea
+            value={caption}
+            onChange={(e) => setCaption(e.target.value)}
+            rows={5}
+            className="w-full px-3 py-2.5 rounded-[12px] border-[1.5px] border-[var(--color-line)] text-[14px] leading-relaxed focus:border-[var(--color-navy-700)] focus:outline-none resize-none mb-4"
+          />
+        )}
+
+        {/* 공유 버튼 */}
+        <div className="grid grid-cols-2 gap-2 mb-2">
+          <button
+            type="button"
+            onClick={onGoogle}
+            disabled={loading}
+            className="h-12 rounded-[14px] bg-[var(--color-navy-700)] text-[var(--color-on-primary,white)] font-bold inline-flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            <Globe className="w-[18px] h-[18px]" />
+            {t("share.google", lang)}
+          </button>
+          <button
+            type="button"
+            onClick={onInstagram}
+            disabled={loading}
+            className="h-12 rounded-[14px] text-white font-bold inline-flex items-center justify-center gap-2 disabled:opacity-50"
+            style={{ background: "linear-gradient(45deg,#f09433,#e6683c 25%,#dc2743 50%,#cc2366 75%,#bc1888)" }}
+          >
+            <Instagram className="w-[18px] h-[18px]" />
+            {t("share.instagram", lang)}
+          </button>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={onCopy}
+            disabled={loading}
+            className="h-10 rounded-[12px] border-[1.5px] border-[var(--color-line)] text-[var(--color-ink-700)] font-bold inline-flex items-center justify-center gap-1.5 disabled:opacity-50"
+          >
+            <CopyIcon className="w-4 h-4" />
+            {t("share.copy", lang)}
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="h-10 rounded-[12px] text-[var(--color-ink-500)] font-bold"
+          >
+            {t("share.later", lang)}
+          </button>
         </div>
       </div>
     </div>
