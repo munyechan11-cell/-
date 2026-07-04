@@ -11,6 +11,9 @@ coverage/
 .claude/settings.local.json
 .claude/.local/
 
+# Codex 로컬 훅 설정 — PC별 상이, git 추적 X
+.codex/
+
 # PDF 변환 임시 폴더
 dist-guide/
 

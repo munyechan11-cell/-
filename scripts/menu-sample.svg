@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="1040" viewBox="0 0 820 1040">
+  <rect width="820" height="1040" fill="#faf7f2"/>
+  <text x="410" y="90" text-anchor="middle" font-family="Malgun Gothic, sans-serif" font-size="52" font-weight="800" fill="#2a2118">결 카페 MENU</text>
+  <line x1="120" y1="120" x2="700" y2="120" stroke="#caa86a" stroke-width="3"/>
+
+  <text x="120" y="200" font-family="Malgun Gothic, sans-serif" font-size="34" font-weight="800" fill="#7a5a2a">COFFEE 커피</text>
+  <text x="140" y="260" font-family="Malgun Gothic, sans-serif" font-size="30" fill="#2a2118">아메리카노</text>
+  <text x="700" y="260" text-anchor="end" font-family="Malgun Gothic, sans-serif" font-size="30" fill="#2a2118">4,000</text>
+  <text x="140" y="312" font-family="Malgun Gothic, sans-serif" font-size="30" fill="#2a2118">카페라떼</text>
+  <text x="700" y="312" text-anchor="end" font-family="Malgun Gothic, sans-serif" font-size="30" fill="#2a2118">4,500</text>
+  <text x="140" y="364" font-family="Malgun Gothic, sans-serif" font-size="30" fill="#2a2118">바닐라라떼</text>
+  <text x="700" y="364" text-anchor="end" font-family="Malgun Gothic, sans-serif" font-size="30" fill="#2a2118">5,000</text>
+
+  <text x="120" y="460" font-family="Malgun Gothic, sans-serif" font-size="34" font-weight="800" fill="#7a5a2a">NON-COFFEE 논커피</text>
+  <text x="140" y="520" font-family="Malgun Gothic, sans-serif" font-size="30" fill="#2a2118">자몽에이드</text>
+  <text x="700" y="520" text-anchor="end" font-family="Malgun Gothic, sans-serif" font-size="30" fill="#2a2118">5,500</text>
+  <text x="140" y="572" font-family="Malgun Gothic, sans-serif" font-size="30" fill="#2a2118">딸기 스무디</text>
+  <text x="700" y="572" text-anchor="end" font-family="Malgun Gothic, sans-serif" font-size="30" fill="#2a2118">6,000</text>
+
+  <text x="120" y="668" font-family="Malgun Gothic, sans-serif" font-size="34" font-weight="800" fill="#7a5a2a">DESSERT 디저트</text>
+  <text x="140" y="728" font-family="Malgun Gothic, sans-serif" font-size="30" fill="#2a2118">티라미수</text>
+  <text x="700" y="728" text-anchor="end" font-family="Malgun Gothic, sans-serif" font-size="30" fill="#2a2118">6,500</text>
+  <text x="140" y="780" font-family="Malgun Gothic, sans-serif" font-size="30" fill="#2a2118">치즈케이크</text>
+  <text x="700" y="780" text-anchor="end" font-family="Malgun Gothic, sans-serif" font-size="30" fill="#2a2118">6,000</text>
+
+  <text x="410" y="900" text-anchor="middle" font-family="Malgun Gothic, sans-serif" font-size="22" fill="#9a8a6a">영업시간 09:00 - 22:00 · WIFI gyeol_cafe</text>
+</svg>

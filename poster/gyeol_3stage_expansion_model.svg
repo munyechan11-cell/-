@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 1080 380" width="1080" height="380" xmlns="http://www.w3.org/2000/svg" role="img" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif">
+  <title>연심 파일럿의 단계적 확산 모델</title>
+  <desc>매장의 자립에서 골목의 확산, 상권의 글로벌화로 이어지는 3단계 확산 모델 다이어그램</desc>
+  <rect x="0" y="0" width="1080" height="380" rx="18" fill="#ffffff"/>
+  <text x="540" y="42" text-anchor="middle" font-size="22" font-weight="700" fill="#16308f">단계적 확산 모델 : 매장 → 골목 → 상권</text>
+
+  <!-- ===== Box 1 ===== -->
+  <rect x="30" y="78" width="300" height="254" rx="14" fill="#eef4fd" stroke="#c5d8f5" stroke-width="1.5"/>
+  <path d="M30,92 Q30,78 44,78 L316,78 Q330,78 330,92 L330,124 L30,124 Z" fill="#16308f"/>
+  <circle cx="56" cy="101" r="15" fill="#ffffff"/>
+  <text x="56" y="107" text-anchor="middle" font-size="16" font-weight="700" fill="#16308f">1</text>
+  <text x="188" y="107" text-anchor="middle" font-size="17" font-weight="700" fill="#ffffff">매장의 자립</text>
+  <polygon points="158,150 202,150 180,138" fill="none" stroke="#16308f" stroke-width="2" stroke-linejoin="round"/>
+  <rect x="162" y="150" width="36" height="24" fill="none" stroke="#16308f" stroke-width="2"/>
+  <rect x="173" y="160" width="14" height="14" fill="#16308f"/>
+  <circle cx="48" cy="204" r="3" fill="#2f63c9"/>
+  <text x="60" y="208" font-size="13.5" font-weight="600" fill="#15275c">‘버티는’ 매장 → ‘운영하는’ 매장</text>
+  <text x="60" y="227" font-size="11.5" fill="#6a7a9c">마감·정산 시간 약 88%↓</text>
+  <circle cx="48" cy="266" r="3" fill="#2f63c9"/>
+  <text x="60" y="270" font-size="13.5" font-weight="600" fill="#15275c">사장님의 감이 데이터로 축적</text>
+  <text x="60" y="289" font-size="11.5" fill="#6a7a9c">경험 기반 → 데이터 기반 운영</text>
+
+  <path d="M347,197 l9,8 l-9,8" fill="none" stroke="#2f63c9" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M358,197 l9,8 l-9,8" fill="none" stroke="#2f63c9" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M369,197 l9,8 l-9,8" fill="none" stroke="#2f63c9" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- ===== Box 2 ===== -->
+  <rect x="390" y="78" width="300" height="254" rx="14" fill="#eef4fd" stroke="#c5d8f5" stroke-width="1.5"/>
+  <path d="M390,92 Q390,78 404,78 L676,78 Q690,78 690,92 L690,124 L390,124 Z" fill="#16308f"/>
+  <circle cx="416" cy="101" r="15" fill="#ffffff"/>
+  <text x="416" y="107" text-anchor="middle" font-size="16" font-weight="700" fill="#16308f">2</text>
+  <text x="548" y="107" text-anchor="middle" font-size="17" font-weight="700" fill="#ffffff">골목의 확산</text>
+  <line x1="540" y1="158" x2="518" y2="146" stroke="#16308f" stroke-width="1.6"/>
+  <line x1="540" y1="158" x2="562" y2="146" stroke="#16308f" stroke-width="1.6"/>
+  <line x1="540" y1="158" x2="540" y2="178" stroke="#16308f" stroke-width="1.6"/>
+  <circle cx="540" cy="158" r="5" fill="#16308f"/>
+  <circle cx="518" cy="146" r="4" fill="#2f63c9"/>
+  <circle cx="562" cy="146" r="4" fill="#2f63c9"/>
+  <circle cx="540" cy="180" r="4" fill="#2f63c9"/>
+  <circle cx="408" cy="204" r="3" fill="#2f63c9"/>
+  <text x="420" y="208" font-size="13.5" font-weight="600" fill="#15275c">옆 가게로 번지는 변화</text>
+  <text x="420" y="227" font-size="11.5" fill="#6a7a9c">연심의 경험이 본보기</text>
+  <circle cx="408" cy="266" r="3" fill="#2f63c9"/>
+  <text x="420" y="270" font-size="13.5" font-weight="600" fill="#15275c">한 매장의 성공이 상권 전체로</text>
+  <text x="420" y="289" font-size="11.5" fill="#6a7a9c">동일 업종으로 복제·확산</text>
+
+  <path d="M707,197 l9,8 l-9,8" fill="none" stroke="#2f63c9" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M718,197 l9,8 l-9,8" fill="none" stroke="#2f63c9" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M729,197 l9,8 l-9,8" fill="none" stroke="#2f63c9" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- ===== Box 3 ===== -->
+  <rect x="750" y="78" width="300" height="254" rx="14" fill="#eef4fd" stroke="#c5d8f5" stroke-width="1.5"/>
+  <path d="M750,92 Q750,78 764,78 L1036,78 Q1050,78 1050,92 L1050,124 L750,124 Z" fill="#16308f"/>
+  <circle cx="776" cy="101" r="15" fill="#ffffff"/>
+  <text x="776" y="107" text-anchor="middle" font-size="16" font-weight="700" fill="#16308f">3</text>
+  <text x="908" y="107" text-anchor="middle" font-size="17" font-weight="700" fill="#ffffff">상권의 글로벌화</text>
+  <circle cx="900" cy="158" r="18" fill="none" stroke="#16308f" stroke-width="2"/>
+  <ellipse cx="900" cy="158" rx="7" ry="18" fill="none" stroke="#16308f" stroke-width="1.5"/>
+  <line x1="882" y1="158" x2="918" y2="158" stroke="#16308f" stroke-width="1.5"/>
+  <line x1="888" y1="148" x2="912" y2="148" stroke="#16308f" stroke-width="1.2"/>
+  <line x1="888" y1="168" x2="912" y2="168" stroke="#16308f" stroke-width="1.2"/>
+  <circle cx="768" cy="204" r="3" fill="#2f63c9"/>
+  <text x="780" y="208" font-size="13.5" font-weight="600" fill="#15275c">누구에게나 열린 가게</text>
+  <text x="780" y="227" font-size="11.5" fill="#6a7a9c">4개 언어 · AI 번역</text>
+  <circle cx="768" cy="266" r="3" fill="#2f63c9"/>
+  <text x="780" y="270" font-size="13.5" font-weight="600" fill="#15275c">대형 플랫폼 종속 탈피</text>
+  <text x="780" y="289" font-size="11.5" fill="#6a7a9c">골목 자체의 디지털 자립</text>
+
+  <text x="540" y="362" text-anchor="middle" font-size="11.5" fill="#8a97b3">※ 정량 수치는 예시값이며, 실제 운영 데이터로 교체 필요 · 파일럿 매장: 연심</text>
+</svg>

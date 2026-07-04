@@ -1,0 +1,525 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>결 GYEOL · 통합 CRM 학술 포스터 (A0)</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+<style>
+  :root{
+    --navy:#0f2a4d; --navy2:#173762; --ink:#13243d; --ink-soft:#41566f;
+    --gold:#b08738; --gold-soft:#cdae66;
+    --blue:#1d4ed8; --blue2:#2563eb; --sky:#0ea5e9; --green:#10b981; --amber:#f59e0b;
+    --slate:#64748b; --slate2:#94a3b8;
+    --line:#e2e8f0; --line2:#cbd5e1;
+    --bg:#eef2f7; --paper:#ffffff; --soft:#f5f8fc; --softblue:#eff6ff;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  @page{ size:841mm 1189mm; margin:0; }
+  html,body{ background:#6b7785; font-family:"Pretendard Variable",Pretendard,"Apple SD Gothic Neo","Malgun Gothic",sans-serif; color:var(--ink); -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+
+  .poster{ width:841mm; height:1189mm; margin:0 auto; background:var(--bg); display:flex; flex-direction:column; padding:0 0 13mm; overflow:hidden; position:relative; }
+
+  /* ============ HEADER ============ */
+  .phead{ width:100%; color:#0f2440; }
+  .phead-band{ display:flex; align-items:center; gap:14mm; background:var(--navy); border-bottom:2.4mm solid var(--gold); padding:13mm 22mm 12mm 20mm; }
+  .phead-emblem{ flex:0 0 auto; width:54mm; height:54mm; background:#fff; border-radius:50%; padding:3.5mm; box-shadow:0 0 0 .7mm rgba(176,135,56,.55); display:flex; align-items:center; justify-content:center; }
+  .phead-emblem svg{ width:100%; height:100%; display:block; }
+  .phead-tw{ flex:1 1 auto; text-align:center; min-width:0; }
+  .phead-eyebrow{ font-size:6mm; font-weight:600; letter-spacing:.12em; color:var(--gold-soft); margin-bottom:4mm; }
+  .phead-title{ font-weight:800; line-height:1.15; letter-spacing:-.01em; color:#fff; }
+  .phead-title span{ display:block; font-size:15mm; white-space:nowrap; }
+  .phead-sub{ margin-top:5mm; font-size:6mm; font-weight:500; line-height:1.35; color:#d7e0ee; }
+  .phead-rule{ width:72mm; height:.5mm; margin:6.5mm auto 5.5mm; background:linear-gradient(90deg,rgba(176,135,56,0),var(--gold) 50%,rgba(176,135,56,0)); }
+  .phead-authors{ font-size:6mm; color:#fff; display:flex; align-items:baseline; justify-content:center; flex-wrap:wrap; gap:0 2.5mm; }
+  .phead-authors b{ font-weight:700; }
+  .phead-authors .sep{ color:var(--gold); font-weight:700; }
+  .phead-authors .affil{ font-size:5mm; font-weight:400; color:#b9c6da; margin-left:2mm; }
+
+  /* ============ CONTENT WRAP ============ */
+  .wrap{ padding:7mm 15mm 0; display:flex; flex-direction:column; gap:6.5mm; flex:1; }
+
+  /* abstract */
+  .abstract{ background:var(--softblue); border-left:3mm solid var(--navy); border-radius:0 4mm 4mm 0; padding:6mm 8mm; }
+  .abstract h2{ font-size:6.2mm; font-weight:800; color:var(--navy); letter-spacing:.04em; margin-bottom:3mm; display:flex; align-items:baseline; gap:3mm; }
+  .abstract h2 .en{ font-size:4.4mm; font-weight:700; color:var(--gold); letter-spacing:.12em; }
+  .abstract p{ font-size:5.2mm; line-height:1.55; color:var(--ink-soft); }
+  .kw{ display:flex; gap:3mm; margin-top:3.5mm; flex-wrap:wrap; }
+  .kw span{ font-size:4.1mm; font-weight:700; color:var(--navy2); background:#fff; border:.3mm solid var(--line2); border-radius:10mm; padding:1.8mm 5mm; }
+
+  /* key metrics */
+  .metrics{ display:grid; grid-template-columns:repeat(4,1fr); gap:7mm; }
+  .metric{ background:var(--paper); border:.35mm solid var(--line); border-top:2.4mm solid var(--gold); border-radius:4mm; padding:5.5mm 6.5mm; box-shadow:0 1mm 3mm rgba(15,42,77,.05); }
+  .metric .n{ font-size:16mm; font-weight:800; color:var(--navy); line-height:1; letter-spacing:-.02em; }
+  .metric .n small{ font-size:7.5mm; font-weight:700; }
+  .metric .l{ font-size:4.6mm; font-weight:600; color:var(--ink); margin-top:3mm; line-height:1.3; }
+  .metric .s{ font-size:3.7mm; color:var(--slate); margin-top:1.5mm; }
+
+  /* body grid */
+  .body{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:6.5mm; align-items:start; }
+  .col{ display:flex; flex-direction:column; gap:6.5mm; }
+  .card{ background:var(--paper); border:.35mm solid var(--line); border-radius:4mm; padding:6.5mm; box-shadow:0 1mm 3mm rgba(15,42,77,.05); }
+
+  .sec-head{ display:flex; align-items:flex-start; gap:4mm; margin-bottom:4.5mm; }
+  .sec-num{ flex:0 0 auto; width:12.5mm; height:12.5mm; background:var(--navy); color:#fff; border-radius:2.5mm; font-size:6.5mm; font-weight:800; display:flex; align-items:center; justify-content:center; }
+  .sec-title{ font-size:7.8mm; font-weight:800; color:var(--navy); line-height:1.1; }
+  .sec-sub{ font-size:4.5mm; color:var(--gold); font-weight:700; margin-top:1.5mm; }
+  .sec-body{ font-size:5.1mm; line-height:1.55; color:var(--ink-soft); }
+  .bullets{ list-style:none; margin-top:4mm; display:flex; flex-direction:column; gap:2.6mm; }
+  .bullets li{ font-size:4.8mm; line-height:1.38; color:var(--ink); font-weight:500; padding-left:6.5mm; position:relative; }
+  .bullets li::before{ content:""; position:absolute; left:0; top:2mm; width:2.8mm; height:2.8mm; background:var(--gold); border-radius:.6mm; transform:rotate(45deg); }
+
+  /* figure (chart) */
+  .fig{ margin-top:5mm; }
+  .fig.tight{ margin-top:0; }
+  .fig-title{ font-size:5.3mm; font-weight:800; color:var(--navy2); margin-bottom:2.5mm; padding-left:3mm; border-left:1.6mm solid var(--gold); }
+  .fig svg{ width:100%; height:auto; display:block; }
+  .fig-cap{ font-size:3.8mm; color:var(--slate); line-height:1.38; margin-top:2.5mm; }
+  .fig-insight{ font-size:4.3mm; line-height:1.42; color:var(--navy2); background:var(--soft); border-radius:2.5mm; padding:3.5mm 4mm; margin-top:3mm; font-weight:500; }
+  .fig-insight b{ color:var(--blue); font-weight:800; }
+
+  /* comparison table */
+  table.cmp{ width:100%; border-collapse:collapse; margin-top:4mm; font-size:4.5mm; }
+  table.cmp th, table.cmp td{ padding:3mm 3.5mm; text-align:left; vertical-align:middle; line-height:1.25; }
+  table.cmp thead th{ background:var(--navy); color:#fff; font-weight:700; font-size:4.6mm; }
+  table.cmp thead th:last-child{ background:var(--blue); }
+  table.cmp td.k{ font-weight:800; color:var(--navy2); background:var(--soft); width:24%; }
+  table.cmp td.old{ background:#f6f8fb; color:var(--slate); }
+  table.cmp td.new{ background:var(--softblue); color:var(--ink); font-weight:600; }
+  table.cmp td.new::before{ content:"●"; color:var(--blue); font-size:3.2mm; margin-right:2mm; vertical-align:middle; }
+  table.cmp tbody tr{ border-bottom:.3mm solid var(--line); }
+
+  /* matrix table */
+  table.mtx{ width:100%; border-collapse:collapse; font-size:4.4mm; margin-top:3mm; }
+  table.mtx th, table.mtx td{ border:.3mm solid var(--line2); padding:2.8mm; text-align:center; }
+  table.mtx thead th{ background:var(--navy); color:#fff; font-weight:700; }
+  table.mtx th.rowh{ background:var(--navy2); color:#fff; text-align:left; font-weight:600; }
+  table.mtx td.yes{ background:var(--softblue); }
+  table.mtx td.yes::before{ content:"●"; color:var(--blue); font-size:4.6mm; }
+  table.mtx caption{ caption-side:bottom; }
+
+  /* module groups */
+  .modgrid{ display:flex; flex-direction:column; gap:3.5mm; margin-top:4.5mm; }
+  .modgroup{ border:.3mm solid var(--line); border-radius:3mm; overflow:hidden; }
+  .modgroup .gh{ font-size:4.8mm; font-weight:800; color:#fff; padding:2.5mm 4mm; }
+  .modgroup.pos .gh{ background:var(--navy); }
+  .modgroup.crm .gh{ background:var(--blue); }
+  .modgroup.erp .gh{ background:var(--navy2); }
+  .modtags{ display:flex; flex-wrap:wrap; gap:2.5mm; padding:3.5mm; }
+  .modtags span{ font-size:4.3mm; font-weight:600; color:var(--navy2); background:var(--soft); border:.3mm solid var(--line); border-radius:2mm; padding:2mm 3.5mm; }
+
+  /* architecture */
+  .arch{ margin-top:4.5mm; display:flex; flex-direction:column; gap:3mm; }
+  .arch-row{ display:grid; gap:3mm; }
+  .arch-row.r4{ grid-template-columns:repeat(4,1fr); }
+  .arch-row.r3{ grid-template-columns:repeat(3,1fr); }
+  .anode{ border-radius:2.5mm; padding:4mm 2mm; text-align:center; font-size:4.6mm; font-weight:700; line-height:1.22; }
+  .anode.role{ background:var(--softblue); color:var(--navy2); border:.3mm solid #c7d8ef; }
+  .anode.core{ background:var(--navy); color:#fff; font-size:5.5mm; font-weight:800; padding:5mm; }
+  .anode.core small{ display:block; font-size:3.9mm; font-weight:500; color:var(--gold-soft); margin-top:1.5mm; }
+  .anode.svc{ background:var(--soft); color:var(--navy2); border:.3mm solid var(--line); font-size:4.3mm; }
+  .arch-flow{ text-align:center; color:var(--gold); font-size:5mm; font-weight:800; line-height:.7; }
+  .stackbar{ display:flex; flex-wrap:wrap; gap:2.5mm; margin-top:1mm; justify-content:center; }
+  .stackbar b{ background:var(--navy2); color:#fff; font-size:4mm; font-weight:700; padding:2mm 4mm; border-radius:2mm; }
+
+  /* lower full-width strips */
+  .strip{ display:grid; gap:6.5mm; }
+  .strip.s3{ grid-template-columns:1fr 1fr 1fr; }
+  .strip.s2{ grid-template-columns:1.05fr .95fr; }
+  .lcol{ display:flex; flex-direction:column; gap:6.5mm; }
+  .iref{ list-style:none; counter-reset:r; display:flex; flex-direction:column; gap:2.8mm; margin-top:2mm; }
+  .iref li{ counter-increment:r; font-size:4.6mm; line-height:1.4; color:var(--ink-soft); padding-left:10mm; position:relative; }
+  .iref li::before{ content:"[" counter(r) "]"; position:absolute; left:0; top:0; font-weight:800; color:var(--navy2); }
+  .refnote{ font-size:3.8mm; color:var(--slate); margin-top:4mm; line-height:1.4; }
+  .refurl{ display:inline-block; font-size:3.4mm; color:var(--navy2); margin-top:1mm; line-height:1.35; word-break:break-all; }
+
+  /* legend */
+  .legend{ display:flex; gap:5mm; flex-wrap:wrap; margin-top:3mm; }
+  .legend span{ font-size:4mm; font-weight:600; color:var(--navy2); display:flex; align-items:center; gap:2mm; }
+  .legend i{ width:4mm; height:4mm; border-radius:1mm; display:inline-block; }
+
+  /* footer / refs */
+  .refs{ margin-top:auto; padding:5mm 15mm 0; }
+  .refs-inner{ border-top:.5mm solid var(--line2); padding-top:4.5mm; display:flex; gap:9mm; align-items:flex-start; }
+  .stack{ display:flex; flex-wrap:wrap; gap:2.5mm; flex:0 0 auto; max-width:46%; align-content:flex-start; }
+  .stack b{ background:#fff; border:.3mm solid var(--line2); color:var(--navy2); font-size:4.3mm; font-weight:700; padding:2mm 4mm; border-radius:2mm; }
+  .reflist{ font-size:3.9mm; color:var(--slate); line-height:1.45; flex:1; }
+  .reflist h6{ font-size:4.4mm; color:var(--navy); margin-bottom:1.5mm; font-weight:800; }
+
+  @media print{ html,body{ background:#fff; } .poster{ margin:0; } }
+</style>
+</head>
+<body>
+<div class="poster">
+
+  <!-- ============ HEADER ============ -->
+  <header class="phead">
+    <div class="phead-band">
+      <div class="phead-emblem">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="한동대학교 Handong Global University">
+          <defs>
+            <path id="hgu-top" d="M 13 50 A 37 37 0 0 1 87 50"/>
+            <path id="hgu-bot" d="M 15 50 A 35 35 0 0 0 85 50"/>
+          </defs>
+          <circle cx="50" cy="50" r="49.5" fill="#1b2a5b"/>
+          <circle cx="50" cy="50" r="46.3" fill="none" stroke="#ffffff" stroke-width="0.8"/>
+          <circle cx="50" cy="50" r="36.5" fill="#ffffff"/>
+          <circle cx="50" cy="50" r="33.4" fill="none" stroke="#1b2a5b" stroke-width="1"/>
+          <text font-family="Georgia,'Times New Roman',serif" fill="#ffffff" font-size="6.7" font-weight="700" letter-spacing="0.3"><textPath href="#hgu-top" startOffset="50%" text-anchor="middle">HANDONG GLOBAL UNIVERSITY</textPath></text>
+          <text font-family="Georgia,'Times New Roman',serif" fill="#ffffff" font-size="6.7" font-weight="700" letter-spacing="1"><textPath href="#hgu-bot" startOffset="50%" text-anchor="middle">WORLD CHANGING</textPath></text>
+          <circle cx="9.4" cy="50" r="1.5" fill="#ffffff"/>
+          <circle cx="90.6" cy="50" r="1.5" fill="#ffffff"/>
+          <text x="50" y="61" text-anchor="middle" font-family="Georgia,'Times New Roman',serif" font-size="28" font-weight="700" fill="#1b2a5b" letter-spacing="-2">HGU</text>
+        </svg>
+      </div>
+      <div class="phead-tw">
+        <p class="phead-eyebrow">한동대학교 산학·지역협력 프로젝트</p>
+        <h1 class="phead-title"><span>산학·지역 협력 기반 통합 CRM으로 여는 지역 소상공인 디지털 전환</span></h1>
+        <p class="phead-sub">고객관계관리(CRM) 중심 POS · ERP 통합 매장관리 웹앱 「결(GYEOL)」 — 4역할 · 4언어 · 4업종 현장 적용 연구</p>
+        <div class="phead-rule"></div>
+        <p class="phead-authors"><b>이재호</b><span class="sep">·</span><b>이준영</b><span class="sep">·</span><b>노현호</b><span class="sep">·</span><b>조유리</b><span class="sep">·</span><b>김예준</b><span class="sep">·</span><b>문예찬</b><span class="affil">한동대학교 (Handong Global University)</span></p>
+      </div>
+    </div>
+  </header>
+
+  <div class="wrap">
+
+    <!-- ABSTRACT -->
+    <section class="abstract">
+      <h2>초록 <span class="en">ABSTRACT</span></h2>
+      <p>국내 소상공인의 전자상거래 실적 보유 비율은 11.4%, 음식·숙박업의 디지털 실적은 13.9%에 불과하며, 창업 5년 내 폐업률이 약 70%에 달하는 현실에서 디지털 전환은 생존 과제로 부상하고 있다. 그러나 기성 솔루션은 CRM·ERP·POS가 분절되어 도입 비용과 학습 부담이 크고, 다국적 고객·직원을 포용하지 못해 지역 현장에 정착하지 못한다. 본 연구는 한동대학교 산학·지역협력 체계 아래 포항 지역 소상공인과 공동 개발한 경량 통합 매장관리 웹앱 「결(GYEOL)」을 제안한다. 「결」은 4역할·4언어·4업종 프리셋과 18개 이상의 기능 모듈을 단일 웹앱으로 통합하고, Firebase 실시간 동기화·PWA 오프라인 큐·Google Gemini 기반 분석을 결합하여 진입장벽을 최소화한다. 지역 현장 공동개발 → 글로벌 구조 벤치마크 → 실데이터 환류의 선순환 구조를 통해 본 연구는 지역 소상공인 디지털 전환의 재현 가능한 모델을 제시하고자 한다.</p>
+      <div class="kw">
+        <span>Digital Transformation</span><span>Integrated CRM Platform</span><span>Unified POS·CRM·ERP</span><span>Industry–Academia Collaboration</span><span>Small Business</span>
+      </div>
+    </section>
+
+    <!-- KEY METRICS -->
+    <section class="metrics">
+      <div class="metric"><div class="n">11.4<small>%</small></div><div class="l">소상공인 전자상거래 실적 보유</div><div class="s">통계청 소상공인 실태조사(2022)</div></div>
+      <div class="metric"><div class="n">13.9<small>%</small></div><div class="l">음식·숙박업 디지털 실적</div><div class="s">스마트오더·키오스크 미도입</div></div>
+      <div class="metric"><div class="n">70<small>%</small></div><div class="l">창업 5년 내 폐업률</div><div class="s">데이터 기반 경영의 부재</div></div>
+      <div class="metric"><div class="n">100,729</div><div class="l">정부 디지털 전환 지원 매장</div><div class="s">지원 대비 현장 체감 격차</div></div>
+    </section>
+
+    <!-- BODY 3 COL -->
+    <div class="body">
+
+      <!-- COL 1 : 배경 · 문제 -->
+      <div class="col">
+        <div class="card">
+          <div class="sec-head"><div class="sec-num">1</div><div><div class="sec-title">연구 배경</div><div class="sec-sub">디지털 전환 격차 속 지역 소상공인의 생존 과제</div></div></div>
+          <p class="sec-body">국내 소상공인의 전자상거래 실적 보유 비율은 11.4%, 음식·숙박업의 디지털 실적은 13.9%에 머물러 디지털 전환의 사각지대가 광범위하게 존재한다. 디지털 전환 시장이 약 15.5조 원(2022년 국내 추정) 규모로 성장하고 정부가 100,729개 매장을 지원하는 동안에도, 창업 5년 내 폐업률은 약 70%에 이르러 영세 사업장의 경영 안정화가 시급한 과제로 확인된다.</p>
+          <ul class="bullets">
+            <li>전자상거래 실적 보유 소상공인 11.4% (통계청 2022)</li>
+            <li>디지털 전환 시장 약 15.5조 원 · 정부 지원 매장 100,729개</li>
+            <li>창업 5년 내 폐업률 약 70% — 경영 안정화 시급</li>
+          </ul>
+
+          <div class="fig">
+            <div class="fig-title">[그림 1] 업종별 소상공인 디지털 실적 보유율</div>
+            <svg viewBox="0 0 560 330">
+              <!-- grid -->
+              <g stroke="#e2e8f0" stroke-width="1">
+                <line x1="64" y1="270" x2="540" y2="270"/><line x1="64" y1="224" x2="540" y2="224"/><line x1="64" y1="178" x2="540" y2="178"/><line x1="64" y1="132" x2="540" y2="132"/><line x1="64" y1="86" x2="540" y2="86"/>
+              </g>
+              <g font-size="12" fill="#94a3b8" text-anchor="end">
+                <text x="58" y="274">0</text><text x="58" y="228">10</text><text x="58" y="182">20</text><text x="58" y="136">30</text><text x="58" y="90">40</text><text x="58" y="44">50(%)</text>
+              </g>
+              <!-- target line 50% -->
+              <line x1="64" y1="40" x2="540" y2="40" stroke="#dc2626" stroke-width="1.4" stroke-dasharray="5 4"/>
+              <text x="536" y="34" font-size="11" fill="#dc2626" text-anchor="end" font-weight="700">디지털 보급 목표선 50%</text>
+              <!-- bars -->
+              <g>
+                <rect x="80"  y="217.6" width="56" height="52.4"  rx="2" fill="#1d4ed8"/>
+                <rect x="158" y="206.1" width="56" height="63.9"  rx="2" fill="#1d4ed8"/>
+                <rect x="236" y="168.8" width="56" height="101.2" rx="2" fill="#94a3b8"/>
+                <rect x="314" y="226.3" width="56" height="43.7"  rx="2" fill="#94a3b8"/>
+                <rect x="392" y="234.1" width="56" height="35.9"  rx="2" fill="#94a3b8"/>
+                <rect x="470" y="241.5" width="56" height="28.5"  rx="2" fill="#94a3b8"/>
+              </g>
+              <g font-size="13" font-weight="800" fill="#13243d" text-anchor="middle">
+                <text x="108" y="210">11.4</text><text x="186" y="198">13.9</text><text x="264" y="161">22.0</text><text x="342" y="219">9.5</text><text x="420" y="227">7.8</text><text x="498" y="234">6.2</text>
+              </g>
+              <g font-size="9" fill="#94a3b8" text-anchor="middle">
+                <text x="264" y="151">추정</text><text x="342" y="209">추정</text><text x="420" y="217">추정</text><text x="498" y="224">추정</text>
+              </g>
+              <g font-size="11.5" fill="#41566f" text-anchor="middle" font-weight="600">
+                <text x="108" y="288">전체평균</text><text x="186" y="288">음식·숙박</text><text x="264" y="288">도·소매</text><text x="342" y="288">서비스</text><text x="420" y="288">제조</text><text x="498" y="288">교육·기타</text>
+              </g>
+            </svg>
+            <div class="fig-cap">자료: 통계청 「2022년 소상공인 실태조사」 기준 재구성. 추정치는 (추정) 표기.</div>
+            <div class="fig-insight">소상공인 10곳 중 1곳만 디지털 실적을 보유하며, 1차 타깃인 음식·숙박업조차 <b>13.9%</b>에 그쳐 거대한 미충족 수요가 존재한다.</div>
+          </div>
+
+          <div class="fig">
+            <div class="fig-title">[그림 2] 국내 디지털 전환(DX) 시장 규모 추이</div>
+            <svg viewBox="0 0 560 300">
+              <g stroke="#e2e8f0" stroke-width="1">
+                <line x1="60" y1="265" x2="540" y2="265"/><line x1="60" y1="210" x2="540" y2="210"/><line x1="60" y1="155" x2="540" y2="155"/><line x1="60" y1="100" x2="540" y2="100"/><line x1="60" y1="45" x2="540" y2="45"/>
+              </g>
+              <g font-size="12" fill="#94a3b8" text-anchor="end"><text x="54" y="269">0</text><text x="54" y="214">7</text><text x="54" y="159">14</text><text x="54" y="104">21</text><text x="54" y="49">28(조)</text></g>
+              <!-- area -->
+              <path d="M70,172.3 L145,159.7 L220,143.2 L295,126.7 L370,107.1 L445,85.1 L520,60.7 L520,265 L70,265 Z" fill="#0ea5e9" fill-opacity="0.12"/>
+              <!-- solid (measured 2020-2022) -->
+              <polyline points="70,172.3 145,159.7 220,143.2" fill="none" stroke="#0ea5e9" stroke-width="3.4" stroke-linejoin="round" stroke-linecap="round"/>
+              <!-- dashed (estimate 2022-2026) -->
+              <polyline points="220,143.2 295,126.7 370,107.1 445,85.1 520,60.7" fill="none" stroke="#0ea5e9" stroke-width="3.4" stroke-dasharray="7 5" stroke-linejoin="round" stroke-linecap="round"/>
+              <g>
+                <circle cx="70" cy="172.3" r="4" fill="#fff" stroke="#0ea5e9" stroke-width="2.2"/>
+                <circle cx="145" cy="159.7" r="4" fill="#fff" stroke="#0ea5e9" stroke-width="2.2"/>
+                <circle cx="220" cy="143.2" r="5.5" fill="#0f2a4d"/>
+                <circle cx="295" cy="126.7" r="4" fill="#fff" stroke="#0ea5e9" stroke-width="2.2"/>
+                <circle cx="370" cy="107.1" r="4" fill="#fff" stroke="#0ea5e9" stroke-width="2.2"/>
+                <circle cx="445" cy="85.1" r="4" fill="#fff" stroke="#0ea5e9" stroke-width="2.2"/>
+                <circle cx="520" cy="60.7" r="5" fill="#1d4ed8"/>
+              </g>
+              <g font-size="11.5" font-weight="800" fill="#13243d" text-anchor="middle">
+                <text x="220" y="134">15.5</text><text x="520" y="52">26.0</text>
+              </g>
+              <g font-size="11" fill="#64748b" text-anchor="middle">
+                <text x="70" y="284">2020</text><text x="145" y="284">2021</text><text x="220" y="284">2022</text><text x="295" y="284">2023</text><text x="370" y="284">2024</text><text x="445" y="284">2025</text><text x="520" y="284">2026</text>
+              </g>
+              <rect x="392" y="22" width="150" height="26" rx="6" fill="#eff6ff" stroke="#1d4ed8" stroke-width="1"/>
+              <text x="467" y="39" font-size="12.5" font-weight="800" fill="#1d4ed8" text-anchor="middle">CAGR 약 13%</text>
+            </svg>
+            <div class="fig-cap">자료: 2022년 15.5조 원(실측) 기준 연 12~14% 성장 가정. 2023년 이후 (추정).</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="sec-head"><div class="sec-num">2</div><div><div class="sec-title">문제 정의</div><div class="sec-sub">분절된 솔루션과 포용성의 부재</div></div></div>
+          <p class="sec-body">기존 시장은 CRM·ERP·POS가 별도 솔루션으로 분절되어 있어, 소상공인은 다중 구독 비용과 데이터 단절, 높은 학습 부담을 동시에 감당해야 한다. 또한 다수 솔루션이 다국적 고객과 외국인 직원을 고려하지 않아 관광·산업 지역의 현장 수요를 충족하지 못하며, 무거운 기능 구조는 영세 사업장의 즉시 도입을 가로막는다. 결과적으로 디지털 전환의 의지가 있어도 비용·복잡성·포용성의 삼중 장벽으로 인해 실제 정착에 실패하는 사례가 반복된다.</p>
+          <ul class="bullets">
+            <li>CRM·ERP·POS 분절 → 다중 구독 비용·데이터 단절</li>
+            <li>외국인 고객·직원 포용 미흡 (언어 장벽)</li>
+            <li>과도한 기능 복잡성 → 높은 학습·도입 부담</li>
+            <li>현장 데이터 환류 부재로 솔루션–현장 괴리</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- COL 2 : 해결 · 방법 -->
+      <div class="col">
+        <div class="card">
+          <div class="sec-head"><div class="sec-num">3</div><div><div class="sec-title">제안 시스템 「결」</div><div class="sec-sub">CRM·ERP·POS를 하나로 통합한 경량 매장관리 웹앱</div></div></div>
+          <p class="sec-body">본 연구는 CRM·ERP·POS를 단일 웹앱으로 통합한 경량 매장관리 시스템 「결(GYEOL)」을 제안한다. 「결」은 손님·사장님·직원·시스템관리자의 4개 역할과 한국어·영어·베트남어·중국어의 4개 언어를 지원하여 다국적 현장을 포용하며, 카페·고기구이·베이커리·일반의 4개 업종 프리셋으로 업종별 기본 재료와 보상 체계를 자동 세팅한다. 이로써 가입 직후의 빈 화면 문제를 제거하고 진입장벽을 최소화하여, 영세 사업장이 별도 컨설팅 없이 즉시 운영을 시작할 수 있도록 설계되었다.</p>
+
+          <div class="fig">
+            <div class="fig-title">[표 1] 전통 ERP vs 통합 CRM 「결」</div>
+            <table class="cmp">
+              <thead><tr><th>항목</th><th>전통 ERP (SAP·Oracle)</th><th>통합 CRM 「결」</th></tr></thead>
+              <tbody>
+                <tr><td class="k">도입 비용</td><td class="old">수천만~수억 원</td><td class="new">무료 ~ 월 구독형</td></tr>
+                <tr><td class="k">도입 기간</td><td class="old">6~18개월</td><td class="new">당일 가입·즉시 사용</td></tr>
+                <tr><td class="k">전문 인력</td><td class="old">IT팀·컨설턴트 필수</td><td class="new">사장님 1인 자가 운영</td></tr>
+                <tr><td class="k">대상 규모</td><td class="old">중견·대기업</td><td class="new">1인 소상공인~소형</td></tr>
+                <tr><td class="k">적용 범위</td><td class="old">ERP 단독 (POS·CRM 별도)</td><td class="new">POS+CRM+ERP 통합 1앱</td></tr>
+                <tr><td class="k">다국어·맞춤</td><td class="old">제한적·고가 커스텀</td><td class="new">4언어·4업종 프리셋 기본</td></tr>
+              </tbody>
+            </table>
+            <div class="fig-insight">전통 ERP의 고비용·장기간·전문인력 장벽을 「결」이 <b>무료·당일·1인 운영·통합</b>으로 해소하여 미도입의 근본 원인을 직접 겨냥한다.</div>
+          </div>
+
+          <div class="fig">
+            <div class="fig-title">[그림 3] 기능 커버리지 — 통합도 비교</div>
+            <svg viewBox="0 0 440 360">
+              <!-- radar grid -->
+              <g fill="none" stroke="#e2e8f0" stroke-width="1">
+                <polygon points="220,80 333.9,145 333.9,255 220,320 106.1,255 106.1,145"/>
+                <polygon points="220,104 311.1,156.5 311.1,243.5 220,296 128.9,243.5 128.9,156.5"/>
+                <polygon points="220,128 288.3,168 288.3,232 220,272 151.7,232 151.7,168"/>
+                <polygon points="220,152 265.6,179.5 265.6,220.5 220,248 174.4,220.5 174.4,179.5"/>
+              </g>
+              <g stroke="#cbd5e1" stroke-width="1">
+                <line x1="220" y1="200" x2="220" y2="80"/><line x1="220" y1="200" x2="333.9" y2="145"/><line x1="220" y1="200" x2="333.9" y2="255"/><line x1="220" y1="200" x2="220" y2="320"/><line x1="220" y1="200" x2="106.1" y2="255"/><line x1="220" y1="200" x2="106.1" y2="145"/>
+              </g>
+              <!-- 일반 CRM -->
+              <polygon points="220,185 220,200 323.9,260 220,305 207,207.5 207,192.5" fill="#10b981" fill-opacity="0.10" stroke="#10b981" stroke-width="1.6" stroke-dasharray="5 4"/>
+              <!-- 일반 POS -->
+              <polygon points="220,80 297.9,155 259,222.5 220,230 207,207.5 194,185" fill="#f59e0b" fill-opacity="0.10" stroke="#f59e0b" stroke-width="1.6" stroke-dasharray="5 4"/>
+              <!-- 결 -->
+              <polygon points="220,65 323.9,140 336.9,267.5 220,320 103.1,267.5 116.1,140" fill="#1d4ed8" fill-opacity="0.22" stroke="#1d4ed8" stroke-width="2.6"/>
+              <g font-size="11.5" fill="#13243d" font-weight="700" text-anchor="middle">
+                <text x="220" y="58">POS·주문</text><text x="355" y="142">주방·키오스크</text><text x="355" y="262">CRM·고객</text><text x="220" y="338">마케팅·리뷰</text><text x="85" y="262">ERP·재고</text><text x="85" y="142">정산·인사</text>
+              </g>
+            </svg>
+            <div class="legend">
+              <span><i style="background:#1d4ed8"></i>결(GYEOL)</span>
+              <span><i style="background:#f59e0b"></i>일반 POS</span>
+              <span><i style="background:#10b981"></i>일반 CRM</span>
+            </div>
+            <div class="fig-cap">자료: 18+ 모듈을 6개 영역으로 분류, 단일 POS/CRM 솔루션과 커버리지 비교(저자 정리).</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="sec-head"><div class="sec-num">4</div><div><div class="sec-title">연구·개발 방법</div><div class="sec-sub">산학·지역 협력 기반 선순환 구조</div></div></div>
+          <p class="sec-body">본 연구는 ① 포항 지역 소상공인 현장과의 공동개발, ② Google Cloud·SAP 등 글로벌 솔루션의 구조 벤치마크를 통한 검증, ③ 실데이터 피드백의 현장 환류로 이어지는 3단계 선순환 구조를 채택하였다. 기술적으로는 React·TypeScript·Vite 기반 위에 Firebase Firestore 실시간 동기화를 적용하여 주문·재고·고객 데이터를 다중 단말에 즉시 반영하고, PWA 오프라인 큐로 네트워크 단절 시에도 주문 손실을 방지한다.</p>
+          <div class="arch">
+            <div class="arch-row r4">
+              <div class="anode role">손님</div><div class="anode role">사장님</div><div class="anode role">직원</div><div class="anode role">관리자</div>
+            </div>
+            <div class="arch-flow">&#9650;&nbsp;&#9660;</div>
+            <div class="anode core">Firebase Firestore · 실시간 동기화<small>PWA 오프라인 큐 · 다중 단말 즉시 반영</small></div>
+            <div class="arch-flow">&#9660;</div>
+            <div class="arch-row r3">
+              <div class="anode svc">토스페이먼츠<br/>결제</div><div class="anode svc">FCM<br/>푸시 알림</div><div class="anode svc">Google Gemini<br/>AI 분석</div>
+            </div>
+            <div class="stackbar"><b>React</b><b>TypeScript</b><b>Vite</b><b>PWA</b></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- COL 3 : 기능 · 결론 -->
+      <div class="col">
+        <div class="card">
+          <div class="sec-head"><div class="sec-num">5</div><div><div class="sec-title">핵심 기능 체계</div><div class="sec-sub">POS·CRM·ERP 18+ 모듈의 유기적 통합</div></div></div>
+          <p class="sec-body">「결」은 18개 이상의 기능 모듈을 POS·주문, CRM·고객, ERP·경영의 3개 축으로 통합한다. CRM은 RFM 기반 고객 클러스터(VIP레전드·유망신규·이탈위험·장기휴면)를, ERP는 정밀·간편·AI 자동의 재고 3모드를 운영하며, 직원 권한은 알바생·정규직·매니저·실장의 4단계 누적 모델로 단일 권한 매트릭스에서 일관되게 통제된다.</p>
+          <div class="modgrid">
+            <div class="modgroup pos"><div class="gh">POS · 주문</div><div class="modtags"><span>빠른주문</span><span>테이블 8단계</span><span>주방 디스플레이</span><span>키오스크</span><span>QR 주문</span><span>메뉴 관리</span></div></div>
+            <div class="modgroup crm"><div class="gh">CRM · 고객</div><div class="modtags"><span>RFM 클러스터</span><span>등급·쿠폰</span><span>리뷰·답글</span><span>예약</span><span>마케팅 자동화</span><span>환영 화면</span></div></div>
+            <div class="modgroup erp"><div class="gh">ERP · 경영</div><div class="modtags"><span>재고 3모드</span><span>원가·레시피</span><span>정산·매출장부</span><span>직원·급여</span><span>통계</span><span>AI 매장분석</span></div></div>
+          </div>
+
+          <div class="fig">
+            <div class="fig-title">[그림 4] 4단계 직원 권한 누적 구조 (RBAC)</div>
+            <svg viewBox="0 0 560 270">
+              <g font-size="12" fill="#13243d" font-weight="700" text-anchor="end">
+                <text x="86" y="62">Lv1 알바생</text><text x="86" y="116">Lv2 정규직</text><text x="86" y="170">Lv3 매니저</text><text x="86" y="224">Lv4 실장</text>
+              </g>
+              <!-- 사장님 max line -->
+              <line x1="491" y1="30" x2="491" y2="246" stroke="#94a3b8" stroke-width="1.2" stroke-dasharray="4 4"/>
+              <text x="491" y="24" font-size="10.5" fill="#64748b" text-anchor="middle">사장님 18+</text>
+              <!-- bars -->
+              <g>
+                <rect x="95" y="44"  width="198" height="34" rx="2" fill="#1d4ed8"/>
+                <rect x="95" y="98"  width="198" height="34" rx="2" fill="#1d4ed8"/><rect x="293" y="98" width="44" height="34" rx="2" fill="#3b82f6"/>
+                <rect x="95" y="152" width="198" height="34" rx="2" fill="#1d4ed8"/><rect x="293" y="152" width="44" height="34" rx="2" fill="#3b82f6"/><rect x="337" y="152" width="44" height="34" rx="2" fill="#60a5fa"/>
+                <rect x="95" y="206" width="198" height="34" rx="2" fill="#1d4ed8"/><rect x="293" y="206" width="44" height="34" rx="2" fill="#3b82f6"/><rect x="337" y="206" width="44" height="34" rx="2" fill="#60a5fa"/><rect x="381" y="206" width="44" height="34" rx="2" fill="#93c5fd"/>
+              </g>
+              <g font-size="12.5" font-weight="800" fill="#13243d">
+                <text x="305" y="68">9개</text><text x="349" y="122">11개</text><text x="393" y="176">13개</text><text x="437" y="230">15개</text>
+              </g>
+              <g font-size="11" fill="#41566f">
+                <text x="194" y="262" text-anchor="middle">현장운영(9)</text>
+              </g>
+              <g font-size="10.5" fill="#fff" text-anchor="middle">
+                <text x="315" y="120">+고객</text><text x="359" y="174">+분석</text><text x="403" y="228">+정산</text>
+              </g>
+            </svg>
+            <div class="fig-cap">자료: staffAccess 모듈 매핑. 상위 등급은 하위 권한을 누적(현장운영→고객→분석→정산·인사).</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="sec-head"><div class="sec-num">6</div><div><div class="sec-title">결론 및 기대효과</div><div class="sec-sub">지역 디지털 전환의 재현 가능한 모델</div></div></div>
+          <p class="sec-body">「결」은 분절된 CRM·ERP·POS를 경량 단일 웹앱으로 통합하고 다국어·업종 프리셋으로 진입장벽을 낮춤으로써, 지역 소상공인이 별도 컨설팅 없이 디지털 전환을 시작할 수 있는 현실적 경로를 제시한다. 특히 지역 공동개발–글로벌 벤치마크–실데이터 환류의 산학·지역 협력 선순환은 솔루션과 현장 간 괴리를 줄이는 재현 가능한 방법론으로서 의의를 가진다.</p>
+
+          <div class="fig">
+            <div class="fig-title">[그림 5] 도입 전후 기대효과 (점주 운영지표)</div>
+            <svg viewBox="0 0 560 320">
+              <g stroke="#e2e8f0" stroke-width="1"><line x1="64" y1="255" x2="544" y2="255"/></g>
+              <!-- groups -->
+              <g>
+                <rect x="75"  y="55"  width="30" height="200"   rx="2" fill="#cbd5e1"/><rect x="113" y="219.4" width="30" height="35.6" rx="2" fill="#1d4ed8"/>
+                <rect x="180" y="207.9" width="30" height="47.1" rx="2" fill="#cbd5e1"/><rect x="218" y="55" width="30" height="200" rx="2" fill="#1d4ed8"/>
+                <rect x="285" y="228.3" width="30" height="26.7" rx="2" fill="#cbd5e1"/><rect x="323" y="55" width="30" height="200" rx="2" fill="#1d4ed8"/>
+                <rect x="390" y="55"  width="30" height="200"   rx="2" fill="#cbd5e1"/><rect x="428" y="221.7" width="30" height="33.3" rx="2" fill="#1d4ed8"/>
+                <rect x="495" y="188.3" width="30" height="66.7" rx="2" fill="#cbd5e1"/><rect x="533" y="55" width="27" height="200" rx="2" fill="#1d4ed8"/>
+              </g>
+              <g font-size="11.5" font-weight="800" fill="#13243d" text-anchor="middle">
+                <text x="90" y="48">45분</text><text x="128" y="212">8분</text>
+                <text x="195" y="200">20%</text><text x="233" y="48">85%</text>
+                <text x="300" y="221">10%</text><text x="338" y="48">75%</text>
+                <text x="405" y="48">6건</text><text x="443" y="214">1건</text>
+                <text x="510" y="181">30%</text><text x="546" y="48">90%</text>
+              </g>
+              <g font-size="11" font-weight="800" text-anchor="middle">
+                <text x="128" y="246" fill="#10b981">-82%</text><text x="233" y="80" fill="#1d4ed8">×4.3</text><text x="338" y="80" fill="#1d4ed8">×7.5</text><text x="443" y="246" fill="#10b981">-83%</text><text x="546" y="80" fill="#1d4ed8">×3.0</text>
+              </g>
+              <g font-size="11" fill="#41566f" text-anchor="middle">
+                <text x="109" y="272">마감시간</text><text x="214" y="272">원가파악</text><text x="319" y="272">재방문식별</text><text x="424" y="272">주문오류</text><text x="529" y="272">외국인응대</text>
+              </g>
+              <rect x="404" y="20" width="156" height="24" rx="5" fill="#f5f8fc" stroke="#cbd5e1" stroke-width="1"/>
+              <rect x="412" y="27" width="10" height="10" fill="#cbd5e1"/><text x="428" y="36" font-size="10.5" fill="#41566f">도입 전</text>
+              <rect x="478" y="27" width="10" height="10" fill="#1d4ed8"/><text x="494" y="36" font-size="10.5" fill="#41566f">도입 후</text>
+            </svg>
+            <div class="fig-cap">자료: 포항 현장 파일럿 목표치 기반 기대효과(추정), 지표별 상대 스케일. 실데이터 환류로 검증 예정.</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- LOWER STRIP : 포용성 매트릭스 + 산학협력 선순환 -->
+    <div class="strip s2">
+      <div class="lcol">
+      <div class="card">
+        <div class="sec-head"><div class="sec-num" style="background:var(--gold)">＊</div><div><div class="sec-title">다국어·다업종 포용 매트릭스</div><div class="sec-sub">4개 언어 × 4개 업종 = 16개 조합 전면 지원</div></div></div>
+        <table class="mtx">
+          <thead><tr><th class="rowh">　</th><th>카페</th><th>고기·구이</th><th>베이커리</th><th>일반</th></tr></thead>
+          <tbody>
+            <tr><th class="rowh">한국어</th><td class="yes"></td><td class="yes"></td><td class="yes"></td><td class="yes"></td></tr>
+            <tr><th class="rowh">English</th><td class="yes"></td><td class="yes"></td><td class="yes"></td><td class="yes"></td></tr>
+            <tr><th class="rowh">Tiếng Việt</th><td class="yes"></td><td class="yes"></td><td class="yes"></td><td class="yes"></td></tr>
+            <tr><th class="rowh">中文</th><td class="yes"></td><td class="yes"></td><td class="yes"></td><td class="yes"></td></tr>
+          </tbody>
+        </table>
+        <div class="fig-insight" style="margin-top:4mm">4언어 전면 지원과 4업종 자동 세팅이 <b>16개 조합</b>을 모두 덮어, 외국인 종사 비중이 높은 지역 음식업 현장의 언어·업종 장벽을 동시에 해소한다.</div>
+      </div>
+
+      <div class="card">
+        <div class="sec-head"><div class="sec-num" style="background:var(--gold)">§</div><div><div class="sec-title">참고문헌</div></div></div>
+        <ol class="iref">
+          <li>통계청·중소벤처기업부, 「2022년 소상공인실태조사 결과(잠정)」, 국가데이터처, 2023.<br><span class="refurl">mods.go.kr/board.es?mid=a10301010000&amp;bid=12029&amp;list_no=428839&amp;act=view</span></li>
+          <li>통계청, 「기업생멸행정통계 결과」(5년 생존율 33.8% — 폐업률 약 70%), 국가데이터처.<br><span class="refurl">data.go.kr/data/15086904/fileData.do</span></li>
+          <li>관계부처 합동, 「소상공인 디지털 전환 지원방안(소상공인 성장·혁신 방안 2.0)」, 2020.<br><span class="refurl">eiec.kdi.re.kr/policy/materialView.do?num=205128</span></li>
+          <li>중소기업중앙회, 「2023년 소상공인 경영환경 전망 및 경영애로 실태조사」, 2022.<br><span class="refurl">kbiz.or.kr/ko/contents/bbs/view.do?mnSeq=207&amp;seq=153499</span></li>
+        </ol>
+        <p class="refnote">※ 위 4건은 발행기관·접속 링크를 직접 확인한 실재 자료이며(2026.6 기준), 게재 시 페이지 등 세부 서지정보만 최종 확인하시기 바랍니다.</p>
+      </div>
+      </div>
+
+      <div class="card">
+        <div class="sec-head"><div class="sec-num" style="background:var(--gold)">＊</div><div><div class="sec-title">산학·지역 협력 선순환</div><div class="sec-sub">현장 공동개발 → 글로벌 검증 → 실데이터 환류</div></div></div>
+        <svg viewBox="0 0 460 300" style="width:100%;height:auto;display:block">
+          <!-- donut -->
+          <g transform="rotate(-90 165 150)">
+            <circle cx="165" cy="150" r="88" fill="none" stroke="#1d4ed8" stroke-width="46" stroke-dasharray="184.2 368.4"/>
+            <circle cx="165" cy="150" r="88" fill="none" stroke="#0ea5e9" stroke-width="46" stroke-dasharray="184.2 368.4" stroke-dashoffset="-184.2"/>
+            <circle cx="165" cy="150" r="88" fill="none" stroke="#10b981" stroke-width="46" stroke-dasharray="184.2 368.4" stroke-dashoffset="-368.4"/>
+          </g>
+          <text x="165" y="146" text-anchor="middle" font-size="16" font-weight="800" fill="#0f2a4d">통합 CRM「결」</text>
+          <text x="165" y="166" text-anchor="middle" font-size="13" font-weight="700" fill="#b08738">선순환 구조</text>
+          <!-- step labels -->
+          <g font-size="13" font-weight="800" fill="#13243d">
+            <circle cx="300" cy="70" r="11" fill="#1d4ed8"/><text x="300" y="74" text-anchor="middle" fill="#fff" font-size="12">1</text>
+            <text x="318" y="68">지역 공동개발</text><text x="318" y="86" font-size="10.5" font-weight="500" fill="#64748b">포항 소상공인 현장 요구</text>
+            <circle cx="300" cy="145" r="11" fill="#0ea5e9"/><text x="300" y="149" text-anchor="middle" fill="#fff" font-size="12">2</text>
+            <text x="318" y="143">글로벌 검증</text><text x="318" y="161" font-size="10.5" font-weight="500" fill="#64748b">Google Cloud · SAP 벤치마크</text>
+            <circle cx="300" cy="220" r="11" fill="#10b981"/><text x="300" y="224" text-anchor="middle" fill="#fff" font-size="12">3</text>
+            <text x="318" y="218">현장 환류</text><text x="318" y="236" font-size="10.5" font-weight="500" fill="#64748b">실데이터 피드백 → 다음 개발</text>
+          </g>
+        </svg>
+        <div class="fig-cap">현장 공동개발 → 글로벌 검증 → 실데이터 환류의 3단계가 순환하며 현장 문제를 지속적으로 해결한다.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="refs">
+    <div class="refs-inner">
+      <div class="stack">
+        <b>React + TypeScript</b><b>Vite</b><b>Firebase Firestore</b><b>PWA 오프라인</b><b>토스페이먼츠</b><b>FCM Push</b><b>Google Gemini AI</b>
+      </div>
+      <div class="reflist">
+        <h6>Project Information</h6>
+        한동대학교 산학·지역협력 프로젝트 · 고객관계관리(CRM) 중심 POS·ERP 통합 매장관리 웹앱 「결(GYEOL)」 · 4역할 · 4언어 · 4업종 현장 적용 연구 · 2026
+      </div>
+    </div>
+  </footer>
+
+</div>
+</body>
+</html>

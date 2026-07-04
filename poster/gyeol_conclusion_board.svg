@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 1080 686" width="1080" height="686" xmlns="http://www.w3.org/2000/svg" role="img" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR',sans-serif">
+  <title>결론 및 기대효과 — 실증 운영 효과와 단계적 확산 모델</title>
+  <desc>파일럿 매장 연심의 12주 시범 운영 성과 지표와, 매장의 자립에서 골목의 확산, 상권의 글로벌화로 이어지는 3단계 확산 모델, 그리고 결론을 담은 종합 장표.</desc>
+  <rect x="0" y="0" width="1080" height="686" rx="18" fill="#ffffff"/>
+
+  <!-- section header -->
+  <rect x="24" y="24" width="1032" height="48" rx="10" fill="#16308f"/>
+  <text x="44" y="55" font-size="20" font-weight="700" fill="#ffffff">5. 결론 및 기대효과</text>
+  <text x="1038" y="54" text-anchor="end" font-size="12.5" fill="#cdddf7">파일럿 매장 ‘연심’ · 12주 시범 운영</text>
+
+  <!-- intro -->
+  <text x="44" y="98" font-size="12.5" fill="#5b6b8c">통합 매장 관리 앱 ‘결’을 소상공인 점포 ‘연심’(점주 포함 3인 · 일평균 약 80건)에 직접 도입하여, 도입 전후의 운영 지표를 비교하였다.</text>
+
+  <!-- ===== A. 실증 운영 효과 ===== -->
+  <rect x="44" y="118" width="5" height="18" fill="#16308f"/>
+  <text x="58" y="132" font-size="15" font-weight="700" fill="#16308f">실증 운영 효과 <tspan font-size="12" font-weight="400" fill="#6a7a9c">(도입 전 → 도입 후)</tspan></text>
+
+  <!-- card 1 -->
+  <rect x="26" y="146" width="196" height="122" rx="12" fill="#eef4fd" stroke="#c5d8f5" stroke-width="1.5"/>
+  <text x="124" y="174" text-anchor="middle" font-size="13.5" font-weight="700" fill="#15275c">마감 정산 시간</text>
+  <text x="124" y="210" text-anchor="middle"><tspan font-size="14" fill="#8a97b3">40분</tspan><tspan font-size="14" fill="#16308f"> → </tspan><tspan font-size="19" font-weight="700" fill="#16308f">5분</tspan></text>
+  <rect x="90" y="230" width="68" height="26" rx="13" fill="#16308f"/>
+  <text x="124" y="247" text-anchor="middle" font-size="13" font-weight="700" fill="#ffffff">▼ 88%</text>
+
+  <!-- card 2 -->
+  <rect x="234" y="146" width="196" height="122" rx="12" fill="#eef4fd" stroke="#c5d8f5" stroke-width="1.5"/>
+  <text x="332" y="174" text-anchor="middle" font-size="13.5" font-weight="700" fill="#15275c">매출 수기 입력</text>
+  <text x="332" y="210" text-anchor="middle"><tspan font-size="14" fill="#8a97b3">주 5시간</tspan><tspan font-size="14" fill="#16308f"> → </tspan><tspan font-size="19" font-weight="700" fill="#16308f">0</tspan></text>
+  <rect x="298" y="230" width="68" height="26" rx="13" fill="#16308f"/>
+  <text x="332" y="247" text-anchor="middle" font-size="13" font-weight="700" fill="#ffffff">▼ 100%</text>
+
+  <!-- card 3 -->
+  <rect x="442" y="146" width="196" height="122" rx="12" fill="#eef4fd" stroke="#c5d8f5" stroke-width="1.5"/>
+  <text x="540" y="174" text-anchor="middle" font-size="13.5" font-weight="700" fill="#15275c">매출 누락</text>
+  <text x="540" y="210" text-anchor="middle"><tspan font-size="14" fill="#8a97b3">월 6~8건</tspan><tspan font-size="14" fill="#16308f"> → </tspan><tspan font-size="19" font-weight="700" fill="#16308f">0건</tspan></text>
+  <rect x="506" y="230" width="68" height="26" rx="13" fill="#16308f"/>
+  <text x="540" y="247" text-anchor="middle" font-size="13" font-weight="700" fill="#ffffff">▼ 100%</text>
+
+  <!-- card 4 -->
+  <rect x="650" y="146" width="196" height="122" rx="12" fill="#eef4fd" stroke="#c5d8f5" stroke-width="1.5"/>
+  <text x="748" y="174" text-anchor="middle" font-size="13.5" font-weight="700" fill="#15275c">적립 회원</text>
+  <text x="748" y="210" text-anchor="middle"><tspan font-size="14" fill="#8a97b3">120명</tspan><tspan font-size="14" fill="#16308f"> → </tspan><tspan font-size="19" font-weight="700" fill="#16308f">410명</tspan></text>
+  <rect x="711" y="230" width="74" height="26" rx="13" fill="#2f63c9"/>
+  <text x="748" y="247" text-anchor="middle" font-size="13" font-weight="700" fill="#ffffff">▲ 3.4배</text>
+
+  <!-- card 5 -->
+  <rect x="858" y="146" width="196" height="122" rx="12" fill="#eef4fd" stroke="#c5d8f5" stroke-width="1.5"/>
+  <text x="956" y="174" text-anchor="middle" font-size="13.5" font-weight="700" fill="#15275c">재방문율</text>
+  <text x="956" y="210" text-anchor="middle"><tspan font-size="14" fill="#8a97b3">28%</tspan><tspan font-size="14" fill="#16308f"> → </tspan><tspan font-size="19" font-weight="700" fill="#16308f">39%</tspan></text>
+  <rect x="919" y="230" width="74" height="26" rx="13" fill="#2f63c9"/>
+  <text x="956" y="247" text-anchor="middle" font-size="13" font-weight="700" fill="#ffffff">▲ 11%p</text>
+
+  <!-- ===== B. 지역 혁신 관점 — 3단계 ===== -->
+  <rect x="44" y="288" width="5" height="18" fill="#16308f"/>
+  <text x="58" y="302" font-size="15" font-weight="700" fill="#16308f">지역 혁신 관점 성과 <tspan font-size="12" font-weight="400" fill="#6a7a9c">· 단계적 확산 모델</tspan></text>
+
+  <!-- Box 1 -->
+  <rect x="24" y="316" width="300" height="232" rx="14" fill="#eef4fd" stroke="#c5d8f5" stroke-width="1.5"/>
+  <path d="M24,330 Q24,316 38,316 L310,316 Q324,316 324,330 L324,358 L24,358 Z" fill="#16308f"/>
+  <circle cx="50" cy="337" r="14" fill="#ffffff"/>
+  <text x="50" y="342" text-anchor="middle" font-size="15" font-weight="700" fill="#16308f">1</text>
+  <text x="182" y="342" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">매장의 자립</text>
+  <polygon points="152,380 196,380 174,368" fill="none" stroke="#16308f" stroke-width="2" stroke-linejoin="round"/>
+  <rect x="156" y="380" width="36" height="24" fill="none" stroke="#16308f" stroke-width="2"/>
+  <rect x="167" y="390" width="14" height="14" fill="#16308f"/>
+  <circle cx="42" cy="432" r="3" fill="#2f63c9"/>
+  <text x="54" y="436" font-size="13.5" font-weight="600" fill="#15275c">‘버티는’ 매장 → ‘운영하는’ 매장</text>
+  <text x="54" y="455" font-size="11.5" fill="#6a7a9c">마감·정산 시간 약 88%↓</text>
+  <circle cx="42" cy="492" r="3" fill="#2f63c9"/>
+  <text x="54" y="496" font-size="13.5" font-weight="600" fill="#15275c">사장님의 감이 데이터로 축적</text>
+  <text x="54" y="515" font-size="11.5" fill="#6a7a9c">경험 기반 → 데이터 기반 운영</text>
+
+  <!-- arrows 1->2 -->
+  <path d="M344,424 l9,8 l-9,8" fill="none" stroke="#2f63c9" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M355,424 l9,8 l-9,8" fill="none" stroke="#2f63c9" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M366,424 l9,8 l-9,8" fill="none" stroke="#2f63c9" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Box 2 -->
+  <rect x="390" y="316" width="300" height="232" rx="14" fill="#eef4fd" stroke="#c5d8f5" stroke-width="1.5"/>
+  <path d="M390,330 Q390,316 404,316 L676,316 Q690,316 690,330 L690,358 L390,358 Z" fill="#16308f"/>
+  <circle cx="416" cy="337" r="14" fill="#ffffff"/>
+  <text x="416" y="342" text-anchor="middle" font-size="15" font-weight="700" fill="#16308f">2</text>
+  <text x="548" y="342" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">골목의 확산</text>
+  <line x1="540" y1="380" x2="518" y2="368" stroke="#16308f" stroke-width="1.6"/>
+  <line x1="540" y1="380" x2="562" y2="368" stroke="#16308f" stroke-width="1.6"/>
+  <line x1="540" y1="380" x2="540" y2="402" stroke="#16308f" stroke-width="1.6"/>
+  <circle cx="540" cy="380" r="5" fill="#16308f"/>
+  <circle cx="518" cy="368" r="4" fill="#2f63c9"/>
+  <circle cx="562" cy="368" r="4" fill="#2f63c9"/>
+  <circle cx="540" cy="402" r="4" fill="#2f63c9"/>
+  <circle cx="408" cy="432" r="3" fill="#2f63c9"/>
+  <text x="420" y="436" font-size="13.5" font-weight="600" fill="#15275c">옆 가게로 번지는 변화</text>
+  <text x="420" y="455" font-size="11.5" fill="#6a7a9c">연심의 경험이 본보기</text>
+  <circle cx="408" cy="492" r="3" fill="#2f63c9"/>
+  <text x="420" y="496" font-size="13.5" font-weight="600" fill="#15275c">한 매장의 성공이 상권 전체로</text>
+  <text x="420" y="515" font-size="11.5" fill="#6a7a9c">동일 업종으로 복제·확산</text>
+
+  <!-- arrows 2->3 -->
+  <path d="M710,424 l9,8 l-9,8" fill="none" stroke="#2f63c9" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M721,424 l9,8 l-9,8" fill="none" stroke="#2f63c9" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M732,424 l9,8 l-9,8" fill="none" stroke="#2f63c9" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Box 3 -->
+  <rect x="756" y="316" width="300" height="232" rx="14" fill="#eef4fd" stroke="#c5d8f5" stroke-width="1.5"/>
+  <path d="M756,330 Q756,316 770,316 L1042,316 Q1056,316 1056,330 L1056,358 L756,358 Z" fill="#16308f"/>
+  <circle cx="782" cy="337" r="14" fill="#ffffff"/>
+  <text x="782" y="342" text-anchor="middle" font-size="15" font-weight="700" fill="#16308f">3</text>
+  <text x="914" y="342" text-anchor="middle" font-size="16" font-weight="700" fill="#ffffff">상권의 글로벌화</text>
+  <circle cx="906" cy="380" r="18" fill="none" stroke="#16308f" stroke-width="2"/>
+  <ellipse cx="906" cy="380" rx="7" ry="18" fill="none" stroke="#16308f" stroke-width="1.5"/>
+  <line x1="888" y1="380" x2="924" y2="380" stroke="#16308f" stroke-width="1.5"/>
+  <line x1="894" y1="370" x2="918" y2="370" stroke="#16308f" stroke-width="1.2"/>
+  <line x1="894" y1="390" x2="918" y2="390" stroke="#16308f" stroke-width="1.2"/>
+  <circle cx="774" cy="432" r="3" fill="#2f63c9"/>
+  <text x="786" y="436" font-size="13.5" font-weight="600" fill="#15275c">누구에게나 열린 가게</text>
+  <text x="786" y="455" font-size="11.5" fill="#6a7a9c">4개 언어 · AI 번역</text>
+  <circle cx="774" cy="492" r="3" fill="#2f63c9"/>
+  <text x="786" y="496" font-size="13.5" font-weight="600" fill="#15275c">대형 플랫폼 종속 탈피</text>
+  <text x="786" y="515" font-size="11.5" fill="#6a7a9c">골목 자체의 디지털 자립</text>
+
+  <!-- ===== 결론 banner ===== -->
+  <rect x="24" y="568" width="1032" height="72" rx="12" fill="#eef4fd" stroke="#c5d8f5" stroke-width="1.5"/>
+  <rect x="40" y="586" width="60" height="28" rx="6" fill="#16308f"/>
+  <text x="70" y="605" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">결론</text>
+  <text x="116" y="596" font-size="12.5" fill="#15275c">매장의 자립에서 골목의 확산, 상권의 글로벌화로 이어지는 단계적 성과를 확인하였다.</text>
+  <text x="116" y="620" font-size="12.5" fill="#15275c">개별 점포의 효율 개선이 상권 전반의 디지털 전환과 자생력 강화로 확산될 수 있음을 입증하였다.</text>
+
+  <text x="540" y="666" text-anchor="middle" font-size="11.5" fill="#8a97b3">※ 본 장표의 정량 수치는 예시값이며, 실제 운영 데이터로 교체 필요</text>
+</svg>

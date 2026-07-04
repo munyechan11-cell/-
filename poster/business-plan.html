@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>결(Gyeol) 사업계획서</title>
+<style>
+  :root{
+    --navy:#0f2742; --navy2:#163457; --mint:#14b8a6; --mint-d:#0d9488;
+    --ink:#1f2937; --ink2:#475467; --ink3:#6b7280; --line:#e5e7eb;
+    --bg-soft:#f6f8fb; --gold:#d9a441;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{ -webkit-print-color-adjust:exact; print-color-adjust:exact;}
+  body{
+    font-family:"Malgun Gothic","맑은 고딕","Apple SD Gothic Neo",sans-serif;
+    color:var(--ink); line-height:1.65; font-size:10.5pt;
+  }
+  @page{ size:A4; margin:0; }
+  .page{
+    width:210mm; min-height:297mm; padding:20mm 18mm; position:relative;
+    page-break-after:always; background:#fff;
+  }
+  .page:last-child{ page-break-after:auto; }
+
+  /* ---------- COVER ---------- */
+  .cover{
+    background:linear-gradient(160deg,#0f2742 0%,#163457 55%,#0d9488 130%);
+    color:#fff; padding:0; display:flex; flex-direction:column; justify-content:space-between;
+  }
+  .cover-inner{ padding:34mm 20mm; height:297mm; display:flex; flex-direction:column;}
+  .logo-badge{
+    width:60px; height:60px; border-radius:16px; background:#fff; color:var(--navy);
+    font-size:30px; font-weight:800; display:flex; align-items:center; justify-content:center;
+    box-shadow:0 10px 30px rgba(0,0,0,.25);
+  }
+  .cover .brand-kr{ font-size:12pt; letter-spacing:.35em; opacity:.7; margin-top:14px; font-weight:700;}
+  .cover h1{ font-size:40pt; font-weight:800; line-height:1.15; margin-top:auto; letter-spacing:-.02em;}
+  .cover h1 .accent{ color:#7be8c4; }
+  .cover .sub{ font-size:13.5pt; opacity:.85; margin-top:18px; font-weight:500; line-height:1.6;}
+  .cover .tagline{
+    margin-top:26px; display:inline-block; padding:8px 16px; border:1px solid rgba(255,255,255,.35);
+    border-radius:999px; font-size:10.5pt; font-weight:600; letter-spacing:.02em;
+  }
+  .cover-meta{ margin-top:auto; padding-top:30px; border-top:1px solid rgba(255,255,255,.2);
+    display:flex; justify-content:space-between; font-size:10pt; opacity:.85;}
+  .cover-meta b{ font-weight:700; }
+
+  /* ---------- HEADERS ---------- */
+  .kicker{ color:var(--mint-d); font-weight:800; font-size:10pt; letter-spacing:.12em; text-transform:uppercase;}
+  h2.sec{ font-size:19pt; font-weight:800; color:var(--navy); margin:6px 0 4px; letter-spacing:-.01em;}
+  .sec-rule{ width:46px; height:4px; background:var(--mint); border-radius:2px; margin:10px 0 20px;}
+  h3{ font-size:12.5pt; font-weight:800; color:var(--navy2); margin:20px 0 8px;}
+  p{ color:var(--ink2); margin-bottom:9px;}
+  .lead{ font-size:11.5pt; color:var(--ink); font-weight:500; margin-bottom:16px; line-height:1.7;}
+  strong{ color:var(--navy); }
+  .mint{ color:var(--mint-d); font-weight:700;}
+
+  /* ---------- COMPONENTS ---------- */
+  .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  .grid3{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;}
+  .card{ border:1px solid var(--line); border-radius:14px; padding:16px 16px; background:#fff;}
+  .card.soft{ background:var(--bg-soft); border-color:#eef2f7;}
+  .card h4{ font-size:11pt; font-weight:800; color:var(--navy); margin-bottom:6px; display:flex; align-items:center; gap:7px;}
+  .card p{ font-size:9.5pt; margin:0; color:var(--ink2); line-height:1.55;}
+  .pill{ display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px;
+    border-radius:7px; background:var(--navy); color:#fff; font-size:10pt; font-weight:800; flex:none;}
+  .pill.mint{ background:var(--mint); }
+
+  ul.clean{ list-style:none; }
+  ul.clean li{ position:relative; padding-left:18px; margin-bottom:7px; color:var(--ink2); font-size:10pt;}
+  ul.clean li::before{ content:""; position:absolute; left:2px; top:8px; width:7px; height:7px;
+    border-radius:2px; background:var(--mint);}
+  ul.clean li b{ color:var(--navy); }
+
+  table.tbl{ width:100%; border-collapse:collapse; font-size:9.5pt; margin-top:6px;}
+  table.tbl th{ background:var(--navy); color:#fff; font-weight:700; padding:9px 10px; text-align:left; font-size:9.5pt;}
+  table.tbl td{ padding:9px 10px; border-bottom:1px solid var(--line); color:var(--ink2); vertical-align:top;}
+  table.tbl tr:nth-child(even) td{ background:var(--bg-soft); }
+  table.tbl td b{ color:var(--navy); }
+
+  .stat-row{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin:6px 0 4px;}
+  .stat{ background:var(--navy); color:#fff; border-radius:14px; padding:16px 14px; text-align:center;}
+  .stat .n{ font-size:20pt; font-weight:800; color:#7be8c4; line-height:1;}
+  .stat .l{ font-size:8.5pt; opacity:.85; margin-top:8px; line-height:1.4;}
+
+  .callout{ background:var(--bg-soft); border-left:4px solid var(--mint); border-radius:0 12px 12px 0;
+    padding:14px 18px; margin:14px 0; font-size:10pt; color:var(--ink2);}
+  .callout b{ color:var(--navy);}
+
+  .roadmap{ position:relative; margin-top:8px;}
+  .rstep{ display:flex; gap:14px; padding:12px 0; border-bottom:1px dashed var(--line);}
+  .rstep:last-child{ border-bottom:none;}
+  .rphase{ flex:none; width:80px; font-weight:800; color:var(--mint-d); font-size:10pt;}
+  .rstep .body{ font-size:9.7pt; color:var(--ink2);}
+  .rstep .body b{ color:var(--navy); display:block; margin-bottom:2px; font-size:10.3pt;}
+
+  .footer{ position:absolute; bottom:10mm; left:18mm; right:18mm; display:flex; justify-content:space-between;
+    font-size:8pt; color:var(--ink3); border-top:1px solid var(--line); padding-top:7px;}
+  .footer .b{ font-weight:700; color:var(--navy2);}
+</style>
+</head>
+<body>
+
+<!-- ============ COVER ============ -->
+<section class="page cover">
+  <div class="cover-inner">
+    <div class="logo-badge">결</div>
+    <div class="brand-kr">GYEOL · 결</div>
+
+    <h1 style="margin-top:54px;">소상공인의 모든 흐름을,<br><span class="accent">결</span> 하나로 정리하다.</h1>
+    <p class="sub">QR 하나로 단골·재고·정산·직원까지 통합 관리하는<br>소상공인 올인원 매장경영 솔루션</p>
+    <span class="tagline">CRM · ERP · POS 통합  ×  AI 자동화  ×  4개 언어</span>
+
+    <div style="margin-top:auto;"></div>
+    <div class="cover-meta">
+      <div><b>사업계획서</b><br><span style="opacity:.7">Business Plan</span></div>
+      <div style="text-align:right;"><b>해결 분야</b> 소상공인 관리<br><span style="opacity:.7">2026</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 1. 개요 ============ -->
+<section class="page">
+  <div class="kicker">Executive Summary</div>
+  <h2 class="sec">01. 사업 개요</h2>
+  <div class="sec-rule"></div>
+
+  <p class="lead">
+    <strong>'결(Gyeol)'</strong>은 흩어져 있던 소상공인의 매장 운영을 하나로 묶는 <strong>올인원 매장경영 앱</strong>입니다.
+    손님이 테이블 QR을 찍는 순간 방문·적립·등급·쿠폰이 자동으로 관리되고, 사장님은 같은 데이터로
+    <span class="mint">단골 마케팅(CRM) · 재고와 원가(ERP) · 매출 정산(POS) · 직원 권한</span>까지 한 화면에서 다룹니다.
+  </p>
+
+  <div class="callout">
+    영수증을 사진 한 장 찍으면 <b>AI가 금액·항목·원가율을 자동 기록</b>합니다.
+    엑셀도, 수기 장부도, 값비싼 POS 장비도 없이 누구나 데이터로 매장을 경영할 수 있습니다.
+  </div>
+
+  <div class="stat-row">
+    <div class="stat"><div class="n">3-in-1</div><div class="l">CRM·ERP·POS<br>단일 앱 통합</div></div>
+    <div class="stat"><div class="n">4개</div><div class="l">한·영·베트남·중국어<br>다국어 지원</div></div>
+    <div class="stat"><div class="n">0원</div><div class="l">전용 장비 없이<br>스마트폰으로 시작</div></div>
+    <div class="stat"><div class="n">AI</div><div class="l">영수증 스캔<br>장부 자동화</div></div>
+  </div>
+
+  <h3>한눈에 보는 '결'</h3>
+  <table class="tbl">
+    <tr><th style="width:26%">구분</th><th>내용</th></tr>
+    <tr><td><b>제품명</b></td><td>결(Gyeol) — 소상공인 통합 매장경영 앱</td></tr>
+    <tr><td><b>핵심 가치</b></td><td>흩어진 운영 도구를 QR 기반 한 앱으로 통합 · AI로 장부 작성 자동화</td></tr>
+    <tr><td><b>주요 고객</b></td><td>카페·음식점·정육·베이커리 등 오프라인 소상공인 (외국인·고령 사장님 포함)</td></tr>
+    <tr><td><b>이용 주체</b></td><td>손님 · 사장님 · 직원 — 역할별 화면을 하나의 데이터로 연결</td></tr>
+    <tr><td><b>형태</b></td><td>설치 없이 쓰는 웹앱(PWA) — 스마트폰·태블릿·PC 어디서나</td></tr>
+    <tr><td><b>벤치마크</b></td><td>토스(Toss) POS 수준의 쉬운 UX를 소상공인 통합 관리로 확장</td></tr>
+  </table>
+
+  <div class="footer"><span class="b">결 GYEOL · 사업계획서</span><span>01 / 사업 개요</span></div>
+</section>
+
+<!-- ============ 2. 문제 정의 ============ -->
+<section class="page">
+  <div class="kicker">Problem</div>
+  <h2 class="sec">02. 우리가 푸는 문제</h2>
+  <div class="sec-rule"></div>
+
+  <p class="lead">
+    소상공인은 <strong>단골 관리, 재고·원가, 주문·결제</strong>를 각각 다른 앱과 수기 장부로 따로 운영합니다.
+    도구는 많아졌지만 데이터는 흩어졌고, 정작 <span class="mint">"누가 단골이고 무엇이 남는 장사인지"</span>는
+    여전히 사장님의 감(感)에 의존합니다.
+  </p>
+
+  <div class="grid2">
+    <div class="card soft">
+      <h4><span class="pill">1</span>도구의 파편화</h4>
+      <p>적립앱·재고 엑셀·배달 POS·메신저가 따로 논다. 데이터가 연결되지 않아 손님 한 명의 방문이 매출·재고·마케팅으로 이어지지 못한다.</p>
+    </div>
+    <div class="card soft">
+      <h4><span class="pill">2</span>높은 진입장벽</h4>
+      <p>전용 POS 장비·월 구독료·복잡한 ERP는 1인 매장엔 부담. 결국 비용과 학습 부담 탓에 디지털 전환에서 소외된다.</p>
+    </div>
+    <div class="card soft">
+      <h4><span class="pill">3</span>장부의 수작업</h4>
+      <p>매입 영수증을 일일이 손으로 적고, 원가율은 월말에야 대충 안다. 남는 장사인지 모른 채 다음 달이 시작된다.</p>
+    </div>
+    <div class="card soft">
+      <h4><span class="pill">4</span>언어 장벽</h4>
+      <p>외국인 사장님·외국인 직원이 늘었지만 기존 솔루션은 한국어 전용. 고령 사장님에게도 화면이 너무 복잡하다.</p>
+    </div>
+  </div>
+
+  <h3>그 결과 — 소상공인이 잃는 것</h3>
+  <ul class="clean">
+    <li><b>단골을 놓친다.</b> 누가 자주 오는지, 누가 발길을 끊었는지 데이터로 알 수 없다.</li>
+    <li><b>마진을 모른다.</b> 원가가 실시간으로 잡히지 않아 가격·메뉴 결정이 늦는다.</li>
+    <li><b>시간을 쓴다.</b> 정산·장부·재고 확인에 매일 밤 1~2시간을 수기로 소모한다.</li>
+  </ul>
+
+  <div class="callout">
+    문제의 본질은 기능 부족이 아니라 <b>"통합과 자동화의 부재"</b>입니다.
+    소상공인에게 필요한 건 더 많은 앱이 아니라, <b>하나로 연결되고 알아서 채워지는 앱</b>입니다.
+  </div>
+
+  <div class="footer"><span class="b">결 GYEOL · 사업계획서</span><span>02 / 문제 정의</span></div>
+</section>
+
+<!-- ============ 3. 솔루션 ============ -->
+<section class="page">
+  <div class="kicker">Solution</div>
+  <h2 class="sec">03. 솔루션 — 결(Gyeol)</h2>
+  <div class="sec-rule"></div>
+
+  <p class="lead">
+    '결'은 <strong>하나의 QR과 하나의 데이터</strong>로 손님·사장님·직원을 연결합니다.
+    손님의 한 번의 방문이 곧 <span class="mint">매출 기록 · 단골 데이터 · 재고 차감 · 마케팅 트리거</span>로
+    자동으로 흘러가도록 설계했습니다.
+  </p>
+
+  <h3>한 번의 QR 스캔에서 시작되는 자동화 흐름</h3>
+  <table class="tbl">
+    <tr><th style="width:20%">단계</th><th style="width:32%">손님 행동</th><th>결이 자동으로 처리</th></tr>
+    <tr><td><b>① 입장</b></td><td>테이블 QR 스캔</td><td>방문 기록 · 테이블 점유 · 손님 식별(신규/단골)</td></tr>
+    <tr><td><b>② 주문</b></td><td>메뉴 선택·주문</td><td>주방 디스플레이 전송 · 재고 자동 차감 · 원가 계산</td></tr>
+    <tr><td><b>③ 결제</b></td><td>토스 결제·리뷰</td><td>매출장부 기록 · 포인트/스탬프 적립 · 등급 갱신</td></tr>
+    <tr><td><b>④ 이후</b></td><td>재방문 유도</td><td>휴면·생일·등급 쿠폰 자동 발송(알림톡/SMS)</td></tr>
+  </table>
+
+  <h3>3개의 축을 하나로</h3>
+  <div class="grid3">
+    <div class="card">
+      <h4><span class="pill mint">C</span>CRM</h4>
+      <p>방문·적립·등급(일반~VIP)·쿠폰·리뷰를 자동 관리. 휴면 고객·생일 고객을 골라 대량 마케팅.</p>
+    </div>
+    <div class="card">
+      <h4><span class="pill mint">E</span>ERP</h4>
+      <p>원재료·레시피 연동 재고 자동 차감, 실시간 원가율, 지출·매출 정산으로 순이익까지.</p>
+    </div>
+    <div class="card">
+      <h4><span class="pill mint">P</span>POS</h4>
+      <p>주문·주방 디스플레이·키오스크·테이블 배치도·예약·토스 결제·영수증 인쇄 브릿지.</p>
+    </div>
+  </div>
+
+  <div class="callout">
+    <b>핵심 차별점.</b> 경쟁 제품이 "기능을 더한다"면, 결은 <b>"흐름을 잇고 알아서 채운다"</b>.
+    손님 화면과 사장님 화면이 같은 데이터를 공유하기에, 입력 없이도 경영 지표가 쌓입니다.
+  </div>
+
+  <div class="footer"><span class="b">결 GYEOL · 사업계획서</span><span>03 / 솔루션</span></div>
+</section>
+
+<!-- ============ 4. 핵심 기능 ============ -->
+<section class="page">
+  <div class="kicker">Key Features</div>
+  <h2 class="sec">04. 핵심 기능</h2>
+  <div class="sec-rule"></div>
+
+  <div class="grid2">
+    <div class="card">
+      <h4>🎯 단골 관리 (CRM)</h4>
+      <p>QR 방문 자동 적립, 포인트·스탬프 선택, 6단계 등급(일반·브론즈·실버·골드·다이아·VIP), 등급별 자동 쿠폰, 손님 리뷰·별점·사장님 답글.</p>
+    </div>
+    <div class="card">
+      <h4>📦 재고·원가 (ERP)</h4>
+      <p>원재료↔메뉴 레시피 연동으로 판매 시 재고 자동 차감, 실시간 원가율. <b>3가지 모드</b>(정밀 ERP·간편 입력·AI 자동)로 매장 수준에 맞춰 선택.</p>
+    </div>
+    <div class="card">
+      <h4>🤖 AI 영수증 스캔</h4>
+      <p>매입 영수증을 촬영하면 Gemini Vision이 금액·날짜·항목·분류를 읽어 비용 장부에 자동 입력. 질문형 AI 매출 분석 인사이트 제공.</p>
+    </div>
+    <div class="card">
+      <h4>💳 주문·결제 (POS)</h4>
+      <p>QR 주문·빠른 주문, 주방 디스플레이(KDS), 키오스크 모드, 토스 결제 연동, 영수증 인쇄 브릿지로 기존 프린터와 연동.</p>
+    </div>
+    <div class="card">
+      <h4>🪑 테이블·예약</h4>
+      <p>드래그로 만드는 매장 배치도, 8단계 테이블 상태 워크플로우(예약→세팅→입장→식사→결제→정리), 예약 관리·웰컴 디스플레이.</p>
+    </div>
+    <div class="card">
+      <h4>📣 자동 마케팅</h4>
+      <p>휴면·생일·신규 등급 고객을 자동 선별해 쿠폰 대량 발송. 알림톡/SMS 게이트웨이 연동으로 재방문을 유도.</p>
+    </div>
+    <div class="card">
+      <h4>👥 직원 권한 등급제</h4>
+      <p>알바·정규직·매니저·실장 <b>4단계 권한</b>과 개별 권한 추가, 출퇴근 기록·시급 기반 급여 계산까지. 사장님이 메뉴 노출을 통제.</p>
+    </div>
+    <div class="card">
+      <h4>🌏 4개 언어 · PWA</h4>
+      <p>한국어·영어·베트남어·중국어 전면 지원으로 외국인 사장님·직원·손님 포용. 설치 없이 쓰는 웹앱(PWA), 푸시 알림 내장.</p>
+    </div>
+  </div>
+
+  <div class="footer"><span class="b">결 GYEOL · 사업계획서</span><span>04 / 핵심 기능</span></div>
+</section>
+
+<!-- ============ 5. 차별성 & 시장 ============ -->
+<section class="page">
+  <div class="kicker">Edge & Market</div>
+  <h2 class="sec">05. 차별성과 시장</h2>
+  <div class="sec-rule"></div>
+
+  <h3>경쟁 환경 속 결의 위치</h3>
+  <table class="tbl">
+    <tr><th style="width:24%">비교 항목</th><th>기존 POS / 적립앱 / 장부앱</th><th>결(Gyeol)</th></tr>
+    <tr><td><b>통합 범위</b></td><td>한 가지 기능에 특화 (분절)</td><td><b>CRM·ERP·POS 단일 앱 통합</b></td></tr>
+    <tr><td><b>도입 비용</b></td><td>전용 단말·월 구독·설치 필요</td><td><b>스마트폰만으로 시작(PWA)</b></td></tr>
+    <tr><td><b>장부 작성</b></td><td>수기·엑셀 입력</td><td><b>AI 영수증 스캔 자동화</b></td></tr>
+    <tr><td><b>데이터 연결</b></td><td>손님↔매출↔재고 단절</td><td><b>한 번의 QR로 전 과정 연결</b></td></tr>
+    <tr><td><b>언어</b></td><td>한국어 중심</td><td><b>4개 언어(한·영·베·중)</b></td></tr>
+  </table>
+
+  <h3>목표 시장</h3>
+  <div class="grid3">
+    <div class="card soft">
+      <h4>1차 — 동네 매장</h4>
+      <p>카페·음식점·정육·베이커리 등 1~5인 오프라인 소상공인. 토스처럼 쉬운 UX가 핵심 무기.</p>
+    </div>
+    <div class="card soft">
+      <h4>2차 — 다국어 매장</h4>
+      <p>외국인 사장님·외국인 직원·관광 상권. 4개 언어로 경쟁사가 비운 공백을 선점.</p>
+    </div>
+    <div class="card soft">
+      <h4>확장 — 소형 체인</h4>
+      <p>2~3개 점포 운영주. 마스터 계정 기반 다점포 관리로 자연 확장.</p>
+    </div>
+  </div>
+
+  <div class="callout">
+    국내 소상공인 사업체는 <b>수백만 곳</b>에 달하며, 코로나 이후 비대면·디지털 전환 수요와
+    인건비 부담이 동시에 커졌습니다. <b>"쉽고, 싸고, 다 되는"</b> 통합 솔루션의 공백이 결의 기회입니다.
+  </div>
+
+  <div class="footer"><span class="b">결 GYEOL · 사업계획서</span><span>05 / 차별성·시장</span></div>
+</section>
+
+<!-- ============ 6. 수익모델 & 기술 ============ -->
+<section class="page">
+  <div class="kicker">Business Model & Tech</div>
+  <h2 class="sec">06. 수익 모델과 기술</h2>
+  <div class="sec-rule"></div>
+
+  <h3>수익 모델</h3>
+  <table class="tbl">
+    <tr><th style="width:26%">수익원</th><th>내용</th></tr>
+    <tr><td><b>구독 (SaaS)</b></td><td>무료(기본 적립·주문) → 유료(AI 장부·마케팅 자동화·다점포) 단계형 요금제</td></tr>
+    <tr><td><b>결제 연동</b></td><td>토스 등 결제·정산 연동에 따른 제휴 수수료</td></tr>
+    <tr><td><b>메시지</b></td><td>알림톡/SMS 발송 건당 마진 (마케팅 사용량 기반)</td></tr>
+    <tr><td><b>부가 서비스</b></td><td>영수증 인쇄 브릿지, 키오스크, 외부 리뷰·예약 채널 연동 등</td></tr>
+  </table>
+
+  <h3>기술 스택 — 이미 작동하는 제품</h3>
+  <div class="grid2">
+    <div class="card">
+      <h4>프론트엔드</h4>
+      <p>React 19 · TypeScript · Vite · Tailwind CSS v4. 설치 없는 PWA로 모바일·데스크탑 동시 대응, 반응형 통합 UX.</p>
+    </div>
+    <div class="card">
+      <h4>백엔드·데이터</h4>
+      <p>Firebase(실시간 DB·인증) · Express 서버. 손님·사장님·직원 화면이 동일 데이터를 실시간 공유.</p>
+    </div>
+    <div class="card">
+      <h4>AI</h4>
+      <p>Google Gemini(Vision) 기반 영수증 인식 및 매출 분석 인사이트. 입력 없는 자동 장부의 핵심 엔진.</p>
+    </div>
+    <div class="card">
+      <h4>연동·알림</h4>
+      <p>FCM 푸시, 토스 결제, 알림톡/SMS 게이트웨이, QR·영수증 프린터 브릿지로 현장 장비와 연결.</p>
+    </div>
+  </div>
+
+  <div class="callout">
+    결은 기획 단계가 아니라 <b>이미 구현되어 동작하는 제품</b>입니다.
+    손님·사장님·직원 4개 역할, 4개 언어, CRM·ERP·POS 핵심 기능, AI 영수증 스캔이 모두 구동됩니다.
+  </div>
+
+  <div class="footer"><span class="b">결 GYEOL · 사업계획서</span><span>06 / 수익모델·기술</span></div>
+</section>
+
+<!-- ============ 7. 로드맵 & 비전 ============ -->
+<section class="page">
+  <div class="kicker">Roadmap & Vision</div>
+  <h2 class="sec">07. 로드맵과 기대효과</h2>
+  <div class="sec-rule"></div>
+
+  <h3>추진 로드맵</h3>
+  <div class="roadmap">
+    <div class="rstep">
+      <div class="rphase">1단계<br><span style="font-weight:600;color:#9aa5b1;font-size:8.5pt;">현재</span></div>
+      <div class="body"><b>핵심 제품 완성 · 현장 검증</b>
+        CRM·ERP·POS 통합, AI 영수증 스캔, 4개 언어, 직원 등급제 구현 완료. 카페·음식점 파일럿 매장 적용.</div>
+    </div>
+    <div class="rstep">
+      <div class="rphase">2단계</div>
+      <div class="body"><b>자동화 고도화 · 초기 확산</b>
+        AI 매출 분석·발주 추천 강화, 토스/배달 연동 확대, 무료→유료 전환 요금제 도입, 상권 단위 레퍼런스 확보.</div>
+    </div>
+    <div class="rstep">
+      <div class="rphase">3단계</div>
+      <div class="body"><b>다점포 · 다국어 시장 확장</b>
+        소형 체인용 다점포 관리, 외국인 사장님·관광 상권 공략, 외부 리뷰·예약 채널 연동 생태계 구축.</div>
+    </div>
+    <div class="rstep">
+      <div class="rphase">4단계</div>
+      <div class="body"><b>소상공인 경영 플랫폼화</b>
+        축적 데이터 기반 매출 예측·자금 흐름·정책자금 매칭 등 경영 전반을 돕는 데이터 플랫폼으로 확장.</div>
+    </div>
+  </div>
+
+  <h3>기대 효과</h3>
+  <div class="grid3">
+    <div class="card soft">
+      <h4>⏱ 시간 절약</h4>
+      <p>정산·장부·재고 수작업을 자동화해 매일 밤 1~2시간의 운영 부담을 줄인다.</p>
+    </div>
+    <div class="card soft">
+      <h4>📈 매출 증대</h4>
+      <p>단골 데이터·자동 마케팅으로 재방문을 높이고, 실시간 원가로 마진을 지킨다.</p>
+    </div>
+    <div class="card soft">
+      <h4>🌏 포용</h4>
+      <p>외국인·고령 사장님도 쉽게 쓰는 4개 언어 UX로 디지털 격차를 좁힌다.</p>
+    </div>
+  </div>
+
+  <div class="callout" style="margin-top:18px; border-left-color:var(--gold);">
+    <b>비전.</b> 결은 적립앱을 넘어 소상공인의 <b>CRM·ERP·POS를 잇는 통합 경영 플랫폼</b>을 지향합니다.
+    "장사는 잘하는데 경영이 어렵다"는 사장님 곁에서, 데이터가 알아서 쌓이고 결정이 쉬워지는 경험을 만듭니다.
+  </div>
+
+  <div style="margin-top:26px; text-align:center; color:var(--navy); font-weight:800; font-size:13pt;">
+    소상공인의 모든 흐름을, 결 하나로.
+  </div>
+
+  <div class="footer"><span class="b">결 GYEOL · 사업계획서</span><span>07 / 로드맵·비전</span></div>
+</section>
+
+</body>
+</html>

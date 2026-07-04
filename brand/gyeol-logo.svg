@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#23498119"/>
+    </linearGradient>
+    <linearGradient id="navy" x1="0.12" y1="0.05" x2="0.9" y2="1">
+      <stop offset="0" stop-color="#244b82"/>
+      <stop offset="0.55" stop-color="#173762"/>
+      <stop offset="1" stop-color="#0c2344"/>
+    </linearGradient>
+    <radialGradient id="sheen" cx="0.3" cy="0.22" r="0.75">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.18"/>
+      <stop offset="0.55" stop-color="#ffffff" stop-opacity="0.04"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffd66b"/>
+      <stop offset="0.5" stop-color="#f7b733"/>
+      <stop offset="1" stop-color="#e8951f"/>
+    </linearGradient>
+    <linearGradient id="white" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#e8eefb"/>
+    </linearGradient>
+  </defs>
+
+  <!-- squircle background -->
+  <rect x="0" y="0" width="512" height="512" rx="116" ry="116" fill="url(#navy)"/>
+  <rect x="0" y="0" width="512" height="512" rx="116" ry="116" fill="url(#sheen)"/>
+
+  <!-- ㄱ : initial consonant of 결, drawn as a clean geometric mark -->
+  <path d="M 162 168 H 350 V 352"
+        fill="none" stroke="url(#white)" stroke-width="54"
+        stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- gold point nested in the hook : the 단골/적립 focus -->
+  <circle cx="222" cy="300" r="38" fill="url(#gold)"/>
+</svg>
