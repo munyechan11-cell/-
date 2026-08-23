@@ -204,7 +204,10 @@ export function PhoneVerifyModal({
               inputMode="tel"
               autoComplete="tel"
               leftSlot={<Phone className="w-4 h-4" />}
-              disabled={!!initialPhone && !grandfather /* 가입 폼에서 받은 번호는 잠금 */}
+              /* 가입 폼에서 받은 번호는 원칙적으로 잠근다. 단, 그 번호가 발송 불가 형식이면
+                 잠근 채로 두면 발송 버튼도 영구 비활성이라 사용자가 빠져나갈 수 없다
+                 (X 버튼·ESC·배경 클릭이 모두 막힌 모달). 그때는 고칠 수 있게 풀어 준다. */
+              disabled={!!initialPhone && !grandfather && isValidKRPhone(initialPhone)}
             />
             <Button
               block

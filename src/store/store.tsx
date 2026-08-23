@@ -21,7 +21,7 @@ import {
 import { db, isFirebaseConfigured, ensureAnonymousAuth } from "../lib/firebase";
 import { updateFirestoreDoc, flushOfflineQueue } from "../lib/firestore";
 import { calculateAgeGroup } from "../lib/auth";
-import { generateId, digitsOnly } from "../lib/ids";
+import { generateId, normalizePhone } from "../lib/ids";
 import { showToast } from "../lib/toast";
 import { t, useLanguage, fmtKRW, getLanguage } from "../lib/i18n";
 import { getCustomerTier } from "../lib/tier";
@@ -683,7 +683,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         throw new Error(t("db.unavailable"));
       }
 
-      const phone = digitsOnly(input.phone);
+      const phone = normalizePhone(input.phone);
       const { role, name, restaurantName, storeId, socialId, socialProvider } = input;
 
       // 1) match by socialId (고객은 전역 계정이므로 storeId 매칭 없이)
@@ -700,7 +700,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       // 2) match by phone
       if (!match && phone) {
         match = users.find(
-          (u) => u.role === role && digitsOnly(u.phone || "") === phone
+          (u) => u.role === role && normalizePhone(u.phone || "") === phone
         );
       }
 
@@ -843,7 +843,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const patch: Partial<User> = {
       phoneVerifiedAt: new Date().toISOString(),
     };
-    if (e164Phone) patch.phone = e164Phone;
+    // ⚠️ E.164("+821012345678")를 그대로 저장하면 안 된다.
+    //    로그인 매칭은 국내 0-prefix 숫자열을 쓰므로, 그대로 넣는 순간 그 계정은
+    //    전화번호로 영영 로그인할 수 없게 된다(인증을 마친 사람부터 차례로 잠김).
+    //    인증된 번호를 반영하되 표준형으로 정규화해서 넣는다.
+    if (e164Phone) patch.phone = normalizePhone(e164Phone);
     // write 전 익명 토큰 보장 — 전화인증(signOut) 직후 토큰 미회복 시 permission-denied 로
     // phoneVerifiedAt 저장이 실패해 재인증이 반복되던 버그를 차단.
     await ensureAnonymousAuth();

@@ -31,6 +31,13 @@ export function PhoneVerifyGate() {
     <PhoneVerifyModal
       initialPhone={currentUser.phone}
       grandfather
+      // 이 게이트는 '나중에 추가된' 소급 인증이라 닫을 수 있어야 한다.
+      // 닫기를 막아 두면 SMS 가 도착하지 않는 상황(Phone Auth 미설정·결제 미연결·
+      // 통신 장애)에서 로그인에 성공한 사용자가 화면에 갇혀 아무것도 못 한다.
+      // 사용자 눈에는 그게 정확히 '로그인이 안 된다'로 보인다.
+      // phoneVerifiedAt 은 인증에 성공해야만 기록되므로, 닫아도 다음 진입 때 다시 뜬다.
+      allowClose
+      onClose={() => setDone(true)}
       onVerified={async (e164) => {
         setDone(true);
         try {

@@ -75,6 +75,36 @@ function stripUndefined<T>(input: T): T {
   return input;
 }
 
+/**
+ * 서버 ack 대기 상한(ms).
+ *
+ * Firestore 는 오프라인 지속성이 켜져 있으면 setDoc/deleteDoc 의 promise 를
+ * "서버가 커밋을 확인할 때까지" 미해결로 둔다. 오프라인이거나 firestore.googleapis.com
+ * 이 차단된 환경(지하철·사내망·일부 통신사 프록시)에서는 reject 도 resolve 도 하지 않고
+ * 무기한 pending 이다. 그러면:
+ *   - 이 write 를 await 하는 login()/가입 흐름이 끝나지 않아 finally 의 setLoading(false)
+ *     조차 실행되지 않고, 버튼이 스피너인 채로 굳는다 → 사용자는 "로그인이 안 된다"고 본다.
+ *   - 아래 catch 의 unavailable/deadline-exceeded 오프라인 큐 분기가 영영 도달하지 않아,
+ *     큐 자체가 죽은 코드가 된다.
+ * → 상한을 두고, 넘으면 큐에 넣고 진행시킨다(재연결 시 flushOfflineQueue 가 재전송).
+ */
+const WRITE_ACK_TIMEOUT_MS = 10_000;
+
+const TIMED_OUT = Symbol("write-ack-timeout");
+
+/** p 가 제한 시간 안에 끝나면 그 결과를, 아니면 TIMED_OUT 을 돌려준다. */
+async function withAckTimeout<T>(p: Promise<T>): Promise<T | typeof TIMED_OUT> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<typeof TIMED_OUT>((resolve) => {
+    timer = setTimeout(() => resolve(TIMED_OUT), WRITE_ACK_TIMEOUT_MS);
+  });
+  try {
+    return await Promise.race([p, timeout]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 export async function updateFirestoreDoc(
   coll: CollectionName,
   id: string,
@@ -87,8 +117,23 @@ export async function updateFirestoreDoc(
   }
   try {
     const ref = doc(db, coll, id);
-    if (isDelete) await deleteDoc(ref);
-    else await setDoc(ref, stripUndefined(data), { merge: true });
+    const op = isDelete
+      ? deleteDoc(ref)
+      : setDoc(ref, stripUndefined(data), { merge: true });
+
+    // 로컬 캐시 반영은 이미 끝난 상태다. 남은 건 서버 ack 뿐이므로,
+    // 여기서 무한정 기다리지 않고 상한을 둔다.
+    const settled = await withAckTimeout(op);
+    if (settled === TIMED_OUT) {
+      // 아직 살아 있는 promise 가 나중에 reject 하더라도 unhandled rejection 이
+      // 되지 않도록 흡수한다. 원인 파악이 가능하게 로그는 남긴다.
+      op.catch((late: any) =>
+        console.warn("[updateFirestoreDoc] 지연 실패", coll, id, late?.code ?? late?.message)
+      );
+      saveQueue([...loadQueue(), { coll, id, data, isDelete }]);
+      showToast(t("fs.networkUnstable"), "info");
+      return;
+    }
   } catch (e: any) {
     const code = e?.code as string | undefined;
     if (code === "unavailable" || code === "deadline-exceeded") {

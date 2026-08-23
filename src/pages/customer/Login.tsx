@@ -5,7 +5,7 @@ import { MobileShell } from "../../components/layout/MobileShell";
 import { TopBar } from "../../components/ui/TopBar";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
-import { formatPhoneNumber, digitsOnly } from "../../lib/ids";
+import { formatPhoneNumber, normalizePhone } from "../../lib/ids";
 import { showToast } from "../../lib/toast";
 import { useStore } from "../../store/store";
 import { signInWithGoogle, signInWithKakao, consumeGoogleRedirect } from "../../lib/auth";
@@ -127,12 +127,12 @@ export default function CustomerLogin() {
       showToast(t("login.err.phone"), "error");
       return;
     }
-    const cleanPhone = digitsOnly(phone);
+    const cleanPhone = normalizePhone(phone);
     const existing = users.find(
       (u) =>
         u.role === "customer" &&
         u.status !== "deleted" &&
-        digitsOnly(u.phone || "") === cleanPhone
+        normalizePhone(u.phone || "") === cleanPhone
     );
     if (!existing) {
       showToast(
@@ -166,12 +166,12 @@ export default function CustomerLogin() {
       return;
     }
     // 회원가입 모드라도 기존 계정 발견되면 즉시 로그인 처리 (재가입 방지)
-    const cleanPhone = digitsOnly(phone);
+    const cleanPhone = normalizePhone(phone);
     const existing = users.find(
       (u) =>
         u.role === "customer" &&
         u.status !== "deleted" &&
-        digitsOnly(u.phone || "") === cleanPhone
+        normalizePhone(u.phone || "") === cleanPhone
     );
     if (existing) {
       setLoading(true);

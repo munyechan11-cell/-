@@ -27,6 +27,8 @@ export default function StaffLogin() {
   const [position, setPosition] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPhoneVerify, setShowPhoneVerify] = useState(false);
+  // 인증 모달을 통과한 뒤 어느 경로로 돌아갈지 — 폼 가입/로그인(login) vs 소셜 가입(social).
+  const [verifyTarget, setVerifyTarget] = useState<"login" | "social">("login");
 
   const afterStaffLogin = () => {
     // 직원: 가입 후 store-search → pending → /staff
@@ -60,6 +62,7 @@ export default function StaffLogin() {
     }
     if (mode === "signup") {
       // 가입 — 전번 SMS 인증 후 진행
+      setVerifyTarget("login");
       setShowPhoneVerify(true);
       return;
     }
@@ -151,12 +154,20 @@ export default function StaffLogin() {
     }
   };
 
-  const finalizeSocialSignup = async () => {
+  const finalizeSocialSignup = async (verified = false) => {
     const stash = sessionStorage.getItem("gyeol:pending-staff-social");
     if (!stash) return submit({ preventDefault: () => {} } as React.FormEvent);
     const social = JSON.parse(stash) as { id: string; provider: "google" | "kakao"; avatarUrl?: string };
     if (!name.trim()) {
       showToast(t("slogin.err.nameRequired", lang), "error");
+      return;
+    }
+    // 전화번호를 입력했다면 폼 가입 경로(submit)와 똑같이 SMS 인증을 먼저 거친다.
+    // 건너뛰면 phone 은 있는데 phoneVerifiedAt 이 없는 문서가 만들어져,
+    // 가입에 성공한 바로 그 순간 전역 PhoneVerifyGate 가 떠 버린다.
+    if (phone.trim() && !verified) {
+      setVerifyTarget("social");
+      setShowPhoneVerify(true);
       return;
     }
     setLoading(true);
@@ -170,8 +181,10 @@ export default function StaffLogin() {
         authType: social.provider,
         avatarUrl: social.avatarUrl,
         position: position || undefined,
+        phoneVerifiedAt: verified ? new Date().toISOString() : undefined,
       } as any);
       sessionStorage.removeItem("gyeol:pending-staff-social");
+      setShowPhoneVerify(false);
       afterStaffLogin();
     } catch (e: any) {
       showToast(t("slogin.err.signupFail", lang, { msg: e?.message ?? "" }), "error");
@@ -300,7 +313,9 @@ export default function StaffLogin() {
       {showPhoneVerify && (
         <PhoneVerifyModal
           initialPhone={phone}
-          onVerified={() => runLogin(true)}
+          onVerified={() =>
+            verifyTarget === "social" ? finalizeSocialSignup(true) : runLogin(true)
+          }
         />
       )}
     </MobileShell>
