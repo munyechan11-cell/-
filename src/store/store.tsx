@@ -439,20 +439,58 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     // 익명 로그인 보장 후 listener 등록 — Firestore 보안 규칙의 인증 게이트 통과용.
     // 카카오 사용자는 익명 토큰 위에 자체 매칭, Google 사용자는 익명 → 본 계정 자동 전환.
     let usersUnsub: (() => void) | null = null;
+    let readyFallback: ReturnType<typeof setTimeout> | null = null;
+    // 첫 스냅샷·에러·타임아웃 중 무엇이든 하나만 ready 를 결정하도록 하는 래치.
+    let settled = false;
     let cancelled = false;
     ensureAnonymousAuth().then(() => {
       if (cancelled || !db) return;
 
-      // users — 로그인 매칭용 전체 구독
+      // users — 로그인 매칭용 전체 구독.
+      //
+      // ⚠️ setReady 를 여기서(구독 등록 직후) 켜면 안 된다.
+      //    첫 스냅샷이 오기 전에 ready 가 켜지면 로그인 화면이 users=[] 인 채로 뜨고,
+      //    그 상태에서 로그인하면 login() 이 빈 배열을 뒤져 매칭에 실패한다.
+      //      - signInOnly(사장님·직원) → 멀쩡한 계정이 "일치하는 계정이 없습니다"로 거부
+      //      - signInOnly 아님(손님)   → 같은 사람에게 새 계정이 또 발급되어 기존 적립·쿠폰이 고아가 됨
+      //    그래서 ready 는 "첫 스냅샷 도착" 또는 "리스너 에러" 시점에만 켠다.
       usersUnsub = onSnapshot(
         collection(db, "users"),
-        (snap) => setUsers(snap.docs.map((d) => ({ id: d.id, ...d.data() } as User))),
+        (snap) => {
+          setUsers(snap.docs.map((d) => ({ id: d.id, ...d.data() } as User)));
+          // 캐시에서 온 첫 스냅샷은 서버 연결을 보장하지 않는다(IndexedDB 퍼시스턴스).
+          // 서버 응답으로 확인된 경우에만 ok 로 표시.
+          if (!snap.metadata.fromCache) {
+            setFirebaseStatus("ok");
+            setFirebaseError(null);
+          }
+          settled = true;
+          if (readyFallback) clearTimeout(readyFallback);
+          setReady(true);
+        },
         (err) => {
-          console.error("[users listener]", err);
+          console.error("[users listener]", (err as any)?.code, err.message);
           setFirebaseError(err.message);
           setFirebaseStatus("error");
+          // 에러여도 ready 는 켠다 — 안 켜면 PageLoader 에 영구히 갇혀 원인조차 볼 수 없다.
+          settled = true;
+          if (readyFallback) clearTimeout(readyFallback);
+          setReady(true);
         }
       );
+
+      // 스냅샷도 에러도 오지 않는 경우(네트워크 블랙홀·프록시 차단) 대비 안전망.
+      // 화면이 로더에서 멈추는 것보다는, 연결 실패 배너와 함께 앱을 띄우는 편이 낫다.
+      // settled 를 반드시 봐야 한다 — 안 그러면 정상 연결된 세션도 8초 뒤에
+      // 이 타이머가 깨어나 error 로 뒤집어 버린다.
+      readyFallback = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        console.error("[users listener] 8초 내 응답 없음 — 연결 실패로 처리");
+        setFirebaseError("users 구독 응답 없음 (timeout)");
+        setFirebaseStatus("error");
+        setReady(true);
+      }, 8000);
 
       // Master password — 한 번만 읽기
       getDoc(doc(db, "appState", "settings")).then((s) => {
@@ -461,12 +499,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           if (data.masterPassword) setMasterPasswordState(data.masterPassword);
         }
       }).catch((e) => console.warn("[appState/settings]", e?.message));
-
-      setReady(true);
     });
 
     return () => {
       cancelled = true;
+      if (readyFallback) clearTimeout(readyFallback);
       if (usersUnsub) usersUnsub();
     };
   }, []);
@@ -636,6 +673,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   // ============ LOGIN ============
   const login = useCallback(
     async (input: LoginInput): Promise<User> => {
+      // DB 가 끊긴 상태에서는 users 가 비어 있어 아래 매칭이 100% 실패한다.
+      // 그대로 흘려보내면 두 가지 사고가 난다:
+      //   1) signInOnly → 멀쩡한 계정이 "일치하는 계정이 없습니다"로 거부되어,
+      //      원인이 DB 장애인데 사용자·운영자 모두 계정 문제로 오인한다.
+      //   2) signInOnly 아님 → 기존 회원에게 새 id 가 발급되고, 그 쓰기마저 실패한다.
+      // → 매칭 전에 끊어서 원인을 그대로 말해 준다.
+      if (firebaseStatus === "error") {
+        throw new Error(t("db.unavailable"));
+      }
+
       const phone = digitsOnly(input.phone);
       const { role, name, restaurantName, storeId, socialId, socialProvider } = input;
 
@@ -748,7 +795,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       showToast(t("store.welcome", undefined, { name }), "success");
       return user;
     },
-    [users, setCurrentUser]
+    [users, setCurrentUser, firebaseStatus]
   );
 
   const logout = useCallback(() => {
