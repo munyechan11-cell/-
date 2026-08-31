@@ -1,6 +1,7 @@
 import type admin from 'firebase-admin';
 
 import { isValidStoreId } from './storeAuth.js';
+import type { SiteMenuItem, SitePayload, SiteReview, SiteStore } from './siteTypes.js';
 
 // ============================================================
 // 가게 공개 브랜드 사이트 데이터 (/site/:storeId).
@@ -13,39 +14,7 @@ import { isValidStoreId } from './storeAuth.js';
 // 규칙이 조용히 느슨해지는 걸 sitePayload.test.ts 가 막는다.
 // ============================================================
 
-export interface SiteStore {
-  name: string;
-  fontTheme: string;
-  tagline: string;
-  address: string;
-  phone: string;
-  businessHours: { weekly?: Array<{ open?: string; close?: string; closed?: boolean }>; open24h?: boolean } | null;
-  temporarilyClosed: boolean;
-  instagram: string;
-}
-
-export interface SiteMenuItem {
-  name: string;
-  price: number;
-  category: string;
-  imageUrl: string;
-  description: string;
-}
-
-export interface SiteReview {
-  rating: number;
-  text: string;
-  name: string;
-  date: string;
-  photoId: string | null;
-}
-
-export interface SitePayload {
-  store: SiteStore;
-  menu: SiteMenuItem[];
-  reviews: SiteReview[];
-  gallery: string[];
-}
+export type { SiteStore, SiteMenuItem, SiteReview, SitePayload } from './siteTypes.js';
 
 export type SiteResult =
   | { ok: true; data: SitePayload }

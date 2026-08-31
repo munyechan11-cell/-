@@ -1,4 +1,6 @@
-import type { SitePayload } from "../../../server/lib/sitePayload";
+// 서버 구현이 아니라 "모양"만 가져온다 — sitePayload.ts 는 firebase-admin 에 의존하므로
+// 여기서 참조하면 이 앱의 타입체크가 서버 의존성까지 요구하게 된다.
+import type { SitePayload } from "../../../server/lib/siteTypes";
 
 export type { SitePayload };
 
