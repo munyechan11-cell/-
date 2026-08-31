@@ -2748,7 +2748,7 @@ app.post('/api/webhook/order-status', async (req, res) => {
 
 // --- MARKETING AUTOMATION (생일/이탈 쿠폰 자동 발급) ---
 // 각 매장의 marketingTriggers 에 따라 발급. 중복 방지: 같은 type available 보유 시 skip → 매일 돌아도 1장만.
-async function runMarketingAutomation(db: any): Promise<{ birthdayIssued: number; winbackIssued: number; capped: number }> {
+async function runMarketingAutomation(db: admin.firestore.Firestore): Promise<{ birthdayIssued: number; winbackIssued: number; capped: number }> {
     // KST(UTC+9) 기준 오늘 — 생일/경과일 판정
     const kstMs = Date.now() + 9 * 3600 * 1000;
     const kst = new Date(kstMs);

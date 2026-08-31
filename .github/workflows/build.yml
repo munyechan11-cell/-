@@ -25,7 +25,15 @@ jobs:
         
     - name: Install dependencies
       run: npm ci
-      
+
+    # vite build 는 타입을 검사하지 않는다. 타입 오류가 CI 를 통과해
+    # 런타임까지 흘러가지 않도록 별도 단계로 세운다.
+    - name: Typecheck
+      run: npm run lint
+
+    - name: Test
+      run: npm test
+
     - name: Build the project
       run: npm run build
       
