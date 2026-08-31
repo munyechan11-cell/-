@@ -1,0 +1,721 @@
+<title>결 합류 안내서</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hahmlet:wght@400;600;800&family=IBM+Plex+Sans+KR:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root{
+    --paper:#F4F6F8;
+    --card:#FFFFFF;
+    --ink:#131C2E;
+    --ink-soft:#48546B;
+    --ink-faint:#7A869B;
+    --rule:#DDE2E9;
+    --rule-soft:#E9EDF2;
+    --navy:#1E3A6E;
+    --navy-soft:#E4EAF5;
+    --amber:#B26F0E;
+    --amber-soft:#FBEFDA;
+    --green:#25694E;
+    --green-soft:#DFEDE6;
+    --shadow:0 1px 2px rgba(19,28,46,.05), 0 8px 24px -16px rgba(19,28,46,.25);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#0E1420;
+      --card:#151D2C;
+      --ink:#E6EAF2;
+      --ink-soft:#A5B0C2;
+      --ink-faint:#717E93;
+      --rule:#273043;
+      --rule-soft:#1E2636;
+      --navy:#8FAEE4;
+      --navy-soft:#1B2942;
+      --amber:#E0A857;
+      --amber-soft:#2E2313;
+      --green:#6FC2A0;
+      --green-soft:#152A22;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#0E1420;
+    --card:#151D2C;
+    --ink:#E6EAF2;
+    --ink-soft:#A5B0C2;
+    --ink-faint:#717E93;
+    --rule:#273043;
+    --rule-soft:#1E2636;
+    --navy:#8FAEE4;
+    --navy-soft:#1B2942;
+    --amber:#E0A857;
+    --amber-soft:#2E2313;
+    --green:#6FC2A0;
+    --green-soft:#152A22;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.8);
+  }
+
+  *{box-sizing:border-box}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+    font-weight:400;
+    line-height:1.75;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:0 24px 96px}
+  .cols{display:block}
+  @media (min-width:1060px){
+    .cols{display:grid;grid-template-columns:210px minmax(0,1fr);gap:56px;align-items:start}
+  }
+
+  /* ---------- nav ---------- */
+  .toc{display:none}
+  @media (min-width:1060px){
+    .toc{display:block;position:sticky;top:32px;padding-top:8px}
+  }
+  .toc-title{
+    font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--ink-faint);margin:0 0 14px
+  }
+  .toc ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+  .toc a{
+    display:flex;gap:10px;text-decoration:none;color:var(--ink-soft);
+    font-size:13.5px;padding:5px 8px;border-radius:5px;border-left:2px solid transparent
+  }
+  .toc a:hover{color:var(--ink);background:var(--rule-soft)}
+  .toc a:focus-visible{outline:2px solid var(--navy);outline-offset:2px}
+  .toc .n{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--ink-faint);padding-top:2px}
+
+  /* ---------- hero ---------- */
+  header.hero{padding:72px 0 40px;border-bottom:1px solid var(--rule)}
+  .eyebrow{
+    font-family:"IBM Plex Mono",monospace;font-size:11.5px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--amber);margin:0 0 22px;display:flex;gap:10px;flex-wrap:wrap
+  }
+  .eyebrow span{color:var(--ink-faint)}
+  .mark{
+    font-family:"Hahmlet",serif;font-weight:800;font-size:clamp(64px,13vw,120px);
+    line-height:.9;letter-spacing:-.02em;margin:0 0 4px;color:var(--navy)
+  }
+  h1{
+    font-family:"Hahmlet",serif;font-weight:600;font-size:clamp(26px,4.4vw,40px);
+    line-height:1.3;letter-spacing:-.015em;margin:14px 0 20px;text-wrap:balance;max-width:20ch
+  }
+  .lede{font-size:17px;line-height:1.8;color:var(--ink-soft);max-width:60ch;margin:0}
+  .lede b{color:var(--ink);font-weight:600}
+
+  .facts{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));
+    gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:8px;
+    overflow:hidden;margin-top:38px
+  }
+  .fact{background:var(--card);padding:14px 16px}
+  .fact dt{
+    font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--ink-faint);margin:0 0 6px
+  }
+  .fact dd{
+    margin:0;font-family:"Hahmlet",serif;font-weight:600;font-size:23px;
+    line-height:1.1;font-variant-numeric:tabular-nums
+  }
+  .fact dd small{font-family:"IBM Plex Sans KR",sans-serif;font-size:12.5px;font-weight:400;color:var(--ink-soft)}
+
+  /* ---------- sections ---------- */
+  section{padding:60px 0;border-bottom:1px solid var(--rule)}
+  section:last-of-type{border-bottom:0}
+  .sec-head{display:flex;gap:14px;align-items:baseline;margin:0 0 8px}
+  .sec-num{
+    font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--amber);
+    padding-top:4px;flex:none;letter-spacing:.06em
+  }
+  h2{
+    font-family:"Hahmlet",serif;font-weight:600;font-size:clamp(21px,3vw,27px);
+    letter-spacing:-.01em;line-height:1.35;margin:0;text-wrap:balance
+  }
+  .sec-sub{color:var(--ink-soft);font-size:15px;margin:0 0 30px;padding-left:34px;max-width:62ch}
+  @media (max-width:520px){.sec-sub{padding-left:0}}
+  h3{
+    font-size:15.5px;font-weight:600;margin:34px 0 10px;letter-spacing:-.005em;
+    display:flex;align-items:center;gap:9px
+  }
+  h3::before{content:"";width:5px;height:5px;border-radius:1px;background:var(--amber);flex:none}
+  p{margin:0 0 14px;max-width:66ch;font-size:15px;color:var(--ink-soft)}
+  p strong{color:var(--ink);font-weight:600}
+  a{color:var(--navy)}
+
+  ul.plain{list-style:none;margin:0 0 16px;padding:0;display:flex;flex-direction:column;gap:9px;max-width:66ch}
+  ul.plain li{
+    font-size:14.5px;color:var(--ink-soft);padding-left:17px;position:relative;line-height:1.7
+  }
+  ul.plain li::before{
+    content:"";position:absolute;left:0;top:11px;width:6px;height:1px;background:var(--ink-faint)
+  }
+  ul.plain li b{color:var(--ink);font-weight:600}
+
+  /* ---------- pull quote ---------- */
+  .pull{
+    border-left:3px solid var(--amber);padding:6px 0 6px 22px;margin:26px 0;
+    font-family:"Hahmlet",serif;font-size:18.5px;line-height:1.62;color:var(--ink);max-width:52ch
+  }
+
+  /* ---------- cards ---------- */
+  .grid{display:grid;gap:14px;margin:22px 0 0}
+  .g3{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+  .g2{grid-template-columns:repeat(auto-fit,minmax(290px,1fr))}
+  .card{
+    background:var(--card);border:1px solid var(--rule);border-radius:9px;
+    padding:20px 20px 22px;box-shadow:var(--shadow)
+  }
+  .card h4{
+    margin:0 0 9px;font-size:15px;font-weight:600;letter-spacing:-.005em;line-height:1.45
+  }
+  .card p{font-size:14px;margin:0;color:var(--ink-soft)}
+  .card .kicker{
+    font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.12em;
+    text-transform:uppercase;color:var(--ink-faint);display:block;margin-bottom:12px
+  }
+
+  /* ---------- status chips ---------- */
+  .chip{
+    display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:10.5px;
+    letter-spacing:.05em;padding:2px 7px;border-radius:4px;white-space:nowrap;
+    vertical-align:2px;font-weight:500
+  }
+  .chip.live{background:var(--green-soft);color:var(--green)}
+  .chip.built{background:var(--navy-soft);color:var(--navy)}
+  .chip.wip{background:var(--amber-soft);color:var(--amber)}
+  .chip.todo{background:var(--rule-soft);color:var(--ink-faint)}
+
+  .legend{display:flex;flex-wrap:wrap;gap:16px;margin:0 0 26px;font-size:13px;color:var(--ink-soft)}
+  .legend div{display:flex;align-items:center;gap:7px}
+
+  /* ---------- tables ---------- */
+  .tw{overflow-x:auto;margin:18px 0 6px;border:1px solid var(--rule);border-radius:9px;background:var(--card)}
+  table{border-collapse:collapse;width:100%;min-width:520px;font-size:14px}
+  th,td{text-align:left;padding:11px 16px;border-bottom:1px solid var(--rule-soft);vertical-align:top}
+  thead th{
+    font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--ink-faint);font-weight:500;
+    border-bottom:1px solid var(--rule);white-space:nowrap
+  }
+  tbody tr:last-child td{border-bottom:0}
+  td.feat{font-weight:500;color:var(--ink);width:34%}
+  td.note{color:var(--ink-soft)}
+  td.st{width:1%;white-space:nowrap}
+  td.num{font-variant-numeric:tabular-nums;font-family:"IBM Plex Mono",monospace;font-size:13px}
+
+  /* ---------- steps ---------- */
+  ol.steps{list-style:none;counter-reset:s;margin:20px 0 0;padding:0;display:flex;flex-direction:column;gap:0}
+  ol.steps li{
+    counter-increment:s;display:grid;grid-template-columns:30px minmax(0,1fr);gap:14px;
+    padding:11px 0;border-bottom:1px dashed var(--rule-soft);font-size:14.5px;color:var(--ink-soft)
+  }
+  ol.steps li:last-child{border-bottom:0}
+  ol.steps li::before{
+    content:counter(s,decimal-leading-zero);font-family:"IBM Plex Mono",monospace;
+    font-size:11.5px;color:var(--amber);padding-top:4px
+  }
+  ol.steps b{color:var(--ink);font-weight:600}
+
+  /* ---------- diagram ---------- */
+  .diagram{overflow-x:auto;margin:24px 0 8px;padding:22px 20px;background:var(--card);border:1px solid var(--rule);border-radius:9px}
+  .diagram svg{display:block;min-width:700px;width:100%;height:auto}
+  .d-box{fill:var(--card);stroke:var(--rule);stroke-width:1}
+  .d-box-hi{fill:var(--navy-soft);stroke:var(--navy);stroke-width:1}
+  .d-t{fill:var(--ink);font-family:"IBM Plex Sans KR",sans-serif;font-size:12.5px;font-weight:500}
+  .d-s{fill:var(--ink-faint);font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.04em}
+  .d-line{stroke:var(--ink-faint);stroke-width:1.2;fill:none}
+  .d-line-d{stroke:var(--ink-faint);stroke-width:1.2;fill:none;stroke-dasharray:4 3}
+  .d-lab{fill:var(--ink-soft);font-family:"IBM Plex Mono",monospace;font-size:9.5px}
+  .cap{font-size:12.5px;color:var(--ink-faint);margin:10px 0 0;font-family:"IBM Plex Mono",monospace}
+
+  /* ---------- role ---------- */
+  .role{
+    background:var(--card);border:1px solid var(--rule);border-radius:9px;
+    padding:22px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:12px
+  }
+  .role .tag{
+    font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.12em;
+    text-transform:uppercase;color:var(--amber)
+  }
+  .role h4{margin:0;font-family:"Hahmlet",serif;font-size:18px;font-weight:600;letter-spacing:-.01em}
+  .role .own{font-size:14px;color:var(--ink-soft);margin:0}
+  .role ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:7px}
+  .role li{font-size:13.5px;color:var(--ink-soft);padding-left:15px;position:relative}
+  .role li::before{content:"";position:absolute;left:0;top:9px;width:5px;height:5px;border-radius:50%;background:var(--navy);opacity:.5}
+
+  /* ---------- callout ---------- */
+  .note{
+    background:var(--amber-soft);border:1px solid transparent;border-radius:9px;
+    padding:16px 18px;margin:24px 0;font-size:14px;color:var(--ink);max-width:66ch
+  }
+  .note b{font-weight:600}
+  .fill{
+    background:var(--rule-soft);border:1px dashed var(--rule);border-radius:6px;
+    padding:12px 14px;margin:12px 0;font-size:13.5px;color:var(--ink-faint);
+    font-family:"IBM Plex Mono",monospace;line-height:1.7
+  }
+
+  footer{padding:52px 0 0;color:var(--ink-faint);font-size:13px}
+  footer p{color:var(--ink-faint);font-size:13px;max-width:66ch}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+  @media (prefers-reduced-motion:no-preference){
+    .toc a{transition:background .15s ease,color .15s ease}
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="hero">
+    <p class="eyebrow">팀원 모집 안내서 <span>· 2026년 8월 · 파일럿 2곳 운영 중</span></p>
+    <div class="mark" aria-hidden="true">결</div>
+    <h1>사장님이 하지 않아도 매장이 굴러가게</h1>
+    <p class="lede">결(Gyeol)은 1인·소규모 매장의 <b>주문·결제·단골 관리·홍보를 하나로 잇는 운영 클라우드</b>입니다. 손님이 QR을 찍는 순간부터 영수증이 나오고, 단골 기록이 쌓이고, 홍보 글이 올라가는 데까지가 한 시스템 안에서 끊기지 않습니다. 지금 두 곳의 실제 매장에서 영업에 쓰이고 있고, 여기서부터 같이 만들 사람을 찾습니다.</p>
+
+    <dl class="facts">
+      <div class="fact"><dt>파일럿 매장</dt><dd>2<small>곳</small></dd></div>
+      <div class="fact"><dt>화면</dt><dd>39<small>개</small></dd></div>
+      <div class="fact"><dt>서버 API</dt><dd>38<small>개</small></dd></div>
+      <div class="fact"><dt>코드</dt><dd>3.9<small>만 줄</small></dd></div>
+      <div class="fact"><dt>지원 언어</dt><dd>4<small>개국어</small></dd></div>
+      <div class="fact"><dt>현재 팀</dt><dd>1<small>명</small></dd></div>
+    </dl>
+  </header>
+
+  <div class="cols">
+    <nav class="toc" aria-label="목차">
+      <p class="toc-title">Contents</p>
+      <ol>
+        <li><a href="#why"><span class="n">01</span>왜 만드나</a></li>
+        <li><a href="#how"><span class="n">02</span>어떻게 푸나</a></li>
+        <li><a href="#built"><span class="n">03</span>지금 돌아가는 것</a></li>
+        <li><a href="#flow"><span class="n">04</span>매장에서의 하루</a></li>
+        <li><a href="#arch"><span class="n">05</span>어떻게 만들어졌나</a></li>
+        <li><a href="#rules"><span class="n">06</span>지키는 규칙</a></li>
+        <li><a href="#left"><span class="n">07</span>남은 일과 빚</a></li>
+        <li><a href="#money"><span class="n">08</span>돈은 어디서</a></li>
+        <li><a href="#who"><span class="n">09</span>찾는 사람</a></li>
+        <li><a href="#join"><span class="n">10</span>합류하기</a></li>
+      </ol>
+    </nav>
+
+    <main>
+
+      <section id="why">
+        <div class="sec-head"><span class="sec-num">01</span><h2>왜 만드나</h2></div>
+        <p class="sec-sub">시작은 1인 식당 사장님 옆에서 보낸 점심 피크 두 시간이었습니다.</p>
+
+        <ul class="plain">
+          <li>주문 하나를 넣는 데 <b>POS를 네 번</b> 눌러야 했습니다. 손님이 부르면 그 네 번이 중간에서 끊겼습니다.</li>
+          <li>홀에서 주문을 받는 동안 <b>가게 전화가 울렸습니다.</b> 못 받았고, 그게 예약 문의였는지는 아무도 모릅니다.</li>
+          <li>계산할 때 사장님은 "저번에도 오셨죠?"라고 물었습니다. <b>세 번째 방문한 손님</b>이었지만 그 기록은 사장님 기억 말고 어디에도 없었습니다.</li>
+          <li>가게 인스타그램의 마지막 게시물은 <b>석 달 전</b>이었습니다. 이유는 "할 줄 몰라서, 그럴 시간이 없어서".</li>
+          <li>소상공인 지원사업 이야기를 꺼내자 <b>"그런 게 있는 줄도 몰랐다"</b>고 했습니다.</li>
+        </ul>
+
+        <p>문제는 기능이 없어서가 아니었습니다. POS·키오스크·예약 앱·배달 앱·마케팅 대행이 전부 따로 존재하고, 매달 각각 돈을 가져가면서, 데이터는 각 회사 안에 갇혀 있었습니다. 손님이 몇 번 왔는지는 POS가 알고, 예약은 예약 앱이 알고, 리뷰는 플랫폼이 압니다. 그걸 이어 붙여서 <strong>"이 손님에게 지금 쿠폰을 보내자"</strong>까지 판단하는 일은 결국 사장님 몫으로 남습니다.</p>
+
+        <div class="pull">1인 매장 사장님에게 가장 없는 것이, 바로 그 판단에 쓸 시간입니다.</div>
+
+        <p>그래서 기능을 하나 더 파는 대신, 사장님이 하지 않아도 매장이 굴러가게 만들기로 했습니다. 이름을 '결'로 지은 이유도 그것입니다. 매장에는 원래 일이 흘러가는 결이 있고, 소프트웨어가 그 결을 끊지 말아야 한다고 봤습니다.</p>
+      </section>
+
+      <section id="how">
+        <div class="sec-head"><span class="sec-num">02</span><h2>어떻게 푸나</h2></div>
+        <p class="sec-sub">제품 전체가 이 세 가지 원리 위에 서 있습니다. 새 기능을 넣을지 말지도 여기서 판단합니다.</p>
+
+        <div class="grid g3">
+          <div class="card">
+            <span class="kicker">원리 1</span>
+            <h4>기능이 아니라 하나의 흐름</h4>
+            <p>손님이 결제하며 리뷰를 남기면 쿠폰이 자동 발급되고, 그 쿠폰은 다음 방문 계산서에서 즉시 차감되며, 그 리뷰는 답글 초안과 홍보 게시물 소재로 다시 쓰입니다. 주문·고객·리뷰·발행을 한 시스템이 모두 가질 때만 가능한 루프입니다.</p>
+          </div>
+          <div class="card">
+            <span class="kicker">원리 2</span>
+            <h4>보조가 아니라 대신 실행</h4>
+            <p>부재중 전화는 AI가 받아 빈자리를 확인하고 예약까지 잡습니다. 홍보 글은 매장 톤·타깃·금지어를 반영해 초안을 만들고 채널에 올립니다. 사장님이 하는 일은 승인 한 번입니다.</p>
+          </div>
+          <div class="card">
+            <span class="kicker">원리 3</span>
+            <h4>AI는 초안, 확정은 서버</h4>
+            <p>예약을 잡았다고 말하는 것은 AI지만, 실제로 잡을 수 있는지 결정하는 것은 서버 트랜잭션입니다. 홍보 글은 사람 승인 없이 발행되지 않습니다. 자동화는 한 번의 사고로 신뢰를 전부 잃습니다.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="built">
+        <div class="sec-head"><span class="sec-num">03</span><h2>지금 돌아가는 것</h2></div>
+        <p class="sec-sub">리포지토리 기준 실제 구현 상태입니다. 데모용으로 만든 화면은 넣지 않았습니다.</p>
+
+        <div class="legend">
+          <div><span class="chip live">실매장</span> 파일럿에서 실제로 쓰이는 중</div>
+          <div><span class="chip built">구현</span> 만들어 배포됨</div>
+          <div><span class="chip wip">진행</span> 일부만 완성</div>
+          <div><span class="chip todo">예정</span> 아직 안 만듦</div>
+        </div>
+
+        <h3>손님이 쓰는 것</h3>
+        <div class="tw">
+          <table>
+            <thead><tr><th>기능</th><th>상태</th><th>내용</th></tr></thead>
+            <tbody>
+              <tr><td class="feat">QR 주문</td><td class="st"><span class="chip live">실매장</span></td><td class="note">테이블 QR을 찍으면 메뉴·옵션(모디파이어)·장바구니·주문까지</td></tr>
+              <tr><td class="feat">결제 요청과 계산서</td><td class="st"><span class="chip live">실매장</span></td><td class="note">손님이 요청 → 사장님 승인 → 영수증 자동 출력. 항목별 세금 표시</td></tr>
+              <tr><td class="feat">리뷰·사진 남기기</td><td class="st"><span class="chip built">구현</span></td><td class="note">결제 시 별점·글·사진. 작성하면 쿠폰 자동 지급(매장 설정)</td></tr>
+              <tr><td class="feat">쿠폰·등급</td><td class="st"><span class="chip built">구현</span></td><td class="note">방문 횟수 기반 6단계 등급, 금액 쿠폰은 계산서에서 즉시 차감</td></tr>
+              <tr><td class="feat">가게 브랜드 사이트</td><td class="st"><span class="chip built">구현</span></td><td class="note">매장별 공개 페이지(로그인 불필요) — 소개·메뉴·리뷰·찾아오는 길</td></tr>
+              <tr><td class="feat">소셜 로그인</td><td class="st"><span class="chip built">구현</span></td><td class="note">카카오·구글·네이버 + 전화번호 인증</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>사장님이 쓰는 것</h3>
+        <div class="tw">
+          <table>
+            <thead><tr><th>기능</th><th>상태</th><th>내용</th></tr></thead>
+            <tbody>
+              <tr><td class="feat">주문 처리</td><td class="st"><span class="chip live">실매장</span></td><td class="note">접수 → 서빙, 버튼 2번. 취소 시 재고 자동 복구</td></tr>
+              <tr><td class="feat">테이블 관리</td><td class="st"><span class="chip live">실매장</span></td><td class="note">8단계 상태 흐름, 체류 시간·인원·합계, 룸(별실) 지원</td></tr>
+              <tr><td class="feat">AI 도면 인식</td><td class="st"><span class="chip built">구현</span></td><td class="note">매장 도면 사진 한 장 → 테이블 자동 배치 초안 (Gemini Vision)</td></tr>
+              <tr><td class="feat">메뉴판 OCR 등록</td><td class="st"><span class="chip built">구현</span></td><td class="note">종이 메뉴판 사진 → 메뉴·가격 일괄 등록</td></tr>
+              <tr><td class="feat">영수증 자동 인쇄</td><td class="st"><span class="chip live">실매장</span></td><td class="note">매장 PC 트레이 앱이 ESC/POS로 출력. 6자리 코드 페어링, 자동 업데이트</td></tr>
+              <tr><td class="feat">푸시 알림</td><td class="st"><span class="chip built">구현</span></td><td class="note">새 주문·결제 요청·쿠폰 사용·직원 가입. 기기 여러 대 등록</td></tr>
+              <tr><td class="feat">고객·단골 관리</td><td class="st"><span class="chip built">구현</span></td><td class="note">방문 이력, 등급 자동 산정, 등급 수동 조정, 일괄 쿠폰 발송 템플릿</td></tr>
+              <tr><td class="feat">예약</td><td class="st"><span class="chip built">구현</span></td><td class="note">예약 → 테이블 자동 reserved 전이, 손님맞이 듀얼 화면 송출</td></tr>
+              <tr><td class="feat">재고·원가</td><td class="st"><span class="chip built">구현</span></td><td class="note">3가지 입력 모드(간편·체크리스트·AI 자동), 업종별 기본 재료 자동 채움</td></tr>
+              <tr><td class="feat">매출·통계</td><td class="st"><span class="chip built">구현</span></td><td class="note">일·주·월 매출, 결제수단별, 한국어 호환 엑셀 내보내기</td></tr>
+              <tr><td class="feat">주방 디스플레이(KDS)</td><td class="st"><span class="chip built">구현</span></td><td class="note">조리 단계 라벨이 업종별로 바뀜(고깃집=굽기, 카페=추출)</td></tr>
+              <tr><td class="feat">키오스크 모드</td><td class="st"><span class="chip built">구현</span></td><td class="note">매장 태블릿을 손님 주문용 화면으로</td></tr>
+              <tr><td class="feat">QR 인쇄</td><td class="st"><span class="chip built">구현</span></td><td class="note">템플릿 3종 × 종이 3종(A4·라벨지·명함)</td></tr>
+              <tr><td class="feat">브랜드 설정</td><td class="st"><span class="chip built">구현</span></td><td class="note">업종·보상 방식(포인트/스탬프/등급)·글꼴 5종·테마·영업시간·휴게시간</td></tr>
+              <tr><td class="feat">세무 AI</td><td class="st"><span class="chip built">구현</span></td><td class="note">매출·지출 기반 절세 분석</td></tr>
+              <tr><td class="feat">지원제도 추천</td><td class="st"><span class="chip built">구현</span></td><td class="note">업종·지역 맞춤 추천 + 소상공인24·기업마당 링크</td></tr>
+              <tr><td class="feat">직원 관리</td><td class="st"><span class="chip built">구현</span></td><td class="note">가입 승인, 권한 등급제, 근무 기록</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>자동으로 도는 것</h3>
+        <div class="tw">
+          <table>
+            <thead><tr><th>기능</th><th>상태</th><th>내용</th></tr></thead>
+            <tbody>
+              <tr><td class="feat">AI 전화 예약 — 두뇌</td><td class="st"><span class="chip built">구현</span></td><td class="note">번호로 매장 식별, 빈자리 판단, 대안 시간 제시, 중복·인원초과 처리, 예약 생성까지. 자정 넘김 영업·휴게시간 포함 e2e 10/10 통과</td></tr>
+              <tr><td class="feat">AI 전화 예약 — 음성</td><td class="st"><span class="chip todo">예정</span></td><td class="note">벤더 미결정(Retell/Vapi 검토 완료), 한국어 TTS·착신전환 연결 남음</td></tr>
+              <tr><td class="feat">마케팅 에이전트</td><td class="st"><span class="chip wip">진행</span></td><td class="note">게시물·리뷰 답글 초안 생성 → 승인 큐 → 인스타그램·구글 비즈니스 동시 발행. 사장님이 자기 계정 직접 연결</td></tr>
+              <tr><td class="feat">주간 성과 요약</td><td class="st"><span class="chip built">구현</span></td><td class="note">매출·예약·리뷰·발행 수 집계 + AI 요약과 다음 주 콘텐츠 제안</td></tr>
+              <tr><td class="feat">토스플레이스 매출 연동</td><td class="st"><span class="chip wip">진행</span></td><td class="note">오프라인 POS 결제 내역 동기화 + 웹훅 수신. 서명 검증 보완 중</td></tr>
+              <tr><td class="feat">POS 연동(이지포스 등)</td><td class="st"><span class="chip todo">예정</span></td><td class="note">주문 릴레이 엔드포인트만 준비됨</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="flow">
+        <div class="sec-head"><span class="sec-num">04</span><h2>매장에서의 하루</h2></div>
+        <p class="sec-sub">손님이 앉는 순간부터 테이블이 다시 비워질 때까지, 실제로 이렇게 흐릅니다.</p>
+
+        <h3>손님 쪽</h3>
+        <ol class="steps">
+          <li><b>QR 스캔</b> — 테이블에 붙은 코드를 찍으면 그 테이블로 입장</li>
+          <li><b>메뉴 담기</b> — 옵션·수량 선택, 품절 메뉴는 보이지 않음</li>
+          <li><b>주문</b> — 사장님 폰에 즉시 알림</li>
+          <li><b>결제 요청</b> — 리뷰·별점·사진을 함께 남기면 쿠폰 지급</li>
+          <li><b>퇴장</b> — 방문 기록이 쌓이고 등급이 올라감</li>
+        </ol>
+
+        <h3>테이블 8단계 (모든 화면이 이 한 곳을 참조합니다)</h3>
+        <ol class="steps">
+          <li><b>비어 있음</b> — 손님을 받을 수 있는 상태</li>
+          <li><b>예약됨</b> — 예약 시간이 되면 자동 전이</li>
+          <li><b>세팅 중</b> — 수저·물 세팅</li>
+          <li><b>착석</b> — 손님 입장, 인원 기록</li>
+          <li><b>식사 중</b> — 주문·추가 주문 진행</li>
+          <li><b>결제 요청</b> — 사장님 승인 대기</li>
+          <li><b>계산 완료</b> — 영수증 출력, 매출 반영</li>
+          <li><b>정리 중</b> — 치우고 나면 다시 1번으로</li>
+        </ol>
+
+        <div class="note"><b>왜 이게 중요한가.</b> 사장님 대시보드, 테이블 편집기, 손님 화면, 직원 화면이 각자 자기 상태를 갖지 않고 전부 이 한 정의를 가져다 씁니다. 상태가 어긋나면 매장에서 바로 사고가 나기 때문입니다.</div>
+      </section>
+
+      <section id="arch">
+        <div class="sec-head"><span class="sec-num">05</span><h2>어떻게 만들어졌나</h2></div>
+        <p class="sec-sub">웹앱 하나 + 서버 하나 + 매장 PC용 데스크톱 앱 하나. 그 위에 외부 연동이 붙습니다.</p>
+
+        <div class="diagram">
+          <svg viewBox="0 0 860 400" role="img" aria-labelledby="archtitle">
+            <title id="archtitle">결 시스템 구성도: 손님·사장님 브라우저에서 웹앱으로, 웹앱과 서버가 Firestore를 공유하고, 매장 PC 인쇄 브릿지가 인쇄 작업을 구독하며, 서버가 AI·발행·결제 외부 서비스에 연결된다</title>
+
+            <!-- clients -->
+            <rect class="d-box" x="8" y="24" width="150" height="52" rx="6"/>
+            <text class="d-t" x="24" y="47">손님 폰</text>
+            <text class="d-s" x="24" y="64">QR SCAN · PWA</text>
+
+            <rect class="d-box" x="8" y="96" width="150" height="52" rx="6"/>
+            <text class="d-t" x="24" y="119">사장님 · 직원</text>
+            <text class="d-s" x="24" y="136">MOBILE · TABLET · PC</text>
+
+            <!-- webapp -->
+            <rect class="d-box-hi" x="216" y="52" width="176" height="68" rx="6"/>
+            <text class="d-t" x="234" y="80">결 웹앱</text>
+            <text class="d-s" x="234" y="98">REACT 19 · VITE · TS</text>
+            <text class="d-s" x="234" y="112">화면 39개 · 4개 국어</text>
+
+            <!-- firestore -->
+            <rect class="d-box-hi" x="216" y="184" width="176" height="68" rx="6"/>
+            <text class="d-t" x="234" y="212">Firestore</text>
+            <text class="d-s" x="234" y="230">실시간 구독 · 보안 룰</text>
+            <text class="d-s" x="234" y="244">컬렉션 19개</text>
+
+            <!-- server -->
+            <rect class="d-box-hi" x="470" y="52" width="176" height="68" rx="6"/>
+            <text class="d-t" x="488" y="80">결 서버</text>
+            <text class="d-s" x="488" y="98">EXPRESS 5 · ADMIN SDK</text>
+            <text class="d-s" x="488" y="112">API 38개</text>
+
+            <!-- print agent -->
+            <rect class="d-box" x="216" y="312" width="176" height="62" rx="6"/>
+            <text class="d-t" x="234" y="338">인쇄 브릿지</text>
+            <text class="d-s" x="234" y="356">ELECTRON · 매장 PC</text>
+
+            <rect class="d-box" x="8" y="312" width="150" height="62" rx="6"/>
+            <text class="d-t" x="24" y="338">영수증 프린터</text>
+            <text class="d-s" x="24" y="356">ESC/POS</text>
+
+            <!-- externals -->
+            <rect class="d-box" x="700" y="24" width="152" height="46" rx="6"/>
+            <text class="d-t" x="716" y="44">LLM 3사</text>
+            <text class="d-s" x="716" y="60">GEMINI · CLAUDE · GPT</text>
+
+            <rect class="d-box" x="700" y="86" width="152" height="46" rx="6"/>
+            <text class="d-t" x="716" y="106">음성 (예정)</text>
+            <text class="d-s" x="716" y="122">RETELL · VAPI</text>
+
+            <rect class="d-box" x="700" y="148" width="152" height="46" rx="6"/>
+            <text class="d-t" x="716" y="168">발행 채널</text>
+            <text class="d-s" x="716" y="184">INSTAGRAM · GOOGLE</text>
+
+            <rect class="d-box" x="700" y="210" width="152" height="46" rx="6"/>
+            <text class="d-t" x="716" y="230">결제 · POS</text>
+            <text class="d-s" x="716" y="246">TOSS · TOSSPLACE</text>
+
+            <rect class="d-box" x="700" y="272" width="152" height="46" rx="6"/>
+            <text class="d-t" x="716" y="292">로그인 · 푸시</text>
+            <text class="d-s" x="716" y="308">KAKAO · NAVER · FCM</text>
+
+            <!-- lines: clients -> webapp -->
+            <path class="d-line" d="M158 50 L188 50 L188 78 L216 78"/>
+            <path class="d-line" d="M158 122 L188 122 L188 94 L216 94"/>
+            <!-- webapp <-> firestore -->
+            <path class="d-line" d="M304 120 L304 184"/>
+            <text class="d-lab" x="312" y="156">실시간 구독</text>
+            <!-- webapp -> server -->
+            <path class="d-line" d="M392 86 L470 86"/>
+            <text class="d-lab" x="404" y="78">HTTPS</text>
+            <!-- server -> firestore -->
+            <path class="d-line" d="M558 120 L558 218 L392 218"/>
+            <text class="d-lab" x="440" y="212">ADMIN SDK</text>
+            <!-- firestore -> print agent -->
+            <path class="d-line" d="M304 252 L304 312"/>
+            <text class="d-lab" x="312" y="284">print_jobs</text>
+            <!-- print agent -> printer -->
+            <path class="d-line" d="M216 343 L158 343"/>
+            <!-- server -> externals -->
+            <path class="d-line-d" d="M646 80 L672 80 L672 47 L700 47"/>
+            <path class="d-line-d" d="M646 88 L672 88 L672 109 L700 109"/>
+            <path class="d-line-d" d="M646 92 L676 92 L676 171 L700 171"/>
+            <path class="d-line-d" d="M646 96 L680 96 L680 233 L700 233"/>
+            <path class="d-line-d" d="M646 100 L684 100 L684 295 L700 295"/>
+          </svg>
+        </div>
+        <p class="cap">실선 = 데이터 흐름 · 점선 = 외부 서비스 호출</p>
+
+        <h3>스택</h3>
+        <div class="tw">
+          <table>
+            <thead><tr><th>영역</th><th>쓰는 것</th><th>규모</th></tr></thead>
+            <tbody>
+              <tr><td class="feat">프론트엔드</td><td class="note">React 19, TypeScript, Vite 7, Tailwind 4, React Router 7, Motion</td><td class="num">약 36,000줄</td></tr>
+              <tr><td class="feat">서버</td><td class="note">Express 5, Firebase Admin SDK, esbuild 번들</td><td class="num">약 2,960줄</td></tr>
+              <tr><td class="feat">데이터</td><td class="note">Firestore (실시간 구독 + 보안 룰), Firebase Storage</td><td class="num">컬렉션 19개</td></tr>
+              <tr><td class="feat">인증</td><td class="note">Firebase Auth, 카카오·네이버 OAuth 서버 콜백, 전화번호 인증</td><td class="num">3종</td></tr>
+              <tr><td class="feat">AI</td><td class="note">Gemini(Vision 포함) 주력, Anthropic·OpenAI 폴백</td><td class="num">3사 이중화</td></tr>
+              <tr><td class="feat">데스크톱</td><td class="note">Electron 트레이 앱, node-thermal-printer, electron-updater</td><td class="num">Windows·Mac</td></tr>
+              <tr><td class="feat">배포</td><td class="note">Render(서버·정적), Vercel(프리뷰), GitHub Actions CI</td><td class="num">자동</td></tr>
+              <tr><td class="feat">국제화</td><td class="note">한국어·영어·베트남어·중국어</td><td class="num">4개 국어</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="note"><b>솔직하게.</b> 테스트 자동화가 없습니다. 검증은 실제 서버와 Firestore를 쓰는 수동 e2e 스크립트와 적대적 코드 리뷰로 해 왔습니다. 여기 오시면 이 부분을 처음부터 설계할 수 있습니다.</div>
+      </section>
+
+      <section id="rules">
+        <div class="sec-head"><span class="sec-num">06</span><h2>지키는 규칙</h2></div>
+        <p class="sec-sub">코드 리뷰에서 실제로 이걸로 되돌립니다. 같이 일할 사람이 동의해야 하는 부분이기도 합니다.</p>
+
+        <div class="grid g2">
+          <div class="card">
+            <h4>확정은 언제나 서버가 한다</h4>
+            <p>AI가 "예약 잡아 드렸어요"라고 말해도, 실제 예약은 서버 트랜잭션이 읽기·판정·쓰기를 원자적으로 처리해 결정합니다. 1석 테이블에 동시 예약 2건을 발사해 정확히 1건만 확정되는 것을 실측으로 확인했습니다.</p>
+          </div>
+          <div class="card">
+            <h4>사람 승인 없는 발행은 없다</h4>
+            <p>마케팅 초안은 구조적으로 draft로만 생성됩니다. 자동 발행 플래그는 항상 꺼져 있고, 금지어가 들어가면 경고와 명시적 확인을 거치며, 하루 발행 한도가 있고, 모든 상태 전이가 감사 로그로 남습니다.</p>
+          </div>
+          <div class="card">
+            <h4>기획서가 아니라 매장에서 받아온다</h4>
+            <p>기능 대부분은 가게에 직접 찾아가 받아 적은 요청에서 나왔습니다. "글꼴을 고르게 해달라", "리뷰 쓰면 쿠폰 주자", "그 쿠폰은 계산서에서 바로 깎이게 해달라" 같은 것들이고, 아홉 가지를 열흘 안에 전부 구현해 다시 들고 갔습니다.</p>
+          </div>
+          <div class="card">
+            <h4>내가 만든 것을 내가 깨뜨린다</h4>
+            <p>자정을 넘겨 영업하는 매장, 만석, 인원 초과, 중복 예약 같은 경계를 일부러 만들어 봅니다. 보안 룰과 매출 집계도 적대적 관점으로 되짚어 결함을 찾아 고치고, 남은 취약점은 숨기지 않고 문서에 적어 둡니다.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="left">
+        <div class="sec-head"><span class="sec-num">07</span><h2>남은 일과 빚</h2></div>
+        <p class="sec-sub">지원서에는 잘 안 쓰는 내용이지만, 같이 일할 사람은 이걸 보고 판단해야 합니다.</p>
+
+        <h3>구조적으로 갚아야 할 빚</h3>
+        <div class="tw">
+          <table>
+            <thead><tr><th>항목</th><th>심각도</th><th>내용</th></tr></thead>
+            <tbody>
+              <tr><td class="feat">쿠폰 자가발급 신뢰 경계</td><td class="st"><span class="chip wip">높음</span></td><td class="note">앱 전체가 클라이언트 신뢰 구조라, 손님이 스크립트로 금액 쿠폰을 임의 발급할 여지가 있습니다. 지금은 할인 상한(0원까지만)으로 완화해 뒀고, 정식 해법은 발급·승인을 서버 엔드포인트로 옮기고 Custom Token 인증을 도입하는 것입니다.</td></tr>
+              <tr><td class="feat">할인 라인 결제수단 귀속</td><td class="st"><span class="chip wip">높음</span></td><td class="note">쿠폰 주인과 결제자가 다를 때(공동 테이블) 음수 할인 라인이 현금으로 휩쓸려 장부가 왜곡됩니다. 결제 대상 산정을 고객 기준에서 테이블 기준으로 통일해야 합니다.</td></tr>
+              <tr><td class="feat">매장 격리 보안 룰</td><td class="st"><span class="chip todo">중간</span></td><td class="note">Firestore 룰이 인증 게이트 + 컬렉션 화이트리스트 수준입니다. 매장 단위 완전 격리로 되돌려야 합니다.</td></tr>
+              <tr><td class="feat">테스트·모니터링 부재</td><td class="st"><span class="chip todo">중간</span></td><td class="note">E2E 자동 테스트, 에러 추적, 성능 모니터링이 전부 없습니다.</td></tr>
+              <tr><td class="feat">코드 사이닝</td><td class="st"><span class="chip todo">낮음</span></td><td class="note">인쇄 브릿지 설치 시 Windows 경고가 뜹니다.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>다음에 만들 것</h3>
+        <ul class="plain">
+          <li><b>AI 전화 예약 음성 연결</b> — 두뇌는 완성됐고 음성 벤더·한국어 TTS·조건부 착신전환만 남았습니다. 규제(통화 녹음 고지, 개인정보 동의)도 같이 처리해야 합니다.</li>
+          <li><b>결제 본격 통합</b> — 손님 카드·계좌 직결, 부분 결제·할인 UI, 결제에서 영수증·테이블 정리까지 풀 자동.</li>
+          <li><b>운영 자동화</b> — 영업 종료 시 일일 매출 자동 정리 발송, 직원 권한 분리.</li>
+          <li><b>다점포</b> — 체인 본부 구조, 매장 여러 곳 운영.</li>
+          <li><b>마케팅 확장</b> — 캐러셀·릴스, 예약 발행 스케줄러, 실제 채널 지표 수집.</li>
+          <li><b>플랫폼</b> — 오프라인 우선 PWA, 백업·복구, 직원용 모바일 전용 앱.</li>
+        </ul>
+      </section>
+
+      <section id="money">
+        <div class="sec-head"><span class="sec-num">08</span><h2>돈은 어디서</h2></div>
+        <p class="sec-sub">코어는 계속 무료로 두고, 사장님이 직접 하기 어려운 자동화에서 받습니다.</p>
+
+        <p>매장 운영의 코어(주문·결제·테이블·고객·통계)는 무료입니다. 매일 열어보는 도구가 되어 매장을 모으는 것이 먼저이고, 수익은 그 위에 얹는 자동화에서 만듭니다. 요금제 로직은 이미 구현해 두고 <strong>베타 기간에만 꺼 둔 상태</strong>라, 전환 시점에 켜기만 하면 됩니다.</p>
+
+        <div class="tw">
+          <table>
+            <thead><tr><th>수익원</th><th>가격</th><th>비고</th></tr></thead>
+            <tbody>
+              <tr><td class="feat">발행 채널</td><td class="num">1개 무료 / 3개 월 ₩10,000</td><td class="note">인스타그램·구글 비즈니스 등</td></tr>
+              <tr><td class="feat">자동 홍보 캠페인</td><td class="num">프로 월 ₩25,000 (3개)<br>맥스 월 ₩40,000 (무제한)</td><td class="note">AI 초안 생성 + 승인 발행</td></tr>
+              <tr><td class="feat">AI 전화 예약</td><td class="num">통화량 구간제</td><td class="note">음성 원가가 통화당 700~1,700원이라 정액 불가. 놓친 전화 한 통이 4인 예약이면 요금을 바로 넘김</td></tr>
+              <tr><td class="feat">연동·거래</td><td class="num">제휴·수수료 셰어</td><td class="note">POS·결제 연동, 프린터·QR 인쇄물</td></tr>
+              <tr><td class="feat">장기</td><td class="num">미정</td><td class="note">다점포 상위 플랜, 익명 집계 상권 리포트</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>매장은 이미 POS에 월 3~5만 원, 마케팅 대행에 월 수십만 원을 쓰고 있습니다. 결의 1~4만 원대는 새 지출이 아니라 기존 지출의 대체로 설명됩니다. 인프라가 관리형이라 매장당 고정비가 낮고, 변동비는 LLM 호출과 통화료뿐이어서 매장이 늘수록 단위 원가가 내려갑니다.</p>
+      </section>
+
+      <section id="who">
+        <div class="sec-head"><span class="sec-num">09</span><h2>찾는 사람</h2></div>
+        <p class="sec-sub">지금까지 혼자 만들었습니다. 여기서부터는 혼자로는 안 됩니다.</p>
+
+        <div class="grid g2">
+          <div class="role">
+            <span class="tag">Role 01 · 가장 급함</span>
+            <h4>백엔드 · 플랫폼</h4>
+            <p class="own">신뢰 경계를 다시 그리는 일을 맡습니다. 지금 앱은 클라이언트를 믿는 구조인데, 돈이 오가는 이상 그대로 둘 수 없습니다.</p>
+            <ul>
+              <li>쿠폰 발급·승인을 서버로 이전, Custom Token 인증 도입</li>
+              <li>Firestore 매장 격리 룰 재설계</li>
+              <li>결제·정산 정확성 — 할인 귀속, 결제수단별 장부</li>
+              <li>E2E 테스트와 모니터링 도입</li>
+            </ul>
+          </div>
+
+          <div class="role">
+            <span class="tag">Role 02 · 가장 급함</span>
+            <h4>현장 세일즈 · CS</h4>
+            <p class="own">한 상권에 매장 밀도를 만드는 일을 맡습니다. 소상공인 소프트웨어는 광고보다 옆 가게 사장님의 말 한마디가 셉니다.</p>
+            <ul>
+              <li>직접 방문 영업, 방문 한 번에 온보딩까지 끝내기</li>
+              <li>사장님 응대와 요청 수집 — 이게 곧 제품 로드맵</li>
+              <li>첫 5분에 무엇을 보여줄지 설계</li>
+              <li>유료 전환 시점의 이탈 방어</li>
+            </ul>
+          </div>
+
+          <div class="role">
+            <span class="tag">Role 03</span>
+            <h4>AI · 음성</h4>
+            <p class="own">완성된 예약 두뇌에 목소리를 붙이는 일을 맡습니다. 데모가 아니라 진짜 손님 전화를 받아야 합니다.</p>
+            <ul>
+              <li>음성 벤더 연결(Retell/Vapi) + 한국어 STT·TTS 품질</li>
+              <li>조건부 착신전환, 전화번호↔매장 매핑 운영</li>
+              <li>대화 품질 — 만석·영업외·중복 상황의 자연스러운 응대</li>
+              <li>LLM 비용·지연 최적화</li>
+            </ul>
+          </div>
+
+          <div class="role">
+            <span class="tag">Role 04</span>
+            <h4>프론트엔드 · 프로덕트</h4>
+            <p class="own">쓰는 사람이 컴퓨터에 익숙하지 않다는 전제로 화면을 만드는 일을 맡습니다.</p>
+            <ul>
+              <li>사장님·직원 모바일 경험, 오프라인 우선 PWA</li>
+              <li>손님 주문 흐름의 이탈 지점 개선</li>
+              <li>디자인 시스템 정리, 접근성</li>
+              <li>4개 국어 유지</li>
+            </ul>
+          </div>
+        </div>
+
+        <h3>어느 자리든 공통으로</h3>
+        <ul class="plain">
+          <li><b>매장에 직접 갈 수 있는 사람.</b> 여기서는 요구사항이 회의실이 아니라 점심 피크의 홀에서 나옵니다.</li>
+          <li><b>완성 안 된 걸 견디는 사람.</b> 위의 '빚' 목록이 부담이 아니라 할 일로 보이면 맞습니다.</li>
+          <li><b>남의 장사를 망치지 않으려는 감각.</b> 우리 버그는 남의 가게 영업이 멈추는 일입니다.</li>
+        </ul>
+
+        <h3>이런 분과는 안 맞습니다</h3>
+        <ul class="plain">
+          <li>기술 자체가 목적인 경우. 여기서는 사장님이 버튼을 한 번 덜 누르는 게 목적입니다.</li>
+          <li>정리된 스펙을 받아서 그것만 구현하고 싶은 경우. 스펙은 같이 만들어야 합니다.</li>
+          <li>규모가 갖춰진 조직의 안정성을 원하는 경우. 지금은 파일럿 2곳, 팀 1명입니다.</li>
+        </ul>
+      </section>
+
+      <section id="join">
+        <div class="sec-head"><span class="sec-num">10</span><h2>합류하기</h2></div>
+        <p class="sec-sub">아래 조건은 실제 내용으로 채워서 쓰세요. 비워 둔 채로 공유하면 안 됩니다.</p>
+
+        <div class="fill">【 합류 형태 — 공동창업 / 정규직 / 파트타임 / 프로젝트 】<br>【 처우 — 급여 범위, 지분 또는 스톡옵션 조건 】<br>【 근무 — 지역, 출근 방식, 매장 방문 빈도 】<br>【 연락처 — 이메일 또는 폼 링크 】<br>【 절차 — 대화 → 매장 동행 → 결정까지 걸리는 시간 】</div>
+
+        <h3>먼저 보시면 좋은 것</h3>
+        <ul class="plain">
+          <li><b>실제 제품</b> — 접속해서 사장님 계정으로 가입해 보면 5분 안에 매장 하나가 만들어집니다.</li>
+          <li><b>사장님 운영 가이드</b> — 컴퓨터에 익숙하지 않은 분을 위해 쓴 문서라, 제품이 무엇을 지향하는지 가장 잘 드러납니다.</li>
+          <li><b>남은 일 목록</b> — 위 7번 섹션이 첫 3개월에 실제로 할 일입니다.</li>
+        </ul>
+
+        <div class="pull">파일럿 2곳에서 실제 영업에 쓰이고 있습니다. 다음은 스무 곳입니다.</div>
+      </section>
+
+      <footer>
+        <p>이 문서의 기능·상태 표기는 리포지토리의 실제 구현 기록을 기준으로 작성했습니다. 수치는 코드 규모와 파일 수를 직접 센 값이고, 향후 계획과 목표치는 추정입니다.</p>
+      </footer>
+
+    </main>
+  </div>
+</div>
