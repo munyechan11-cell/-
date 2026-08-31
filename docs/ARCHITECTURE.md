@@ -8,19 +8,18 @@
 
 | 항목 | 값 |
 |---|---|
-| 코드 | 약 39,000줄 — `src/` 36,004 + `server.ts` 2,962 |
-| 파일 | 105개 (페이지 39, 컴포넌트 23) |
-| 서버 | Express 라우트 40개, 단일 파일 |
+| 코드 | 약 40,000줄 — `src/` 37,199 + `server/` 2,880 |
+| 파일 | 160개 (Phase 1 분해 후) |
+| 서버 | Express 라우트 39개 + cron 1개, Router 13개 모듈 |
 | 스택 | React 19 · Vite 7 · Express 5 · Firebase(Firestore + Auth) · Tailwind 4 |
 | 배포 | Render 2개 서비스 (정적 SPA + API) |
 | 외부 연동 | 토스플레이스 POS · 토스페이먼츠 · 푸드테크 POS · Gemini · Zernio · 카카오 · 네이버 · Electron 영수증 브릿지 |
 
 ### 구조상 아픈 곳
 
-1. **모놀리식 3개** — `server.ts`(2,962줄), `store/store.tsx`(2,547줄), `lib/i18n.ts`(2,105줄).
-   한 파일이 서로 무관한 관심사 수십 개를 들고 있어, 어디를 고치면 무엇이 깨지는지 알 수 없다.
-2. **전역 단일 스토어** — 모든 컬렉션 구독과 모든 뮤테이션이 `store.tsx` 하나에 있다.
-   화면 하나를 고치려면 전역 상태를 이해해야 한다.
+1. ~~**모놀리식 3개**~~ — Phase 1 에서 해소했다.
+2. **전역 구독 범위** — 뮤테이션은 도메인별로 나뉘었지만, Firestore 구독은 여전히
+   로그인 시점에 컬렉션 전체를 건다. 화면이 필요한 만큼만 구독하도록 좁히는 건 Phase 2 과제다.
 3. **공개 매장 페이지가 SPA** — `/site/:storeId` 브랜드 사이트가 클라이언트 렌더라
    검색에 잡히지 않는다. 매장 입장에서 이건 기능 결손이다.
 4. **배포가 둘로 갈라짐** — 정적 사이트와 API 가 별개 서비스라 환경변수·CORS·도메인이 이중 관리된다.
@@ -66,18 +65,37 @@
       위반이 7건뿐이라(server.ts 암묵적 any 3 + 신규 테스트 4) 재작성 착수 전에 정리하고 켰다.
       `runMarketingAutomation(db: any)` → `admin.firestore.Firestore` 로 정정.
 
-### Phase 1 — 모놀리식 분해
+### Phase 1 — 모놀리식 분해 (완료)
 
 스택은 그대로 두고 구조만 정리한다. 이 단계를 건너뛰고 Next.js 로 옮기면
 2,547줄짜리 스토어를 그대로 이사시키는 꼴이 된다.
 
-- `store.tsx` → 도메인별 훅으로 분해 (`useOrders`, `useTables`, `useCustomers`, …).
-  Firestore 구독을 화면이 필요한 만큼만 걸도록 좁힌다.
-- `server.ts` → 라우트 그룹별 모듈 (`routes/pos`, `routes/payments`, `routes/auth`, …).
-- `i18n.ts` → 네임스페이스 분리, 사전 지연 로드.
-- 분해할 때마다 해당 모듈의 테스트를 함께 남긴다.
+- [x] **`server.ts` 2,962 → 47줄** — `server/app.ts`(앱·미들웨어), `server/lib/*`(firebase·http·
+      lang·parsers·push·reservation·storeAuth), `server/routes/*`(Router 13개), `server/static.ts`.
+      경로 문자열은 한 글자도 바꾸지 않았다. 분해 전후 번들을 동시에 띄워 42개 경로에
+      같은 요청을 보내고 응답이 완전히 일치함을 확인했다.
+- [x] **`store/store.tsx` 2,547 → 288줄** — `store/core.ts`(상태·ref), `store/subscriptions.ts`
+      (Firestore 구독), `store/actions/*`(도메인 훅 11개), `store/types.ts`, `store/constants.ts`.
+      Provider 가 노출하는 context 키 90개를 테스트로 고정한 뒤 분해했다.
+- [x] **`lib/i18n.ts` 2,105 → 158줄** — 인라인 한국어 사전을 `i18n-dicts/ko.ts` 로 분리.
+      엔진만 남았다.
+- [x] **1,000줄 넘던 화면 5개 분해** — Tables · customer/Dashboard · BrandSettings ·
+      Reservations · MarketingAgent 를 페이지 본체와 부품 컴포넌트로 나눴다.
+- [x] 분해할 때마다 해당 모듈의 테스트를 함께 남겼다 (경로 표 · 스토어 계약 · 사전 정합성).
 
-**완료 기준:** 단일 파일 1,000줄 초과 0개. 테스트가 도메인 로직을 덮는다.
+**완료 기준 달성:** 코드 파일 중 1,000줄 초과 0개.
+`i18n-dicts/*.ts` 네 개만 1,890줄 안팎으로 남았는데, 이건 키 한 줄짜리 데이터라 대상이 아니다.
+
+분해하며 드러난 실제 결함 두 가지도 함께 고쳤다.
+
+- 한국어에만 있고 en/vi/zh 에 없던 번역 키 3건. `t()` 는 키가 없으면 조용히 한국어로
+  폴백하므로 이런 누락은 에러로 드러나지 않는다. 이제 사전 정합성 테스트가 막는다.
+- `Reservations.tsx` 가 `lib/date.ts` 의 `localTodayStr` 과 동일한 함수를 따로 갖고 있던 중복.
+
+**Phase 1 에서 하지 않은 것:** Firestore 구독 범위 좁히기.
+현재는 여전히 로그인 시점에 컬렉션 전체를 구독한다. 화면 단위로 좁히려면 구독 주체를
+Provider 에서 화면으로 옮겨야 하는데, 그건 Next.js 이전 때 서버 컴포넌트 경계와 함께
+정하는 편이 낫다. Phase 2 로 넘긴다.
 
 ### Phase 2 — Next.js 이전
 
