@@ -11,7 +11,7 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     environment: "node",
-    include: ["firestore.rules.test.ts"],
+    include: ["firestore*.rules.test.ts", "firestore.rules.test.ts"],
     // 에뮬레이터 왕복이 있어 기본 5초로는 부족하다.
     testTimeout: 20_000,
     hookTimeout: 30_000,

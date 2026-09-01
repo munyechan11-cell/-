@@ -27,8 +27,8 @@ service cloud.firestore {
       return signedIn() && request.auth.token.role == 'print-bridge';
     }
 
-    function isAgentForResource(resource) {
-      return isAgent() && resource.data.storeId == request.auth.uid;
+    function isAgentForResource(res) {
+      return isAgent() && res.data.get('storeId', '') == request.auth.uid;
     }
 
     // ============================================================
@@ -57,7 +57,10 @@ service cloud.firestore {
     // ============================================================
     match /print_jobs/{jobId} {
       allow read, write: if signedIn() && !isAgent();
-      allow read, write: if isAgentForResource(resource);
+      // create 에는 resource 가 없다. 여기에 create 를 포함하면 규칙이
+      // "Null value error" 로 죽는다(결과는 거부지만 이유가 "터짐"이다).
+      // 아래 create 규칙이 따로 있으므로 메서드를 나눠 명시한다.
+      allow read, update, delete: if isAgentForResource(resource);
       allow create: if isAgent() && request.resource.data.storeId == request.auth.uid;
     }
 

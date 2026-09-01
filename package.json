@@ -21,7 +21,7 @@
     "site:dev": "npm --prefix apps/site run dev",
     "site:build": "npm --prefix apps/site run build",
     "site:verify": "node apps/site/scripts/verify-ssr.mjs",
-    "test:rules": "firebase emulators:exec --only firestore --project gyeol-test \"vitest run --config vitest.rules.config.ts\""
+    "test:rules": "node scripts/rules-test.mjs"
   },
   "dependencies": {
     "@google/genai": "^1.45.0",
