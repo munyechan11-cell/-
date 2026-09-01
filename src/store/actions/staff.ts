@@ -1,7 +1,6 @@
+import { newId, saveDoc } from "../../lib/db";
 import type { StoreCore } from "../core";
 import { useCallback, useMemo } from "react";
-import { updateFirestoreDoc } from "../../lib/firestore";
-import { generateId } from "../../lib/ids";
 import { showToast } from "../../lib/toast";
 import { t } from "../../lib/i18n";
 import { sendOwnerPush } from "../../lib/pushTriggers";
@@ -14,14 +13,14 @@ export function useStaffActions(core: StoreCore) {
 
 
   const setStaffWage = useCallback(async (userId: string, hourlyWage: number) => {
-    await updateFirestoreDoc("users", userId, { hourlyWage });
+    await saveDoc("users", userId, { hourlyWage });
   }, []);
 
   const setStaffLevel = useCallback(async (userId: string, level: StaffLevel) => {
-    await updateFirestoreDoc("users", userId, { staffLevel: level });
+    await saveDoc("users", userId, { staffLevel: level });
   }, []);
   const setStaffPerms = useCallback(async (userId: string, perms: string[]) => {
-    await updateFirestoreDoc("users", userId, { extraPerms: perms });
+    await saveDoc("users", userId, { extraPerms: perms });
   }, []);
 
 
@@ -36,7 +35,7 @@ export function useStaffActions(core: StoreCore) {
         joinRequestedAt: new Date().toISOString(),
       };
       if (position !== undefined) patch.position = position;
-      await updateFirestoreDoc("users", cu.id, patch);
+      await saveDoc("users", cu.id, patch);
       setCurrentUser({ ...cu, ...patch });
       // 사장님 디바이스 푸시 — 새 직원 가입 요청
       const ownerLang = usersRef.current.find((u) => u.id === storeId)?.lang ?? "ko";
@@ -59,7 +58,7 @@ export function useStaffActions(core: StoreCore) {
     const cu = currentUserRef.current;
     if (!cu || cu.role !== "staff") return;
     // null로 저장해 필드를 명시적으로 비웁니다 (stripUndefined가 undefined를 제거하므로)
-    await updateFirestoreDoc("users", cu.id, {
+    await saveDoc("users", cu.id, {
       employerStoreId: null,
       employerStatus: null,
       joinRequestedAt: null,
@@ -74,19 +73,19 @@ export function useStaffActions(core: StoreCore) {
   }, [setCurrentUser]);
 
   const approveStaff = useCallback(async (staffId: string) => {
-    await updateFirestoreDoc("users", staffId, { employerStatus: "approved" });
+    await saveDoc("users", staffId, { employerStatus: "approved" });
     showToast(t("store.staff.approved"), "success");
   }, []);
 
   const rejectStaff = useCallback(async (staffId: string) => {
-    await updateFirestoreDoc("users", staffId, {
+    await saveDoc("users", staffId, {
       employerStatus: "rejected",
     });
     showToast(t("store.staff.rejected"), "info");
   }, []);
 
   const removeStaffMembership = useCallback(async (staffId: string) => {
-    await updateFirestoreDoc("users", staffId, {
+    await saveDoc("users", staffId, {
       employerStoreId: null,
       employerStatus: null,
       position: null,
@@ -109,7 +108,7 @@ export function useStaffActions(core: StoreCore) {
     }
     clockingRef.current = true;
     try {
-      const id = generateId();
+      const id = newId();
       const s: Shift = {
         id,
         staffId: cu.id,
@@ -117,7 +116,7 @@ export function useStaffActions(core: StoreCore) {
         clockInAt: new Date().toISOString(),
         clockOutAt: null,
       };
-      await updateFirestoreDoc("shifts", id, s);
+      await saveDoc("shifts", id, s);
       showToast(t("store.staff.clockInOk"), "success");
     } finally {
       clockingRef.current = false;
@@ -135,7 +134,7 @@ export function useStaffActions(core: StoreCore) {
     }
     clockingRef.current = true;
     try {
-      await updateFirestoreDoc("shifts", open.id, {
+      await saveDoc("shifts", open.id, {
         clockOutAt: new Date().toISOString(),
       });
       showToast(t("store.staff.clockOutOk"), "success");

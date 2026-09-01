@@ -1,11 +1,10 @@
+import { newId, removeDoc, saveDoc } from "../../lib/db";
 import type { StoreCore } from "../core";
 import type { AdjustStock } from "./inventory";
 import { makeDefaultTables } from "../constants";
 import { useCallback } from "react";
 import { doc, writeBatch } from "firebase/firestore";
 import { db } from "../../lib/firebase";
-import { updateFirestoreDoc } from "../../lib/firestore";
-import { generateId } from "../../lib/ids";
 import { showToast } from "../../lib/toast";
 import { t } from "../../lib/i18n";
 import type { TableDoc, Section, TableStatus } from "../../lib/types";
@@ -17,7 +16,7 @@ export function useTableActions(core: StoreCore, deps: { adjustStockForOrder: Ad
 
   const leaveTable = useCallback(async (tableNumber: number, storeId: string) => {
     const tableId = `${storeId}_${tableNumber}`;
-    await updateFirestoreDoc("tables", tableId, {
+    await saveDoc("tables", tableId, {
       currentCustomerId: null,
       occupantIds: [],
       currentCustomerName: null,
@@ -52,7 +51,7 @@ export function useTableActions(core: StoreCore, deps: { adjustStockForOrder: Ad
         cur === "dining" || cur === "paid" || cur === "cleaning" || cur === "dirty"
           ? cur
           : "occupied";
-      await updateFirestoreDoc("tables", tableId, {
+      await saveDoc("tables", tableId, {
         currentCustomerId: existing?.currentCustomerId ?? input.customerId,
         currentCustomerName: existing?.currentCustomerName ?? input.customerName ?? null,
         occupantIds,
@@ -97,7 +96,7 @@ export function useTableActions(core: StoreCore, deps: { adjustStockForOrder: Ad
           adjustStockForOrder(toRestore.flatMap((o) => o.items), +1).catch((e) => console.warn("[evictTable] stock restore failed", e?.message));
         }
       } else {
-        await updateFirestoreDoc("tables", tableId, {
+        await saveDoc("tables", tableId, {
           currentCustomerId: null,
           occupantIds: [],
           currentCustomerName: null,
@@ -132,20 +131,20 @@ export function useTableActions(core: StoreCore, deps: { adjustStockForOrder: Ad
         status: "available",
         sectionId,
       };
-      await updateFirestoreDoc("tables", t.id, t);
+      await saveDoc("tables", t.id, t);
     },
     [tables]
   );
 
   const updateTableLayout = useCallback(
     async (storeId: string, number: number, data: Partial<TableDoc>) => {
-      await updateFirestoreDoc("tables", `${storeId}_${number}`, data);
+      await saveDoc("tables", `${storeId}_${number}`, data);
     },
     []
   );
 
   const deleteTable = useCallback(async (storeId: string, number: number) => {
-    await updateFirestoreDoc("tables", `${storeId}_${number}`, undefined, true);
+    await removeDoc("tables", `${storeId}_${number}`);
   }, []);
 
   const updateTableStatus = useCallback(
@@ -159,7 +158,7 @@ export function useTableActions(core: StoreCore, deps: { adjustStockForOrder: Ad
         patch.partySize = null;
         patch.sessionStartTime = null;
       }
-      await updateFirestoreDoc("tables", `${storeId}_${number}`, patch);
+      await saveDoc("tables", `${storeId}_${number}`, patch);
     },
     []
   );
@@ -177,21 +176,21 @@ export function useTableActions(core: StoreCore, deps: { adjustStockForOrder: Ad
 
   // ============ SECTIONS ============
   const addSection = useCallback(async (storeId: string, name: string) => {
-    const id = generateId();
+    const id = newId();
     const order = sections.filter((s) => s.storeId === storeId).length;
-    await updateFirestoreDoc("sections", id, { id, storeId, name, order });
+    await saveDoc("sections", id, { id, storeId, name, order });
   }, [sections]);
 
   const updateSection = useCallback(async (id: string, data: Partial<Section>) => {
-    await updateFirestoreDoc("sections", id, data);
+    await saveDoc("sections", id, data);
   }, []);
 
   const deleteSection = useCallback(async (id: string) => {
-    await updateFirestoreDoc("sections", id, undefined, true);
+    await removeDoc("sections", id);
     // unassign tables in that section
     const targets = tables.filter((t) => t.sectionId === id);
     for (const t of targets) {
-      await updateFirestoreDoc("tables", t.id, { sectionId: null });
+      await saveDoc("tables", t.id, { sectionId: null });
     }
   }, [tables]);
 
@@ -203,7 +202,7 @@ export function useTableActions(core: StoreCore, deps: { adjustStockForOrder: Ad
    */
   const completeTable = useCallback(async (storeId: string, tableNumber: number) => {
     const tableId = `${storeId}_${tableNumber}`;
-    await updateFirestoreDoc("tables", tableId, {
+    await saveDoc("tables", tableId, {
       status: "available",
       currentCustomerId: null,
       currentCustomerName: null,

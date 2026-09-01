@@ -1,8 +1,6 @@
+import { arrayUnion, newId, removeDoc, saveDoc } from "../../lib/db";
 import type { StoreCore } from "../core";
-import { arrayUnion } from "firebase/firestore";
 import { useCallback } from "react";
-import { updateFirestoreDoc } from "../../lib/firestore";
-import { generateId } from "../../lib/ids";
 import type { Photo, MarketingDraft } from "../../lib/types";
 
 export function useMarketingActions(core: StoreCore) {
@@ -20,7 +18,7 @@ export function useMarketingActions(core: StoreCore) {
         targetSummary?: string;
       }
     ) => {
-      const id = generateId();
+      const id = newId();
       const now = new Date().toISOString();
       const by = currentUserRef.current?.id;
       const draft: MarketingDraft = {
@@ -37,7 +35,7 @@ export function useMarketingActions(core: StoreCore) {
         createdAt: now,
         audit: [{ at: now, action: "created", by }],
       };
-      await updateFirestoreDoc("marketingDrafts", id, draft);
+      await saveDoc("marketingDrafts", id, draft);
     },
     []
   );
@@ -60,7 +58,7 @@ export function useMarketingActions(core: StoreCore) {
         audit: arrayUnion(entry) as any,
       };
       if (action === "publish") patch.publishedAt = now;
-      await updateFirestoreDoc("marketingDrafts", id, patch);
+      await saveDoc("marketingDrafts", id, patch);
     },
     []
   );
@@ -71,34 +69,34 @@ export function useMarketingActions(core: StoreCore) {
     const by = currentUserRef.current?.id;
     const entry: Record<string, string> = { at: now, action: "edited" };
     if (by) entry.by = by;
-    await updateFirestoreDoc("marketingDrafts", id, {
+    await saveDoc("marketingDrafts", id, {
       content,
       title,
       audit: arrayUnion(entry) as any,
     });
   }, []);
   const deleteMarketingDraft = useCallback(async (id: string) => {
-    await updateFirestoreDoc("marketingDrafts", id, undefined, true);
+    await removeDoc("marketingDrafts", id);
   }, []);
 
 
   // ============ PHOTOS ============
   const addPhoto = useCallback(async (input: Omit<Photo, "id" | "createdAt">): Promise<Photo> => {
     const p: Photo = {
-      id: generateId(),
+      id: newId(),
       createdAt: new Date().toISOString(),
       ...input,
     };
-    await updateFirestoreDoc("photos", p.id, p);
+    await saveDoc("photos", p.id, p);
     return p;
   }, []);
 
   const updatePhoto = useCallback(async (id: string, data: Partial<Photo>) => {
-    await updateFirestoreDoc("photos", id, data);
+    await saveDoc("photos", id, data);
   }, []);
 
   const deletePhoto = useCallback(async (id: string) => {
-    await updateFirestoreDoc("photos", id, undefined, true);
+    await removeDoc("photos", id);
   }, []);
 
   return { addMarketingDraft, reviewMarketingDraft, updateMarketingDraftContent, deleteMarketingDraft, addPhoto, updatePhoto, deletePhoto };

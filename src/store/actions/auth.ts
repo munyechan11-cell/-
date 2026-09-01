@@ -1,12 +1,12 @@
+import { newId, saveDoc } from "../../lib/db";
 import type { StoreCore } from "../core";
 import type { LoginInput } from "../types";
 import { LS_MASTER, makeDefaultTables } from "../constants";
 import { useCallback } from "react";
 import { collection, query, where, doc, getDocs, writeBatch } from "firebase/firestore";
 import { db, ensureAnonymousAuth } from "../../lib/firebase";
-import { updateFirestoreDoc } from "../../lib/firestore";
 import { calculateAgeGroup } from "../../lib/auth";
-import { generateId, normalizePhone } from "../../lib/ids";
+import { normalizePhone } from "../../lib/ids";
 import { showToast } from "../../lib/toast";
 import { t } from "../../lib/i18n";
 import type { User, Role } from "../../lib/types";
@@ -81,7 +81,7 @@ export function useAuthActions(core: StoreCore) {
         if (input.privacyAgreedAt) patch.privacyAgreedAt = input.privacyAgreedAt;
         if (input.phoneVerifiedAt) patch.phoneVerifiedAt = input.phoneVerifiedAt;
 
-        await updateFirestoreDoc("users", match.id, patch);
+        await saveDoc("users", match.id, patch);
         const final = { ...match, ...patch } as User;
         setCurrentUser(final);
         showToast(t("store.welcome", undefined, { name: final.name }), "success");
@@ -94,9 +94,9 @@ export function useAuthActions(core: StoreCore) {
       }
 
       // 3) new user
-      const newId = generateId();
+      const createdUserId = newId();
       const user: User = {
-        id: newId,
+        id: createdUserId,
         role,
         name,
         phone,
@@ -127,12 +127,12 @@ export function useAuthActions(core: StoreCore) {
       if (input.privacyAgreedAt) user.privacyAgreedAt = input.privacyAgreedAt;
       if (input.phoneVerifiedAt) user.phoneVerifiedAt = input.phoneVerifiedAt;
 
-      await updateFirestoreDoc("users", newId, user);
+      await saveDoc("users", createdUserId, user);
 
       // Owner: auto-create 15 tables
       if (role === "owner" && db) {
         const batch = writeBatch(db);
-        for (const t of makeDefaultTables(newId)) {
+        for (const t of makeDefaultTables(createdUserId)) {
           batch.set(doc(db, "tables", t.id), t);
         }
         try {
@@ -172,7 +172,7 @@ export function useAuthActions(core: StoreCore) {
 
   const deleteAccount = useCallback(async () => {
     if (!currentUser) return;
-    await updateFirestoreDoc("users", currentUser.id, {
+    await saveDoc("users", currentUser.id, {
       status: "deleted",
       name: "삭제된 계정",
       phone: "",
@@ -184,7 +184,7 @@ export function useAuthActions(core: StoreCore) {
   }, [currentUser, logout]);
 
   const setMasterPassword = useCallback(async (pw: string) => {
-    await updateFirestoreDoc("appState", "settings", { masterPassword: pw });
+    await saveDoc("appState", "settings", { masterPassword: pw });
     setMasterPasswordState(pw);
     showToast(t("store.master.pwChanged"), "success");
   }, []);
@@ -202,7 +202,7 @@ export function useAuthActions(core: StoreCore) {
     // write 전 익명 토큰 보장 — 전화인증(signOut) 직후 토큰 미회복 시 permission-denied 로
     // phoneVerifiedAt 저장이 실패해 재인증이 반복되던 버그를 차단.
     await ensureAnonymousAuth();
-    await updateFirestoreDoc("users", userId, patch);
+    await saveDoc("users", userId, patch);
     // 로컬 currentUser 도 즉시 반영 — 안 하면 새로고침 시 인증 게이트가 다시 떠 재인증(SMS 비용) 발생
     const cu = currentUserRef.current;
     if (cu?.id === userId) setCurrentUser({ ...cu, ...patch });

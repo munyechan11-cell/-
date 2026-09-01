@@ -1,6 +1,6 @@
+import { saveDoc } from "../../lib/db";
 import type { StoreCore } from "../core";
 import { useCallback } from "react";
-import { updateFirestoreDoc } from "../../lib/firestore";
 import type { User } from "../../lib/types";
 
 export function useSettingsActions(core: StoreCore) {
@@ -8,7 +8,7 @@ export function useSettingsActions(core: StoreCore) {
 
 
   const updateBrandSettings = useCallback(async (storeId: string, data: Partial<User>) => {
-    await updateFirestoreDoc("users", storeId, data);
+    await saveDoc("users", storeId, data);
     if (currentUser?.id === storeId) setCurrentUser({ ...currentUser, ...data });
   }, [currentUser, setCurrentUser]);
 
@@ -16,7 +16,7 @@ export function useSettingsActions(core: StoreCore) {
     async (storeId: string, partial: Partial<NonNullable<User["storeConfig"]>>) => {
       const target = users.find((u) => u.id === storeId);
       const next = { ...(target?.storeConfig ?? {}), ...partial } as NonNullable<User["storeConfig"]>;
-      await updateFirestoreDoc("users", storeId, { storeConfig: next });
+      await saveDoc("users", storeId, { storeConfig: next });
       if (currentUser?.id === storeId) {
         setCurrentUser({ ...currentUser, storeConfig: next });
       }
@@ -27,7 +27,7 @@ export function useSettingsActions(core: StoreCore) {
 
   const updateStoreLocation = useCallback(
     async (storeId: string, lat: number, lng: number) => {
-      await updateFirestoreDoc("users", storeId, { lat, lng });
+      await saveDoc("users", storeId, { lat, lng });
       if (currentUser?.id === storeId) setCurrentUser({ ...currentUser, lat, lng });
     },
     [currentUser, setCurrentUser]

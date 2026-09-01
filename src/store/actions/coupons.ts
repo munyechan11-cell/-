@@ -1,7 +1,6 @@
+import { newId, saveDoc } from "../../lib/db";
 import type { StoreCore } from "../core";
 import { useCallback } from "react";
-import { updateFirestoreDoc } from "../../lib/firestore";
-import { generateId } from "../../lib/ids";
 import { showToast } from "../../lib/toast";
 import { t } from "../../lib/i18n";
 import { sendOwnerPush } from "../../lib/pushTriggers";
@@ -16,7 +15,7 @@ export function useCouponActions(core: StoreCore) {
     async (customerId: string, storeId: string, type: string, description: string, amount?: number, opts?: { silent?: boolean; descKey?: string }) => {
       const amt = Math.max(0, Math.round(Number(amount) || 0));
       const c: Coupon = {
-        id: generateId(),
+        id: newId(),
         customerId,
         storeId,
         type,
@@ -26,7 +25,7 @@ export function useCouponActions(core: StoreCore) {
         status: "available",
         issuedAt: new Date().toISOString(),
       };
-      await updateFirestoreDoc("coupons", c.id, c);
+      await saveDoc("coupons", c.id, c);
       // 자동 보상(손님 기기)에선 발급자 시점 토스트 억제 — 도착 알림(coupons.arrived)으로 일원화
       if (!opts?.silent) showToast(t("store.coupon.issued"), "success");
     },
@@ -34,7 +33,7 @@ export function useCouponActions(core: StoreCore) {
   );
 
   const requestCouponUse = useCallback(async (couponId: string, tableNumber?: number) => {
-    await updateFirestoreDoc("coupons", couponId, {
+    await saveDoc("coupons", couponId, {
       status: "pending",
       usedAtTable: tableNumber ?? null,
     });
@@ -58,7 +57,7 @@ export function useCouponActions(core: StoreCore) {
   }, []);
 
   const cancelCouponRequest = useCallback(async (couponId: string) => {
-    await updateFirestoreDoc("coupons", couponId, {
+    await saveDoc("coupons", couponId, {
       status: "available",
       usedAtTable: null,
     });
@@ -90,9 +89,9 @@ export function useCouponActions(core: StoreCore) {
         paymentStatus: "unpaid", // 테이블 결제 시 함께 paid 처리
         createdAt: new Date().toISOString(),
       };
-      await updateFirestoreDoc("orders", discountOrder.id, discountOrder);
+      await saveDoc("orders", discountOrder.id, discountOrder);
     }
-    await updateFirestoreDoc("coupons", couponId, {
+    await saveDoc("coupons", couponId, {
       status: "used",
       usedAt: new Date().toISOString(),
     });
@@ -100,7 +99,7 @@ export function useCouponActions(core: StoreCore) {
   }, []);
 
   const rejectCouponUse = useCallback(async (couponId: string) => {
-    await updateFirestoreDoc("coupons", couponId, {
+    await saveDoc("coupons", couponId, {
       status: "available",
       usedAtTable: null,
     });

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { digitsOnly, formatPhoneNumber, normalizePhone, generateId } from "./ids";
+import { digitsOnly, formatPhoneNumber, normalizePhone } from "./ids";
+import { newId } from "./db";
 
 describe("normalizePhone", () => {
   // 이 함수는 '인증을 마친 회원부터 차례로 로그인이 잠기던' 사고를 막는 지점이다.
@@ -67,9 +68,14 @@ describe("formatPhoneNumber", () => {
   });
 });
 
-describe("generateId", () => {
+describe("newId", () => {
   it("호출마다 다른 값을 낸다", () => {
-    const ids = new Set(Array.from({ length: 500 }, () => generateId()));
+    const ids = new Set(Array.from({ length: 500 }, () => newId()));
     expect(ids.size).toBe(500);
+  });
+
+  // Postgres 의 uuid 컬럼에 그대로 들어가야 한다. 형식이 어긋나면 저장이 통째로 실패한다.
+  it("uuid 형식이다 — Postgres uuid 컬럼이 받아야 한다", () => {
+    expect(newId()).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
   });
 });

@@ -1,7 +1,6 @@
+import { newId, removeDoc, saveDoc } from "../../lib/db";
 import type { StoreCore } from "../core";
 import { useCallback } from "react";
-import { updateFirestoreDoc } from "../../lib/firestore";
-import { generateId } from "../../lib/ids";
 import { showToast } from "../../lib/toast";
 import { t } from "../../lib/i18n";
 import type { Reservation } from "../../lib/types";
@@ -42,7 +41,7 @@ export function useReservationActions(core: StoreCore) {
       const still = _activeReservationsFor(storeId, tableNumber, excludeId).length > 0;
       // 현재 reserved 이고 더 이상 예약이 없으면 available 로 복귀
       if (t.status === "reserved" && !still) {
-        await updateFirestoreDoc("tables", tableId, {
+        await saveDoc("tables", tableId, {
           status: "available",
           // 점유 정보는 안 건드림 (예약은 점유와 별개)
         });
@@ -56,12 +55,12 @@ export function useReservationActions(core: StoreCore) {
       input: Omit<Reservation, "id" | "createdAt" | "status"> & { status?: Reservation["status"] }
     ) => {
       const r: Reservation = {
-        id: generateId(),
+        id: newId(),
         createdAt: new Date().toISOString(),
         status: input.status ?? "confirmed",
         ...input,
       };
-      await updateFirestoreDoc("reservations", r.id, r);
+      await saveDoc("reservations", r.id, r);
 
       // 8단계 자동 전이 — 예약 추가 시 테이블 reserved 로 (점유 중이면 보호)
       try {
@@ -71,7 +70,7 @@ export function useReservationActions(core: StoreCore) {
           const cur = t?.status;
           // available 또는 setup, reserved 일 때만 reserved 로 (그 외는 보호)
           if (!cur || cur === "available" || cur === "setup" || cur === "reserved") {
-            await updateFirestoreDoc("tables", tableId, { status: "reserved" });
+            await saveDoc("tables", tableId, { status: "reserved" });
           }
         }
       } catch (e: any) {
@@ -85,7 +84,7 @@ export function useReservationActions(core: StoreCore) {
 
   const updateReservation = useCallback(async (id: string, data: Partial<Reservation>) => {
     const before = reservationsRef.current.find((r) => r.id === id);
-    await updateFirestoreDoc("reservations", id, data);
+    await saveDoc("reservations", id, data);
     if (!before) return;
     const merged = { ...before, ...data };
     // 예약이 비활성화(cancelled/completed/no-show) 되었거나 다른 테이블·날짜로 이동했으면
@@ -103,14 +102,14 @@ export function useReservationActions(core: StoreCore) {
       const t = tablesRef.current.find((x) => x.id === newTableId);
       const cur = t?.status;
       if (!cur || cur === "available" || cur === "setup" || cur === "reserved") {
-        await updateFirestoreDoc("tables", newTableId, { status: "reserved" });
+        await saveDoc("tables", newTableId, { status: "reserved" });
       }
     }
   }, [_refreshReservedForTable]);
 
   const deleteReservation = useCallback(async (id: string) => {
     const before = reservationsRef.current.find((r) => r.id === id);
-    await updateFirestoreDoc("reservations", id, undefined, true);
+    await removeDoc("reservations", id);
     if (before) {
       await _refreshReservedForTable(before.storeId, before.tableNumber, id);
     }

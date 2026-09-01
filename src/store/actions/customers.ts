@@ -1,9 +1,8 @@
+import { increment, newId, removeDoc, saveDoc } from "../../lib/db";
 import type { StoreCore } from "../core";
 import { useCallback } from "react";
-import { doc, increment, writeBatch } from "firebase/firestore";
+import { doc, writeBatch } from "firebase/firestore";
 import { db } from "../../lib/firebase";
-import { updateFirestoreDoc } from "../../lib/firestore";
-import { generateId } from "../../lib/ids";
 import { showToast } from "../../lib/toast";
 import { t } from "../../lib/i18n";
 import type { Visit, Coupon, Communication, Tier } from "../../lib/types";
@@ -43,14 +42,14 @@ export function useCustomerActions(core: StoreCore) {
       // 1) Create visit (only once per day)
       if (!alreadyToday) {
         const visit: Visit = {
-          id: generateId(),
+          id: newId(),
           customerId,
           storeId,
           tableNumber,
           date: new Date().toISOString(),
           totalAmount: amount,
         };
-        await updateFirestoreDoc("visits", visit.id, visit);
+        await saveDoc("visits", visit.id, visit);
 
         // Reward accrual (Firestore increment으로 atomic 처리)
         if (owner?.storeConfig) {
@@ -64,7 +63,7 @@ export function useCustomerActions(core: StoreCore) {
             delta = Math.floor(base * rate);
           }
           if (delta > 0) {
-            await updateFirestoreDoc("users", customerId, {
+            await saveDoc("users", customerId, {
               rewardBalance: increment(delta),
             });
             // 로컬 currentUser도 즉시 반영 (UI stale 방지)
@@ -106,7 +105,7 @@ export function useCustomerActions(core: StoreCore) {
               // 표시 시점에 t(descKey, 고객언어) 로 변환 → 비한국어 고객도 모국어로 쿠폰을 봄.
               const custom = owner?.tierRewards?.[rule.tier];
               const c: Coupon = {
-                id: generateId(),
+                id: newId(),
                 customerId,
                 storeId,
                 type: rule.tier,
@@ -115,7 +114,7 @@ export function useCustomerActions(core: StoreCore) {
                 status: "available",
                 issuedAt: new Date().toISOString(),
               };
-              await updateFirestoreDoc("coupons", c.id, c);
+              await saveDoc("coupons", c.id, c);
             }
             break;
           }
@@ -126,7 +125,7 @@ export function useCustomerActions(core: StoreCore) {
       const tableId = `${storeId}_${tableNumber}`;
       const existing = tables.find((t) => t.id === tableId);
       if (existing) {
-        await updateFirestoreDoc("tables", tableId, {
+        await saveDoc("tables", tableId, {
           currentCustomerId: customerId,
           sessionStartTime: new Date().toISOString(),
           status: "occupied",
@@ -136,7 +135,7 @@ export function useCustomerActions(core: StoreCore) {
         const num = Number(tableNumber);
         const col = ((num - 1) % 5 + 5) % 5;
         const row = Math.max(0, Math.floor((num - 1) / 5));
-        await updateFirestoreDoc("tables", tableId, {
+        await saveDoc("tables", tableId, {
           id: tableId,
           number: num,
           storeId,
@@ -169,7 +168,7 @@ export function useCustomerActions(core: StoreCore) {
       senderRole: "owner" | "customer" = "owner"
     ) => {
       const c: Communication = {
-        id: generateId(),
+        id: newId(),
         customerId,
         storeId,
         type,
@@ -177,13 +176,13 @@ export function useCustomerActions(core: StoreCore) {
         content,
         date: new Date().toISOString(),
       };
-      await updateFirestoreDoc("Communications", c.id, c);
+      await saveDoc("Communications", c.id, c);
     },
     []
   );
 
   const updateUserMemo = useCallback(async (userId: string, memo: string) => {
-    await updateFirestoreDoc("users", userId, { memo });
+    await saveDoc("users", userId, { memo });
   }, []);
 
 
@@ -191,9 +190,9 @@ export function useCustomerActions(core: StoreCore) {
     async (customerId: string, storeId: string, tier: Tier | "auto") => {
       const id = `${customerId}_${storeId}`;
       if (tier === "auto") {
-        await updateFirestoreDoc("tierOverrides", id, undefined, true);
+        await removeDoc("tierOverrides", id);
       } else {
-        await updateFirestoreDoc("tierOverrides", id, { customerId, storeId, tier });
+        await saveDoc("tierOverrides", id, { customerId, storeId, tier });
       }
     },
     []
@@ -225,7 +224,7 @@ export function useCustomerActions(core: StoreCore) {
         const chunk = targets.slice(i, i + 450);
         const batch = writeBatch(db);
         for (const cid of chunk) {
-          const id = generateId();
+          const id = newId();
           batch.set(doc(db, "coupons", id), {
             id,
             customerId: cid,

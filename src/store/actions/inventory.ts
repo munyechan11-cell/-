@@ -1,8 +1,6 @@
+import { increment, newId, removeDoc, saveDoc } from "../../lib/db";
 import type { StoreCore } from "../core";
-import { increment } from "firebase/firestore";
 import { useCallback } from "react";
-import { updateFirestoreDoc } from "../../lib/firestore";
-import { generateId } from "../../lib/ids";
 import type { OrderItem, Ingredient, Expense } from "../../lib/types";
 
 /** 주문·테이블 정리 양쪽이 공유하는 재고 차감 시그니처. */
@@ -15,21 +13,21 @@ export function useInventoryActions(core: StoreCore) {
   // ============ INGREDIENTS ============
   const addIngredient = useCallback(
     async (storeId: string, data: Omit<Ingredient, "id" | "storeId" | "updatedAt">) => {
-      const id = generateId();
+      const id = newId();
       const doc: Ingredient = {
         id,
         storeId,
         ...data,
         updatedAt: new Date().toISOString(),
       };
-      await updateFirestoreDoc("ingredients", id, doc);
+      await saveDoc("ingredients", id, doc);
     },
     []
   );
 
   const updateIngredient = useCallback(
     async (id: string, data: Partial<Ingredient>) => {
-      await updateFirestoreDoc("ingredients", id, {
+      await saveDoc("ingredients", id, {
         ...data,
         updatedAt: new Date().toISOString(),
       });
@@ -38,19 +36,19 @@ export function useInventoryActions(core: StoreCore) {
   );
 
   const deleteIngredient = useCallback(async (id: string) => {
-    await updateFirestoreDoc("ingredients", id, undefined, true);
+    await removeDoc("ingredients", id);
   }, []);
 
   const addExpense = useCallback(
     async (storeId: string, data: Omit<Expense, "id" | "storeId" | "createdAt">) => {
-      const id = generateId();
+      const id = newId();
       const docData: Expense = { id, storeId, createdAt: new Date().toISOString(), ...data };
-      await updateFirestoreDoc("expenses", id, docData);
+      await saveDoc("expenses", id, docData);
     },
     []
   );
   const deleteExpense = useCallback(async (id: string) => {
-    await updateFirestoreDoc("expenses", id, undefined, true);
+    await removeDoc("expenses", id);
   }, []);
 
 
@@ -91,7 +89,7 @@ export function useInventoryActions(core: StoreCore) {
       for (const [ingId, delta] of deltaMap) {
         if (delta === 0) continue;
         updates.push(
-          updateFirestoreDoc("ingredients", ingId, {
+          saveDoc("ingredients", ingId, {
             stock: increment(delta),
             updatedAt: new Date().toISOString(),
           } as any)

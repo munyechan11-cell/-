@@ -1,8 +1,7 @@
-export function generateId(): string {
-  const t = Date.now().toString(36);
-  const r = Math.random().toString(36).slice(2, 8);
-  return `${t}-${r}`;
-}
+// 문서 id 생성기는 lib/db.ts 로 옮겼다.
+// Postgres 가 uuid 를 요구하므로 앱도 uuid 를 만든다 (예전에는 자체 형식이었다).
+// 기존 import 경로를 깨지 않으려고 여기서 재수출한다.
+export { newId } from "./db";
 
 export function formatPhoneNumber(raw: string): string {
   const digits = raw.replace(/\D/g, "").slice(0, 11);

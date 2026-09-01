@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { collection, doc, getDoc, onSnapshot, query, where } from "firebase/firestore";
 import { db, isFirebaseConfigured, ensureAnonymousAuth } from "../lib/firebase";
-import { flushOfflineQueue, updateFirestoreDoc } from "../lib/firestore";
+import { flushOfflineQueue, saveDoc } from "../lib/db";
 import { LS_USER, LS_MASTER, LS_OFFLINE_STATE } from "./constants";
 import type { StoreCore } from "./core";
 import type { User, Visit, Coupon, TableDoc, Communication, Section, TierOverride, Menu, Order, Reservation, Photo, Shift, Ingredient, Expense, MarketingDraft } from "../lib/types";
@@ -28,7 +28,7 @@ export function useStoreSubscriptions(core: StoreCore) {
   useEffect(() => {
     const cu = currentUserRef.current;
     if (cu?.role === "owner" && cu.lang !== lang) {
-      updateFirestoreDoc("users", cu.id, { lang }).catch(() => {});
+      saveDoc("users", cu.id, { lang }).catch(() => {});
     }
   }, [lang, currentUser]);
 

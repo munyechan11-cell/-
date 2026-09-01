@@ -1,10 +1,9 @@
+import { newId, saveDoc } from "../../lib/db";
 import type { StoreCore } from "../core";
 import type { AdjustStock } from "./inventory";
 import { useCallback } from "react";
 import { doc, writeBatch } from "firebase/firestore";
 import { db } from "../../lib/firebase";
-import { updateFirestoreDoc } from "../../lib/firestore";
-import { generateId } from "../../lib/ids";
 import { showToast } from "../../lib/toast";
 import { t, fmtKRW, getLanguage } from "../../lib/i18n";
 import { relayOrderToPos } from "../../lib/pos";
@@ -80,7 +79,7 @@ export function useOrderActions(core: StoreCore, deps: { adjustStockForOrder: Ad
 
       const totalAmount = items.reduce((s, it) => s + it.price * it.quantity, 0);
       const order: Order = {
-        id: generateId(),
+        id: newId(),
         storeId,
         tableNumber,
         customerId,
@@ -90,7 +89,7 @@ export function useOrderActions(core: StoreCore, deps: { adjustStockForOrder: Ad
         paymentStatus: "unpaid",
         createdAt: new Date().toISOString(),
       };
-      await updateFirestoreDoc("orders", order.id, order);
+      await saveDoc("orders", order.id, order);
 
       // 8단계 자동 전이 — 주문이 발생하면 테이블 상태 dining 으로 (occupied/setup/available 일 때만)
       try {
@@ -98,7 +97,7 @@ export function useOrderActions(core: StoreCore, deps: { adjustStockForOrder: Ad
         const cur = tablesRef.current.find((t) => t.id === tableId);
         const curStatus = cur?.status;
         if (curStatus === "occupied" || curStatus === "setup" || curStatus === "available" || !curStatus) {
-          await updateFirestoreDoc("tables", tableId, { status: "dining" });
+          await saveDoc("tables", tableId, { status: "dining" });
         }
       } catch (e: any) {
         console.warn("[placeOrder] status→dining skip", e?.message);
@@ -156,7 +155,7 @@ export function useOrderActions(core: StoreCore, deps: { adjustStockForOrder: Ad
         adjustStockForOrder(order.items, +1).catch((e) => console.warn("[cancel] stock restore failed", e?.message));
       }
     }
-    await updateFirestoreDoc("orders", id, { status });
+    await saveDoc("orders", id, { status });
   }, []);
 
   /**
@@ -182,7 +181,7 @@ export function useOrderActions(core: StoreCore, deps: { adjustStockForOrder: Ad
 
       if (!db) {
         for (const o of unpaid) {
-          await updateFirestoreDoc("orders", o.id, { paymentStatus: "requested" });
+          await saveDoc("orders", o.id, { paymentStatus: "requested" });
         }
       } else {
         const batch = writeBatch(db);
@@ -321,7 +320,7 @@ export function useOrderActions(core: StoreCore, deps: { adjustStockForOrder: Ad
           await batch.commit();
         } else {
           for (const o of targets) {
-            await updateFirestoreDoc("orders", o.id, { paymentStatus: "paid", paymentMethod: "cash" });
+            await saveDoc("orders", o.id, { paymentStatus: "paid", paymentMethod: "cash" });
           }
         }
 
@@ -449,7 +448,7 @@ export function useOrderActions(core: StoreCore, deps: { adjustStockForOrder: Ad
           o.paymentStatus !== "paid"
       );
       for (const o of targets) {
-        await updateFirestoreDoc("orders", o.id, { tableNumber: toTable });
+        await saveDoc("orders", o.id, { tableNumber: toTable });
       }
     },
     []
