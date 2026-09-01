@@ -45,6 +45,7 @@ const EXPECTED = [
   'post /api/ai/insight',
   'post /api/print-bridge/issue-code',
   'post /api/print-bridge/exchange',
+  'post /api/print-bridge/heartbeat',
   'post /api/push/send-to-owner',
   'post /api/reservation/availability',
   'post /api/reservation/create',
