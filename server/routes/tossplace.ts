@@ -1,7 +1,8 @@
 import { Router } from 'express';
-import admin from 'firebase-admin';
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { getFirebaseAdmin } from '../lib/firebase.js';
+
+import { getDb, type CompatDb } from '../lib/db.js';
+import { resolveCallerStore } from '../lib/storeAuth.js';
 
 const router = Router();
 
@@ -28,7 +29,7 @@ const TOSSPLACE_API_BASE = process.env.TOSSPLACE_API_BASE || 'https://open-api.t
 
 /** 토스플레이스 결제 1건을 orders 에 멱등 upsert. 문서 id = tossplace_<paymentId> 라 재수신·중복 안전. */
 async function upsertTossPlacePayment(
-  db: admin.firestore.Firestore,
+  db: CompatDb,
   storeId: string,
   p: { paymentId: string; amount: number; method?: 'card' | 'cash'; paidAt?: string }
 ): Promise<void> {
@@ -64,29 +65,30 @@ function extractTossPlacePayment(d: any): { paymentId?: string; amount: number; 
 // 비밀 아닌 표시 정보(tossPlace)는 users 문서에 저장한다.
 router.post('/api/store/tossplace-config', async (req, res) => {
   try {
-    const adminApp = getFirebaseAdmin();
-    if (!adminApp) return res.status(500).json({ error: 'admin-not-configured' });
-    const authHeader = req.headers.authorization || '';
-    const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
-    if (!idToken) return res.status(401).json({ error: 'unauthorized' });
-    try {
-      await adminApp.auth().verifyIdToken(idToken);
-    } catch {
-      return res.status(401).json({ error: 'invalid-token' });
-    }
+    const db = getDb();
+    if (!db) return res.status(503).json({ error: 'DB_NOT_CONFIGURED' });
+
+    // 매장 id 는 토큰에서 읽는다 — 본문에서 받으면 남의 매장 결제를 자기
+    // merchantId 로 끌어올 수 있다(merchant_map 이 그 방향으로 덮인다).
+    const caller = await resolveCallerStore(req.headers.authorization);
+    if (!caller) return res.status(401).json({ error: 'unauthorized' });
+    if (caller.role !== 'owner') return res.status(403).json({ error: 'owner only' });
+
     const { storeId, merchantId, accessKey, secretKey, webhookSecret } = req.body ?? {};
-    if (!storeId) return res.status(400).json({ error: 'storeId required' });
+    if (storeId && storeId !== caller.userId) {
+      return res.status(403).json({ error: 'not your store' });
+    }
     if (!merchantId) return res.status(400).json({ error: 'merchantId required' });
 
-    const db = adminApp.firestore();
+    const ownStoreId = caller.userId;
     const now = new Date().toISOString();
     const secretPatch: Record<string, any> = { tossPlaceMerchantId: String(merchantId), updatedAt: now };
     if (accessKey) secretPatch.tossPlaceAccessKey = accessKey;
     if (secretKey) secretPatch.tossPlaceSecretKey = secretKey;
     if (webhookSecret) secretPatch.tossPlaceWebhookSecret = webhookSecret;
-    await db.collection('store_secrets').doc(storeId).set(secretPatch, { merge: true });
-    await db.collection('merchant_map').doc(String(merchantId)).set({ storeId, updatedAt: now }, { merge: true });
-    await db.collection('users').doc(storeId).set({ tossPlace: { merchantId: String(merchantId), connectedAt: now } }, { merge: true });
+    await db.collection('store_secrets').doc(ownStoreId).set(secretPatch, { merge: true });
+    await db.collection('merchant_map').doc(String(merchantId)).set({ storeId: ownStoreId, updatedAt: now }, { merge: true });
+    await db.collection('users').doc(ownStoreId).set({ tossPlace: { merchantId: String(merchantId), connectedAt: now } }, { merge: true });
     res.json({ ok: true });
   } catch (e: any) {
     console.error('[tossplace-config] failed', e?.message);
@@ -97,9 +99,8 @@ router.post('/api/store/tossplace-config', async (req, res) => {
 // --- 토스플레이스 웹훅 수신 (인증 없음 — 서명으로 검증) ---
 router.post('/api/tossplace/webhook', async (req, res) => {
   try {
-    const adminApp = getFirebaseAdmin();
-    if (!adminApp) return res.status(500).json({ error: 'admin-not-configured' });
-    const db = adminApp.firestore();
+    const db = getDb();
+    if (!db) return res.status(503).json({ error: 'DB_NOT_CONFIGURED' });
 
     const body = req.body ?? {};
     // merchantId 위치가 payload 형태마다 다를 수 있어 여러 곳 탐색
@@ -173,13 +174,11 @@ router.post('/api/tossplace/webhook', async (req, res) => {
 // --- 토스플레이스 웹훅 진단 — 마지막 수신 웹훅(도착여부·형태·결과) 조회. "결제했는데 안 잡힘" 원인 파악용 ---
 router.post('/api/store/tossplace-diag', async (req, res) => {
   try {
-    const adminApp = getFirebaseAdmin();
-    if (!adminApp) return res.status(500).json({ error: 'admin-not-configured' });
-    const authHeader = req.headers.authorization || '';
-    const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
-    if (!idToken) return res.status(401).json({ error: 'unauthorized' });
-    try { await adminApp.auth().verifyIdToken(idToken); } catch { return res.status(401).json({ error: 'invalid-token' }); }
-    const snap = await adminApp.firestore().collection('tossplace_diag').doc('last').get();
+    const db = getDb();
+    if (!db) return res.status(503).json({ error: 'DB_NOT_CONFIGURED' });
+    const caller = await resolveCallerStore(req.headers.authorization);
+    if (!caller || caller.role !== 'owner') return res.status(401).json({ error: 'unauthorized' });
+    const snap = await db.collection('tossplace_diag').doc('last').get();
     res.json({ ok: true, last: snap.exists ? snap.data() : null });
   } catch (e: any) {
     console.error('[tossplace-diag] failed', e?.message);
@@ -190,20 +189,18 @@ router.post('/api/store/tossplace-diag', async (req, res) => {
 // --- 토스플레이스 매출 수동 동기화/보정 (인증 필요) — 웹훅 누락분 백필 ---
 router.post('/api/store/tossplace-sync', async (req, res) => {
   try {
-    const adminApp = getFirebaseAdmin();
-    if (!adminApp) return res.status(500).json({ error: 'admin-not-configured' });
-    const authHeader = req.headers.authorization || '';
-    const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
-    if (!idToken) return res.status(401).json({ error: 'unauthorized' });
-    try {
-      await adminApp.auth().verifyIdToken(idToken);
-    } catch {
-      return res.status(401).json({ error: 'invalid-token' });
-    }
-    const { storeId } = req.body ?? {};
-    if (!storeId) return res.status(400).json({ error: 'storeId required' });
+    const db = getDb();
+    if (!db) return res.status(503).json({ error: 'DB_NOT_CONFIGURED' });
 
-    const db = adminApp.firestore();
+    const caller = await resolveCallerStore(req.headers.authorization);
+    if (!caller) return res.status(401).json({ error: 'unauthorized' });
+    if (caller.role !== 'owner') return res.status(403).json({ error: 'owner only' });
+    const { storeId: bodyStoreId } = req.body ?? {};
+    if (bodyStoreId && bodyStoreId !== caller.userId) {
+      return res.status(403).json({ error: 'not your store' });
+    }
+    const storeId = caller.userId;
+
     const sec = (await db.collection('store_secrets').doc(storeId).get()).data() ?? {};
     // 키: 매장별 저장값 우선, 없으면 앱 단위 환경변수(플랫폼 모델). merchantId 는 매장 식별·API 경로용이라 항상 매장별.
     const accessKey = sec.tossPlaceAccessKey ?? process.env.TOSSPLACE_ACCESS_KEY;

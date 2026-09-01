@@ -46,8 +46,6 @@ const TABLES: Record<string, string> = {
 };
 const table = (name: string) => TABLES[name] ?? name;
 
-/** id 가 문자열 키인 테이블(문서 이름이 곧 키). 나머지는 uuid. */
-const TEXT_ID_TABLES = new Set(['app_state']);
 /** 기본키 컬럼이 id 가 아닌 테이블. */
 const PK: Record<string, string> = {
   store_secrets: 'storeId',
@@ -63,8 +61,14 @@ function toDoc(row: Record<string, any> | null, t: string): Record<string, any> 
   return { ...data, [pkOf(t)]: row[pkOf(t)] };
 }
 
-/** 서버 전용 3종은 data jsonb 만 있고 승격 컬럼이 없다. */
-const RAW_TABLES = new Set(['store_secrets', 'pairing_codes', 'merchant_map']);
+/**
+ * 서버 전용 테이블 — 조회용 승격 컬럼 없이 data jsonb 안을 직접 본다.
+ *
+ * 나머지 테이블처럼 save_doc 을 쓰지 않는 이유: save_doc 의 화이트리스트는
+ * 앱이 문서처럼 다루는 테이블만 담는다. 여기 것들은 클라이언트가 아예 닿으면
+ * 안 되는 자료(정산 키·페어링 코드)라 그 목록에 들어가지 않는다.
+ */
+const RAW_TABLES = new Set(['store_secrets', 'pairing_codes', 'merchant_map', 'tossplace_diag']);
 
 export interface CompatSnapshot {
   exists: boolean;
