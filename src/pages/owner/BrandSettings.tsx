@@ -7,8 +7,7 @@ import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
 import { useStore } from "../../store/store";
-import { auth } from "../../lib/firebase";
-import { api } from "../../lib/api";
+import { api, authHeaders } from "../../lib/api";
 import { showToast } from "../../lib/toast";
 import { getCurrentPosition } from "../../lib/geo";
 import { TIER_ORDER } from "../../lib/tier";
@@ -222,10 +221,9 @@ export default function BrandSettings() {
     // 시크릿 키 — 입력했을 때만 서버 보안 컬렉션(store_secrets)에 저장. 클라이언트엔 남기지 않음.
     if (tossSecret.trim()) {
       try {
-        const idToken = await auth?.currentUser?.getIdToken();
         const res = await fetch(api("/api/store/toss-secret"), {
           method: "POST",
-          headers: { "content-type": "application/json", authorization: `Bearer ${idToken ?? ""}` },
+          headers: await authHeaders({ "content-type": "application/json" }),
           body: JSON.stringify({ storeId, secretKey: tossSecret.trim() }),
         });
         if (res.ok) setTossSecret("");
@@ -262,10 +260,9 @@ export default function BrandSettings() {
     }
     setTpBusy(true);
     try {
-      const idToken = await auth?.currentUser?.getIdToken();
       const res = await fetch(api("/api/store/tossplace-config"), {
         method: "POST",
-        headers: { "content-type": "application/json", authorization: `Bearer ${idToken ?? ""}` },
+        headers: await authHeaders({ "content-type": "application/json" }),
         body: JSON.stringify({
           storeId,
           merchantId: tpMerchantId.trim(),
@@ -293,10 +290,9 @@ export default function BrandSettings() {
   const syncTossPlace = async () => {
     setTpBusy(true);
     try {
-      const idToken = await auth?.currentUser?.getIdToken();
       const res = await fetch(api("/api/store/tossplace-sync"), {
         method: "POST",
-        headers: { "content-type": "application/json", authorization: `Bearer ${idToken ?? ""}` },
+        headers: await authHeaders({ "content-type": "application/json" }),
         body: JSON.stringify({ storeId }),
       });
       const data = await res.json().catch(() => ({} as any));
@@ -323,10 +319,9 @@ export default function BrandSettings() {
   const checkTossWebhook = async () => {
     setTpBusy(true);
     try {
-      const idToken = await auth?.currentUser?.getIdToken();
       const res = await fetch(api("/api/store/tossplace-diag"), {
         method: "POST",
-        headers: { "content-type": "application/json", authorization: `Bearer ${idToken ?? ""}` },
+        headers: await authHeaders({ "content-type": "application/json" }),
         body: JSON.stringify({}),
       });
       const data = await res.json().catch(() => ({} as any));

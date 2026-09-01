@@ -1,6 +1,7 @@
 import { Router } from 'express';
-import admin from 'firebase-admin';
-import { getFirebaseAdmin } from '../lib/firebase.js';
+
+import { getDb } from '../lib/db.js';
+import { resolveCallerStore } from '../lib/storeAuth.js';
 
 const router = Router();
 
@@ -13,9 +14,9 @@ router.post('/api/payment/confirm', async (req, res) => {
   let secretKey = process.env.TOSS_SECRET_KEY;
   if (storeId) {
     try {
-      const admin = getFirebaseAdmin();
-      if (admin) {
-        const snap = await admin.firestore().collection('store_secrets').doc(storeId).get();
+      const db = getDb();
+      if (db) {
+        const snap = await db.collection('store_secrets').doc(storeId).get();
         const k = snap.data()?.tossSecretKey;
         if (typeof k === 'string' && k) secretKey = k;
       }
@@ -55,29 +56,32 @@ router.post('/api/payment/confirm', async (req, res) => {
 });
 
 // --- 매장 토스 시크릿 키 저장 (멀티테넌트) ---
-// store_secrets 는 firestore.rules 에서 클라이언트 완전 차단 — 서버 Admin SDK 만 접근한다.
+// store_secrets 에는 RLS 정책이 하나도 없다 = 클라이언트 접근 0. service_role 만 닿는다.
 // 사장님이 브랜드설정에서 시크릿 키를 입력하면 이 엔드포인트로 안전하게 저장된다.
+//
+// 예전에는 "로그인했는가"만 확인하고 storeId 는 본문에서 받아 그대로 썼다.
+// 즉 로그인한 아무나 남의 매장 정산 계좌를 자기 키로 바꿔칠 수 있었다.
+// 이제 매장 id 를 토큰에서 읽으므로 본문 값은 확인용으로만 쓴다.
 router.post('/api/store/toss-secret', async (req, res) => {
   try {
-    const admin = getFirebaseAdmin();
-    if (!admin) return res.status(500).json({ error: 'admin-not-configured' });
-    const authHeader = req.headers.authorization || '';
-    const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
-    if (!idToken) return res.status(401).json({ error: 'unauthorized' });
-    try {
-      await admin.auth().verifyIdToken(idToken);
-    } catch {
-      return res.status(401).json({ error: 'invalid-token' });
-    }
+    const db = getDb();
+    if (!db) return res.status(503).json({ error: 'DB_NOT_CONFIGURED' });
+
+    const caller = await resolveCallerStore(req.headers.authorization);
+    if (!caller) return res.status(401).json({ error: 'unauthorized' });
+    // 정산 키는 사장 본인만 — 직원은 매장에 속하지만 이건 다른 권한이다.
+    if (caller.role !== 'owner') return res.status(403).json({ error: 'owner only' });
+
     const { storeId, secretKey } = req.body ?? {};
-    if (!storeId) return res.status(400).json({ error: 'storeId required' });
+    if (storeId && storeId !== caller.userId) {
+      return res.status(403).json({ error: 'not your store' });
+    }
     if (!secretKey || typeof secretKey !== 'string') {
       return res.status(400).json({ error: 'secretKey required' });
     }
-    await admin
-      .firestore()
+    await db
       .collection('store_secrets')
-      .doc(storeId)
+      .doc(caller.userId)
       .set({ tossSecretKey: secretKey, updatedAt: new Date().toISOString() }, { merge: true });
     res.json({ ok: true });
   } catch (e: any) {
