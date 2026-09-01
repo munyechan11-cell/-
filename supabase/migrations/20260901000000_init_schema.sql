@@ -1,55 +1,60 @@
 -- ============================================================
--- 결(Gyeol) — Firestore → Postgres 초기 스키마
+-- 결(Gyeol) — Postgres 스키마 (Firestore 이전)
 --
--- 설계 원칙 셋:
+-- 핵심 설계: **쓰기 가능한 컬럼은 `data jsonb` 하나뿐이다.**
 --
--- 1) **문서 모양을 그대로 옮긴다.** 앱은 지금 Firestore 문서를 통째로 다루고
---    (`{ id, ...data }`) 부분 패치로 저장한다(merge). 이 모양을 유지해야 화면 수백 개를
---    건드리지 않고 옮길 수 있다. 그래서 각 테이블은 승격 컬럼 + `data jsonb` 구조다.
---    승격 기준은 "앱이 실제로 필터·정렬·권한 판정에 쓰는가"이며, 실측으로 골랐다.
---    (나머지를 컬럼으로 펴는 정규화는 이전이 끝난 뒤 별도로 한다 —
---     이전과 재설계를 같이 하면 무엇이 깨졌는지 구분할 수 없다.)
+-- 앱은 Firestore 문서를 통째로 다루고(`{ id, ...data }`) 부분 패치로 저장한다(merge).
+-- 그 모양을 유지해야 화면 수백 개를 안 건드리고 옮길 수 있다. 그런데 필터·정렬·권한
+-- 판정에 쓰이는 필드는 진짜 컬럼이어야 인덱스와 RLS 가 걸린다.
 --
--- 2) **컬럼명은 앱과 같은 camelCase 를 따옴표로 쓴다.** snake_case 로 바꾸면 데이터
---    계층마다 이름을 번역해야 하고, 그 번역이 곧 버그가 된다. SQL 이 조금 지저분해지는
---    대신 앱 쪽 매핑이 0이 된다.
+-- 둘 다 얻는 방법이 생성 컬럼(generated always as ... stored)이다.
+-- `"storeId"` 같은 컬럼은 `data` 에서 자동으로 계산되므로:
+--   · 인덱스·외래키·RLS 정책이 평범한 컬럼처럼 걸린다
+--   · 쓰기 경로는 `data` 하나라 저장 로직이 테이블마다 갈라지지 않는다
+--     (save_doc() 이 모든 테이블에 그대로 통한다 — 20_doc_api.sql 참고)
+--   · 앱이 보내는 문서에서 storeId 만 따로 빼내는 변환이 필요 없다
 --
--- 3) **권한은 JWT claim 이 아니라 users 테이블에서 읽는다.** Firebase Custom Token 방식은
---    등급을 바꿀 때마다 토큰을 강제 갱신해야 하고, 갱신 전까지 옛 권한이 살아 있다.
---    security definer 함수로 users 를 직접 보면 그 문제가 사라진다.
+-- 컬럼명은 앱과 같은 camelCase 를 따옴표로 쓴다. snake_case 로 바꾸면 데이터 계층마다
+-- 이름을 번역해야 하고, 그 번역이 곧 버그가 된다.
+--
+-- 승격(=생성 컬럼으로 노출) 대상은 "앱이 실제로 필터·정렬·권한 판정에 쓰는가"로 골랐다.
+-- 나머지를 컬럼으로 펴는 정규화는 이전이 끝난 뒤 별도로 한다 — 이전과 재설계를
+-- 같이 하면 무엇이 깨졌는지 구분할 수 없다.
 -- ============================================================
 
 -- ------------------------------------------------------------
 -- users — 계정. id 는 auth.users 의 uuid 를 그대로 쓴다.
---   Firestore 시절엔 앱이 만든 자체 ID 라 보안 규칙이 요청자를 식별하지 못했다.
+--   Firestore 시절엔 앱이 만든 자체 ID 라 보안 규칙이 요청자를 식별하지 못했고,
 --   그게 "익명 로그인만 하면 전 매장 접근" 구멍의 근본 원인이었다. 여기서 끊는다.
+--
+--   role 만 예외적으로 실제 컬럼이다. 계정의 종류는 본인이 바꿀 수 없어야 하는데,
+--   생성 컬럼이면 data 를 고쳐 스스로 승격할 수 있게 된다.
 -- ------------------------------------------------------------
 create table if not exists public.users (
   id                uuid primary key references auth.users(id) on delete cascade,
   role              text not null check (role in ('customer','owner','staff')),
-  name              text not null default '',
-  phone             text not null default '',
-  "employerStoreId" uuid references public.users(id) on delete set null,
-  "employerStatus"  text check ("employerStatus" in ('pending','approved','rejected')),
-  "staffLevel"      int  check ("staffLevel" between 1 and 4),
-  status            text not null default 'active',
+  "employerStoreId" uuid    generated always as ((data->>'employerStoreId')::uuid) stored,
+  "employerStatus"  text    generated always as (data->>'employerStatus') stored,
+  "staffLevel"      int     generated always as ((data->>'staffLevel')::int) stored,
+  phone             text    generated always as (data->>'phone') stored,
   data              jsonb not null default '{}'::jsonb,
   "createdAt"       timestamptz not null default now(),
   "updatedAt"       timestamptz not null default now()
 );
 comment on table public.users is '계정 — 손님·사장님·직원. 사장님의 id 가 곧 그 매장의 storeId.';
-comment on column public.users.data is '승격되지 않은 나머지 필드 전부(camelCase 그대로).';
+comment on column public.users.role is '생성 컬럼이 아니다 — data 를 고쳐 스스로 승격하는 것을 막기 위해 실제 컬럼으로 둔다.';
 
-create index if not exists users_phone_idx on public.users (phone) where phone <> '';
+create index if not exists users_phone_idx on public.users (phone);
 create index if not exists users_employer_idx on public.users ("employerStoreId");
 create index if not exists users_role_idx on public.users (role);
 
 -- 방문 기록
 create table if not exists public.visits (
-  id                uuid primary key default gen_random_uuid(),
-  "storeId"         uuid not null references public.users(id) on delete cascade,
-  "customerId"      uuid,
-  date              text,
+  id                uuid primary key,
+  "storeId"         uuid generated always as ((data->>'storeId')::uuid) stored
+                      references public.users(id) on delete cascade,
+  "customerId" uuid generated always as ((data->>'customerId')::uuid) stored,
+  date text generated always as ((data->>'date')) stored,
   data              jsonb not null default '{}'::jsonb,
   "createdAt"       timestamptz not null default now(),
   "updatedAt"       timestamptz not null default now()
@@ -61,10 +66,11 @@ create index if not exists visits_date_idx on public.visits ("storeId", date);
 
 -- 쿠폰
 create table if not exists public.coupons (
-  id                uuid primary key default gen_random_uuid(),
-  "storeId"         uuid not null references public.users(id) on delete cascade,
-  "customerId"      uuid,
-  status            text,
+  id                uuid primary key,
+  "storeId"         uuid generated always as ((data->>'storeId')::uuid) stored
+                      references public.users(id) on delete cascade,
+  "customerId" uuid generated always as ((data->>'customerId')::uuid) stored,
+  status text generated always as ((data->>'status')) stored,
   data              jsonb not null default '{}'::jsonb,
   "createdAt"       timestamptz not null default now(),
   "updatedAt"       timestamptz not null default now()
@@ -76,9 +82,10 @@ create index if not exists coupons_status_idx on public.coupons ("storeId", stat
 
 -- 매장 테이블 배치
 create table if not exists public.tables (
-  id                uuid primary key default gen_random_uuid(),
-  "storeId"         uuid not null references public.users(id) on delete cascade,
-  number            int,
+  id                uuid primary key,
+  "storeId"         uuid generated always as ((data->>'storeId')::uuid) stored
+                      references public.users(id) on delete cascade,
+  number int generated always as ((data->>'number')::int) stored,
   data              jsonb not null default '{}'::jsonb,
   "createdAt"       timestamptz not null default now(),
   "updatedAt"       timestamptz not null default now()
@@ -89,8 +96,9 @@ create index if not exists tables_number_idx on public.tables ("storeId", number
 
 -- 테이블 구역
 create table if not exists public.sections (
-  id                uuid primary key default gen_random_uuid(),
-  "storeId"         uuid not null references public.users(id) on delete cascade,
+  id                uuid primary key,
+  "storeId"         uuid generated always as ((data->>'storeId')::uuid) stored
+                      references public.users(id) on delete cascade,
   data              jsonb not null default '{}'::jsonb,
   "createdAt"       timestamptz not null default now(),
   "updatedAt"       timestamptz not null default now()
@@ -100,9 +108,10 @@ create index if not exists sections_store_idx on public.sections ("storeId");
 
 -- 고객 커뮤니케이션 이력
 create table if not exists public.communications (
-  id                uuid primary key default gen_random_uuid(),
-  "storeId"         uuid not null references public.users(id) on delete cascade,
-  "customerId"      uuid,
+  id                uuid primary key,
+  "storeId"         uuid generated always as ((data->>'storeId')::uuid) stored
+                      references public.users(id) on delete cascade,
+  "customerId" uuid generated always as ((data->>'customerId')::uuid) stored,
   data              jsonb not null default '{}'::jsonb,
   "createdAt"       timestamptz not null default now(),
   "updatedAt"       timestamptz not null default now()
@@ -113,9 +122,10 @@ create index if not exists communications_customerid_idx on public.communication
 
 -- 등급 수동 지정
 create table if not exists public.tier_overrides (
-  id                uuid primary key default gen_random_uuid(),
-  "storeId"         uuid not null references public.users(id) on delete cascade,
-  "customerId"      uuid,
+  id                uuid primary key,
+  "storeId"         uuid generated always as ((data->>'storeId')::uuid) stored
+                      references public.users(id) on delete cascade,
+  "customerId" uuid generated always as ((data->>'customerId')::uuid) stored,
   data              jsonb not null default '{}'::jsonb,
   "createdAt"       timestamptz not null default now(),
   "updatedAt"       timestamptz not null default now()
@@ -126,8 +136,9 @@ create index if not exists tier_overrides_customerid_idx on public.tier_override
 
 -- 메뉴
 create table if not exists public.menus (
-  id                uuid primary key default gen_random_uuid(),
-  "storeId"         uuid not null references public.users(id) on delete cascade,
+  id                uuid primary key,
+  "storeId"         uuid generated always as ((data->>'storeId')::uuid) stored
+                      references public.users(id) on delete cascade,
   data              jsonb not null default '{}'::jsonb,
   "createdAt"       timestamptz not null default now(),
   "updatedAt"       timestamptz not null default now()
@@ -137,11 +148,12 @@ create index if not exists menus_store_idx on public.menus ("storeId");
 
 -- 주문
 create table if not exists public.orders (
-  id                uuid primary key default gen_random_uuid(),
-  "storeId"         uuid not null references public.users(id) on delete cascade,
-  "customerId"      uuid,
-  status            text,
-  "tableNumber"     int,
+  id                uuid primary key,
+  "storeId"         uuid generated always as ((data->>'storeId')::uuid) stored
+                      references public.users(id) on delete cascade,
+  "customerId" uuid generated always as ((data->>'customerId')::uuid) stored,
+  status text generated always as ((data->>'status')) stored,
+  "tableNumber" int generated always as ((data->>'tableNumber')::int) stored,
   data              jsonb not null default '{}'::jsonb,
   "createdAt"       timestamptz not null default now(),
   "updatedAt"       timestamptz not null default now()
@@ -153,10 +165,11 @@ create index if not exists orders_status_idx on public.orders ("storeId", status
 
 -- 예약
 create table if not exists public.reservations (
-  id                uuid primary key default gen_random_uuid(),
-  "storeId"         uuid not null references public.users(id) on delete cascade,
-  date              text,
-  status            text,
+  id                uuid primary key,
+  "storeId"         uuid generated always as ((data->>'storeId')::uuid) stored
+                      references public.users(id) on delete cascade,
+  date text generated always as ((data->>'date')) stored,
+  status text generated always as ((data->>'status')) stored,
   data              jsonb not null default '{}'::jsonb,
   "createdAt"       timestamptz not null default now(),
   "updatedAt"       timestamptz not null default now()
@@ -168,9 +181,10 @@ create index if not exists reservations_status_idx on public.reservations ("stor
 
 -- 사진(메뉴·리뷰)
 create table if not exists public.photos (
-  id                uuid primary key default gen_random_uuid(),
-  "storeId"         uuid not null references public.users(id) on delete cascade,
-  type              text,
+  id                uuid primary key,
+  "storeId"         uuid generated always as ((data->>'storeId')::uuid) stored
+                      references public.users(id) on delete cascade,
+  type text generated always as ((data->>'type')) stored,
   data              jsonb not null default '{}'::jsonb,
   "createdAt"       timestamptz not null default now(),
   "updatedAt"       timestamptz not null default now()
@@ -181,9 +195,10 @@ create index if not exists photos_type_idx on public.photos ("storeId", type);
 
 -- 출퇴근 기록
 create table if not exists public.shifts (
-  id                uuid primary key default gen_random_uuid(),
-  "storeId"         uuid not null references public.users(id) on delete cascade,
-  "staffId"         uuid,
+  id                uuid primary key,
+  "storeId"         uuid generated always as ((data->>'storeId')::uuid) stored
+                      references public.users(id) on delete cascade,
+  "staffId" uuid generated always as ((data->>'staffId')::uuid) stored,
   data              jsonb not null default '{}'::jsonb,
   "createdAt"       timestamptz not null default now(),
   "updatedAt"       timestamptz not null default now()
@@ -194,8 +209,9 @@ create index if not exists shifts_staffid_idx on public.shifts ("storeId", "staf
 
 -- 재고
 create table if not exists public.ingredients (
-  id                uuid primary key default gen_random_uuid(),
-  "storeId"         uuid not null references public.users(id) on delete cascade,
+  id                uuid primary key,
+  "storeId"         uuid generated always as ((data->>'storeId')::uuid) stored
+                      references public.users(id) on delete cascade,
   data              jsonb not null default '{}'::jsonb,
   "createdAt"       timestamptz not null default now(),
   "updatedAt"       timestamptz not null default now()
@@ -205,9 +221,10 @@ create index if not exists ingredients_store_idx on public.ingredients ("storeId
 
 -- 지출
 create table if not exists public.expenses (
-  id                uuid primary key default gen_random_uuid(),
-  "storeId"         uuid not null references public.users(id) on delete cascade,
-  date              text,
+  id                uuid primary key,
+  "storeId"         uuid generated always as ((data->>'storeId')::uuid) stored
+                      references public.users(id) on delete cascade,
+  date text generated always as ((data->>'date')) stored,
   data              jsonb not null default '{}'::jsonb,
   "createdAt"       timestamptz not null default now(),
   "updatedAt"       timestamptz not null default now()
@@ -218,9 +235,10 @@ create index if not exists expenses_date_idx on public.expenses ("storeId", date
 
 -- 마케팅 초안
 create table if not exists public.marketing_drafts (
-  id                uuid primary key default gen_random_uuid(),
-  "storeId"         uuid not null references public.users(id) on delete cascade,
-  status            text,
+  id                uuid primary key,
+  "storeId"         uuid generated always as ((data->>'storeId')::uuid) stored
+                      references public.users(id) on delete cascade,
+  status text generated always as ((data->>'status')) stored,
   data              jsonb not null default '{}'::jsonb,
   "createdAt"       timestamptz not null default now(),
   "updatedAt"       timestamptz not null default now()
@@ -231,9 +249,10 @@ create index if not exists marketing_drafts_status_idx on public.marketing_draft
 
 -- 영수증 인쇄 큐
 create table if not exists public.print_jobs (
-  id                uuid primary key default gen_random_uuid(),
-  "storeId"         uuid not null references public.users(id) on delete cascade,
-  status            text,
+  id                uuid primary key,
+  "storeId"         uuid generated always as ((data->>'storeId')::uuid) stored
+                      references public.users(id) on delete cascade,
+  status text generated always as ((data->>'status')) stored,
   data              jsonb not null default '{}'::jsonb,
   "createdAt"       timestamptz not null default now(),
   "updatedAt"       timestamptz not null default now()
@@ -245,15 +264,14 @@ create index if not exists print_jobs_status_idx on public.print_jobs ("storeId"
 -- ------------------------------------------------------------
 -- 매장에 속하지 않는 것들
 -- ------------------------------------------------------------
-
--- 앱 전역 설정(마스터 비밀번호 등)
 create table if not exists public.app_state (
   id          text primary key,
   data        jsonb not null default '{}'::jsonb,
   "updatedAt" timestamptz not null default now()
 );
+comment on table public.app_state is '앱 전역 설정(마스터 비밀번호 등).';
 
--- 서버 전용 3종 — 클라이언트는 절대 접근하지 않는다(RLS 로 전면 차단).
+-- 서버 전용 3종 — RLS 는 켜되 정책을 하나도 만들지 않는다(= 클라이언트 접근 0).
 create table if not exists public.store_secrets (
   "storeId"   uuid primary key references public.users(id) on delete cascade,
   data        jsonb not null default '{}'::jsonb,
@@ -287,6 +305,7 @@ begin
   return new;
 end;
 $$;
+revoke all on function public.touch_updated_at() from public, anon, authenticated;
 
 drop trigger if exists users_touch on public.users;
 create trigger users_touch before update on public.users

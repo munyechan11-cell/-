@@ -267,7 +267,9 @@ create policy "users_owner_delete" on public.users for delete to authenticated
 -- 정책의 with check 안에서 users 를 다시 조회하면 users 자신의 RLS 를 재진입하게 되고,
 -- 그건 재귀·미묘한 스냅샷 문제를 부른다. 트리거는 OLD/NEW 를 직접 비교할 수 있어
 -- 의도가 그대로 드러나고 재진입도 없다.
--- 가입 직후 본인 프로필 행 생성 (auth.users 가 먼저 생기고 public.users 가 따라온다)
+-- 가입 직후 본인 프로필 행 생성 (auth.users 가 먼저 생기고 public.users 가 따라온다).
+-- role 은 여기서 본인이 정한다 — 가입 화면에서 손님/사장님/직원을 고르는 구조라 어쩔 수 없다.
+-- 다만 한 번 정해진 뒤에는 위 트리거가 변경을 막는다.
 create policy "users_self_insert" on public.users for insert to authenticated
   with check (id = auth.uid());
 create policy "users_self_update" on public.users for update to authenticated
@@ -282,11 +284,15 @@ begin
   if auth.uid() is null or auth.uid() <> new.id then
     return new;
   end if;
-  if new.role            is distinct from old.role
-     or new."staffLevel"      is distinct from old."staffLevel"
-     or new."employerStatus"  is distinct from old."employerStatus"
-     or new."employerStoreId" is distinct from old."employerStoreId"
-     or new.data -> 'extraPerms' is distinct from old.data -> 'extraPerms'
+
+  -- ⚠️ 생성 컬럼(new."staffLevel" 등)을 보면 안 된다. 생성 컬럼은 BEFORE 트리거가
+  --    끝난 **뒤에** 계산되므로 여기서는 아직 옛 값이거나 비어 있다.
+  --    원본인 data 를 직접 비교해야 실제로 막힌다.
+  if new.role is distinct from old.role
+     or new.data ->> 'staffLevel'      is distinct from old.data ->> 'staffLevel'
+     or new.data ->> 'employerStatus'  is distinct from old.data ->> 'employerStatus'
+     or new.data ->> 'employerStoreId' is distinct from old.data ->> 'employerStoreId'
+     or new.data ->  'extraPerms'      is distinct from old.data ->  'extraPerms'
   then
     raise exception '권한 필드는 본인이 바꿀 수 없습니다 (role/staffLevel/employer*/extraPerms)'
       using errcode = '42501';
@@ -294,10 +300,7 @@ begin
   return new;
 end;
 $$;
-
--- 트리거로만 쓰는 함수다. REST 로 직접 부를 수 있으면 안 된다.
 revoke all on function public.guard_user_privileges() from public, anon, authenticated;
-revoke all on function public.touch_updated_at() from public, anon, authenticated;
 
 drop trigger if exists users_guard_privileges on public.users;
 create trigger users_guard_privileges before update on public.users
