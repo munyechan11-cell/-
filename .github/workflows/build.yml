@@ -37,6 +37,31 @@ jobs:
     - name: Build the project
       run: npm run build
 
+  # Firestore 보안 규칙. 에뮬레이터(Java)가 필요해서 별도 잡으로 돌린다.
+  # 규칙은 "읽어 보면 맞아 보이는데 실제로는 안 막는" 일이 흔해서, 사람 눈이 아니라
+  # 실제 요청으로 검증해야 한다.
+  rules:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 22.x
+        cache: 'npm'
+
+    # Firestore 에뮬레이터는 JVM 위에서 돈다.
+    - uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: '21'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Firestore rules tests
+      run: npm run test:rules
+
   # 공개 매장 사이트(Next.js). 아직 운영 트래픽은 안 받지만 CI 는 돌린다 —
   # 이 앱은 SPA 의 i18n 사전(src/lib/i18n-dicts)과 서버의 SitePayload 타입을 그대로
   # 참조하므로, 본체를 고치다 여기를 깨뜨려도 모르고 지나갈 수 있다.
