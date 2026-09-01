@@ -199,6 +199,11 @@ export interface StoreState {
 }
 
 export interface LoginInput {
+  /**
+   * OTP 검증으로 만들어진 auth 사용자 id.
+   * 없으면 login() 이 거부한다 — 이게 없으면 예전의 무비밀번호 로그인이 되살아난다.
+   */
+  authUserId?: string;
   phone: string;
   name: string;
   role: Role;

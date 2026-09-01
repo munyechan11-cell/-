@@ -1926,6 +1926,8 @@ const dict: Record<string, string> = {
   "fs.notFound": "대상 데이터를 찾을 수 없어요.",
   "fs.saveError": "저장 중 오류가 발생했어요.",
   "db.unavailable": "데이터베이스에 연결할 수 없어 로그인할 수 없습니다. 계정 문제가 아니니 잠시 후 다시 시도해 주세요.",
+  "auth.otpRequired": "문자 인증을 먼저 완료해 주세요.",
+  "auth.noAccount": "일치하는 계정이 없습니다. 신규 가입으로 등록해 주세요.",
   "db.bannerTitle": "데이터베이스에 연결하지 못했습니다",
   "db.bannerDesc": "회원가입·로그인과 매장 데이터 저장이 동작하지 않습니다. 관리자에게 알려 주세요.",
   "phoneVerify.title": "전화번호 인증",

@@ -1,4 +1,6 @@
-import { newId, saveDoc } from "../../lib/db";
+import { arrayUnion, newId, saveDoc } from "../../lib/db";
+import { currentAuthUserId, signOut as supabaseSignOut } from "../../lib/phoneVerify";
+import { fetchDoc } from "../../lib/realtime";
 import type { StoreCore } from "../core";
 import type { LoginInput } from "../types";
 import { LS_MASTER, makeDefaultTables } from "../constants";
@@ -22,51 +24,46 @@ export function useAuthActions(core: StoreCore) {
 
 
   // ============ LOGIN ============
+  /**
+   * 로그인 마무리 — **OTP 검증이 끝난 뒤** 호출한다.
+   *
+   * 예전에는 이 함수가 users 목록을 뒤져 전화번호가 맞는 계정을 찾아 로그인시켰다.
+   * 비밀번호가 없었으므로 남의 번호만 알면 그 사람으로 들어갈 수 있었고, 목록을
+   * 받으려면 전 계정을 읽어야 해서 보안 규칙도 열어둘 수밖에 없었다.
+   *
+   * 이제 순서가 반대다. 먼저 문자로 본인임을 증명하고(confirmCode), 그때 만들어진
+   * auth 사용자 id 를 여기로 가져온다. 이 함수는 그 id 로 프로필 행을 찾거나 만든다.
+   * 목록을 뒤지지 않으므로 남의 계정은 애초에 보이지 않는다.
+   */
   const login = useCallback(
     async (input: LoginInput): Promise<User> => {
-      // DB 가 끊긴 상태에서는 users 가 비어 있어 아래 매칭이 100% 실패한다.
-      // 그대로 흘려보내면 두 가지 사고가 난다:
-      //   1) signInOnly → 멀쩡한 계정이 "일치하는 계정이 없습니다"로 거부되어,
-      //      원인이 DB 장애인데 사용자·운영자 모두 계정 문제로 오인한다.
-      //   2) signInOnly 아님 → 기존 회원에게 새 id 가 발급되고, 그 쓰기마저 실패한다.
-      // → 매칭 전에 끊어서 원인을 그대로 말해 준다.
       if (dbStatus === "error") {
         throw new Error(t("db.unavailable"));
+      }
+
+      // 신원은 호출자가 알려주는 값이 아니라 **세션**에서 읽는다.
+      // 화면마다 login() 호출부가 여러 개라 하나만 빠뜨려도 예전의 무비밀번호
+      // 로그인이 되살아난다. 세션을 원천으로 삼으면 그 실수가 불가능해진다.
+      const authUserId = input.authUserId ?? (await currentAuthUserId());
+      if (!authUserId) {
+        throw new Error(t("auth.otpRequired"));
       }
 
       const phone = normalizePhone(input.phone);
       const { role, name, restaurantName, storeId, socialId, socialProvider } = input;
 
-      // 1) match by socialId (고객은 전역 계정이므로 storeId 매칭 없이)
-      let match: User | undefined;
-      if (socialId) {
-        match = users.find(
-          (u) =>
-            u.role === role &&
-            (u.socialIds?.includes(socialId) ||
-              u.googleId === socialId ||
-              u.kakaoId === socialId)
-        );
-      }
-      // 2) match by phone
-      if (!match && phone) {
-        match = users.find(
-          (u) => u.role === role && normalizePhone(u.phone || "") === phone
-        );
-      }
+      // 이미 프로필이 있는가 — 목록이 아니라 내 id 로 직접 조회한다.
+      const existing = await fetchDoc<User>("users", authUserId);
 
-      if (match) {
-        // recover + merge social
+      if (existing) {
         const patch: Partial<User> = {
           status: "active",
-          name: match.name || name,
+          name: existing.name || name,
         };
+        if (phone && !existing.phone) patch.phone = phone;
         if (socialId && socialProvider) {
-          const socialIds = Array.from(new Set([...(match.socialIds ?? []), socialId]));
-          patch.socialIds = socialIds;
-          patch.linkedProviders = Array.from(
-            new Set([...(match.linkedProviders ?? []), socialProvider])
-          );
+          patch.socialIds = arrayUnion(socialId) as unknown as string[];
+          patch.linkedProviders = arrayUnion(socialProvider) as unknown as ("google" | "kakao")[];
           if (socialProvider === "google") patch.googleId = socialId;
           if (socialProvider === "kakao") patch.kakaoId = socialId;
           if (input.avatarUrl) patch.avatarUrl = input.avatarUrl;
@@ -79,36 +76,37 @@ export function useAuthActions(core: StoreCore) {
         if (input.gender) patch.gender = input.gender;
         if (input.isPohangResident !== undefined) patch.isPohangResident = input.isPohangResident;
         if (input.privacyAgreedAt) patch.privacyAgreedAt = input.privacyAgreedAt;
-        if (input.phoneVerifiedAt) patch.phoneVerifiedAt = input.phoneVerifiedAt;
+        // OTP 를 통과했다는 사실 자체가 전화번호 인증이다.
+        patch.phoneVerifiedAt = input.phoneVerifiedAt ?? new Date().toISOString();
 
-        await saveDoc("users", match.id, patch);
-        const final = { ...match, ...patch } as User;
+        await saveDoc("users", authUserId, patch);
+        const final = { ...existing, ...patch, phoneVerifiedAt: patch.phoneVerifiedAt } as User;
         setCurrentUser(final);
         showToast(t("store.welcome", undefined, { name: final.name }), "success");
         return final;
       }
 
-      // signInOnly 모드: 기존 계정 없으면 가입 거부
+      // 기존 계정이 있어야만 들어올 수 있는 화면(사장님·직원 로그인)
       if (input.signInOnly) {
-        throw new Error("일치하는 계정이 없습니다. 신규 가입 모드에서 등록해 주세요.");
+        throw new Error(t("auth.noAccount"));
       }
 
-      // 3) new user
-      const createdUserId = newId();
+      // 새 프로필 — id 는 auth 가 정한 것을 그대로 쓴다.
       const user: User = {
-        id: createdUserId,
+        id: authUserId,
         role,
         name,
         phone,
         status: "active",
         authType: input.authType ?? (socialProvider ? socialProvider : "phone"),
+        phoneVerifiedAt: input.phoneVerifiedAt ?? new Date().toISOString(),
       };
       if (role === "owner") {
         user.restaurantName = restaurantName;
         if (input.posVendor) user.posVendor = input.posVendor;
         if (input.posApiKey) user.posApiKey = input.posApiKey;
       }
-      // customer는 storeId 없이 전역 계정으로 생성 (방문은 visits 컬렉션에 storeId 별도 저장)
+      // 손님은 storeId 없이 전역 계정이다. 방문 기록이 visits 에 storeId 와 함께 남는다.
       void storeId;
       if (socialId && socialProvider) {
         user.socialIds = [socialId];
@@ -125,31 +123,31 @@ export function useAuthActions(core: StoreCore) {
       if (input.gender) user.gender = input.gender;
       if (input.isPohangResident !== undefined) user.isPohangResident = input.isPohangResident;
       if (input.privacyAgreedAt) user.privacyAgreedAt = input.privacyAgreedAt;
-      if (input.phoneVerifiedAt) user.phoneVerifiedAt = input.phoneVerifiedAt;
 
-      await saveDoc("users", createdUserId, user);
+      await saveDoc("users", authUserId, user);
 
-      // Owner: auto-create 15 tables
-      if (role === "owner" && db) {
-        const batch = writeBatch(db);
-        for (const t of makeDefaultTables(createdUserId)) {
-          batch.set(doc(db, "tables", t.id), t);
-        }
-        try {
-          await batch.commit();
-        } catch (e) {
-          console.error("[create tables]", e);
-        }
+      // 사장님 계정은 기본 테이블 15개를 함께 만든다.
+      // 하나가 실패해도 나머지는 만들어 두는 편이 낫다 — 빈 배치보다 부분 배치가 낫고,
+      // 부족한 테이블은 화면에서 추가할 수 있다.
+      if (role === "owner") {
+        const results = await Promise.allSettled(
+          makeDefaultTables(authUserId).map((tbl) => saveDoc("tables", tbl.id, tbl))
+        );
+        const failed = results.filter((r) => r.status === "rejected").length;
+        if (failed) console.error(`[create tables] ${failed}/${results.length} 실패`);
       }
 
       setCurrentUser(user);
       showToast(t("store.welcome", undefined, { name }), "success");
       return user;
     },
-    [users, setCurrentUser, dbStatus]
+    [setCurrentUser, dbStatus]
   );
 
   const logout = useCallback(() => {
+    // 세션을 반드시 파기한다. 메모리 상태만 비우면 토큰이 살아 있어서
+    // RLS 상으로는 여전히 이전 사용자이고, 다음 사람이 그 권한으로 읽게 된다.
+    void supabaseSignOut();
     setCurrentUser(null);
     // 계정 전환 시 이전 매장 데이터가 다음 유저 화면에 잠깐 노출되지 않도록 scoped 상태를 비움.
     // (scoped 리스너는 currentUser=null 이면 early-return 하므로 자동으로는 비워지지 않음)

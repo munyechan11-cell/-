@@ -1863,6 +1863,8 @@ const dict: Record<string, string> = {
   "fs.notFound": "未找到数据。",
   "fs.saveError": "保存时出错。",
   "db.unavailable": "无法连接数据库，暂时无法登录。这不是账号问题，请稍后再试。",
+  "auth.otpRequired": "请先完成短信验证。",
+  "auth.noAccount": "未找到匹配的账号，请先注册。",
   "db.bannerTitle": "无法连接数据库",
   "db.bannerDesc": "注册、登录以及门店数据保存均无法使用。请告知管理员。",
   "phoneVerify.title": "电话验证",

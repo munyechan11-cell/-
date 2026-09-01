@@ -1863,6 +1863,8 @@ const dict: Record<string, string> = {
   "fs.notFound": "The requested data was not found.",
   "fs.saveError": "Something went wrong while saving.",
   "db.unavailable": "Can't reach the database, so you can't sign in. This isn't a problem with your account — please try again shortly.",
+  "auth.otpRequired": "Please complete SMS verification first.",
+  "auth.noAccount": "No matching account. Please sign up first.",
   "db.bannerTitle": "Couldn't connect to the database",
   "db.bannerDesc": "Sign-up, sign-in and saving store data are not working. Please let your administrator know.",
   "phoneVerify.title": "Phone verification",

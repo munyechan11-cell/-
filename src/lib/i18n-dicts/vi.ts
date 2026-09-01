@@ -1863,6 +1863,8 @@ const dict: Record<string, string> = {
   "fs.notFound": "Không tìm thấy dữ liệu.",
   "fs.saveError": "Đã có lỗi khi lưu.",
   "db.unavailable": "Không kết nối được cơ sở dữ liệu nên không thể đăng nhập. Đây không phải lỗi tài khoản, vui lòng thử lại sau ít phút.",
+  "auth.otpRequired": "Vui lòng hoàn tất xác minh SMS trước.",
+  "auth.noAccount": "Không tìm thấy tài khoản. Vui lòng đăng ký trước.",
   "db.bannerTitle": "Không kết nối được cơ sở dữ liệu",
   "db.bannerDesc": "Đăng ký, đăng nhập và lưu dữ liệu cửa hàng đang không hoạt động. Vui lòng báo cho quản trị viên.",
   "phoneVerify.title": "Xác minh số điện thoại",
