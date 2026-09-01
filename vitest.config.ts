@@ -13,7 +13,14 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     environment: "node",
-    include: ["src/**/*.test.ts", "src/**/*.test.tsx", "server/**/*.test.ts"],
+    include: [
+      "src/**/*.test.ts",
+      "src/**/*.test.tsx",
+      "server/**/*.test.ts",
+      // 엣지 함수는 Deno 위에서 돌지만, 판단이 들어가는 부분은 순수 모듈로 떼어
+      // 두었다(예: send-sms/lib.ts 의 훅 서명 검증). 그 부분은 여기서 지킨다.
+      "supabase/functions/**/*.test.ts",
+    ],
     passWithNoTests: false,
   },
 });
