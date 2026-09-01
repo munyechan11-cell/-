@@ -1,32 +1,48 @@
 import { Router } from 'express';
-import { getFirebaseAdmin } from '../lib/firebase.js';
+
 import { sendPushToOwner } from '../lib/push.js';
+import { resolveCallerStore } from '../lib/storeAuth.js';
 
 const router = Router();
 
 
 /**
- * 발송 트리거 — 호출자가 인증된 사용자임을 검증.
+ * 발송 트리거.
  *
- * 보안 정책 (2026-06):
- *   요청 헤더 Authorization: Bearer <ID_TOKEN> 필수.
- *   ID Token 의 uid 만 storeId 로 푸시 발송 허용.
- *   ※ 결의 user.id 가 auth.uid 와 다를 수 있으나 (베타 한계),
- *     이 엔드포인트는 적어도 '인증된 클라이언트' 만 호출 가능 → 외부 우회 차단.
- *   ※ 추가로 IP 별 분당 60회 rate limit.
+ * **왜 "본인 매장만" 으로 못 잠그는가.** 이 푸시는 대부분 손님이 일으킨다 —
+ * 주문·결제 요청·쿠폰 요청은 손님이 하고 알림은 사장님이 받는다. 직원 가입도
+ * 아직 그 매장 소속이 아닌 사람이 낸다. 그래서 "요청자의 매장 == 대상 매장"을
+ * 요구하면 정상 흐름이 전부 막힌다.
+ *
+ * 대신 세 겹으로 좁힌다:
+ *   1) 유효한 세션 필수 — 세션은 이제 OTP 나 소셜 검증을 통과해야만 생긴다.
+ *      (예전에는 익명 토큰이면 통과였다. 아무나 받을 수 있는 토큰이었다.)
+ *   2) 사용자당 분당 20회 — 한 계정이 여러 매장을 도배하는 걸 막는다.
+ *   3) test 종류만은 그 매장 사람만 — 사장님이 자기 설정 화면에서 쓰는 것이라
+ *      손님이 보낼 이유가 없다.
+ *
+ * 남는 것: 인증된 사용자가 관계없는 매장에 정상 종류의 알림을 몇 개 보낼 수는
+ * 있다. 완전히 막으려면 "이 손님이 이 매장에 지금 주문/방문이 있는가"를 확인해야
+ * 하고, 그건 종류마다 다른 조회라 별도 작업이다.
+ *
+ * IP 별 분당 60회 제한은 그대로 둔다.
  */
-const pushIpBuckets = new Map<string, { count: number; resetAt: number }>();
-const checkPushRate = (ip: string): boolean => {
-  const now = Date.now();
-  const b = pushIpBuckets.get(ip);
-  if (!b || now > b.resetAt) {
-    pushIpBuckets.set(ip, { count: 1, resetAt: now + 60_000 });
+const makeLimiter = (perMinute: number) => {
+  const buckets = new Map<string, { count: number; resetAt: number }>();
+  return (key: string): boolean => {
+    const now = Date.now();
+    const b = buckets.get(key);
+    if (!b || now > b.resetAt) {
+      buckets.set(key, { count: 1, resetAt: now + 60_000 });
+      return true;
+    }
+    if (b.count >= perMinute) return false;
+    b.count += 1;
     return true;
-  }
-  if (b.count >= 60) return false;
-  b.count += 1;
-  return true;
+  };
 };
+const checkPushRate = makeLimiter(60);
+const checkUserRate = makeLimiter(20);
 
 router.post('/api/push/send-to-owner', async (req, res) => {
   try {
@@ -36,19 +52,15 @@ router.post('/api/push/send-to-owner', async (req, res) => {
       return res.status(429).json({ error: '요청이 너무 잦아요. 1분 후 다시 시도해 주세요.' });
     }
 
-    // 2) Firebase ID Token 검증 — 인증된 사용자만 호출 가능
-    const adminApp = getFirebaseAdmin();
-    if (!adminApp) return res.status(503).json({ error: 'FIREBASE_ADMIN_NOT_CONFIGURED' });
-
-    const auth = req.headers.authorization || '';
-    const m = auth.match(/^Bearer\s+(.+)$/i);
-    if (!m) {
+    // 2) 세션 검증 + 요청자의 매장 확인
+    if (!req.headers.authorization) {
       return res.status(401).json({ error: 'Authorization header required' });
     }
-    try {
-      await adminApp.auth().verifyIdToken(m[1]);
-    } catch (e: any) {
-      return res.status(401).json({ error: 'invalid token' });
+    const caller = await resolveCallerStore(req.headers.authorization);
+    if (!caller) return res.status(401).json({ error: 'invalid token' });
+
+    if (!checkUserRate(caller.userId)) {
+      return res.status(429).json({ error: '요청이 너무 잦아요. 1분 후 다시 시도해 주세요.' });
     }
 
     // 3) 입력 검증
@@ -59,6 +71,10 @@ router.post('/api/push/send-to-owner', async (req, res) => {
     const validKinds = ['new-order', 'payment-request', 'staff-join', 'coupon-request', 'test'];
     if (!validKinds.includes(kind)) {
       return res.status(400).json({ error: 'invalid kind' });
+    }
+    // 테스트 발송은 그 매장 사람만 — 손님이 보낼 이유가 없다.
+    if (kind === 'test' && caller.storeId !== storeId) {
+      return res.status(403).json({ error: 'not your store' });
     }
 
     const r = await sendPushToOwner({ storeId, kind, title, body: body ?? '', focusUrl, tag });
