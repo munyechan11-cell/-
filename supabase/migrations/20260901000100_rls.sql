@@ -29,8 +29,10 @@ language sql stable security definer set search_path = public as $$
   select coalesce((select u.role from public.users u where u.id = auth.uid()), '')
 $$;
 
-revoke all on function public.my_store_id() from public;
-revoke all on function public.my_role() from public;
+-- anon(비로그인)은 호출조차 못 하게 한다. authenticated 는 RLS 정책이 이 함수를
+-- 호출하므로 실행 권한이 필요하다 — 자기 자신에 대한 정보만 돌려주므로 노출돼도 무해하다.
+revoke all on function public.my_store_id() from public, anon;
+revoke all on function public.my_role() from public, anon;
 grant execute on function public.my_store_id() to authenticated;
 grant execute on function public.my_role() to authenticated;
 
@@ -265,6 +267,9 @@ create policy "users_owner_delete" on public.users for delete to authenticated
 -- 정책의 with check 안에서 users 를 다시 조회하면 users 자신의 RLS 를 재진입하게 되고,
 -- 그건 재귀·미묘한 스냅샷 문제를 부른다. 트리거는 OLD/NEW 를 직접 비교할 수 있어
 -- 의도가 그대로 드러나고 재진입도 없다.
+-- 가입 직후 본인 프로필 행 생성 (auth.users 가 먼저 생기고 public.users 가 따라온다)
+create policy "users_self_insert" on public.users for insert to authenticated
+  with check (id = auth.uid());
 create policy "users_self_update" on public.users for update to authenticated
   using (id = auth.uid())
   with check (id = auth.uid());
@@ -289,6 +294,10 @@ begin
   return new;
 end;
 $$;
+
+-- 트리거로만 쓰는 함수다. REST 로 직접 부를 수 있으면 안 된다.
+revoke all on function public.guard_user_privileges() from public, anon, authenticated;
+revoke all on function public.touch_updated_at() from public, anon, authenticated;
 
 drop trigger if exists users_guard_privileges on public.users;
 create trigger users_guard_privileges before update on public.users

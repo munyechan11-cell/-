@@ -281,7 +281,7 @@ comment on table public.merchant_map is '토스플레이스 merchantId → store
 -- updatedAt 자동 갱신
 -- ------------------------------------------------------------
 create or replace function public.touch_updated_at() returns trigger
-language plpgsql as $$
+language plpgsql set search_path = public as $$
 begin
   new."updatedAt" = now();
   return new;
