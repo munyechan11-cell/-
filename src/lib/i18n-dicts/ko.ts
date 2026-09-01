@@ -1564,6 +1564,7 @@ const dict: Record<string, string> = {
   "auth.kakao.initFail": "카카오 로그인 초기화 실패: {msg}. 전화번호 가입을 시도해 주세요.",
   "auth.kakao.unknown": "알 수 없는 오류",
   "auth.kakao.sdkBroken": "Kakao SDK가 손상되었어요. 페이지를 새로고침해 주세요.",
+  "auth.social.sessionFail": "소셜 로그인 확인에 실패했어요. 다시 시도해 주세요.",
   "auth.kakao.noResponse": "카카오 인증 응답이 없어요. 팝업 차단 여부를 확인해 주세요.",
   "auth.kakao.userInfoTimeout": "카카오 사용자 정보 조회 시간이 초과됐어요.",
   "auth.ageGroup.teens": "10대",

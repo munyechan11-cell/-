@@ -1501,6 +1501,7 @@ const dict: Record<string, string> = {
   "auth.kakao.initFail": "Kakao 登录初始化失败:{msg}。请尝试用手机号注册。",
   "auth.kakao.unknown": "未知错误",
   "auth.kakao.sdkBroken": "Kakao SDK 已损坏,请刷新页面。",
+  "auth.social.sessionFail": "社交登录验证失败,请重试。",
   "auth.kakao.noResponse": "Kakao 认证无响应,请检查弹窗拦截。",
   "auth.kakao.userInfoTimeout": "获取 Kakao 用户信息超时。",
   "auth.ageGroup.teens": "10多岁",

@@ -29,6 +29,7 @@ const EXPECTED = [
   'get /api/auth/kakao/callback',
   'get /api/auth/naver/url',
   'get /api/auth/naver/callback',
+  'post /api/auth/social/session',
   'post /api/order/relay-to-pos',
   'post /api/payment/confirm',
   'post /api/store/toss-secret',

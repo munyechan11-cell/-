@@ -1,5 +1,4 @@
-import type admin from 'firebase-admin';
-
+import type { CompatDb } from './db.js';
 import { isValidStoreId } from './storeAuth.js';
 import type { SiteMenuItem, SitePayload, SiteReview, SiteStore } from './siteTypes.js';
 
@@ -83,13 +82,17 @@ export function shapeStore(owner: any): SiteStore {
 }
 
 /**
- * Firestore 에서 공개 사이트 데이터를 읽어 온다.
+ * 공개 사이트 데이터를 읽어 온다.
  *
  * Express 라우트와 (Phase 2 의) Next.js 서버 렌더가 같은 함수를 쓴다 —
  * 공개 필드 선별 규칙이 두 벌로 갈라지면 한쪽만 개인정보를 흘리게 된다.
+ *
+ * 인자는 Firestore 핸들이 아니라 lib/db.ts 의 CompatDb 다. 읽기 모양이 같아
+ * 이 함수의 본문은 Supabase 이전에도 그대로다 — 필드 선별 규칙을 건드리지 않고
+ * 저장소만 바꿀 수 있다는 게 이 어댑터를 둔 이유다.
  */
 export async function buildSitePayload(
-  fs: admin.firestore.Firestore,
+  fs: CompatDb,
   storeId: string
 ): Promise<SiteResult> {
   if (!isValidStoreId(storeId)) return { ok: false, status: 400, error: 'bad storeId' };

@@ -1501,6 +1501,7 @@ const dict: Record<string, string> = {
   "auth.kakao.initFail": "Kakao login init failed: {msg}. Please try phone sign-up.",
   "auth.kakao.unknown": "Unknown error",
   "auth.kakao.sdkBroken": "Kakao SDK is corrupted. Please refresh the page.",
+  "auth.social.sessionFail": "Could not verify your social login. Please try again.",
   "auth.kakao.noResponse": "No response from Kakao auth. Please check popup blocker.",
   "auth.kakao.userInfoTimeout": "Timed out fetching Kakao user info.",
   "auth.ageGroup.teens": "Teens",

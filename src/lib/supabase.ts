@@ -24,8 +24,9 @@ export const supabase: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_PUBL
     // 새로고침·재접속에도 로그인이 유지되도록 세션을 저장하고 토큰을 자동 갱신한다.
     persistSession: true,
     autoRefreshToken: true,
-    // OTP 링크가 아니라 코드 입력 방식이라 URL 세션 감지는 필요 없다.
-    detectSessionInUrl: false,
+    // 구글 로그인이 리다이렉트로 돌아올 때 URL 에 실린 인증 코드를 세션으로 바꿔야 한다.
+    // (전화번호 OTP 는 코드 입력 방식이라 이게 필요 없지만, 켜 둬도 그쪽엔 영향이 없다.)
+    detectSessionInUrl: true,
   },
   realtime: {
     // 매장 하나가 여는 채널 수가 많지 않아 기본값으로 충분하다.

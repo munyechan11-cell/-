@@ -1501,6 +1501,7 @@ const dict: Record<string, string> = {
   "auth.kakao.initFail": "Khởi tạo đăng nhập Kakao thất bại: {msg}. Hãy thử đăng ký bằng số điện thoại.",
   "auth.kakao.unknown": "Lỗi không xác định",
   "auth.kakao.sdkBroken": "Kakao SDK bị lỗi. Vui lòng tải lại trang.",
+  "auth.social.sessionFail": "Không xác minh được đăng nhập mạng xã hội. Vui lòng thử lại.",
   "auth.kakao.noResponse": "Không có phản hồi từ Kakao. Hãy kiểm tra trình chặn pop-up.",
   "auth.kakao.userInfoTimeout": "Hết thời gian lấy thông tin người dùng Kakao.",
   "auth.ageGroup.teens": "Tuổi teen",
