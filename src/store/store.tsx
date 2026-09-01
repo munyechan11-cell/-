@@ -33,7 +33,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   useStoreSubscriptions(core);
 
   const {
-    isReady, firebaseStatus, firebaseError, currentUser, masterPassword, isMaster,
+    isReady, dbStatus, dbError, currentUser, masterPassword, isMaster,
     users, visits, coupons, tables, sections, communications, tierOverrides, menus,
     orders, reservations, photos, shifts, ingredients, expenses, marketingDrafts,
     activeStoreId, setActiveStoreId, effectiveStoreId,
@@ -89,8 +89,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<StoreState>(
     () => ({
       isReady,
-      firebaseStatus,
-      firebaseError,
+      dbStatus,
+      dbError,
       currentUser,
       masterPassword,
       isMaster,
@@ -184,8 +184,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }),
     [
       isReady,
-      firebaseStatus,
-      firebaseError,
+      dbStatus,
+      dbError,
       currentUser,
       masterPassword,
       isMaster,

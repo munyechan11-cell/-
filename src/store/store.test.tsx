@@ -3,17 +3,24 @@ import React from "react";
 import { render, act } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// Firebase 를 실제로 붙이지 않는다. 이 테스트가 검증하는 건 "Provider 가 노출하는
+// DB 에 실제로 붙지 않는다. 이 테스트가 검증하는 건 "Provider 가 노출하는
 // 계약(Context 표면)"이지 네트워크 동작이 아니다.
-vi.mock("../lib/firebase", () => ({
-  db: null,
-  auth: null,
-  app: null,
-  googleProvider: {},
-  firebaseConfig: {},
-  isFirebaseConfigured: false,
-  getDb: () => null,
-  ensureAnonymousAuth: async () => null,
+// isSupabaseConfigured 를 false 로 두면 Provider 가 오프라인 경로로 부팅한다.
+vi.mock("../lib/supabase", () => ({
+  isSupabaseConfigured: false,
+  supabase: {
+    auth: {
+      getSession: async () => ({ data: { session: null }, error: null }),
+      onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),
+    },
+    from: () => ({ select: () => ({ eq: () => ({}) }) }),
+    channel: () => ({ on: () => ({ subscribe: () => ({}) }) }),
+    removeChannel: () => {},
+    rpc: async () => ({ error: null }),
+  },
+  resolveTable: (n: string) => n,
+  SUPABASE_URL: "",
+  SUPABASE_PUBLISHABLE_KEY: "",
 }));
 
 import { StoreProvider, useStore } from "./store";
@@ -39,7 +46,7 @@ function captureStore(): Record<string, unknown> {
 /** 함수가 아닌(=상태) 키. 나머지 전부는 액션이며 함수여야 한다. */
 const DATA_KEYS = [
   "activeShift", "activeStoreId", "communications", "coupons", "currentUser",
-  "effectiveStoreId", "expenses", "firebaseError", "firebaseStatus", "ingredients",
+  "effectiveStoreId", "expenses", "dbError", "dbStatus", "ingredients",
   "isMaster", "isReady", "marketingDrafts", "masterPassword", "menus", "orders",
   "photos", "reservations", "sections", "shifts", "tables", "tierOverrides",
   "users", "visits",

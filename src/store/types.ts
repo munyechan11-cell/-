@@ -23,12 +23,12 @@ import type {
   MarketingDraft,
 } from "../lib/types";
 
-export type FirebaseStatus = "connecting" | "ok" | "error" | "offline";
+export type DbStatus = "connecting" | "ok" | "error" | "offline";
 
 export interface StoreState {
   isReady: boolean;
-  firebaseStatus: FirebaseStatus;
-  firebaseError: string | null;
+  dbStatus: DbStatus;
+  dbError: string | null;
   currentUser: User | null;
   masterPassword: string;
   isMaster: boolean;

@@ -13,7 +13,7 @@ import type { User, Role } from "../../lib/types";
 
 export function useAuthActions(core: StoreCore) {
   const {
-    firebaseStatus, currentUser, masterPassword, setMasterPasswordState, setIsMaster, users,
+    dbStatus, currentUser, masterPassword, setMasterPasswordState, setIsMaster, users,
     visits, setVisits, coupons, setCoupons, tables, setTables, sections, setSections,
     setCommunications, tierOverrides, setTierOverrides, menus, setMenus, orders, setOrders,
     reservations, setReservations, photos, setPhotos, shifts, setShifts, setIngredients,
@@ -30,7 +30,7 @@ export function useAuthActions(core: StoreCore) {
       //      원인이 DB 장애인데 사용자·운영자 모두 계정 문제로 오인한다.
       //   2) signInOnly 아님 → 기존 회원에게 새 id 가 발급되고, 그 쓰기마저 실패한다.
       // → 매칭 전에 끊어서 원인을 그대로 말해 준다.
-      if (firebaseStatus === "error") {
+      if (dbStatus === "error") {
         throw new Error(t("db.unavailable"));
       }
 
@@ -146,7 +146,7 @@ export function useAuthActions(core: StoreCore) {
       showToast(t("store.welcome", undefined, { name }), "success");
       return user;
     },
-    [users, setCurrentUser, firebaseStatus]
+    [users, setCurrentUser, dbStatus]
   );
 
   const logout = useCallback(() => {

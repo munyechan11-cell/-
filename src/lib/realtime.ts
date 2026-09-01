@@ -34,7 +34,9 @@ export interface SubscribeOptions {
  *
  * @returns 구독 해제 함수
  */
-export function subscribeTable<T extends { id: string }>(
+// 일부 도메인 타입(TierOverride 등)은 id 를 선언하지 않지만, DB 행에는 항상 있고
+// rowToDoc 이 채워 넣는다. 그래서 제약을 느슨하게 둔다.
+export function subscribeTable<T>(
   table: string,
   setRows: (rows: T[]) => void,
   opts: SubscribeOptions = {}
@@ -85,12 +87,13 @@ export function subscribeTable<T extends { id: string }>(
           const next = payload.new as Record<string, unknown> | null;
           const prev = payload.old as Record<string, unknown> | null;
 
+          const idOf = (r: T) => (r as { id?: string }).id;
           if (payload.eventType === "DELETE") {
             const id = (prev?.id ?? "") as string;
-            rows = rows.filter((r) => r.id !== id);
+            rows = rows.filter((r) => idOf(r) !== id);
           } else if (next) {
             const doc = rowToDoc<T>(next);
-            const i = rows.findIndex((r) => r.id === doc.id);
+            const i = rows.findIndex((r) => idOf(r) === idOf(doc));
             if (i >= 0) rows[i] = doc;
             else rows.push(doc);
           }

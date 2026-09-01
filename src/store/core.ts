@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLanguage } from "../lib/i18n";
 import { LS_USER } from "./constants";
-import type { FirebaseStatus } from "./types";
+import type { DbStatus } from "./types";
 import type { User, Visit, Coupon, TableDoc, Communication, Section, TierOverride, Menu, Order, Reservation, Photo, Shift, Ingredient, Expense, MarketingDraft } from "../lib/types";
 
 /**
@@ -12,8 +12,8 @@ import type { User, Visit, Coupon, TableDoc, Communication, Section, TierOverrid
  */
 export function useStoreCore() {
   const [isReady, setReady] = useState(false);
-  const [firebaseStatus, setFirebaseStatus] = useState<FirebaseStatus>("connecting");
-  const [firebaseError, setFirebaseError] = useState<string | null>(null);
+  const [dbStatus, setDbStatus] = useState<DbStatus>("connecting");
+  const [dbError, setDbError] = useState<string | null>(null);
   const [currentUser, setCurrentUserState] = useState<User | null>(null);
   const [masterPassword, setMasterPasswordState] = useState("IMC");
   const [isMaster, setIsMaster] = useState(false);
@@ -91,10 +91,10 @@ export function useStoreCore() {
   return {
     isReady,
     setReady,
-    firebaseStatus,
-    setFirebaseStatus,
-    firebaseError,
-    setFirebaseError,
+    dbStatus,
+    setDbStatus,
+    dbError,
+    setDbError,
     currentUser,
     setCurrentUserState,
     masterPassword,
