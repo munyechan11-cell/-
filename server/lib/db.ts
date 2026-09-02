@@ -70,6 +70,26 @@ function toDoc(row: Record<string, any> | null, t: string): Record<string, any> 
  */
 const RAW_TABLES = new Set(['store_secrets', 'pairing_codes', 'merchant_map', 'tossplace_diag']);
 
+/**
+ * 조회 대상 필드 → PostgREST 가 이해하는 표현.
+ *
+ * 세 갈래다:
+ *   · 점이 있으면 중첩 필드 — `storeConfig.aiReservation.phoneNumber` 처럼.
+ *     승격 컬럼으로 뽑아 두지 않은 깊은 값이라 jsonb 경로로 내려간다.
+ *     ⚠️ 인덱스가 없어 전체 훑기가 된다. 지금은 매장 수가 적어 괜찮지만,
+ *        자주 쓰는 경로가 생기면 생성 컬럼으로 승격시켜야 한다.
+ *   · 서버 전용 테이블은 승격 컬럼 자체가 없으므로 jsonb 안을 본다.
+ *   · 나머지는 진짜 컬럼(생성 컬럼)이다.
+ */
+function columnFor(t: string, field: string): string {
+  if (field.includes('.')) {
+    const parts = field.split('.');
+    const last = parts.pop()!;
+    return `data->${parts.join('->')}->>${last}`;
+  }
+  return RAW_TABLES.has(t) ? `data->>${field}` : field;
+}
+
 export interface CompatSnapshot {
   exists: boolean;
   id: string;
@@ -102,8 +122,7 @@ class CompatQuery {
     const t = table(this.name);
     let q = this.sb.from(t).select('*');
     for (const [f, v] of this.filters) {
-      // 승격 컬럼이 없는 테이블은 jsonb 안을 본다.
-      q = RAW_TABLES.has(t) ? q.eq(`data->>${f}`, v) : q.eq(f, v);
+      q = q.eq(columnFor(t, f), v);
     }
     if (this.lim) q = q.limit(this.lim);
     const { data, error } = await q;

@@ -1,3 +1,4 @@
+import { getSupabaseAdmin } from '../lib/db.js';
 import { fetchWithTimeout } from '../lib/http.js';
 import { sendPushToOwner } from '../lib/push.js';
 
@@ -149,37 +150,47 @@ export type BookResult =
   | { status: 'ok'; reservation: any };
 // 결정론적 예약 처리 — 영업시간·중복·빈자리를 서버가 판단하고 생성한다.
 // LLM 이 "예약됐다"를 임의로 말하지 못하게, 실제 booking 은 항상 이 함수가 단일 진실로 수행.
-// 읽기(테이블·당일예약) + 판정 + 쓰기(예약·테이블상태)를 한 트랜잭션으로 묶어, 동시 통화가
-// 같은 테이블을 동시에 예약하는 더블북을 막는다(충돌 시 Firestore 가 자동 재시도 → 재판정).
+//
+// **더블북을 막는 방식이 Firestore 때와 다르다.** 예전에는 읽기·판정·쓰기를 한
+// 트랜잭션(runTransaction)으로 묶었다. 어댑터에는 트랜잭션이 없고, 그렇다고 그냥
+// "읽고 → 판정하고 → 넣는다"로 옮기면 두 통화가 같은 빈 테이블을 보고 둘 다 예약을
+// 넣는다. 손님 두 팀이 같은 자리에 앉고 나서야 알게 되는 종류의 버그다.
+//
+// 그래서 마지막 한 걸음만 DB 안으로 넣었다. book_reservation() 이 매장·날짜 단위
+// 잠금을 잡고 "이 테이블 이 시간대가 아직 비었는지" 다시 확인한 뒤에만 삽입한다.
+// 밖에서 고른 자리를 누가 먼저 채갔으면 false 가 돌아오고, 여기서 다시 고른다.
+// 판정 규칙(영업시간·자리 고르기)은 TypeScript 에 그대로 남는다 — SQL 로 옮기면
+// 규칙이 두 벌이 되고 언젠가 갈라진다.
 export async function tryBookReservation(fs: any, owner: any, storeId: string, input: BookInput, durationMin: number): Promise<BookResult> {
   if (!isStoreOpenAt(owner, input.date, input.time)) return { status: 'closed' };
   const normPhone = String(input.customerPhone).replace(/[^\d+]/g, '').slice(0, 20);
   const reqMin = hmToMin(input.time);
-  const id = `res_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const sb = getSupabaseAdmin();
+  if (!sb) throw new Error('DB_NOT_CONFIGURED');
 
-  const result: BookResult = await fs.runTransaction(async (tx: any) => {
-    // 트랜잭션 내 읽기는 쓰기보다 먼저. 충돌(읽은 문서가 커밋 전 변경)이면 콜백 전체가 재실행된다.
-    const tablesQ = fs.collection('tables').where('storeId', '==', storeId);
-    const resQ = fs.collection('reservations').where('storeId', '==', storeId).where('date', '==', input.date);
-    const [tablesSnap, resSnap] = await Promise.all([tx.get(tablesQ), tx.get(resQ)]);
-    const tables = tablesSnap.docs.map((d: any) => d.data());
-    const reservations = resSnap.docs.map((d: any) => d.data());
+  // 이미 채인 자리를 빼 가며 다시 고른다. 동시 통화 수만큼만 돌면 되므로 몇 번이면 충분하다.
+  const claimedByOthers = new Set<number>();
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const { tables, reservations } = await loadStoreDay(fs, storeId, input.date);
 
     // 중복: 같은 번호 + 시간 겹침(±durationMin)만. 같은 날 다른 시간대(점심/저녁)는 허용.
     const dup = reservations.find((r: any) => r.status === 'confirmed'
       && String(r.customerPhone || '').replace(/[^\d+]/g, '') === normPhone
       && Math.abs(hmToMin(r.time) - reqMin) < durationMin);
-    if (dup) return { status: 'duplicate', existing: { date: dup.date, time: dup.time, partySize: dup.partySize, tableNumber: dup.tableNumber } } as BookResult;
+    if (dup) return { status: 'duplicate', existing: { date: dup.date, time: dup.time, partySize: dup.partySize, tableNumber: dup.tableNumber } };
 
     // 인원이 매장 최대 수용을 넘으면 '만석'과 구분(어떤 시간/날짜로도 불가).
     const maxSeats = tables
       .filter((tb: any) => tb.type == null || tb.type === 'table' || tb.type === 'room')
       .reduce((mx: number, tb: any) => Math.max(mx, tb.seats ?? 0), 0);
-    if (input.partySize > maxSeats) return { status: 'too_large', maxSeats } as BookResult;
+    if (input.partySize > maxSeats) return { status: 'too_large', maxSeats };
 
-    const table = pickFreeTable(tables, reservations, input.time, input.partySize, durationMin);
-    if (!table) return { status: 'full' } as BookResult;
+    const usable = tables.filter((tb: any) => !claimedByOthers.has(tb.number));
+    const table = pickFreeTable(usable, reservations, input.time, input.partySize, durationMin);
+    if (!table) return { status: 'full' };
 
+    const id = `res_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const reservation = {
       id, storeId, date: input.date, time: input.time,
       tableNumber: table.number,
@@ -190,22 +201,50 @@ export async function tryBookReservation(fs: any, owner: any, storeId: string, i
       status: 'confirmed',
       createdAt: new Date().toISOString(),
     };
-    tx.set(fs.collection('reservations').doc(id), reservation);
-    // 테이블 reserved 전이 (점유 중이면 보호 — 읽어둔 table.status 로 판단, 같은 tx 라 원자적)
+
+    const { data: booked, error } = await sb.rpc('book_reservation', {
+      p_id: id,
+      p_store: storeId,
+      p_date: input.date,
+      p_time: input.time,
+      p_table_number: table.number,
+      p_duration_min: durationMin,
+      p_data: reservation,
+    });
+    if (error) throw error;
+
+    if (!booked) {
+      // 고르는 사이에 누가 채갔다. 그 자리를 빼고 다시 고른다.
+      claimedByOthers.add(table.number);
+      continue;
+    }
+
+    // 테이블 reserved 전이 — 화면 표시용이라 예약 확정과 원자적일 필요는 없다.
+    // (실패해도 예약은 살아 있다. 반대로 묶어 두면 표시 갱신 실패가 예약을 되돌린다.)
     const cur = (table as any).status;
     if (!cur || cur === 'available' || cur === 'setup' || cur === 'reserved') {
-      tx.set(fs.collection('tables').doc(`${storeId}_${table.number}`), { status: 'reserved' }, { merge: true });
+      try {
+        await fs.collection('tables').doc(`${storeId}_${table.number}`).set({ status: 'reserved' }, { merge: true });
+      } catch (e: any) {
+        console.warn('[tryBookReservation] 테이블 표시 갱신 실패', e?.message);
+      }
     }
-    return { status: 'ok', reservation } as BookResult;
-  });
 
-  // 푸시는 트랜잭션 밖(부수효과 — 재시도/커밋과 분리). 예약 성공 시에만.
+    return await withOwnerPush(storeId, input, { status: 'ok', reservation });
+  }
+
+  // 다섯 번 연속으로 채였다 — 그 시간대는 사실상 만석이다.
+  return { status: 'full' };
+}
+
+/** 예약 성공 알림. 부수효과라 실패해도 예약 결과를 바꾸지 않는다. */
+async function withOwnerPush(storeId: string, input: BookInput, result: BookResult): Promise<BookResult> {
   if (result.status === 'ok') {
     try {
       await sendPushToOwner({
         storeId, kind: 'ai-reservation', title: 'AI 전화 예약 접수',
         body: `${input.date} ${input.time} · ${input.partySize}명 · ${result.reservation.customerName} (${result.reservation.tableNumber}번 테이블)`,
-        focusUrl: '/biz/owner/reservations', tag: `ai-res-${id}`,
+        focusUrl: '/biz/owner/reservations', tag: `ai-res-${result.reservation.id}`,
       });
     } catch (e: any) {
       console.warn('[tryBookReservation] push fail', e?.message);
