@@ -53,58 +53,59 @@
   RLS 정책이 이 함수를 호출하므로 **필요하다.** 둘 다 호출자 자신에 대한 정보만
   돌려주므로 노출돼도 무해하다. `anon` 에게는 실행 권한을 회수했다.
 
-## 아직 안 한 것
+## 상태
 
-- 앱 코드 연결 (데이터 계층·실시간 구독·인증·서버)
-- Firestore → Postgres 데이터 이전
-  ⚠️ 현재 Firestore 가 결제 미연결로 403 이라 **데이터를 꺼낼 수 없다.**
-  기존 데이터를 살리려면 결제를 잠깐 연결해 내보내기가 필요하다.
-- 인증 방식 결정 (아래)
+| 영역 | 상태 |
+|---|---|
+| 스키마·RLS·문서 API | 적용 완료 |
+| 클라이언트 데이터 계층 | Supabase (`src/lib/db.ts`, `realtime.ts`) |
+| 로그인 | 전화 OTP + 소셜(카카오·네이버·구글) — 셋 다 Supabase 세션을 만든다 |
+| 문자 발송 | 알리고 Send SMS Hook (`supabase/functions/send-sms`) 배포됨 |
+| 서버 라우트 | Firestore 호출부 28곳 전부 이전 완료 |
+| 영수증 브릿지 | 기기 세션으로 이전 (`apps/print-agent`) |
+| Firebase | **FCM 푸시만 남음** |
+| 기존 데이터 이전 | 안 함 — "새로 시작" 으로 결정 |
 
-### 인증: 지금 구조를 그대로 옮기면 안 되는 이유
+### 남은 설정 (코드 아닌 대시보드 작업)
 
-현재 로그인에는 **비밀번호가 없다.** `login()` 은 전화번호(또는 소셜 ID)가
-일치하는 계정을 찾으면 그대로 로그인시킨다(`src/store/actions/auth.ts`).
-SMS 인증은 로그인과 분리된 별도 게이트이고 닫을 수도 있다.
+1. **문자 발송 자격 증명**
+   ```
+   supabase secrets set ALIGO_API_KEY=... ALIGO_USER_ID=... ALIGO_SENDER=...
+   supabase secrets set SEND_SMS_HOOK_SECRET=v1,whsec_...
+   ```
+   그리고 Authentication → Hooks → Send SMS 에 `send-sms` 함수 지정.
+   시크릿을 넣기 전까지 이 함수는 500 을 돌려준다 — **일부러 그렇다.**
+   문자가 안 갔는데 200 을 주면 사용자는 오지 않는 문자를 기다린다.
 
-Supabase Auth 로 옮기려면 진짜 자격 증명이 필요하다. 선택지:
-1. **전화번호 OTP** — 지금 의도에 가장 가깝다. SMS 공급자 필요(Twilio 등 유료,
-   또는 Supabase Send SMS Hook 으로 알리고 연동 — User 에 `aligoKey` 필드가 이미 있다)
-2. **이메일 + 비밀번호** — 공급자 불필요하지만 로그인 방식이 바뀐다
-3. **서버 발급 세션** — 지금과 같은 무비밀번호 모델 유지. 보안은 그대로지만
-   RLS 로 "인터넷의 아무나 전 매장 접근"은 막힌다
+2. **전화 로그인 켜기** — Authentication → Sign In / Providers → Phone.
 
-이건 비용·사용자 경험이 걸린 결정이라 정해 주셔야 한다.
+3. **구글 로그인** — Authentication → Providers → Google 에 클라이언트 ID/시크릿.
+   카카오·네이버는 서버 경로(`/api/auth/*`)라 여기 설정과 무관하다.
+   서버 쪽 환경변수만 있으면 된다: `KAKAO_CLIENT_ID`, `NAVER_CLIENT_ID`,
+   `NAVER_CLIENT_SECRET`, 그리고 구글 토큰 검증용 `GOOGLE_CLIENT_ID`(선택이지만
+   넣는 편이 좋다 — 다른 앱의 구글 토큰 재사용을 막는다).
 
-## 서버(Express) 이전 — 어댑터는 준비됨, 배선은 남음
+4. **서버 환경변수** — `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`.
+   없으면 라우트가 503 을 돌려준다(조용히 실패하지 않는다).
 
-`server/lib/db.ts` 가 service_role 클라이언트와 **Firestore 모양 어댑터**를 제공한다.
-서버 코드 28곳이 `fs.collection('x').doc(id).get()` 문법으로 쓰여 있어서, 그걸 전부
-Supabase 문법으로 고치면 결제·POS·영수증 경로를 한 번에 건드리게 된다. 모양을 유지한 채
-밑을 바꿔 변경 범위를 좁히려는 것이다. (영구 구조가 아니다 — 라우트 그룹 단위로 네이티브
-쿼리로 옮기고 이 파일을 지우는 게 목표다.)
+점검은 `node scripts/db-doctor.mjs` 로 한다. 위 항목을 앱이 밟는 순서대로 찔러
+어느 단계가 끊겼는지 짚어 준다.
 
-`server/lib/db.test.ts` 가 실동작을 검증한다. `SUPABASE_SERVICE_ROLE_KEY` 가 없으면
-통째로 건너뛴다. 키를 넣고 `npx vitest run server/lib/db.test.ts` 로 확인할 수 있다.
+## 검증
 
-### 아직 배선하지 않은 이유
+- `supabase/tests/rls.sql` — 매장 격리·권한 상승 차단. Firestore 규칙 테스트
+  46건이 하던 질문을 그대로 옮겼다. 판정 주체가 Postgres 이므로 앱을 거치지 않고
+  정책만 본다.
+- `server/lib/db.test.ts` — 어댑터 실동작. `SUPABASE_SERVICE_ROLE_KEY` 가
+  없으면 통째로 건너뛴다.
 
-라우트 교체를 일괄 치환으로 시도했다가 되돌렸다. `getFirebaseAdmin()` 이 Firestore 만
-주는 게 아니라 **`auth()`(커스텀 토큰)와 `messaging()`(FCM 푸시)** 도 주는데,
-일괄 치환이 그 둘까지 DB 핸들로 바꿔 버렸다. 두 기능은 Firestore 와 무관하므로
-같이 옮길 대상이 아니다.
+### RLS 검증에서 실제로 걸린 것
 
-정리하면 서버의 Firebase 사용은 세 갈래이고 각각 갈 길이 다르다:
+`menus` 는 로그인한 누구나 읽을 수 있다(`using (true)`). 실수가 아니라
+의도다 — 손님이 앉은 가게의 메뉴를 봐야 하는데 "지금 어느 가게에 있는가"를
+나타내는 연결이 데이터에 없다. 닫으려면 그 연결부터 만들어야 한다.
 
-| 용도 | 어디서 | 이전 방향 |
-|---|---|---|
-| Firestore 읽기·쓰기 | 라우트 28곳 | `server/lib/db.ts` 어댑터로 교체 |
-| FCM 푸시 (`messaging()`) | `lib/push.ts` | **Firebase 유지.** Firestore 와 별개 제품이고 무료다 |
-| 커스텀 토큰 (`auth()`) | `routes/oauth.ts` (카카오·네이버) | 재설계 필요 — 아래 |
-
-카카오·네이버 로그인은 지금 Firebase 커스텀 토큰을 발급한다. Supabase 로 옮기면
-그 토큰은 쓸모가 없다. 선택지는 (a) Supabase 의 커스텀 토큰 흐름으로 옮기거나
-(b) 소셜 로그인을 전화번호 OTP 로 일원화하는 것이다. 후자가 단순하지만 기존
-소셜 가입자에게 영향이 있어 결정이 필요하다.
-
-**라우트 배선은 파일 단위로 하나씩, 각각 확인하며 해야 한다.** 일괄 치환으로 할 일이 아니다.
+그리고 하나를 고쳤다. 손님이 자기 행에 `{"role":"owner"}` 를 써도 권한은
+오르지 않지만(판정은 진짜 `role` 컬럼만 본다), 앱은 행을 `{...data, id}` 로
+읽으므로 **화면만 사장이 된다.** 데이터는 안 새지만 사장님 UI 가 열리고
+눌러도 아무것도 안 되는 상태가 된다. 두 값이 갈라질 수 없게 막았다.

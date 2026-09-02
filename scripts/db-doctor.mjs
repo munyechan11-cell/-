@@ -3,212 +3,180 @@
  * 결(Gyeol) DB 닥터 — 서버 가동 전 데이터베이스·인증 점검기
  *
  * 왜 필요한가:
- *   결의 로그인/회원가입은 Firebase Auth 가 아니라 **Firestore `users` 컬렉션**에
- *   의존한다(익명 토큰으로 규칙 게이트만 통과 + 앱 자체 ID 매칭).
- *   그래서 Auth 가 멀쩡해도 Firestore 가 막히면 증상은 "회원가입·로그인이 안 됨"
- *   하나로만 나타나고, 진짜 원인(결제 미설정·규칙 미배포·DB 미생성)이 안 보인다.
- *   이 스크립트는 앱이 실제로 밟는 순서 그대로 찔러서 어느 단계가 끊겼는지 짚어준다.
+ *   가입·로그인이 안 될 때 화면에 뜨는 말은 늘 하나다 — "실패했어요".
+ *   그런데 끊길 수 있는 지점은 여럿이다: 프로젝트 주소가 틀렸거나, 키가
+ *   만료됐거나, 마이그레이션이 안 올라갔거나, 전화 로그인이 꺼져 있거나,
+ *   문자 발송 훅이 안 붙어 있거나. 이 스크립트는 앱이 실제로 밟는 순서대로
+ *   찔러서 **어느 단계에서 끊겼는지** 짚어 준다.
+ *
+ * 공개 키만 쓴다. service_role 키는 필요 없고, 넣지도 말 것.
  *
  * 사용법:
  *   node scripts/db-doctor.mjs
- *   node scripts/db-doctor.mjs --project 다른프로젝트 --key AIza...
+ *   node scripts/db-doctor.mjs --url https://xxx.supabase.co --key sb_publishable_...
  *
  * 종료 코드: 0 = 정상, 1 = 문제 발견
  */
 
-import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-
-// ── 인자 파싱 ────────────────────────────────────────────────────────────────
-const argv = process.argv.slice(2);
+const args = process.argv.slice(2);
 const arg = (name) => {
-  const i = argv.indexOf(`--${name}`);
-  return i >= 0 ? argv[i + 1] : undefined;
+  const i = args.indexOf(`--${name}`);
+  return i >= 0 ? args[i + 1] : undefined;
 };
 
-// ── 설정 로드 (앱과 동일한 우선순위: env → firebase-applet-config.json) ────────
-let fileConfig = {};
-try {
-  fileConfig = JSON.parse(readFileSync(resolve(ROOT, "firebase-applet-config.json"), "utf8"));
-} catch {
-  /* 파일이 없으면 env 만으로 진행 */
-}
+const URL_ =
+  arg("url") ||
+  process.env.VITE_SUPABASE_URL ||
+  process.env.SUPABASE_URL ||
+  "https://pxvkbvojpxavrandrqkp.supabase.co";
+const KEY =
+  arg("key") ||
+  process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+  "sb_publishable___a4MY-b5lk_VZHRLh8Mtg_8LxAqVcO";
 
-const projectId =
-  arg("project") || process.env.VITE_FIREBASE_PROJECT_ID || fileConfig.projectId;
-const apiKey = arg("key") || process.env.VITE_FIREBASE_API_KEY || fileConfig.apiKey;
-const databaseId =
-  arg("database") || process.env.VITE_FIREBASE_DATABASE_ID || fileConfig.firestoreDatabaseId || "(default)";
-
-// firestore.rules 에 선언된 컬렉션 중 앱 부팅에 필수인 것들
-const CRITICAL_COLLECTIONS = ["users", "appState"];
-
-// ── 출력 헬퍼 ────────────────────────────────────────────────────────────────
-const problems = [];
-const ok = (m) => console.log(`  ✅ ${m}`);
+let failed = 0;
+const ok = (m, detail) => console.log(`  \x1b[32m✓\x1b[0m ${m}${detail ? ` — ${detail}` : ""}`);
 const bad = (m, fix) => {
-  console.log(`  ❌ ${m}`);
-  problems.push({ msg: m, fix });
+  failed++;
+  console.log(`  \x1b[31m✗\x1b[0m ${m}`);
+  if (fix) console.log(`     ↳ ${fix}`);
 };
-const warn = (m) => console.log(`  ⚠️  ${m}`);
-const step = (n, title) => console.log(`\n[${n}] ${title}`);
+const info = (m) => console.log(`  \x1b[90m·\x1b[0m ${m}`);
 
-const fetchJson = async (url, init) => {
-  const res = await fetch(url, { ...init, signal: AbortSignal.timeout(20000) });
-  let body;
+const headers = { apikey: KEY, Authorization: `Bearer ${KEY}` };
+
+/**
+ * 프록시가 가로챈 응답인가.
+ *
+ * 이 저장소는 아웃바운드가 프록시를 거치는 환경에서도 돌아간다. 거기서 호스트가
+ * 허용 목록에 없으면 **프록시가 403 을 돌려준다** — Supabase 가 아니라.
+ * 그걸 서버의 대답으로 착각하면 "닫혀 있어서 403" 으로 읽혀 전부 ✓ 가 뜬다.
+ * 확인을 못 한 것과 확인해서 괜찮은 것은 완전히 다른 결과다. 구분한다.
+ */
+const blocked = (r) =>
+  typeof r.body === "string" &&
+  /not in allowlist|egress|proxy|tunnel/i.test(r.body);
+
+async function get(path, extra = {}) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 10000);
   try {
-    body = await res.json();
-  } catch {
-    body = null;
+    const res = await fetch(`${URL_}${path}`, { ...extra, headers: { ...headers, ...(extra.headers ?? {}) }, signal: ctrl.signal });
+    const text = await res.text();
+    let body;
+    try { body = JSON.parse(text); } catch { body = text; }
+    return { status: res.status, body };
+  } finally {
+    clearTimeout(timer);
   }
-  return { status: res.status, body };
-};
+}
 
-console.log("═".repeat(64));
-console.log(" 결(Gyeol) DB 닥터 — 데이터베이스·인증 점검");
-console.log("═".repeat(64));
+console.log(`\n결 DB 닥터 — ${URL_}\n`);
 
-// ── 1. 설정 ─────────────────────────────────────────────────────────────────
-step(1, "클라이언트 설정");
-if (!projectId) bad("projectId 를 찾을 수 없음", "firebase-applet-config.json 또는 VITE_FIREBASE_PROJECT_ID 설정");
-else ok(`projectId = ${projectId}`);
-
-if (!apiKey || apiKey === "YOUR_API_KEY" || apiKey === "undefined") {
-  bad("apiKey 가 비어 있거나 placeholder", "VITE_FIREBASE_API_KEY 설정 — 이 값이 없으면 앱은 isFirebaseConfigured=false 로 전체 오프라인 모드가 된다");
+// ── 1. 주소·키 ────────────────────────────────────────────
+console.log("1) 접속");
+if (!URL_ || !KEY) {
+  bad("URL 또는 키가 비었다", "VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY 설정");
 } else {
-  ok(`apiKey = ${apiKey.slice(0, 10)}…${apiKey.slice(-4)}`);
+  const r = await get("/rest/v1/").catch((e) => ({ status: 0, body: String(e?.message ?? e) }));
+  if (blocked(r)) {
+    bad("네트워크가 이 호스트를 막고 있어 아무것도 확인하지 못했다",
+        "프록시 허용 목록에 " + new URL(URL_).host + " 추가 후 다시 실행. (아래 결과는 의미 없음)");
+    console.log(
+      `\n\x1b[31m확인 불가.\x1b[0m 서버에 닿지 못했으므로 '정상'도 '문제 있음'도 말할 수 없다.\n`
+    );
+    process.exit(1);
+  }
+  if (r.status === 0) bad(`REST 에 닿지 않는다 (${r.body})`, "URL 오타 또는 네트워크 확인");
+  else if (r.status === 401) bad("키가 거부됐다 (401)", "publishable 키가 이 프로젝트 것인지 확인");
+  else ok("REST 응답", `HTTP ${r.status}`);
 }
-ok(`databaseId = ${databaseId}`);
 
-if (!projectId || !apiKey) {
-  console.log("\n설정이 없어 더 진행할 수 없습니다.");
-  process.exit(1);
-}
-
-// ── 2. Firebase Auth (익명 로그인) ───────────────────────────────────────────
-step(2, "Firebase Auth — 익명 로그인 (ensureAnonymousAuth 가 하는 일)");
-let idToken = null;
-{
-  const { status, body } = await fetchJson(
-    `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${apiKey}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ returnSecureToken: true }),
-    }
-  );
-  if (status === 200 && body?.idToken) {
-    idToken = body.idToken;
-    ok(`익명 로그인 성공 (uid=${body.localId})`);
+// ── 2. 스키마 ─────────────────────────────────────────────
+console.log("\n2) 스키마 (마이그레이션이 올라갔는가)");
+const TABLES = ["users", "menus", "orders", "visits", "tables", "print_jobs"];
+for (const t of TABLES) {
+  const r = await get(`/rest/v1/${t}?select=id&limit=1`);
+  if (r.status === 404 || (r.status === 400 && /does not exist|relation/i.test(JSON.stringify(r.body)))) {
+    bad(`${t} 테이블이 없다`, "supabase/migrations 를 적용: supabase db push");
+  } else if (r.status >= 500) {
+    bad(`${t} 조회가 5xx (${r.status})`, JSON.stringify(r.body).slice(0, 120));
   } else {
-    const reason = body?.error?.message ?? `HTTP ${status}`;
-    if (reason.includes("ADMIN_ONLY_OPERATION") || reason.includes("OPERATION_NOT_ALLOWED")) {
-      bad(
-        `익명 로그인 차단됨 — ${reason}`,
-        "Firebase 콘솔 → Authentication → Sign-in method → '익명' 사용 설정. " +
-          "익명 로그인이 꺼져 있으면 firestore.rules 의 request.auth != null 게이트를 못 넘어 전 컬렉션 읽기/쓰기가 막힌다."
-      );
-    } else if (reason.includes("API_KEY")) {
-      bad(`API 키 거부 — ${reason}`, "VITE_FIREBASE_API_KEY 값 확인, 그리고 키의 HTTP 리퍼러 제한에 배포 도메인 등록");
-    } else {
-      bad(`익명 로그인 실패 — ${reason}`, "Firebase 콘솔 → Authentication 설정 확인");
-    }
+    ok(`${t} 있음`, `HTTP ${r.status}`);
   }
 }
 
-// ── 3. Firestore 접근 ────────────────────────────────────────────────────────
-step(3, "Firestore — 컬렉션 읽기 (users 리스너가 하는 일)");
-const encodedDb = encodeURIComponent(databaseId);
-let firestoreReachable = true;
+// ── 3. RLS ────────────────────────────────────────────────
+console.log("\n3) RLS (비로그인에게 열려 있지 않은가)");
+{
+  // 정책은 전부 `to authenticated` 라, 비로그인 키로는 아무 행도 안 나와야 한다.
+  const r = await get("/rest/v1/users?select=id&limit=5");
+  const rows = Array.isArray(r.body) ? r.body.length : null;
+  if (rows === null) {
+    ok("users 가 비로그인에게 닫혀 있다", `HTTP ${r.status}`);
+  } else if (rows === 0) {
+    ok("users 가 비로그인에게 0건", "정책이 걸려 있다");
+  } else {
+    bad(`users 가 비로그인에게 ${rows}건 노출된다`, "supabase/migrations 의 RLS 정책 확인 — 이건 전 계정 유출이다");
+  }
+}
 
-for (const coll of CRITICAL_COLLECTIONS) {
-  const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${encodedDb}/documents/${coll}?pageSize=1`;
-  const { status, body } = await fetchJson(url, {
-    headers: idToken ? { Authorization: `Bearer ${idToken}` } : {},
+// ── 4. 문서 API ───────────────────────────────────────────
+console.log("\n4) 문서 API (save_doc 이 배포됐는가)");
+{
+  // 일부러 없는 테이블을 넣는다. 함수가 있으면 "알 수 없는 테이블" 로 거절하고,
+  // 없으면 404 가 온다 — 이 차이로 배포 여부를 가른다.
+  const r = await get("/rest/v1/rpc/save_doc", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ p_table: "__nope__", p_id: "x", p_patch: {} }),
   });
-  const msg = body?.error?.message ?? "";
-
-  if (status === 200) {
-    const n = body?.documents?.length ?? 0;
-    ok(`${coll} 읽기 성공 (문서 ${n === 0 ? "0개 — 비어 있음" : n + "개+"})`);
-    if (coll === "users" && n === 0) {
-      warn("users 가 비어 있음 — DB 는 살아있지만 계정이 하나도 없다. 로그인은 당연히 실패하고, 회원가입부터 해야 한다.");
-    }
-    continue;
-  }
-
-  firestoreReachable = false;
-
-  if (msg.includes("requires billing")) {
-    bad(
-      `${coll} 접근 거부 — 프로젝트 '${projectId}' 에 결제(billing) 가 설정되어 있지 않아 Firestore API 자체가 차단됨`,
-      `https://console.cloud.google.com/billing/enable?project=${projectId} 에서 결제 계정 연결(Blaze 요금제). ` +
-        "※ 이건 보안 규칙 문제가 아니다 — 인증 토큰 없이 호출해도 같은 403 이 나오는, 프로젝트 레벨 차단이다. " +
-        "복구 전까지 회원가입·로그인·모든 매장 데이터가 100% 동작하지 않는다."
-    );
-  } else if (status === 403 && msg.includes("Missing or insufficient permissions")) {
-    bad(
-      `${coll} 접근 거부 — 보안 규칙에서 막힘`,
-      "firebase deploy --only firestore:rules 로 firestore.rules 배포. " +
-        "콘솔에 옛 규칙(allow if false)이 남아 있을 가능성."
-    );
-  } else if (status === 404 && msg.includes("does not exist")) {
-    bad(
-      `Firestore 데이터베이스 '${databaseId}' 가 존재하지 않음`,
-      "Firebase 콘솔 → Firestore Database → 데이터베이스 만들기 (Native 모드)."
-    );
-  } else if (status === 401) {
-    bad(`${coll} 인증 실패 — 토큰이 거부됨`, "2단계(익명 로그인) 결과를 먼저 확인");
-  } else {
-    bad(`${coll} 접근 실패 — HTTP ${status}: ${msg || "(본문 없음)"}`, "위 메시지를 그대로 확인");
-  }
-  break; // 같은 원인일 테니 한 번만 보고
+  const msg = JSON.stringify(r.body);
+  if (r.status === 404) bad("save_doc 함수가 없다", "supabase/migrations/20260901000100_doc_api.sql 적용");
+  else if (/알 수 없는 테이블/.test(msg)) ok("save_doc 배포됨", "화이트리스트가 동작한다");
+  else if (r.status === 401 || r.status === 403) ok("save_doc 배포됨", "비로그인은 실행 불가(정상)");
+  else info(`save_doc 응답 HTTP ${r.status} ${msg.slice(0, 100)}`);
 }
 
-// ── 4. 서버(Admin SDK) 자격증명 ──────────────────────────────────────────────
-step(4, "서버 Admin SDK 자격증명 (server.ts)");
+// ── 5. 인증 ───────────────────────────────────────────────
+console.log("\n5) 인증 (전화 OTP 로 로그인할 수 있는가)");
 {
-  const missing = ["FIREBASE_PROJECT_ID", "FIREBASE_CLIENT_EMAIL", "FIREBASE_PRIVATE_KEY"].filter(
-    (k) => !process.env[k]
-  );
-  if (missing.length === 3) {
-    warn("Admin SDK 환경변수가 하나도 없음 — 로컬 셸에서 돌렸다면 정상(배포 환경에만 있을 수 있음). 배포 서버라면 문제.");
-  } else if (missing.length > 0) {
-    bad(`Admin SDK 환경변수 일부 누락: ${missing.join(", ")}`, "Render 대시보드(gyeol-api) 환경변수에 3개 모두 등록");
+  const r = await get("/auth/v1/settings");
+  if (r.status !== 200 || typeof r.body !== "object") {
+    bad(`auth 설정을 못 읽었다 (HTTP ${r.status})`);
   } else {
-    ok("FIREBASE_PROJECT_ID / CLIENT_EMAIL / PRIVATE_KEY 모두 존재");
-    if (process.env.FIREBASE_PROJECT_ID !== projectId) {
-      bad(
-        `서버(${process.env.FIREBASE_PROJECT_ID})와 클라이언트(${projectId}) 의 projectId 불일치`,
-        "두 값을 같은 프로젝트로 맞출 것 — 다르면 서버가 쓴 데이터를 앱이 절대 못 읽는다"
-      );
+    const ext = r.body.external ?? {};
+    if (r.body.external_phone_enabled || ext.phone) ok("전화 로그인 켜짐");
+    else bad("전화 로그인이 꺼져 있다", "대시보드 → Authentication → Sign In / Providers → Phone 켜기");
+
+    const providers = Object.entries(ext).filter(([, v]) => v === true).map(([k]) => k);
+    info(`켜진 소셜 공급자: ${providers.length ? providers.join(", ") : "없음"}`);
+    if (!ext.google) {
+      info("구글 로그인은 대시보드에서 Google 공급자를 켜야 동작한다 (카카오·네이버는 서버 경로라 무관)");
     }
   }
 }
 
-// ── 결과 ────────────────────────────────────────────────────────────────────
-console.log("\n" + "═".repeat(64));
-if (problems.length === 0) {
-  console.log(" 진단 결과: 이상 없음 — 회원가입·로그인 경로의 DB 의존성은 정상입니다.");
-  console.log("═".repeat(64));
-  process.exit(0);
+// ── 6. 문자 발송 ──────────────────────────────────────────
+console.log("\n6) 문자 발송 (OTP 가 실제로 도착하는가)");
+{
+  const r = await get("/functions/v1/send-sms", { method: "POST", body: "{}" });
+  if (r.status === 404) {
+    bad("send-sms 함수가 없다", "supabase functions deploy send-sms --no-verify-jwt");
+  } else if (r.status === 401 && /signature/i.test(JSON.stringify(r.body))) {
+    ok("send-sms 배포됨", "서명 검증이 동작한다(서명 없는 요청을 거절)");
+  } else if (r.status === 500 && /hook secret/i.test(JSON.stringify(r.body))) {
+    bad("send-sms 는 있지만 SEND_SMS_HOOK_SECRET 이 없다",
+        "supabase secrets set SEND_SMS_HOOK_SECRET=v1,whsec_... (대시보드 Auth → Hooks 에서 발급)");
+  } else {
+    info(`send-sms 응답 HTTP ${r.status} ${JSON.stringify(r.body).slice(0, 120)}`);
+    info("알리고 자격 증명(ALIGO_API_KEY/USER_ID/SENDER)도 secrets 에 있어야 실제 발송된다");
+  }
 }
 
-console.log(` 진단 결과: 문제 ${problems.length}건`);
-console.log("═".repeat(64));
-problems.forEach((p, i) => {
-  console.log(`\n${i + 1}. ${p.msg}`);
-  console.log(`   → 조치: ${p.fix}`);
-});
-
-if (!firestoreReachable) {
-  console.log(
-    "\n※ Firestore 가 막힌 상태에서는 회원가입·로그인이 '계정이 없습니다' 처럼 보이지만," +
-      "\n   실제로는 users 컬렉션을 아예 못 읽는 것입니다. 위 조치가 끝나야 복구됩니다."
-  );
-}
-console.log("");
-process.exit(1);
+console.log(
+  failed === 0
+    ? "\n\x1b[32m문제 없음.\x1b[0m\n"
+    : `\n\x1b[31m${failed}건 확인 필요.\x1b[0m 위의 ↳ 를 따라가면 된다.\n`
+);
+process.exit(failed === 0 ? 0 : 1);

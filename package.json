@@ -20,8 +20,7 @@
     "db:doctor": "node scripts/db-doctor.mjs",
     "site:dev": "npm --prefix apps/site run dev",
     "site:build": "npm --prefix apps/site run build",
-    "site:verify": "node apps/site/scripts/verify-ssr.mjs",
-    "test:rules": "node scripts/rules-test.mjs"
+    "site:verify": "node apps/site/scripts/verify-ssr.mjs"
   },
   "dependencies": {
     "@google/genai": "^1.45.0",
