@@ -142,6 +142,11 @@ class CompatQuery {
 class CompatDoc {
   constructor(private sb: SupabaseClient, private name: string, public id: string) {}
 
+  /** 일괄 쓰기(CompatBatch)가 쓰는 주소. */
+  get table(): string {
+    return table(this.name);
+  }
+
   async get(): Promise<CompatSnapshot> {
     const t = table(this.name);
     const { data, error } = await this.sb.from(t).select('*').eq(pkOf(t), this.id).maybeSingle();
@@ -200,16 +205,62 @@ class CompatCollection extends CompatQuery {
 }
 
 /**
+ * 여러 문서를 한 번에 쓰는 통로.
+ *
+ * ⚠️ **부분 병합이 아니라 통째로 덮어쓴다.** 낱개 저장(save_doc)은 Firestore 의
+ *    merge 규칙을 그대로 따르지만, 여기는 upsert 라 기존 data 가 사라진다.
+ *    지금 쓰는 곳(쿠폰 대량 발급)은 전부 새 문서를 만드는 경우라 문제가 없다.
+ *    기존 문서를 조금씩 고치는 용도로는 쓰면 안 된다 — 그건 save_doc 쪽이다.
+ *
+ * 테이블별로 모아 한 번에 보낸다. 450건을 450번 왕복하던 것이 테이블당 1회가 된다.
+ */
+class CompatBatch {
+  private sets = new Map<string, Array<Record<string, any>>>();
+  private deletes = new Map<string, string[]>();
+
+  constructor(private sb: SupabaseClient) {}
+
+  set(ref: { table: string; id: string }, value: Record<string, any>): void {
+    const rows = this.sets.get(ref.table) ?? [];
+    rows.push({ [pkOf(ref.table)]: ref.id, data: value });
+    this.sets.set(ref.table, rows);
+  }
+
+  delete(ref: { table: string; id: string }): void {
+    const ids = this.deletes.get(ref.table) ?? [];
+    ids.push(ref.id);
+    this.deletes.set(ref.table, ids);
+  }
+
+  async commit(): Promise<void> {
+    for (const [t, rows] of this.sets) {
+      const { error } = await this.sb.from(t).upsert(rows, { onConflict: pkOf(t) });
+      if (error) throw error;
+    }
+    for (const [t, ids] of this.deletes) {
+      const { error } = await this.sb.from(t).delete().in(pkOf(t), ids);
+      if (error) throw error;
+    }
+    this.sets.clear();
+    this.deletes.clear();
+  }
+}
+
+/**
  * Firestore 모양의 DB 핸들. `getFirebaseAdmin().firestore()` 자리에 그대로 들어간다.
  */
 export interface CompatDb {
   collection(name: string): CompatCollection;
+  batch(): CompatBatch;
 }
 
 export function getDb(): CompatDb | null {
   const sb = getSupabaseAdmin();
   if (!sb) return null;
-  return { collection: (name: string) => new CompatCollection(sb, name) };
+  return {
+    collection: (name: string) => new CompatCollection(sb, name),
+    batch: () => new CompatBatch(sb),
+  };
 }
 
 /**

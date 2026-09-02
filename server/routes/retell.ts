@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getFirebaseAdmin } from '../lib/firebase.js';
+import { getDb } from '../lib/db.js';
 import { aiReservationConfig, findFreeTable, hmToMin, isStoreOpenAt, loadStoreDay, minToHm, pickFreeTable, tryBookReservation } from '../lib/reservation.js';
 import { checkAiReservationAuth, isValidStoreId } from '../lib/storeAuth.js';
 
@@ -20,8 +20,8 @@ function retellArgs(req: any): any {
 router.post('/api/retell/availability', async (req, res) => {
   try {
     if (!checkAiReservationAuth(req, res)) return;
-    const adminApp = getFirebaseAdmin();
-    if (!adminApp) return res.status(503).json({ error: 'FIREBASE_ADMIN_NOT_CONFIGURED' });
+    const db = getDb();
+    if (!db) return res.status(503).json({ error: 'DB_NOT_CONFIGURED' });
     const storeId = String(req.query.storeId || '');
     if (!isValidStoreId(storeId)) return res.status(400).json({ error: 'storeId(query) required' });
     const a = retellArgs(req);
@@ -31,16 +31,15 @@ router.post('/api/retell/availability', async (req, res) => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time)) {
       return res.json({ available: false, message: '날짜(YYYY-MM-DD)와 시간(HH:MM) 형식이 필요해요.' });
     }
-    const fs = adminApp.firestore();
-    const ownerSnap = await fs.collection('users').doc(storeId).get();
+    const ownerSnap = await db.collection('users').doc(storeId).get();
     if (!ownerSnap.exists) return res.status(404).json({ error: 'store not found' });
     const owner = ownerSnap.data();
     const { enabled, durationMin } = aiReservationConfig(owner);
     if (!enabled) return res.status(403).json({ error: 'ai_disabled' });
     if (!isStoreOpenAt(owner, date, time)) return res.json({ available: false, reason: 'closed' });
-    const table = await findFreeTable(fs, storeId, date, time, size, durationMin);
+    const table = await findFreeTable(db, storeId, date, time, size, durationMin);
     if (table) return res.json({ available: true, tableNumber: table.number });
-    const { tables, reservations } = await loadStoreDay(fs, storeId, date);
+    const { tables, reservations } = await loadStoreDay(db, storeId, date);
     const alternatives: string[] = [];
     for (const delta of [30, -30, 60, -60, 90, -90, 120, -120]) {
       const alt = minToHm(hmToMin(time) + delta);
@@ -56,21 +55,20 @@ router.post('/api/retell/availability', async (req, res) => {
 router.post('/api/retell/slots', async (req, res) => {
   try {
     if (!checkAiReservationAuth(req, res)) return;
-    const adminApp = getFirebaseAdmin();
-    if (!adminApp) return res.status(503).json({ error: 'FIREBASE_ADMIN_NOT_CONFIGURED' });
+    const db = getDb();
+    if (!db) return res.status(503).json({ error: 'DB_NOT_CONFIGURED' });
     const storeId = String(req.query.storeId || '');
     if (!isValidStoreId(storeId)) return res.status(400).json({ error: 'storeId(query) required' });
     const a = retellArgs(req);
     const date = String(a.date || '');
     const size = Math.max(1, Math.min(99, Number(a.partySize) || 1));
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.json({ slots: [], message: '날짜(YYYY-MM-DD)가 필요해요.' });
-    const fs = adminApp.firestore();
-    const ownerSnap = await fs.collection('users').doc(storeId).get();
+    const ownerSnap = await db.collection('users').doc(storeId).get();
     if (!ownerSnap.exists) return res.status(404).json({ error: 'store not found' });
     const owner = ownerSnap.data();
     const { enabled, durationMin } = aiReservationConfig(owner);
     if (!enabled) return res.status(403).json({ error: 'ai_disabled' });
-    const { tables, reservations } = await loadStoreDay(fs, storeId, date);
+    const { tables, reservations } = await loadStoreDay(db, storeId, date);
     const slots: string[] = [];
     for (let m = 0; m < 1440 && slots.length < 20; m += 30) {
       const time = minToHm(m);
@@ -83,8 +81,8 @@ router.post('/api/retell/slots', async (req, res) => {
 router.post('/api/retell/book', async (req, res) => {
   try {
     if (!checkAiReservationAuth(req, res)) return;
-    const adminApp = getFirebaseAdmin();
-    if (!adminApp) return res.status(503).json({ error: 'FIREBASE_ADMIN_NOT_CONFIGURED' });
+    const db = getDb();
+    if (!db) return res.status(503).json({ error: 'DB_NOT_CONFIGURED' });
     const storeId = String(req.query.storeId || '');
     if (!isValidStoreId(storeId)) return res.status(400).json({ error: 'storeId(query) required' });
     const a = retellArgs(req);
@@ -96,13 +94,12 @@ router.post('/api/retell/book', async (req, res) => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time) || !customerName || !customerPhone) {
       return res.json({ ok: false, error: 'missing', message: '날짜·시간·인원·성함·연락처가 모두 필요해요.' });
     }
-    const fs = adminApp.firestore();
-    const ownerSnap = await fs.collection('users').doc(storeId).get();
+    const ownerSnap = await db.collection('users').doc(storeId).get();
     if (!ownerSnap.exists) return res.status(404).json({ error: 'store not found' });
     const owner = ownerSnap.data();
     const { enabled, durationMin } = aiReservationConfig(owner);
     if (!enabled) return res.status(403).json({ error: 'ai_disabled' });
-    const result = await tryBookReservation(fs, owner, storeId, { date, time, partySize: size, customerName, customerPhone }, durationMin);
+    const result = await tryBookReservation(db, owner, storeId, { date, time, partySize: size, customerName, customerPhone }, durationMin);
     if (result.status === 'ok') return res.json({ ok: true, date, time, partySize: size, tableNumber: result.reservation.tableNumber, customerName });
     if (result.status === 'duplicate') return res.json({ ok: false, error: 'duplicate', existing: result.existing });
     if (result.status === 'too_large') return res.json({ ok: false, error: 'too_large', maxSeats: result.maxSeats });
