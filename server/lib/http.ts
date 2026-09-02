@@ -11,3 +11,9 @@ export async function fetchWithTimeout(url: string, init: RequestInit, ms: numbe
     clearTimeout(t);
   }
 }
+
+/**
+ * 이 서비스의 공개 주소. OAuth redirect_uri 처럼 "밖에서 우리를 부를 주소"에 쓴다.
+ * (오래 firebase.ts 에 있었지만 Firebase 와 아무 관계가 없다.)
+ */
+export const getBaseUrl = (): string => process.env.APP_URL || 'http://localhost:3000';

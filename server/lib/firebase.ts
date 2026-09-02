@@ -1,12 +1,6 @@
 import admin from 'firebase-admin';
 
 
-// Helper to get base URL
-export const getBaseUrl = () => {
-  return process.env.APP_URL || 'http://localhost:3000';
-};
-
-
 // Lazy initialize Firebase Admin
 let adminApp: admin.app.App | null = null;
 

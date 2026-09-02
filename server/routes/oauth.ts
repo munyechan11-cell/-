@@ -1,7 +1,7 @@
 import { Router } from 'express';
 
 import { mintSocialSession, type SocialProvider } from '../lib/authAdmin.js';
-import { getBaseUrl } from '../lib/firebase.js';
+import { getBaseUrl } from '../lib/http.js';
 import { isSocialProvider, verifySocialToken } from '../lib/socialVerify.js';
 
 const router = Router();

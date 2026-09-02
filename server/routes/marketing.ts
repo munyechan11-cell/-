@@ -1,7 +1,6 @@
 import { Router } from 'express';
-import admin from 'firebase-admin';
 import { randomUUID } from 'node:crypto';
-import { getFirebaseAdmin } from '../lib/firebase.js';
+import { FieldValue, getDb, type CompatDb } from '../lib/db.js';
 import { fetchWithTimeout } from '../lib/http.js';
 import { langDirective } from '../lib/lang.js';
 import { parseLooseJson } from '../lib/parsers.js';
@@ -32,8 +31,8 @@ const checkMarketingRate = (storeId: string): boolean => {
 // ============================================================
 router.post('/api/marketing/generate', async (req, res) => {
   try {
-    const adminApp = getFirebaseAdmin();
-    if (!adminApp) return res.status(503).json({ error: 'FIREBASE_ADMIN_NOT_CONFIGURED' });
+    const db = getDb();
+    if (!db) return res.status(503).json({ error: 'DB_NOT_CONFIGURED' });
     const { storeId, channel, kind, topic, reviewText, rating, lang } = req.body ?? {};
     if (!isValidStoreId(storeId)) return res.status(400).json({ error: 'storeId required' });
     // 매장당 분당 10회 (storeId 기준 — 인증 없는 엔드포인트라도 매장 단위로 LLM 비용을 묶음)
@@ -43,8 +42,7 @@ router.post('/api/marketing/generate', async (req, res) => {
     const ch: string = ['instagram', 'naverPlace', 'general'].includes(channel) ? channel : 'instagram';
     const kd: string = kind === 'reply' ? 'reply' : 'post';
 
-    const fs = adminApp.firestore();
-    const ownerSnap = await fs.collection('users').doc(storeId).get();
+    const ownerSnap = await db.collection('users').doc(storeId).get();
     if (!ownerSnap.exists) return res.status(404).json({ error: 'store not found' });
     const owner = ownerSnap.data() as any;
     const m = owner?.storeConfig?.marketingAgent ?? {};
@@ -178,15 +176,14 @@ async function zernioPublish(content: string, mediaItems: MediaItem[], platforms
 
 router.post('/api/marketing/publish', async (req, res) => {
   try {
-    const adminApp = getFirebaseAdmin();
-    if (!adminApp) return res.status(503).json({ error: 'FIREBASE_ADMIN_NOT_CONFIGURED' });
+    const db = getDb();
+    if (!db) return res.status(503).json({ error: 'DB_NOT_CONFIGURED' });
     const { storeId, content, imageUrl, photoId, photoIds, videoUrl, platforms } = req.body ?? {};
     if (!isValidStoreId(storeId)) return res.status(400).json({ error: 'storeId required' });
     if (!checkMarketingRate(storeId)) return res.status(429).json({ error: '잠시 후 다시 시도해 주세요. (분당 10회 제한)' });
     if (!content || !String(content).trim()) return res.status(400).json({ error: 'content_required' });
     if (!process.env.ZERNIO_API_KEY) return res.status(503).json({ error: 'ZERNIO_NOT_CONFIGURED' });
-    const fs = adminApp.firestore();
-    const ownerSnap = await fs.collection('users').doc(storeId).get();
+    const ownerSnap = await db.collection('users').doc(storeId).get();
     if (!ownerSnap.exists) return res.status(404).json({ error: 'store not found' });
     const owner = ownerSnap.data() as any;
     let targets = connectedChannels(owner);
@@ -229,12 +226,12 @@ router.post('/api/marketing/publish', async (req, res) => {
 // (base64 data URL 은 Zernio 가 못 가져오므로, 우리 서버가 실제 이미지로 변환해 공개 URL 제공.)
 router.get('/api/marketing/image/:photoId', async (req, res) => {
   try {
-    const adminApp = getFirebaseAdmin();
-    if (!adminApp) return res.status(503).end();
+    const db = getDb();
+    if (!db) return res.status(503).end();
     const photoId = String(req.params.photoId || '');
     const storeId = String(req.query.storeId || '');
     if (!isValidStoreId(photoId) || !isValidStoreId(storeId)) return res.status(400).end();
-    const snap = await adminApp.firestore().collection('photos').doc(photoId).get();
+    const snap = await db.collection('photos').doc(photoId).get();
     if (!snap.exists) return res.status(404).end();
     const pdata = snap.data() as any;
     if (pdata?.storeId !== storeId) return res.status(404).end(); // 매장 경계 강제 — 타매장 사진 IDOR 차단
@@ -269,8 +266,8 @@ async function zernioApi(method: string, path: string, body?: any): Promise<{ ok
   return { ok: r.ok, status: r.status, data };
 }
 // storeConfig.publishing.* 만 안전하게 갱신 (Admin set merge — 다른 storeConfig 필드 보존; 중첩 map 은 deep-merge)
-async function savePublishing(fs: any, storeId: string, patch: Record<string, any>) {
-  await fs.collection('users').doc(storeId).set({ storeConfig: { publishing: patch } }, { merge: true });
+async function savePublishing(db: CompatDb, storeId: string, patch: Record<string, any>) {
+  await db.collection('users').doc(storeId).set({ storeConfig: { publishing: patch } }, { merge: true });
 }
 // Zernio /accounts 의 platform 문자열이 우리 platform 키와 같은 채널인지 (구글은 표기 변형 흡수)
 function zernioAccountMatches(accPlatform: string, ours: string): boolean {
@@ -282,15 +279,14 @@ function zernioAccountMatches(accPlatform: string, ours: string): boolean {
 
 router.post('/api/marketing/connect-url', async (req, res) => {
   try {
-    const adminApp = getFirebaseAdmin();
-    if (!adminApp) return res.status(503).json({ error: 'FIREBASE_ADMIN_NOT_CONFIGURED' });
+    const db = getDb();
+    if (!db) return res.status(503).json({ error: 'DB_NOT_CONFIGURED' });
     const { storeId, platform, redirectUrl } = req.body ?? {};
     if (!isValidStoreId(storeId)) return res.status(400).json({ error: 'storeId required' });
     if (!SUPPORTED_PLATFORMS.includes(String(platform))) return res.status(400).json({ error: 'unsupported_platform' });
     if (!checkMarketingRate(storeId)) return res.status(429).json({ error: '잠시 후 다시 시도해 주세요.' });
     if (!process.env.ZERNIO_API_KEY) return res.status(503).json({ error: 'ZERNIO_NOT_CONFIGURED' });
-    const fs = adminApp.firestore();
-    const ownerSnap = await fs.collection('users').doc(storeId).get();
+    const ownerSnap = await db.collection('users').doc(storeId).get();
     if (!ownerSnap.exists) return res.status(404).json({ error: 'store not found' });
     const owner = ownerSnap.data() as any;
     // 요금제 게이트(베타엔 off): 이미 연결된 다른 채널이 있고(=2번째 채널) free 면 Pro 필요
@@ -306,7 +302,7 @@ router.post('/api/marketing/connect-url', async (req, res) => {
       const created = await zernioApi('POST', '/profiles', { name: String(owner?.restaurantName || storeId).slice(0, 60), description: `gyeol:${storeId}` });
       profileId = created.data?._id || created.data?.profile?._id || created.data?.id;
       if (!created.ok || !profileId) return res.status(502).json({ error: 'profile_create_failed' });
-      await savePublishing(fs, storeId, { zernioProfileId: profileId });
+      await savePublishing(db, storeId, { zernioProfileId: profileId });
     }
     // redirect_url: OAuth 완료 후 Zernio 대시보드(로그인 벽) 대신 우리 앱으로 복귀 → ?connected={platform}&accountId=...&username=...
     let connectPath = `/connect/${platform}?profileId=${encodeURIComponent(profileId)}`;
@@ -322,14 +318,13 @@ router.post('/api/marketing/connect-url', async (req, res) => {
 
 router.post('/api/marketing/connect-finish', async (req, res) => {
   try {
-    const adminApp = getFirebaseAdmin();
-    if (!adminApp) return res.status(503).json({ error: 'FIREBASE_ADMIN_NOT_CONFIGURED' });
+    const db = getDb();
+    if (!db) return res.status(503).json({ error: 'DB_NOT_CONFIGURED' });
     const { storeId, platform } = req.body ?? {};
     if (!isValidStoreId(storeId)) return res.status(400).json({ error: 'storeId required' });
     if (!SUPPORTED_PLATFORMS.includes(String(platform))) return res.status(400).json({ error: 'unsupported_platform' });
     if (!process.env.ZERNIO_API_KEY) return res.status(503).json({ error: 'ZERNIO_NOT_CONFIGURED' });
-    const fs = adminApp.firestore();
-    const ownerSnap = await fs.collection('users').doc(storeId).get();
+    const ownerSnap = await db.collection('users').doc(storeId).get();
     if (!ownerSnap.exists) return res.status(404).json({ error: 'store not found' });
     const owner = ownerSnap.data() as any;
     const profileId = owner?.storeConfig?.publishing?.zernioProfileId;
@@ -342,24 +337,23 @@ router.post('/api/marketing/connect-finish', async (req, res) => {
       .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))[0];
     if (!acc) return res.json({ connected: false }); // 아직 OAuth 미완료
     const username = acc?.metadata?.profileData?.username || acc?.metadata?.profileData?.name || acc?.displayName || '';
-    await savePublishing(fs, storeId, { channels: { [String(platform)]: { accountId: acc._id, username } } });
+    await savePublishing(db, storeId, { channels: { [String(platform)]: { accountId: acc._id, username } } });
     return res.json({ connected: true, platform, username, accountId: acc._id });
   } catch (e: any) { console.error('[connect-finish]', e?.message); res.status(500).json({ error: e?.message ?? 'failed' }); }
 });
 
 router.post('/api/marketing/disconnect', async (req, res) => {
   try {
-    const adminApp = getFirebaseAdmin();
-    if (!adminApp) return res.status(503).json({ error: 'FIREBASE_ADMIN_NOT_CONFIGURED' });
+    const db = getDb();
+    if (!db) return res.status(503).json({ error: 'DB_NOT_CONFIGURED' });
     const { storeId, platform } = req.body ?? {};
     if (!isValidStoreId(storeId)) return res.status(400).json({ error: 'storeId required' });
     if (!SUPPORTED_PLATFORMS.includes(String(platform))) return res.status(400).json({ error: 'unsupported_platform' });
-    const fs = adminApp.firestore();
-    const del = admin.firestore.FieldValue.delete();
+    const del = FieldValue.delete();
     const patch: Record<string, any> = { channels: { [String(platform)]: del } };
     // 인스타는 구 단일 필드도 같이 제거(호환 fallback 이 남지 않도록)
     if (platform === 'instagram') { patch.instagramAccountId = del; patch.instagramUsername = del; }
-    await fs.collection('users').doc(storeId).set({ storeConfig: { publishing: patch } }, { merge: true });
+    await db.collection('users').doc(storeId).set({ storeConfig: { publishing: patch } }, { merge: true });
     return res.json({ ok: true });
   } catch (e: any) { console.error('[disconnect]', e?.message); res.status(500).json({ error: e?.message ?? 'failed' }); }
 });
