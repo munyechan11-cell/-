@@ -1493,7 +1493,6 @@ const dict: Record<string, string> = {
   "store.staff.clockInOk": "Đã vào ca. Chúc một ngày tốt!",
   "store.staff.noShift": "Không có ca nào.",
   "store.staff.clockOutOk": "Đã tan ca. Vất vả rồi!",
-  "auth.firebaseNotConfigured": "Firebase Auth chưa được cấu hình.",
   "auth.google.popupBlocked": "Cửa sổ bật lên bị chặn. Hãy cho phép pop-up trong trình duyệt rồi thử lại.",
   "auth.google.cancelled": "Đã hủy đăng nhập Google.",
   "auth.networkUnstable": "Mạng không ổn định. Vui lòng thử lại sau ít phút.",

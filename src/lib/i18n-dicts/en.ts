@@ -1493,7 +1493,6 @@ const dict: Record<string, string> = {
   "store.staff.clockInOk": "Clocked in. Have a great shift!",
   "store.staff.noShift": "No active shift.",
   "store.staff.clockOutOk": "Clocked out. Great work today!",
-  "auth.firebaseNotConfigured": "Firebase Auth is not configured.",
   "auth.google.popupBlocked": "Popup was blocked. Please allow popups in your browser and try again.",
   "auth.google.cancelled": "Google sign-in was cancelled.",
   "auth.networkUnstable": "Network is unstable. Please try again shortly.",

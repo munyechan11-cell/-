@@ -1,12 +1,10 @@
-import { arrayUnion, newId, saveDoc } from "../../lib/db";
+import { arrayUnion, removeDoc, saveDoc } from "../../lib/db";
 import { currentAuthUserId, signOut as supabaseSignOut } from "../../lib/phoneVerify";
 import { fetchDoc } from "../../lib/realtime";
 import type { StoreCore } from "../core";
 import type { LoginInput } from "../types";
 import { LS_MASTER, makeDefaultTables } from "../constants";
 import { useCallback } from "react";
-import { collection, query, where, doc, getDocs, writeBatch } from "firebase/firestore";
-import { db, ensureAnonymousAuth } from "../../lib/firebase";
 import { calculateAgeGroup } from "../../lib/auth";
 import { normalizePhone } from "../../lib/ids";
 import { showToast } from "../../lib/toast";
@@ -192,14 +190,12 @@ export function useAuthActions(core: StoreCore) {
     const patch: Partial<User> = {
       phoneVerifiedAt: new Date().toISOString(),
     };
-    // ⚠️ E.164("+821012345678")를 그대로 저장하면 안 된다.
-    //    로그인 매칭은 국내 0-prefix 숫자열을 쓰므로, 그대로 넣는 순간 그 계정은
-    //    전화번호로 영영 로그인할 수 없게 된다(인증을 마친 사람부터 차례로 잠김).
-    //    인증된 번호를 반영하되 표준형으로 정규화해서 넣는다.
+    // 저장은 국내 표기("01012345678")로 통일한다. 화면·검색·문자 발송이 전부 이
+    // 모양을 쓰므로, E.164 를 그대로 넣으면 그 계정만 어디서도 안 잡힌다.
     if (e164Phone) patch.phone = normalizePhone(e164Phone);
-    // write 전 익명 토큰 보장 — 전화인증(signOut) 직후 토큰 미회복 시 permission-denied 로
-    // phoneVerifiedAt 저장이 실패해 재인증이 반복되던 버그를 차단.
-    await ensureAnonymousAuth();
+    // 예전에는 여기서 익명 토큰을 되살려야 했다 — 전화인증이 메인 세션을 파괴해서
+    // 곧바로 쓰면 permission-denied 가 났다. 지금은 OTP 검증이 곧 로그인이라
+    // 이 시점에 이미 세션이 있다. 되살릴 것이 없다.
     await saveDoc("users", userId, patch);
     // 로컬 currentUser 도 즉시 반영 — 안 하면 새로고침 시 인증 게이트가 다시 떠 재인증(SMS 비용) 발생
     const cu = currentUserRef.current;
@@ -225,46 +221,21 @@ export function useAuthActions(core: StoreCore) {
     localStorage.removeItem(LS_MASTER);
   }, []);
 
+  /**
+   * 마스터 화면의 계정 삭제 — 관련 문서까지 함께 지운다.
+   *
+   * 예전에는 클라이언트가 전 컬렉션을 훑어 지웠다. 그러려면 남의 매장 문서까지
+   * 읽을 수 있어야 하고, 실제로 Firestore 규칙이 그만큼 열려 있었다. RLS 를
+   * 건 지금은 그 조회 자체가 막히므로 클라이언트에서는 할 수 없는 일이다.
+   *
+   * 지금은 삭제를 DB 에 맡긴다. users 행을 지우면 storeId·customerId 외래키가
+   * on delete cascade 로 걸려 있어 관련 행이 함께 사라진다(supabase/migrations).
+   * 훑을 필요도, 권한을 열 필요도 없다.
+   */
   const deleteUser = useCallback(
     async (userId: string, role: Role) => {
-      if (!db) {
-        showToast(t("store.master.offlineDelete"), "error");
-        return;
-      }
-      const batch = writeBatch(db);
-      const cascade = async (
-        coll: string,
-        field: string,
-        value: string
-      ) => {
-        const snap = await import("firebase/firestore").then(({ getDocs, query, where, collection }) =>
-          getDocs(query(collection(db!, coll), where(field, "==", value)))
-        );
-        snap.forEach((d) => batch.delete(d.ref));
-      };
-
-      if (role === "owner") {
-        await cascade("tables", "storeId", userId);
-        await cascade("visits", "storeId", userId);
-        await cascade("coupons", "storeId", userId);
-        await cascade("Communications", "storeId", userId);
-        await cascade("tierOverrides", "storeId", userId);
-        await cascade("sections", "storeId", userId);
-        await cascade("menus", "storeId", userId);
-        await cascade("orders", "storeId", userId);
-        await cascade("reservations", "storeId", userId);
-        await cascade("photos", "storeId", userId);
-        await cascade("shifts", "storeId", userId);
-      } else if (role === "staff") {
-        await cascade("shifts", "staffId", userId);
-      } else {
-        await cascade("visits", "customerId", userId);
-        await cascade("coupons", "customerId", userId);
-        await cascade("Communications", "customerId", userId);
-        await cascade("tierOverrides", "customerId", userId);
-      }
-      batch.delete(doc(db, "users", userId));
-      await batch.commit();
+      void role; // 무엇을 지울지는 외래키가 안다 — 역할별 분기가 필요 없다.
+      await removeDoc("users", userId);
       showToast(t("store.master.deleted"), "success");
     },
     []

@@ -1556,7 +1556,6 @@ const dict: Record<string, string> = {
   "store.staff.clockInOk": "출근 완료. 오늘도 화이팅!",
   "store.staff.noShift": "진행 중인 근무가 없습니다.",
   "store.staff.clockOutOk": "퇴근 완료. 수고하셨습니다!",
-  "auth.firebaseNotConfigured": "Firebase Auth가 설정되지 않았습니다.",
   "auth.google.popupBlocked": "팝업이 차단됐어요. 브라우저 주소창의 팝업 차단 아이콘을 풀고 다시 시도해 주세요.",
   "auth.google.cancelled": "Google 로그인이 취소되었습니다.",
   "auth.networkUnstable": "네트워크가 불안정해요. 잠시 후 다시 시도해 주세요.",

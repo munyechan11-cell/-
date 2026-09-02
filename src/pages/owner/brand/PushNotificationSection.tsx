@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import { Info, CheckCircle2, AlertCircle, Bell, BellOff, Smartphone } from "lucide-react";
 import { useLanguage, t } from "../../../lib/i18n";
 import { Button } from "../../../components/ui/Button";
-import { auth } from "../../../lib/firebase";
 import { showToast } from "../../../lib/toast";
 import { isPushSupported, getPermissionState, registerOwnerDevice, unregisterOwnerDevice, type PermissionState } from "../../../lib/pushNotifications";
 

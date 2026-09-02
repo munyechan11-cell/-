@@ -1,9 +1,7 @@
-import { newId, saveDoc } from "../../lib/db";
+import { newId, saveDoc, saveDocs } from "../../lib/db";
 import type { StoreCore } from "../core";
 import type { AdjustStock } from "./inventory";
 import { useCallback } from "react";
-import { doc, writeBatch } from "firebase/firestore";
-import { db } from "../../lib/firebase";
 import { showToast } from "../../lib/toast";
 import { t, fmtKRW, getLanguage } from "../../lib/i18n";
 import { relayOrderToPos } from "../../lib/pos";
@@ -179,17 +177,9 @@ export function useOrderActions(core: StoreCore, deps: { adjustStockForOrder: Ad
       }
       const total = unpaid.reduce((s, o) => s + o.totalAmount, 0);
 
-      if (!db) {
-        for (const o of unpaid) {
-          await saveDoc("orders", o.id, { paymentStatus: "requested" });
-        }
-      } else {
-        const batch = writeBatch(db);
-        unpaid.forEach((o) => {
-          batch.set(doc(db!, "orders", o.id), { paymentStatus: "requested" }, { merge: true });
-        });
-        await batch.commit();
-      }
+      await saveDocs(
+        unpaid.map((o) => ({ table: "orders", id: o.id, patch: { paymentStatus: "requested" } }))
+      );
 
       // 사장님 디바이스 푸시 — 결제 요청
       const ownerLang = usersRef.current.find((u) => u.id === storeId)?.lang ?? "ko";
@@ -243,17 +233,19 @@ export function useOrderActions(core: StoreCore, deps: { adjustStockForOrder: Ad
       const targets = ordersRef.current.filter(
         (o) => params.orderIds.includes(o.id) && o.paymentStatus !== "paid"
       );
-      if (db && targets.length > 0) {
-        const batch = writeBatch(db);
-        targets.forEach((o) =>
-          batch.set(doc(db!, "orders", o.id), { paymentStatus: "paid", paymentMethod: "card" }, { merge: true })
-        );
+      if (targets.length > 0) {
         // 현금 승인(approvePayment)과 동일하게 테이블도 'paid'(정리 대기)로 — 카드결제 후에도 사장님 테이블맵에 정리 신호가 뜨도록.
         const tableId = `${params.storeId}_${params.tableNumber}`;
-        if (tablesRef.current.some((t) => t.id === tableId)) {
-          batch.set(doc(db!, "tables", tableId), { status: "paid" }, { merge: true });
-        }
-        await batch.commit();
+        await saveDocs([
+          ...targets.map((o) => ({
+            table: "orders",
+            id: o.id,
+            patch: { paymentStatus: "paid", paymentMethod: "card" },
+          })),
+          ...(tablesRef.current.some((t) => t.id === tableId)
+            ? [{ table: "tables", id: tableId, patch: { status: "paid" } }]
+            : []),
+        ]);
       }
 
       // 3) 사장님 디바이스로 '결제 완료' 푸시 (영수증 인쇄는 사장님 화면에서)
@@ -307,22 +299,18 @@ export function useOrderActions(core: StoreCore, deps: { adjustStockForOrder: Ad
         }
         const total = targets.reduce((s, o) => s + o.totalAmount, 0);
 
-        // 1) Firestore 일괄 업데이트: 주문 paid + 테이블 status: paid
-        if (db) {
-          const batch = writeBatch(db);
-          targets.forEach((o) => {
-            batch.set(doc(db!, "orders", o.id), { paymentStatus: "paid", paymentMethod: "cash" }, { merge: true });
-          });
-          const tableId = `${storeId}_${tableNumber}`;
-          if (tablesNow.some((t) => t.id === tableId)) {
-            batch.set(doc(db, "tables", tableId), { status: "paid" }, { merge: true });
-          }
-          await batch.commit();
-        } else {
-          for (const o of targets) {
-            await saveDoc("orders", o.id, { paymentStatus: "paid", paymentMethod: "cash" });
-          }
-        }
+        // 1) 일괄 업데이트: 주문 paid + 테이블 status: paid (한 트랜잭션)
+        const tableId = `${storeId}_${tableNumber}`;
+        await saveDocs([
+          ...targets.map((o) => ({
+            table: "orders",
+            id: o.id,
+            patch: { paymentStatus: "paid", paymentMethod: "cash" },
+          })),
+          ...(tablesNow.some((t) => t.id === tableId)
+            ? [{ table: "tables", id: tableId, patch: { status: "paid" } }]
+            : []),
+        ]);
 
         // 2) 총 영수증 1장 — 모든 주문 항목 합쳐서
         const owner = users.find((u) => u.id === storeId && u.role === "owner");

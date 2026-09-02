@@ -139,6 +139,44 @@ export async function saveDoc(table: string, id: string, data?: unknown): Promis
   }
 }
 
+/** 일괄 쓰기 한 건. patch 를 주면 저장, remove 를 주면 삭제. */
+export interface DocWrite {
+  table: string;
+  id: string;
+  patch?: unknown;
+  remove?: boolean;
+}
+
+/**
+ * 여러 문서를 **한 트랜잭션으로** 저장/삭제한다.
+ *
+ * 낱개 saveDoc 을 여러 번 부르는 것과 다르다. 앱에는 묶여야만 맞는 쓰기가 있다 —
+ * 예를 들어 테이블을 비울 때 "미결제 주문들을 취소" 와 "그 테이블을 dirty 로" 는
+ * 함께 되거나 함께 안 돼야 한다. 앞만 되면 손님이 앉아 있는 것처럼 보이고,
+ * 뒤만 되면 유령 주문이 매출·재고 집계에 영원히 남는다.
+ *
+ * 오프라인 큐에 넣지 않는다. 큐는 낱개 쓰기를 순서대로 다시 보내는 구조라,
+ * 묶임이 필요한 쓰기를 거기 넣으면 정확히 그 성질이 깨진다. 실패는 실패로 알린다.
+ */
+export async function saveDocs(writes: DocWrite[]): Promise<void> {
+  if (writes.length === 0) return;
+  const payload = writes.map((w) => ({
+    table: resolveTable(w.table),
+    id: w.id,
+    ...(w.remove ? { delete: true } : { patch: stripUndefined(w.patch ?? {}) }),
+  }));
+  try {
+    const settled = await withTimeout(supabase.rpc("save_docs", { p_writes: payload }));
+    if (settled === TIMED_OUT) throw new Error("timeout");
+    if (settled.error) throw settled.error;
+  } catch (e: unknown) {
+    const code = (e as { code?: string })?.code;
+    if (code === "42501" || code === "PGRST301") showToast(t("fs.permissionDenied"), "error");
+    else showToast(t("fs.saveError"), "error");
+    throw e;
+  }
+}
+
 /** 문서를 지운다. */
 export async function removeDoc(table: string, id: string): Promise<void> {
   const t0 = resolveTable(table);

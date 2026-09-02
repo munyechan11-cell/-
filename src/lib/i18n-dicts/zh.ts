@@ -1493,7 +1493,6 @@ const dict: Record<string, string> = {
   "store.staff.clockInOk": "上班完成,今天也加油!",
   "store.staff.noShift": "没有进行中的班次。",
   "store.staff.clockOutOk": "下班完成,辛苦了!",
-  "auth.firebaseNotConfigured": "Firebase Auth 尚未配置。",
   "auth.google.popupBlocked": "弹窗被拦截。请在浏览器中允许弹窗后重试。",
   "auth.google.cancelled": "已取消 Google 登录。",
   "auth.networkUnstable": "网络不稳定,请稍后再试。",

@@ -1,10 +1,8 @@
-import { newId, removeDoc, saveDoc } from "../../lib/db";
+import { newId, removeDoc, saveDoc, saveDocs } from "../../lib/db";
 import type { StoreCore } from "../core";
 import type { AdjustStock } from "./inventory";
 import { makeDefaultTables } from "../constants";
 import { useCallback } from "react";
-import { doc, writeBatch } from "firebase/firestore";
-import { db } from "../../lib/firebase";
 import { showToast } from "../../lib/toast";
 import { t } from "../../lib/i18n";
 import type { TableDoc, Section, TableStatus } from "../../lib/types";
@@ -76,20 +74,22 @@ export function useTableActions(core: StoreCore, deps: { adjustStockForOrder: Ad
       // 미결제 주문 cancel — batch 로 묶어 all-or-nothing 보장.
       // 기존엔 개별 try/catch 로 부분 실패해도 진행 → 유령 pending 주문이
       // 매출 집계/재고 카운트에 영구히 남던 무결성 버그.
-      if (db && unpaid.length > 0) {
-        const batch = writeBatch(db);
-        for (const o of unpaid) {
-          batch.set(doc(db, "orders", o.id), { status: "cancelled" }, { merge: true });
-        }
-        batch.set(doc(db, "tables", tableId), {
-          currentCustomerId: null,
-          occupantIds: [],
-          currentCustomerName: null,
-          partySize: null,
-          sessionStartTime: null,
-          status: "dirty",
-        }, { merge: true });
-        await batch.commit();
+      if (unpaid.length > 0) {
+        await saveDocs([
+          ...unpaid.map((o) => ({ table: "orders", id: o.id, patch: { status: "cancelled" } })),
+          {
+            table: "tables",
+            id: tableId,
+            patch: {
+              currentCustomerId: null,
+              occupantIds: [],
+              currentCustomerName: null,
+              partySize: null,
+              sessionStartTime: null,
+              status: "dirty",
+            },
+          },
+        ]);
         // 취소된 미결제 주문의 재고 복구(+1) — placeOrder 에서 차감했으므로 반대로. 이미 취소된 건 제외(중복 방지).
         const toRestore = unpaid.filter((o) => o.status !== "cancelled");
         if (toRestore.length > 0) {
@@ -164,13 +164,11 @@ export function useTableActions(core: StoreCore, deps: { adjustStockForOrder: Ad
   );
 
   const initTables = useCallback(async (storeId: string) => {
-    if (!db) return;
-    const batch = writeBatch(db);
-    tables.filter((t) => t.storeId === storeId).forEach((t) => batch.delete(doc(db!, "tables", t.id)));
-    for (const t of makeDefaultTables(storeId)) {
-      batch.set(doc(db, "tables", t.id), t);
-    }
-    await batch.commit();
+    // 지우기와 새로 만들기가 한 트랜잭션이다. 갈라지면 테이블이 없는 매장이 남는다.
+    await saveDocs([
+      ...tables.filter((t) => t.storeId === storeId).map((t) => ({ table: "tables", id: t.id, remove: true })),
+      ...makeDefaultTables(storeId).map((t) => ({ table: "tables", id: t.id, patch: t })),
+    ]);
     showToast(t("store.tables.reset"), "success");
   }, [tables]);
 

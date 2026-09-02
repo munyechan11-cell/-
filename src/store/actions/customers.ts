@@ -1,8 +1,6 @@
-import { increment, newId, removeDoc, saveDoc } from "../../lib/db";
+import { increment, newId, removeDoc, saveDoc, saveDocs } from "../../lib/db";
 import type { StoreCore } from "../core";
 import { useCallback } from "react";
-import { doc, writeBatch } from "firebase/firestore";
-import { db } from "../../lib/firebase";
 import { showToast } from "../../lib/toast";
 import { t } from "../../lib/i18n";
 import type { Visit, Coupon, Communication, Tier } from "../../lib/types";
@@ -200,7 +198,6 @@ export function useCustomerActions(core: StoreCore) {
 
   const bulkIssueCoupon = useCallback(
     async (customerIds: string[], storeId: string, type: string, description: string, amount?: number, descKey?: string) => {
-      if (!db) return;
       const amt = Math.max(0, Math.round(Number(amount) || 0)); // 금액 쿠폰(8-7)
       // 이미 같은 종류의 미사용 쿠폰을 보유한 손님은 제외 — 재방문/연타 시 중복 발급 방지
       const existing = couponsRef.current;
@@ -219,25 +216,29 @@ export function useCustomerActions(core: StoreCore) {
         return;
       }
       const now = new Date().toISOString();
-      // Firestore writeBatch 는 한 번에 최대 500 writes — 450개씩 나눠 커밋해 대형 매장에서 전량 실패 방지
+      // 한 번에 500건까지라 450개씩 나눠 보낸다. 덩어리끼리는 서로 독립이다 —
+      // 대형 매장에서 뒤쪽이 실패해도 앞쪽 발급은 살아 있는 편이 낫다.
       for (let i = 0; i < targets.length; i += 450) {
-        const chunk = targets.slice(i, i + 450);
-        const batch = writeBatch(db);
-        for (const cid of chunk) {
-          const id = newId();
-          batch.set(doc(db, "coupons", id), {
-            id,
-            customerId: cid,
-            storeId,
-            type,
-            description,
-            ...(amt > 0 ? { amount: amt } : {}),
-            ...(descKey ? { descKey } : {}), // i18n 키 — 손님 언어로 번역 표시(#8)
-            status: "available",
-            issuedAt: now,
-          });
-        }
-        await batch.commit();
+        await saveDocs(
+          targets.slice(i, i + 450).map((cid) => {
+            const id = newId();
+            return {
+              table: "coupons",
+              id,
+              patch: {
+                id,
+                customerId: cid,
+                storeId,
+                type,
+                description,
+                ...(amt > 0 ? { amount: amt } : {}),
+                ...(descKey ? { descKey } : {}), // i18n 키 — 손님 언어로 번역 표시(#8)
+                status: "available",
+                issuedAt: now,
+              },
+            };
+          })
+        );
       }
       showToast(t("store.bulkCoupon", undefined, { n: targets.length }), "success");
     },
