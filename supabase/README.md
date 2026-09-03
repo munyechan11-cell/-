@@ -91,6 +91,31 @@
 점검은 `node scripts/db-doctor.mjs` 로 한다. 위 항목을 앱이 밟는 순서대로 찔러
 어느 단계가 끊겼는지 짚어 준다.
 
+## 어드바이저 (Supabase 린터)
+
+`get_advisors` 를 돌려 지적된 것 중 **셋은 고쳤고, 셋은 남겼다.** 남긴 쪽도 이유를
+적어 둔다 — 안 적으면 다음에 보는 사람이 "경고가 있네" 하고 되돌린다.
+
+### 고친 것
+
+| 지적 | 왜 진짜 문제였나 |
+|---|---|
+| `function_search_path_mutable` ×3 | `is_doc_table`·`hm_to_min`·`my_device_store_id` 에 search_path 를 안 걸었다. 열려 있으면 호출자가 그 값을 바꿔 같은 이름의 다른 함수·테이블을 가리키게 할 수 있다. `is_doc_table` 은 save_doc 의 테이블 화이트리스트라 특히 중요하다 |
+| `auth_rls_initplan` ×7 | 정책 본문의 `auth.uid()` 가 **행마다** 다시 평가됐다. `(select auth.uid())` 로 감싸 쿼리당 한 번만 계산한다. 손님 한 명의 주문·쿠폰을 훑을 때 차이가 난다 |
+| `unindexed_foreign_keys` ×2 | `merchant_map`·`pairing_codes` 의 storeId. 부모(users) 행을 지울 때 자식에서 참조를 찾느라 전체를 훑는다 — 계정 삭제가 느려지는 자리 |
+
+고친 뒤 RLS 검증 13건을 다시 돌려 판정이 그대로임을 확인했다(정책을 다시 쓴 것이라
+의미가 바뀌지 않았는지 봐야 한다).
+
+### 남긴 것
+
+| 지적 | 왜 그대로 두나 |
+|---|---|
+| `rls_enabled_no_policy` ×4 | **그게 목적이다.** 정책 0개 = 클라이언트 접근 0. 정산 키·페어링 코드는 service_role 만 닿아야 한다 |
+| `authenticated_security_definer_function_executable` ×2 | 정책이 `my_role`·`my_store_id` 를 부르므로 authenticated 에게 EXECUTE 가 있어야 한다. RPC 로 직접 불러도 인자가 없고 **자기 자신의** 역할·매장만 돌려준다 — 자기 users 행을 읽으면 어차피 아는 값이다 |
+| `multiple_permissive_policies` ×4 | 본인용과 사장용 정책이 따로 있다. 합치면 빠르지만 "내 것"과 "우리 매장 손님"은 다른 판단이라 합치면 읽기 어려워진다. users 는 작은 테이블이라 명확성을 택했다 |
+| `unused_index` ×12 | **DB 가 비어 있어서 아무 것도 안 쓰인 게 당연하다.** 이걸 근거로 storeId 인덱스를 지우면 매장별 조회가 전부 전체 훑기가 된다. 지우면 안 된다 |
+
 ## 검증
 
 - `supabase/tests/rls.sql` — 매장 격리·권한 상승 차단. Firestore 규칙 테스트
