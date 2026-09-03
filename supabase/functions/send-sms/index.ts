@@ -19,7 +19,7 @@
 // 배포:
 //   supabase functions deploy send-sms --no-verify-jwt --project-ref <ref>
 //   supabase secrets set ALIGO_API_KEY=... ALIGO_USER_ID=... ALIGO_SENDER=... \
-//                        SEND_SMS_HOOK_SECRET=v1,whsec_...
+//                        SEND_SMS_HOOK_SECRETS=v1,whsec_...
 //   그리고 대시보드 Authentication → Hooks → Send SMS 에서 이 함수를 지정한다.
 //
 //   --no-verify-jwt 를 쓰는 이유: 이 함수를 부르는 건 로그인한 사용자가 아니라
@@ -35,9 +35,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
   const rawBody = await req.text();
 
-  const hookSecret = Deno.env.get('SEND_SMS_HOOK_SECRET') ?? '';
+  // Supabase 문서가 쓰는 이름은 **복수형**(SEND_SMS_HOOK_SECRETS)이다.
+  // 나중에 키 교체를 위해 여러 개를 담을 수 있게 하려고 그렇게 정해져 있다.
+  // 문서를 보고 복수형으로 넣었는데 함수가 단수형만 읽으면, 시크릿을 제대로
+  // 넣고도 "설정 안 됨"으로 죽는다 — 찾기 어려운 종류의 실패다. 둘 다 받는다.
+  const hookSecret =
+    Deno.env.get('SEND_SMS_HOOK_SECRETS') ?? Deno.env.get('SEND_SMS_HOOK_SECRET') ?? '';
   if (!hookSecret) {
-    console.error('[send-sms] SEND_SMS_HOOK_SECRET 미설정 — 검증 없이 발송하지 않는다');
+    console.error('[send-sms] SEND_SMS_HOOK_SECRETS 미설정 — 검증 없이 발송하지 않는다');
     return new Response(JSON.stringify({ error: 'hook secret not configured' }), { status: 500 });
   }
   const signed = await verifySignature(
