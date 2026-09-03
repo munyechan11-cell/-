@@ -16,6 +16,7 @@ import app, { PORT } from './server/app.js';
 import { startServer } from './server/static.js';
 
 import oauthRoutes from './server/routes/oauth.js';
+import phoneAuthRoutes from './server/routes/phoneAuth.js';
 import posRoutes from './server/routes/pos.js';
 import paymentsRoutes from './server/routes/payments.js';
 import tossplaceRoutes from './server/routes/tossplace.js';
@@ -30,6 +31,7 @@ import webhookRoutes from './server/routes/webhooks.js';
 import marketingCronRoutes from './server/routes/marketingCron.js';
 
 app.use(oauthRoutes);
+app.use(phoneAuthRoutes);
 app.use(posRoutes);
 app.use(paymentsRoutes);
 app.use(tossplaceRoutes);

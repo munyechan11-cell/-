@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import oauthRoutes from './routes/oauth.js';
+import phoneAuthRoutes from './routes/phoneAuth.js';
 import posRoutes from './routes/pos.js';
 import paymentsRoutes from './routes/payments.js';
 import tossplaceRoutes from './routes/tossplace.js';
@@ -16,7 +17,7 @@ import marketingCronRoutes from './routes/marketingCron.js';
 
 // server.ts 가 실제로 app.use 하는 순서와 동일하게 유지할 것.
 const ROUTERS = [
-  oauthRoutes, posRoutes, paymentsRoutes, tossplaceRoutes, aiRoutes,
+  oauthRoutes, phoneAuthRoutes, posRoutes, paymentsRoutes, tossplaceRoutes, aiRoutes,
   printBridgeRoutes, pushRoutes, reservationRoutes, retellRoutes,
   marketingRoutes, siteRoutes, webhookRoutes, marketingCronRoutes,
 ];
@@ -30,6 +31,7 @@ const EXPECTED = [
   'get /api/auth/naver/url',
   'get /api/auth/naver/callback',
   'post /api/auth/social/session',
+  'post /api/auth/phone/signup',
   'post /api/order/relay-to-pos',
   'post /api/payment/confirm',
   'post /api/store/toss-secret',

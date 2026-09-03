@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Phone, Briefcase, MessageCircle, Crown } from "lucide-react";
+import { Phone, Lock, Briefcase, MessageCircle, Crown } from "lucide-react";
 import { MobileShell } from "../../components/layout/MobileShell";
 import { TopBar } from "../../components/ui/TopBar";
 import { Button } from "../../components/ui/Button";
@@ -14,6 +14,8 @@ import { cn } from "../../lib/cn";
 import { useLanguage, t } from "../../lib/i18n";
 import { LanguagePill } from "../../components/ui/LanguagePill";
 import { PhoneVerifyModal } from "../../components/ui/PhoneVerifyModal";
+import { signInWithPhonePassword, signUpWithPhonePassword, MIN_PASSWORD_LENGTH } from "../../lib/phoneAuth";
+import { phoneLoginEmail } from "../../lib/phoneLoginEmail";
 
 type Mode = "login" | "signup";
 
@@ -23,6 +25,7 @@ export default function StaffLogin() {
   const lang = useLanguage();
   const [mode, setMode] = useState<Mode>("login");
   const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [position, setPosition] = useState("");
   const [loading, setLoading] = useState(false);
@@ -60,12 +63,26 @@ export default function StaffLogin() {
       showToast(t("slogin.err.required", lang), "error");
       return;
     }
-    if (mode === "signup") {
-      // 가입 — 전번 SMS 인증 후 진행
-      setVerifyTarget("login");
-      setShowPhoneVerify(true);
+    if (!phoneLoginEmail(phone)) {
+      showToast(t("auth.phone.invalid", lang), "error");
       return;
     }
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      showToast(t("auth.phone.weakPassword", lang), "error");
+      return;
+    }
+    // 예전에는 가입 때 SMS 인증을 태웠다. 문자 발송 수단이 아직 없어 비밀번호로
+    // 대신한다. 인증 없이 통과시키면 자격 증명이 없던 예전 구조로 돌아간다.
+    setLoading(true);
+    try {
+      if (mode === "signup") await signUpWithPhonePassword(phone, password);
+      else await signInWithPhonePassword(phone, password);
+    } catch (err: any) {
+      showToast(err?.message ?? t("auth.phone.wrongCredentials", lang), "error");
+      setLoading(false);
+      return;
+    }
+    setLoading(false);
     await runLogin();
   };
 
@@ -268,6 +285,17 @@ export default function StaffLogin() {
             inputMode="numeric"
             leftSlot={<Phone className="w-4 h-4" />}
           />
+          {!hasSocialPending && (
+            <Input
+              label={t("auth.phone.password", lang)}
+              placeholder={t("auth.phone.passwordPlaceholder", lang)}
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete={mode === "signup" ? "new-password" : "current-password"}
+              leftSlot={<Lock className="w-4 h-4" />}
+            />
+          )}
           {mode === "signup" && (
             <Input
               label={t("slogin.field.position", lang)}
