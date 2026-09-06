@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Shield, Lock, LogOut, Trash2, Users, Store, Search, Briefcase } from "lucide-react";
+import { Shield, Lock, LogOut, Trash2, Users, Store, Search, Briefcase, KeyRound } from "lucide-react";
 import type { Role } from "../lib/types";
 import { MobileShell } from "../components/layout/MobileShell";
 import { TopBar } from "../components/ui/TopBar";
@@ -9,9 +9,23 @@ import { Input } from "../components/ui/Input";
 import { useStore } from "../store/store";
 import { showToast } from "../lib/toast";
 import { useLanguage, t } from "../lib/i18n";
+import { resetPasswordFor } from "../lib/phoneAuth";
 
 export default function Master() {
-  const { isMaster, loginMaster, logoutMaster, users, deleteUser, setMasterPassword } = useStore();
+  const { isMaster, loginMaster, logoutMaster, users, deleteUser, setMasterPassword, masterPassword } = useStore();
+
+  // 비밀번호를 잊은 사람은 스스로 되찾을 길이 없다(문자 발송 없음). 마스터가 대신 바꿔 준다.
+  // 서버는 x-master-password 를 앱 설정의 값과 대조한다 — 이 화면의 삭제와 같은 신뢰 모델이다.
+  const handleReset = async (id: string, name: string) => {
+    const pw = prompt(t("auth.phone.resetPrompt", lang, { name }));
+    if (!pw) return;
+    try {
+      await resetPasswordFor(id, pw, { masterPassword });
+      showToast(t("auth.phone.resetDone", lang), "success");
+    } catch (e: any) {
+      showToast(e?.message ?? t("auth.phone.resetFailed", lang), "error");
+    }
+  };
   const lang = useLanguage();
   const [pw, setPw] = useState("");
   const [tab, setTab] = useState<"owners" | "staff" | "customers" | "settings">("owners");
@@ -142,6 +156,7 @@ export default function Master() {
                 deleted={u.status === "deleted"}
                 deleting={deletingId === u.id}
                 onDelete={() => handleDelete(u.id, "owner", u.restaurantName || u.name)}
+                onResetPassword={() => handleReset(u.id, u.restaurantName || u.name)}
               />
             ))}
           </div>
@@ -168,6 +183,7 @@ export default function Master() {
                   deleted={u.status === "deleted"}
                   deleting={deletingId === u.id}
                   onDelete={() => handleDelete(u.id, "staff", u.name)}
+                  onResetPassword={() => handleReset(u.id, u.name)}
                 />
               );
             })}
@@ -185,6 +201,7 @@ export default function Master() {
                 deleted={u.status === "deleted"}
                 deleting={deletingId === u.id}
                 onDelete={() => handleDelete(u.id, "customer", u.name)}
+                onResetPassword={() => handleReset(u.id, u.name)}
               />
             ))}
           </div>
@@ -248,12 +265,14 @@ function UserRow({
   deleted,
   deleting,
   onDelete,
+  onResetPassword,
 }: {
   title: string;
   subtitle: string;
   deleted?: boolean;
   deleting?: boolean;
   onDelete: () => void;
+  onResetPassword?: () => void;
 }) {
   return (
     <Card padding="md" className="flex items-center gap-3">
@@ -268,6 +287,15 @@ function UserRow({
         </p>
         <p className="text-[12px] text-[var(--color-ink-500)] truncate">{subtitle}</p>
       </div>
+      {onResetPassword && !deleted && (
+        <button
+          onClick={onResetPassword}
+          className="w-9 h-9 rounded-full inline-flex items-center justify-center hover:bg-[var(--color-navy-700)]/10 text-[var(--color-navy-700)]"
+          aria-label="Reset password"
+        >
+          <KeyRound className="w-4 h-4" />
+        </button>
+      )}
       <button
         onClick={onDelete}
         disabled={deleting}

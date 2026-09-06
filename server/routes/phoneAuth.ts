@@ -1,6 +1,9 @@
 import { Router } from 'express';
 
-import { getSupabaseAdmin } from '../lib/db.js';
+import { timingSafeEqual } from 'node:crypto';
+
+import { getDb, getSupabaseAdmin } from '../lib/db.js';
+import { resolveCallerStore } from '../lib/storeAuth.js';
 import { isAcceptablePassword, normalizeLoginPhone, phoneLoginEmail } from '../../src/lib/phoneLoginEmail.js';
 
 const router = Router();
@@ -79,6 +82,100 @@ router.post('/api/auth/phone/signup', async (req, res) => {
   } catch (e: any) {
     console.error('[auth/phone/signup]', e?.message ?? e);
     res.status(500).json({ error: e?.message ?? 'signup failed' });
+  }
+});
+
+// ============================================================
+// 비밀번호 재설정 — 본인이 아니라 **관리자가** 해 준다.
+//
+// 문자를 보낼 수단이 없으니 "번호로 인증하고 스스로 바꾸기"는 불가능하다.
+// 대신 이미 신뢰 관계가 있는 사람이 대신 바꿔 준다:
+//   · 사장님 → 자기 매장 직원
+//   · 마스터 → 누구든 (앱의 기존 마스터 비밀번호 모델을 그대로 쓴다)
+//
+// 사장님이 **손님** 비밀번호는 못 바꾼다. 바꿀 수 있으면 사장님이 손님 계정에
+// 들어가 다른 매장 방문 기록까지 볼 수 있다 — 계정 탈취 경로다. 직원은 그 매장
+// 소속이라 다르다.
+//
+// 마스터 경로는 공유 비밀번호 하나로 열린다. 약하다. 하지만 마스터 화면이 이미
+// 같은 비밀번호로 계정을 **삭제**할 수 있으므로, 여기서 더 약해지는 건 없다.
+// 마스터 인증 자체를 강화하는 건 별도 작업이다.
+// ============================================================
+
+const resetBuckets = new Map<string, { count: number; resetAt: number }>();
+const checkResetRate = (ip: string): boolean => {
+  const now = Date.now();
+  if (resetBuckets.size > 5000) resetBuckets.clear();
+  const b = resetBuckets.get(ip);
+  if (!b || now > b.resetAt) {
+    resetBuckets.set(ip, { count: 1, resetAt: now + 60_000 });
+    return true;
+  }
+  if (b.count >= 10) return false;
+  b.count += 1;
+  return true;
+};
+
+/** 길이가 달라도 시간이 새지 않게 비교한다. */
+const safeEqual = (a: string, b: string): boolean => {
+  const ab = Buffer.from(a, 'utf8');
+  const bb = Buffer.from(b, 'utf8');
+  return ab.length === bb.length && timingSafeEqual(ab, bb);
+};
+
+router.post('/api/auth/phone/reset', async (req, res) => {
+  try {
+    const ip = String(req.ip || 'unknown').split(',')[0].trim();
+    if (!checkResetRate(ip)) {
+      return res.status(429).json({ error: '시도가 너무 잦아요. 1분 후 다시 시도해 주세요.' });
+    }
+
+    const sb = getSupabaseAdmin();
+    const db = getDb();
+    if (!sb || !db) return res.status(503).json({ error: 'DB_NOT_CONFIGURED' });
+
+    const { targetUserId, newPassword } = req.body ?? {};
+    if (!targetUserId || typeof targetUserId !== 'string') {
+      return res.status(400).json({ error: 'targetUserId required' });
+    }
+    if (!isAcceptablePassword(String(newPassword ?? ''))) {
+      return res.status(400).json({ error: 'weak-password' });
+    }
+
+    // ── 누가 요청했나 ──
+    let allowed = false;
+
+    // 1) 마스터 — 앱 전역 설정의 마스터 비밀번호와 대조.
+    const masterHeader = req.headers['x-master-password'];
+    if (typeof masterHeader === 'string' && masterHeader) {
+      const settings = (await db.collection('appState').doc('settings').get()).data();
+      const stored = String(settings?.masterPassword ?? '');
+      if (stored && safeEqual(masterHeader, stored)) allowed = true;
+      else return res.status(401).json({ error: 'bad master password' });
+    }
+
+    // 2) 사장님 — 자기 매장의 직원만.
+    if (!allowed) {
+      const caller = await resolveCallerStore(req.headers.authorization);
+      if (!caller) return res.status(401).json({ error: 'unauthorized' });
+      if (caller.role !== 'owner') return res.status(403).json({ error: 'owner only' });
+
+      const target = (await db.collection('users').doc(targetUserId).get()).data();
+      if (!target) return res.status(404).json({ error: 'user not found' });
+      const isMyStaff = target.role === 'staff' && target.employerStoreId === caller.userId;
+      if (!isMyStaff) return res.status(403).json({ error: 'not your staff' });
+      allowed = true;
+    }
+
+    const { error } = await sb.auth.admin.updateUserById(targetUserId, {
+      password: String(newPassword),
+    });
+    if (error) throw error;
+
+    res.json({ ok: true });
+  } catch (e: any) {
+    console.error('[auth/phone/reset]', e?.message ?? e);
+    res.status(500).json({ error: e?.message ?? 'reset failed' });
   }
 });
 

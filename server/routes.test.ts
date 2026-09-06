@@ -32,6 +32,7 @@ const EXPECTED = [
   'get /api/auth/naver/callback',
   'post /api/auth/social/session',
   'post /api/auth/phone/signup',
+  'post /api/auth/phone/reset',
   'post /api/order/relay-to-pos',
   'post /api/payment/confirm',
   'post /api/store/toss-secret',

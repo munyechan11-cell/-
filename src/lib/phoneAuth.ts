@@ -1,4 +1,4 @@
-import { api } from "./api";
+import { api, authHeaders } from "./api";
 import { t } from "./i18n";
 import { isAcceptablePassword, phoneLoginEmail, MIN_PASSWORD_LENGTH } from "./phoneLoginEmail";
 import { supabase } from "./supabase";
@@ -68,4 +68,38 @@ export async function changePassword(newPassword: string): Promise<void> {
   if (!isAcceptablePassword(newPassword)) throw new Error(t("auth.phone.weakPassword"));
   const { error } = await supabase.auth.updateUser({ password: newPassword });
   if (error) throw error;
+}
+
+/**
+ * 다른 사람의 비밀번호를 대신 재설정한다 — 사장님이 직원을, 마스터가 누구든.
+ *
+ * 문자를 보낼 수단이 없어 본인이 스스로 되찾을 길이 없다. 그래서 이미 신뢰
+ * 관계가 있는 사람이 대신 바꿔 준다. 서버가 그 관계를 확인한다(사장님은 자기
+ * 매장 직원만). 손님 비밀번호는 사장님이 못 바꾼다 — 바꿀 수 있으면 손님
+ * 계정에 들어가 다른 매장 기록까지 보게 되는 탈취 경로다.
+ *
+ * @param opts.masterPassword 마스터 화면에서 부를 때. 있으면 사장님 검사 대신 마스터 검사.
+ */
+export async function resetPasswordFor(
+  targetUserId: string,
+  newPassword: string,
+  opts: { masterPassword?: string } = {}
+): Promise<void> {
+  if (!isAcceptablePassword(newPassword)) throw new Error(t("auth.phone.weakPassword"));
+
+  const headers: Record<string, string> = opts.masterPassword
+    ? { "content-type": "application/json", "x-master-password": opts.masterPassword }
+    : await authHeaders({ "content-type": "application/json" });
+
+  const res = await fetch(api("/api/auth/phone/reset"), {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ targetUserId, newPassword }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    if (body?.error === "weak-password") throw new Error(t("auth.phone.weakPassword"));
+    if (res.status === 401 || res.status === 403) throw new Error(t("auth.phone.resetDenied"));
+    throw new Error(body?.error ?? t("auth.phone.resetFailed"));
+  }
 }
